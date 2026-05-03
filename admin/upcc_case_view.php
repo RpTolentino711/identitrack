@@ -2035,22 +2035,67 @@ if (chatForm) {
 }
 
 // ── HEARING PAUSE TOGGLE ──────────────────────────────────────────────────
+// ── HEARING PAUSE UI UPDATE ──────────────────────────────────────────────
+function updatePauseUI(isPaused, votingActive = false) {
+    _currentPauseState = !!isPaused;
+    const btn = document.getElementById('btnTogglePause');
+    const al  = document.getElementById('liveHearingAlert');
+    
+    if (btn) {
+        btn.disabled = votingActive;
+        btn.title = votingActive ? 'Cannot pause while voting is ongoing' : '';
+        
+        if (isPaused) {
+            btn.innerHTML = '▶️ Resume';
+            if (!btn.className.includes('btn-warning')) {
+                btn.className = btn.className.replace('btn-secondary', 'btn-warning');
+            }
+        } else {
+            btn.innerHTML = '⏸ Pause';
+            if (!btn.className.includes('btn-secondary')) {
+                btn.className = btn.className.replace('btn-warning', 'btn-secondary');
+            }
+        }
+    }
+    
+    if (al) {
+        al.innerHTML = isPaused ? '⏸️ Hearing is paused.' : '🗳️ Hearing is live — panel may now vote.';
+        al.className = 'alert ' + (isPaused ? 'alert-warning' : 'alert-info');
+    }
+}
+
+// ── HEARING PAUSE TOGGLE ──────────────────────────────────────────────────
 function toggleHearingPause() {
     const next = _currentPauseState ? 0 : 1;
     const btn  = document.getElementById('btnTogglePause');
+    
+    // Optimistic UI: Update immediately
     if (btn) btn.disabled = true;
+    updatePauseUI(!!next);
+    
     const fd = new FormData();
     fd.append('action', 'toggle_pause');
     fd.append('is_paused', next);
     fd.append('actor', 'admin');
+    
     fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&action=toggle_pause&is_paused=${next}&actor=admin`, { method:'POST', body:fd })
         .then(r => r.json())
         .then(res => {
-            if (res?.ok) { _currentPauseState = !!next; syncLive(); }
-            else { alert('Failed: ' + (res?.message || 'Unknown')); if (btn) btn.disabled = false; }
+            if (!res?.ok) {
+                // Revert on failure
+                alert('Failed: ' + (res?.message || 'Unknown'));
+                updatePauseUI(!next);
+            } else {
+                // Force a sync to ensure everything is aligned
+                syncLive();
+            }
         })
-        .catch(() => { alert('Network error.'); if (btn) btn.disabled = false; });
+        .catch(() => {
+            alert('Network error.');
+            updatePauseUI(!next);
+        });
 }
+
 
 function admitUser(upccId) {
     fetch(`../api/upcc_case_live.php?action=admit_user&case_id=${CASE_ID}&upcc_id=${upccId}&actor=admin`)
@@ -2212,19 +2257,7 @@ function syncLive() {
 
             // Pause toggle
             if (data.hasOwnProperty('is_paused')) {
-                _currentPauseState = !!data.is_paused;
-                const btn = document.getElementById('btnTogglePause');
-                const al  = document.getElementById('liveHearingAlert');
-                if (btn) {
-                    btn.disabled = roundActiveNow;
-                    btn.title = roundActiveNow ? 'Cannot pause while voting is ongoing' : '';
-                    if (data.is_paused) { btn.innerHTML = '▶️ Resume'; btn.className = btn.className.replace('btn-secondary','btn-warning'); }
-                    else                { btn.innerHTML = '⏸ Pause';  btn.className = btn.className.replace('btn-warning','btn-secondary'); }
-                }
-                if (al) {
-                    al.innerHTML = data.is_paused ? '⏸️ Hearing is paused.' : '🗳️ Hearing is live — panel may now vote.';
-                    al.className = 'alert ' + (data.is_paused ? 'alert-warning' : 'alert-info');
-                }
+                updatePauseUI(data.is_paused, roundActiveNow);
             }
 
             // Disable End Hearing if voting is ongoing
