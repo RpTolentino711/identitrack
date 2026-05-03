@@ -443,12 +443,12 @@ if ($action === 'request_rejoin' && $_SERVER['REQUEST_METHOD'] === 'POST' && $is
         upcc_log_case_activity($caseId, 'UPCC', $actorId, 'REJOIN_REQUESTED');
     }
 
-    // Set to ADMITTED instead of WAITING to allow immediate join
-    db_exec("UPDATE upcc_hearing_presence SET status = 'ADMITTED', last_ping = NOW() WHERE case_id = :c AND user_type = 'UPCC' AND user_id = :u", [':c' => $caseId, ':u' => $actorId]);
+    // Set to WAITING so the Admin sees the request in the waiting room list
+    db_exec("UPDATE upcc_hearing_presence SET status = 'WAITING', last_ping = NOW() WHERE case_id = :c AND user_type = 'UPCC' AND user_id = :u", [':c' => $caseId, ':u' => $actorId]);
     
     $presenceExists = db_one("SELECT 1 FROM upcc_hearing_presence WHERE case_id = :c AND user_type = 'UPCC' AND user_id = :u", [':c' => $caseId, ':u' => $actorId]);
     if (!$presenceExists) {
-        db_exec("INSERT INTO upcc_hearing_presence (case_id, user_type, user_id, status, last_ping) VALUES (:c, 'UPCC', :u, 'ADMITTED', NOW())", [':c' => $caseId, ':u' => $actorId]);
+        db_exec("INSERT INTO upcc_hearing_presence (case_id, user_type, user_id, status, last_ping) VALUES (:c, 'UPCC', :u, 'WAITING', NOW())", [':c' => $caseId, ':u' => $actorId]);
     }
 
     echo json_encode(['ok' => true, 'message' => 'Rejoin request sent to admin']);

@@ -2270,8 +2270,37 @@ function syncLive() {
             // ── PRESENCE ──────────────────────────────────────────────
             const overlay = document.getElementById('presenceOverlay');
             if (overlay) {
-                // Hearing pause functionality removed. Overlay always closed.
-                overlay.classList.remove('open');
+                const stat = String(data.my_status || 'ADMITTED').toUpperCase();
+                if (stat === 'ADMITTED') {
+                    overlay.classList.remove('open');
+                    overlay.style.display = 'none';
+                } else {
+                    overlay.classList.add('open');
+                    overlay.style.display = 'flex';
+                    
+                    const pTitle = document.getElementById('presenceTitle');
+                    const pText  = document.getElementById('presenceText');
+                    const rBtn   = document.getElementById('requestJoinBtn');
+                    const eBtn   = document.getElementById('exitHearingBtn');
+
+                    if (stat === 'WAITING') {
+                        if (pTitle) pTitle.textContent = 'Awaiting Admission';
+                        if (pText)  pText.textContent  = 'Your rejoin request has been sent. Please wait for the Admin to let you in.';
+                        if (rBtn)   rBtn.style.display = 'none';
+                        if (eBtn)   eBtn.style.display = 'flex';
+                    } else if (stat === 'EXITED') {
+                        if (pTitle) pTitle.textContent = 'Hearing Exited';
+                        if (pText)  pText.textContent  = 'You are currently outside the hearing session. Request to rejoin if needed.';
+                        if (rBtn)   rBtn.style.display = 'flex';
+                        if (eBtn)   eBtn.style.display = 'flex';
+                    } else {
+                        // generic fallback
+                        if (pTitle) pTitle.textContent = 'Waiting Room';
+                        if (pText)  pText.textContent  = 'Please wait for the Admin to let you in.';
+                        if (rBtn)   rBtn.style.display = 'flex';
+                        if (eBtn)   eBtn.style.display = 'flex';
+                    }
+                }
             }
         })
         .catch(err => console.warn('[sync]', err));

@@ -904,9 +904,15 @@ body::before {
                   </td>
                   <td>
                     <?php if (!$accessGranted): ?>
-                      <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:rgba(245, 158, 11, 0.15); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.3);">
-                        🔐 LOCKED · CLICK TO REJOIN
-                      </button>
+                      <?php if ($myPresenceStatus === 'WAITING'): ?>
+                        <span class="badge badge-warning" style="font-size:10px; padding:4px 10px; background:rgba(245, 158, 11, 0.1); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.2);">
+                          ⏳ Awaiting Admin Approval
+                        </span>
+                      <?php else: ?>
+                        <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:rgba(245, 158, 11, 0.15); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.3);">
+                          🔐 LOCKED · CLICK TO REJOIN
+                        </button>
+                      <?php endif; ?>
                     <?php elseif (!$accepted || $isLocked): ?>
                       <span style="opacity:0.5; font-style:italic;">📩 [ Confidential Data Hidden ]</span>
                     <?php else: ?>
