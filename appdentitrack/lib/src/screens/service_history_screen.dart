@@ -172,15 +172,21 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
       stream: Stream.periodic(const Duration(seconds: 1)),
       builder: (context, snapshot) {
         final double confirmedCompleted = _data!.hoursCompleted;
+        final double assigned = _data!.hoursAssigned;
 
-        double hoursRemaining = _data!.hoursAssigned - confirmedCompleted;
+        double hoursRemaining = assigned - confirmedCompleted;
         if (hoursRemaining < 0) hoursRemaining = 0;
 
-        final progress = _data!.hoursAssigned > 0
-            ? (confirmedCompleted / _data!.hoursAssigned).clamp(0.0, 1.0)
+        // Only show 100% ring if the requirement is officially COMPLETED
+        final bool officiallyDone = _data!.requirements.any(
+          (r) => r.status.toUpperCase() == 'COMPLETED',
+        );
+        final double progress = assigned > 0
+            ? (officiallyDone
+                ? 1.0
+                : (confirmedCompleted / assigned).clamp(0.0, 0.99))
             : 0.0;
 
-        // Show confirmed hours only (not inflated by live timer)
         final double liveCompleted = confirmedCompleted;
 
         final totalSecondsRemaining = (hoursRemaining * 3600).floor();
@@ -218,26 +224,28 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                     ),
                     SizedBox.expand(
                       child: CircularProgressIndicator(
-                        value: progress.clamp(0, 1),
+                        value: progress,
                         strokeWidth: 12,
                         backgroundColor: Colors.grey.shade300,
-                        valueColor: const AlwaysStoppedAnimation<Color>(blue),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          officiallyDone ? const Color(0xFF2E7D32) : const Color(0xFF193B8C),
+                        ),
                       ),
                     ),
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          '$h:$m:$s',
-                          style: const TextStyle(
-                            fontSize: 28,
+                          officiallyDone ? '✓' : '$h:$m:$s',
+                          style: TextStyle(
+                            fontSize: officiallyDone ? 40 : 28,
                             fontWeight: FontWeight.w900,
-                            color: blue,
+                            color: officiallyDone ? const Color(0xFF2E7D32) : const Color(0xFF193B8C),
                             letterSpacing: -0.5,
                           ),
                         ),
                         Text(
-                          'countdown',
+                          officiallyDone ? 'Complete!' : 'remaining',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade600,
@@ -257,7 +265,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                     children: [
                       Text(
                         _formatHoursPrecise(liveCompleted),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: blue),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF193B8C)),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -270,8 +278,8 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                   Column(
                     children: [
                       Text(
-                        _formatHoursPrecise(_data!.hoursAssigned),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: blue),
+                        _formatHoursPrecise(assigned),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF193B8C)),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -282,6 +290,27 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                   ),
                 ],
               ),
+              if (!officiallyDone && hoursRemaining <= 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8E1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFFE082)),
+                  ),
+                  child: Text(
+                    'Awaiting admin confirmation of your completed hours.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );

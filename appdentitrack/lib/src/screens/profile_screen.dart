@@ -228,50 +228,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 value: widget.studentName,
               ),
 
-              const SizedBox(height: 24),
-
-              // Settings Section
-              Text(
-                'Settings',
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.brightness_6_rounded, color: Color(0xFF6A1B9A)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Dark Mode',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: blueDark),
-                          ),
-                          Text(
-                            'Currently disabled',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.toggle_off_rounded, color: Colors.grey),
-                  ],
-                ),
-              ),
-
               const SizedBox(height: 28),
 
               // Logout Button
