@@ -753,7 +753,10 @@ textarea.form-control{resize:vertical}
 @media(max-width:900px){.case-grid{grid-template-columns:1fr}}
 </style>
 </head>
-<body>
+<body style="padding-top: 80px;">
+<div style="background:red; color:white; padding:20px; font-size:24px; text-align:center; position:fixed; top:0; left:0; width:100%; z-index:99999; font-weight:bold;">
+  DEBUG: CODE UPDATED - IF YOU SEE THIS, HARD REFRESH (CTRL+F5)
+</div>
 <?php require_once __DIR__ . '/header.php'; ?>
 <div class="admin-shell">
   <?php require_once __DIR__ . '/sidebar.php'; ?>
