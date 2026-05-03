@@ -1,4 +1,5 @@
 <?php
+die('DEBUG: SERVER IS SERVING THE CORRECT FILE');
 require_once __DIR__ . '/../database/database.php';
 require_admin();
 ensure_hearing_workflow_schema();
