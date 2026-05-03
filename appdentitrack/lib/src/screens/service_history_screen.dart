@@ -529,7 +529,12 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        if (_data!.isUnderInvestigation)
+                        // Only show grace-period banner if student hasn't accepted yet
+                        // (no sessions = no service = not yet accepted).
+                        // If they have sessions, they already accepted — hide the banner.
+                        if (_data!.isUnderInvestigation &&
+                            _data!.sessions.isEmpty &&
+                            _data!.activeSession == null)
                           Container(
                             margin: const EdgeInsets.only(bottom: 14),
                             padding: const EdgeInsets.all(14),
