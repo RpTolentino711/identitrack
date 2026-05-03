@@ -463,6 +463,9 @@ if (function_exists('db_one')) {
   }
 </style>
 
+<div style="background:red; color:white; padding:10px; font-size:20px; text-align:center; z-index:99999; font-weight:bold;">
+  GLOBAL DEBUG: CODE UPDATED - IF YOU SEE THIS, IT IS LIVE.
+</div>
 <header class="admin-header">
 
   <div class="admin-header-inner">
