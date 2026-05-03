@@ -259,13 +259,27 @@ if ($closedCase) {
   // If the case is already RESOLVED, student has accepted — no appeal possible.
   $isResolved = $closedCase['case_status'] === 'RESOLVED';
 
+  // If the student has an ACTIVE or COMPLETED community service requirement
+  // linked to this case, they have already accepted the Category 2 decision.
+  $hasAcceptedViaService = false;
+  if ((int)$closedCase['decided_category'] === 2) {
+    $csrRow = db_row(
+      "SELECT requirement_id FROM community_service_requirement
+       WHERE student_id = :sid AND case_id = :cid
+         AND status IN ('ACTIVE', 'COMPLETED')
+       LIMIT 1",
+      [':sid' => $studentId, ':cid' => (int)$closedCase['case_id']]
+    );
+    $hasAcceptedViaService = !empty($csrRow);
+  }
+
   $latestPunishment = [
     'case_id' => (int)$closedCase['case_id'],
     'category' => (int)$closedCase['decided_category'],
     'decision_text' => (string)$closedCase['final_decision'],
     'details' => json_decode((string)$closedCase['punishment_details'], true) ?: [],
     'resolved_at' => (string)$closedCase['resolution_date'],
-    'can_appeal' => !$isResolved && $appealWindowOpen && !$hasActiveAppeal,
+    'can_appeal' => !$isResolved && !$hasAcceptedViaService && $appealWindowOpen && !$hasActiveAppeal,
     'appeal_status' => $latestAppeal ? (string)$latestAppeal['status'] : '',
   ];
 }

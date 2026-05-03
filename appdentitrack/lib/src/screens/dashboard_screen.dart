@@ -544,8 +544,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // Override can_appeal if the student already accepted locally.
     // This guards against stale server data (e.g. after a DB migration).
+    // Also: if community service hours exist, the student already accepted
+    // the Category 2 decision — so the appeal window must be closed even
+    // after a fresh APK install (SharedPreferences wiped).
+    final bool studentHasAcceptedViaService =
+        punishment.category == 2 && _communityHours > 0;
     final bool effectiveCanAppeal =
-        punishment.canAppeal && !_locallyAcceptedCaseIds.contains(punishment.caseId);
+        punishment.canAppeal &&
+        !_locallyAcceptedCaseIds.contains(punishment.caseId) &&
+        !studentHasAcceptedViaService;
 
     final details = punishment.details;
     final interventions = details['interventions'] is List
