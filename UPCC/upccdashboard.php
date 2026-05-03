@@ -28,7 +28,8 @@ $panelAssignmentMatch = "EXISTS (SELECT 1 FROM upcc_case_panel_member ucpm WHERE
 function can_access_case($case) {
     if (in_array($case['status'], ['CLOSED', 'RESOLVED'])) return true;
     if (!empty($case['hearing_date']) && !empty($case['hearing_time'])) {
-        return ($case['hearing_is_open'] == 1 && ($case['hearing_is_paused'] == 0));
+        // Allow access even if paused, so they can see the pause overlay and wait.
+        return ($case['hearing_is_open'] == 1);
     }
     return true;
 }

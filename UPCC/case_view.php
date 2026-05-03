@@ -2282,7 +2282,7 @@ function syncLive() {
                 if (paused) {
                     overlay.classList.add('open');
                     icon.textContent  = '⏸️'; title.textContent = 'Hearing Paused';
-                    text.textContent  = 'Admin left the hearing, hearing is paused. Please wait…';
+                    text.textContent  = 'The hearing has been paused by the Admin. Please wait…';
                     if (reqBtn) reqBtn.style.display = 'none';
                     if (exiBtn) exiBtn.style.display = 'block';
                 } else if (status === 'WAITING') {
