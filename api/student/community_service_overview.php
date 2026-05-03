@@ -117,7 +117,8 @@ foreach ($reqs as $r) $assigned += (float)($r['hours_required']);
 $completed = 0.0;
 foreach ($sessions as $s) $completed += (float)($s['hours_done']);
 
-$isUnderInvestigation = ((string)$policy['mode'] === 'APPEAL_GRACE_PERIOD');
+// If the student already has ACTIVE community service, they've accepted — not under investigation
+$isUnderInvestigation = ((string)$policy['mode'] === 'APPEAL_GRACE_PERIOD') && count($reqs) === 0;
 $hasActiveAdmin = ($activeAdmin !== null && $activeAdmin !== false);
 
 echo json_encode([

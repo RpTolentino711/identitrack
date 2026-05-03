@@ -1357,7 +1357,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 18),
 
-                        if (_accountMessage != _dismissedMessageText && _accountMode != 'PROBATION_FREEZE') ...[
+                        // Hide the "5 days to accept/appeal" banner if student
+                        // already has community service hours — they accepted.
+                        if (_accountMessage != _dismissedMessageText &&
+                            _accountMode != 'PROBATION_FREEZE' &&
+                            !(_accountMode == 'APPEAL_GRACE_PERIOD' && _communityHours > 0)) ...[
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.only(left: 12, top: 12, bottom: 12, right: 4),
