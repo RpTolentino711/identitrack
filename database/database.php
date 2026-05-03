@@ -608,9 +608,6 @@ function upcc_staff_case_access_block_reason(array $case): ?string
     return 'This hearing has not been scheduled by Admin yet.';
   }
 
-  if ((int)($case['hearing_is_open'] ?? 0) === 1 && (int)($case['hearing_is_paused'] ?? 0) === 1) {
-    return 'This hearing has been paused by the admin. Please wait for the admin to resume it.';
-  }
 
   if ((int)($case['hearing_is_open'] ?? 0) !== 1) {
     return 'Admin has not opened this hearing yet.';

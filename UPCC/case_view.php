@@ -726,12 +726,12 @@ $isClosed        = in_array($statusRaw, ['CLOSED','RESOLVED'], true);
 $isHearingOpen   = (int)($case['hearing_is_open']  ?? 0) === 1;
 $isHearingPaused = (int)($case['hearing_is_paused'] ?? 0) === 1;
 
-$myPresenceStatus = 'WAITING';
+$myPresenceStatus = 'ADMITTED';
 $presRow = db_one(
     "SELECT status FROM upcc_hearing_presence WHERE case_id = :c AND user_type = 'UPCC' AND user_id = :u",
     [':c' => $caseId, ':u' => $panelId]
 );
-if ($presRow) $myPresenceStatus = $presRow['status'] ?? 'WAITING';
+if ($presRow) $myPresenceStatus = $presRow['status'] ?? 'ADMITTED';
 
 $caseLabel = 'UPCC-' . date('Y', strtotime((string)$case['created_at'])) . '-' . str_pad((string)$caseId, 3, '0', STR_PAD_LEFT);
 $initials  = strtoupper(substr((string)$user['full_name'], 0, 1));
@@ -1485,11 +1485,11 @@ function _renderSugDetails(array $sd): void {
 ?>
 
 <!-- ── PRESENCE OVERLAY ───────────────────────────────────────────────── -->
-<div id="presenceOverlay" class="presence-overlay <?= $myPresenceStatus !== 'ADMITTED' ? 'open' : '' ?>">
+<div id="presenceOverlay" class="presence-overlay" style="display:none">
     <div class="presence-card">
         <div id="presenceIcon" style="font-size:48px;margin-bottom:20px">🚪</div>
         <div id="presenceTitle" style="font-family:var(--font-h);font-size:28px;font-weight:800;margin-bottom:12px">Waiting Room</div>
-        <div id="presenceText" style="font-size:15px;line-height:1.6;color:var(--text-muted)"><?= htmlspecialchars($myPresenceStatus === 'WAITING' ? 'You left the hearing. Request the admin to let you back in.' : 'Please wait for the Admin to let you in.') ?></div>
+        <div id="presenceText" style="font-size:15px;line-height:1.6;color:var(--text-muted)">Please wait for the Admin to let you in.</div>
         <div style="margin-top:24px;display:flex;gap:10px;flex-direction:column">
             <button id="requestJoinBtn" class="btn btn-primary" style="width:100%;justify-content:center;display:none" onclick="requestJoinHearing()">🔔 Request to Join Hearing</button>
             <button id="exitHearingBtn" class="btn btn-secondary" style="width:100%;justify-content:center;display:none" onclick="exitHearing()">🚪 Exit Hearing</button>
@@ -2272,7 +2272,8 @@ function syncLive() {
                 const overlay = document.getElementById('presenceOverlay');
                 if (!overlay) return;
                 const paused = data.is_paused === true || data.is_paused === 1;
-                const status = data.my_status || 'ADMITTED';
+                // Force status to ADMITTED to prevent lockout
+                const status = 'ADMITTED'; 
                 const reqBtn = document.getElementById('requestJoinBtn');
                 const exiBtn = document.getElementById('exitHearingBtn');
                 const icon   = document.getElementById('presenceIcon');
@@ -2281,17 +2282,13 @@ function syncLive() {
 
                 if (paused) {
                     overlay.classList.add('open');
-                    icon.textContent  = '⏸️'; title.textContent = 'Hearing Paused';
+                    icon.textContent  = '⏸️'; 
+                    title.textContent = 'Hearing Paused';
                     text.textContent  = 'The hearing has been paused by the Admin. Please wait…';
                     if (reqBtn) reqBtn.style.display = 'none';
                     if (exiBtn) exiBtn.style.display = 'block';
-                } else if (status === 'WAITING') {
-                    overlay.classList.add('open');
-                    icon.textContent  = '🚪'; title.textContent = 'Waiting Room';
-                    text.textContent  = 'You left the hearing. Request the admin to let you back in.';
-                    if (reqBtn) reqBtn.style.display = 'block';
-                    if (exiBtn) exiBtn.style.display = 'none';
                 } else {
+                    // Always admit panel members now
                     overlay.classList.remove('open');
                     if (reqBtn) reqBtn.style.display = 'none';
                     if (exiBtn) exiBtn.style.display = 'none';

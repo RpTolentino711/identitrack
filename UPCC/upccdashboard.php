@@ -93,7 +93,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         $cid = fmt_case_id((int)$c['case_id'], $c['created_at']);
         $href = 'case_view.php?id=' . (int)$c['case_id'];
         $myPresenceStatus = strtoupper((string)($c['my_presence_status'] ?? 'ADMITTED'));
-        $accessGranted = can_access_case($c) && $myPresenceStatus === 'ADMITTED';
+        $accessGranted = can_access_case($c);
         $accepted = isset($acceptedCases[(int)$c['case_id']]);
         $isLocked = !$accessGranted;
         $lockedClass = $isLocked ? 'case-locked' : '';
