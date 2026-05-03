@@ -165,27 +165,23 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
   }
 
   Widget _circularProgressCard() {
-    final activeSession = _data!.activeSession;
-
+    // Only use server-confirmed completed hours (sessions with time_out).
+    // Do NOT add live session time — that would show false completion
+    // before the session is officially logged out by the admin/scanner.
     return StreamBuilder(
       stream: Stream.periodic(const Duration(seconds: 1)),
       builder: (context, snapshot) {
-        double liveCompleted = _data!.hoursCompleted;
+        final double confirmedCompleted = _data!.hoursCompleted;
 
-        if (activeSession != null) {
-          try {
-            final start = DateTime.parse(activeSession.timeIn);
-            final duration = DateTime.now().difference(start);
-            if (!duration.isNegative) {
-               liveCompleted += duration.inSeconds / 3600.0;
-            }
-          } catch (_) {}
-        }
-
-        double hoursRemaining = _data!.hoursAssigned - liveCompleted;
+        double hoursRemaining = _data!.hoursAssigned - confirmedCompleted;
         if (hoursRemaining < 0) hoursRemaining = 0;
 
-        final progress = _data!.hoursAssigned > 0 ? liveCompleted / _data!.hoursAssigned : 0.0;
+        final progress = _data!.hoursAssigned > 0
+            ? (confirmedCompleted / _data!.hoursAssigned).clamp(0.0, 1.0)
+            : 0.0;
+
+        // Show confirmed hours only (not inflated by live timer)
+        final double liveCompleted = confirmedCompleted;
 
         final totalSecondsRemaining = (hoursRemaining * 3600).floor();
         final h = (totalSecondsRemaining ~/ 3600).toString().padLeft(2, '0');

@@ -26,8 +26,17 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "lib/assets/identilogo.png"
+  adaptive_icon_background: "#1a3a8f"
+  adaptive_icon_foreground: "lib/assets/identilogo.png"
 
 flutter:
   uses-material-design: true
   assets:
     - lib/assets/logo.png
+    - lib/assets/identilogo.png

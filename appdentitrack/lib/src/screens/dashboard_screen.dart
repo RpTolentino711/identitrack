@@ -54,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isSubmitting = false;
   bool _activeServiceSession = false;
   bool _dismissedProbationBanner = false;
+  final Set<int> _locallyAcceptedCaseIds = {};
 
   static const blue = Color(0xFF193B8C);
   static const blueDark = Color(0xFF102B6B);
@@ -70,6 +71,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) {
         _seenAlertsCount = prefs.getInt('seen_alerts_count') ?? 0;
         _lastMinorOffenseCount = prefs.getInt('last_minor_offense_count') ?? 0;
+        // Restore locally accepted case IDs to prevent re-showing appeal window
+        final accepted = prefs.getStringList('locally_accepted_case_ids') ?? [];
+        // Restore dismissed punishment card ID
+        final dismissedId = prefs.getString('dismissed_punishment_card');
+        setState(() {
+          _locallyAcceptedCaseIds.addAll(accepted.map((e) => int.tryParse(e) ?? -1).where((e) => e > 0));
+          if (dismissedId != null) _dismissedPunishmentId = dismissedId;
+        });
       }
     });
 
@@ -494,6 +503,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           studentId: widget.studentId,
           caseId: punishment.caseId,
         );
+        // Persist acceptance locally so the appeal window never re-appears
+        // even if the server returns stale data (e.g. after a DB migration).
+        final prefs = await SharedPreferences.getInstance();
+        _locallyAcceptedCaseIds.add(punishment.caseId);
+        await prefs.setStringList(
+          'locally_accepted_case_ids',
+          _locallyAcceptedCaseIds.map((e) => e.toString()).toList(),
+        );
         if (mounted) {
           ScaffoldMessenger.of(context)
             ..clearSnackBars()
@@ -524,6 +541,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (punishment == null) {
       return const SizedBox.shrink();
     }
+
+    // Override can_appeal if the student already accepted locally.
+    // This guards against stale server data (e.g. after a DB migration).
+    final bool effectiveCanAppeal =
+        punishment.canAppeal && !_locallyAcceptedCaseIds.contains(punishment.caseId);
 
     final details = punishment.details;
     final interventions = details['interventions'] is List
@@ -570,7 +592,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         : const Color(0xFF4A148C);
 
     return InkWell(
-      onTap: punishment.canAppeal
+      onTap: effectiveCanAppeal
           ? () {
               setState(() {
                 _isPunishmentExpanded = !_isPunishmentExpanded;
@@ -625,7 +647,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Text(
                       _activeServiceSession && punishment.category == 2
                           ? 'Serving Formative Intervention'
-                          : (punishment.canAppeal
+                          : (effectiveCanAppeal
                               ? 'Appeal window active'
                               : 'Decision Accepted & Finalized'),
                       style: TextStyle(
@@ -637,17 +659,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
-              if (!punishment.canAppeal)
-                IconButton(
-                  onPressed: () async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setString('dismissed_punishment_card', punishment.caseId.toString());
-                    setState(() {
-                      _dismissedPunishmentId = punishment.caseId.toString();
-                    });
-                  },
-                  icon: Icon(Icons.close_rounded, color: Colors.grey.shade400),
-                ),
+              // Always show dismiss X — student can close the card at any time
+              IconButton(
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('dismissed_punishment_card', punishment.caseId.toString());
+                  setState(() {
+                    _dismissedPunishmentId = punishment.caseId.toString();
+                  });
+                },
+                icon: Icon(Icons.close_rounded, color: Colors.grey.shade400),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -690,7 +712,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ],
-          if (punishment.canAppeal) ...[
+          if (effectiveCanAppeal) ...[
             const SizedBox(height: 10),
             Container(
               width: double.infinity,

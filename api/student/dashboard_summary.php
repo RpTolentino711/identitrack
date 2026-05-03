@@ -256,7 +256,7 @@ if ($closedCase) {
   $appealWindowOpen = $resolutionAt > 0 && (time() - $resolutionAt) <= (5 * 86400);
   $hasActiveAppeal = $latestAppeal && in_array((string)($latestAppeal['status'] ?? ''), ['PENDING', 'REVIEWING'], true);
   
-  // If the case is already RESOLVED, it is permanently finalized and cannot be appealed again.
+  // If the case is already RESOLVED, student has accepted — no appeal possible.
   $isResolved = $closedCase['case_status'] === 'RESOLVED';
 
   $latestPunishment = [
@@ -265,7 +265,7 @@ if ($closedCase) {
     'decision_text' => (string)$closedCase['final_decision'],
     'details' => json_decode((string)$closedCase['punishment_details'], true) ?: [],
     'resolved_at' => (string)$closedCase['resolution_date'],
-    'can_appeal' => $appealWindowOpen && !$hasActiveAppeal && !$isResolved,
+    'can_appeal' => !$isResolved && $appealWindowOpen && !$hasActiveAppeal,
     'appeal_status' => $latestAppeal ? (string)$latestAppeal['status'] : '',
   ];
 }
