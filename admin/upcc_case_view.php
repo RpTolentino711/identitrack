@@ -875,9 +875,6 @@ textarea.form-control{resize:vertical}
                       <?php endif; ?>
                     </form>
                   <?php else: ?>
-                    <button type="button" id="btnTogglePause" class="btn <?= $isHearingPaused ? 'btn-warning' : 'btn-secondary' ?> btn-sm" onclick="toggleHearingPause()">
-                      <?= $isHearingPaused ? '▶️ Resume' : '⏸ Pause' ?>
-                    </button>
                     <form method="post" style="display:inline">
                       <input type="hidden" name="action" value="close_hearing">
                       <button type="submit" id="btnEndHearing" class="btn btn-danger btn-sm">⬛ End Hearing</button>
@@ -890,8 +887,8 @@ textarea.form-control{resize:vertical}
               </div>
 
               <?php if ($isHearingOpen): ?>
-                <div id="liveHearingAlert" class="alert <?= $isHearingPaused ? 'alert-warning' : 'alert-info' ?>">
-                  <?= $isHearingPaused ? '⏸️ Hearing is paused.' : '🗳️ Hearing is live — panel may now vote.' ?>
+                <div id="liveHearingAlert" class="alert alert-info">
+                  🗳️ Hearing is live — panel may now vote.
                 </div>
               <?php endif; ?>
               <?php endif; ?>
@@ -2066,34 +2063,7 @@ function updatePauseUI(isPaused, votingActive = false) {
 
 // ── HEARING PAUSE TOGGLE ──────────────────────────────────────────────────
 function toggleHearingPause() {
-    const next = _currentPauseState ? 0 : 1;
-    const btn  = document.getElementById('btnTogglePause');
-    
-    // Optimistic UI: Update immediately
-    if (btn) btn.disabled = true;
-    updatePauseUI(!!next);
-    
-    const fd = new FormData();
-    fd.append('action', 'toggle_pause');
-    fd.append('is_paused', next);
-    fd.append('actor', 'admin');
-    
-    fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&action=toggle_pause&is_paused=${next}&actor=admin`, { method:'POST', body:fd })
-        .then(r => r.json())
-        .then(res => {
-            if (!res?.ok) {
-                // Revert on failure
-                alert('Failed: ' + (res?.message || 'Unknown'));
-                updatePauseUI(!next);
-            } else {
-                // Force a sync to ensure everything is aligned
-                syncLive();
-            }
-        })
-        .catch(() => {
-            alert('Network error.');
-            updatePauseUI(!next);
-        });
+    console.log('Hearing pause functionality removed.');
 }
 
 

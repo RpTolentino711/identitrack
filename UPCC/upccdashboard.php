@@ -189,11 +189,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         <?php if ($c['hearing_is_open'] == 1 || !empty($c['hearing_date'])): ?>
           <span class="t-name" style="font-size:12px; display:block; margin-bottom:4px;"><?php echo $hearingDate; ?></span>
           <?php if ($c['hearing_is_open'] == 1): ?>
-            <?php if ($c['hearing_is_paused'] == 1): ?>
-              <span class="badge badge-warning" style="font-size:11px;">⏸️ Paused</span>
-            <?php else: ?>
-              <span class="badge badge-success" style="font-size:11px;">📬 Open</span>
-            <?php endif; ?>
+            <span class="badge badge-success" style="font-size:11px;">📬 Open</span>
           <?php else: ?>
             <span class="badge badge-muted" style="font-size:11px;">✉️ Locked until Admin opens</span>
           <?php endif; ?>

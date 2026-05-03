@@ -2268,31 +2268,10 @@ function syncLive() {
             }
 
             // ── PRESENCE ──────────────────────────────────────────────
-            if (data.hasOwnProperty('my_status')) {
-                const overlay = document.getElementById('presenceOverlay');
-                if (!overlay) return;
-                const paused = data.is_paused === true || data.is_paused === 1;
-                // Force status to ADMITTED to prevent lockout
-                const status = 'ADMITTED'; 
-                const reqBtn = document.getElementById('requestJoinBtn');
-                const exiBtn = document.getElementById('exitHearingBtn');
-                const icon   = document.getElementById('presenceIcon');
-                const title  = document.getElementById('presenceTitle');
-                const text   = document.getElementById('presenceText');
-
-                if (paused) {
-                    overlay.classList.add('open');
-                    icon.textContent  = '⏸️'; 
-                    title.textContent = 'Hearing Paused';
-                    text.textContent  = 'The hearing has been paused by the Admin. Please wait…';
-                    if (reqBtn) reqBtn.style.display = 'none';
-                    if (exiBtn) exiBtn.style.display = 'block';
-                } else {
-                    // Always admit panel members now
-                    overlay.classList.remove('open');
-                    if (reqBtn) reqBtn.style.display = 'none';
-                    if (exiBtn) exiBtn.style.display = 'none';
-                }
+            const overlay = document.getElementById('presenceOverlay');
+            if (overlay) {
+                // Hearing pause functionality removed. Overlay always closed.
+                overlay.classList.remove('open');
             }
         })
         .catch(err => console.warn('[sync]', err));

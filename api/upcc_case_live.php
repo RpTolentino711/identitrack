@@ -388,17 +388,8 @@ if ($action === 'ping_presence' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // TOGGLE PAUSE ACTION (Admin only)
 // ─────────────────────────────────────────────────────────────────────────
 if ($action === 'toggle_pause' && $isAdmin) {
-    $isPaused = (int)($_POST['is_paused'] ?? $_GET['is_paused'] ?? 0);
-    $reason = $isPaused ? 'MANUAL' : null;
-    db_exec("UPDATE upcc_case SET hearing_is_paused = :p, hearing_pause_reason = :r WHERE case_id = :c", [':p' => $isPaused, ':r' => $reason, ':c' => $caseId]);
-    
-    db_exec("INSERT INTO upcc_hearing_presence (case_id, user_type, user_id, status, last_ping) 
-             VALUES (:c, 'ADMIN', :u, 'ADMITTED', NOW())
-             ON DUPLICATE KEY UPDATE last_ping = NOW()", [':c' => $caseId, ':u' => $actorId]);
-    
-    upcc_log_case_activity($caseId, 'ADMIN', $actorId, $isPaused ? 'HEARING_PAUSED' : 'HEARING_RESUMED');
-    
-    echo json_encode(['ok' => true, 'is_paused' => $isPaused]);
+    // Action disabled: Hearing pause/resume functionality has been removed.
+    echo json_encode(['ok' => true, 'is_paused' => 0]);
     exit;
 }
 
@@ -693,7 +684,7 @@ if ($action === 'sync') {
         'total_members' => $totalMembers,
         'votes' => $votes,
         'chat' => $chat_messages,
-        'is_paused' => $isHearingPaused,
+        'is_paused' => false,
         'is_closed' => $isClosed,
         'case_status' => (string)($case['status'] ?? ''),
         'my_status' => $myPresenceStatus,
