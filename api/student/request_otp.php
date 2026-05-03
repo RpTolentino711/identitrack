@@ -76,9 +76,10 @@ function send_otp_email(string $toEmail, string $otp): array {
           text-align: center;
         }
         .logo-img {
+          display: block;
           width: 90px;
           height: auto;
-          margin-bottom: 24px;
+          margin: 0 auto 24px auto;
           border-radius: 20px;
           box-shadow: 0 8px 16px rgba(0,0,0,0.15);
         }
@@ -148,7 +149,7 @@ function send_otp_email(string $toEmail, string $otp): array {
         <div class='email-container'>
           <div class='header'>
             <div class='badge'>Security Alert</div>
-            <img src='cid:identitrack_logo' alt='IdentiTrack' class='logo-img'>
+            <img src='cid:identitrack_logo' alt='IdentiTrack' class='logo-img' style='display:block;width:90px;height:auto;margin:0 auto 24px auto;border-radius:20px;'>
             <h1>Verify your account</h1>
           </div>
           <div class='content'>
