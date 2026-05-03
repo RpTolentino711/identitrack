@@ -513,16 +513,8 @@ if ($action === 'sync') {
     $activeVoteRound = db_one("SELECT 1 FROM upcc_case_vote_round WHERE case_id = :c AND is_active = 1 LIMIT 1", [':c' => $caseId]);
     $isVotingOngoing = $activeVoteRound !== null;
 
-    if (!$isClosed && !$isVotingOngoing) {
-        if (!$isAdminOnline && !$isHearingPaused) {
-            // Admin went offline, auto-pause
-            db_exec("UPDATE upcc_case SET hearing_is_paused = 1, hearing_pause_reason = 'AUTO' WHERE case_id = :c", [':c' => $caseId]);
-            $isHearingPaused = true;
-            $pauseReason = 'AUTO';
-            upcc_log_case_activity($caseId, 'SYSTEM', 0, 'HEARING_AUTO_PAUSED', ['reason' => 'ADMIN_OFFLINE']);
-            db_exec("INSERT INTO upcc_case_discussion (case_id, message, created_at, updated_at) VALUES (:c, :m, NOW(), NOW())", [':c' => $caseId, ':m' => "⏸️ Admin left the hearing. Hearing is paused."]);
-        }
-    }
+    // Auto-pause logic removed to allow full manual control by Admin.
+
     
     // Get user presence status
     $myPresenceStatus = 'ADMITTED';
