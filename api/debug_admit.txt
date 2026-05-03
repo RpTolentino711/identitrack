@@ -1,0 +1,22 @@
+2026-04-27 11:23:11 - admit_user called. Admin Actor: 1, Target: 0
+2026-04-27 11:23:11 - Target ID was 0! Array: Array
+(
+    [action] => admit_user
+    [case_id] => 10
+    [upcc_id] => undefined
+)
+
+2026-04-27 11:28:36 - admit_user called. Admin Actor: 1, Target: 4
+2026-04-27 11:28:36 - DB Exec Affected Rows: 1
+2026-04-27 11:45:57 - admit_user called. Admin Actor: 1, Target: 4
+2026-04-27 11:45:57 - DB Exec Affected Rows: 1
+2026-04-27 19:16:11 - admit_user called. Admin Actor: 1, Target: 4
+2026-04-27 19:16:11 - DB Exec Affected Rows: 1
+2026-04-27 22:08:40 - admit_user called. Admin Actor: 1, Target: 4
+2026-04-27 22:08:40 - DB Exec Affected Rows: 1
+2026-04-27 22:08:52 - admit_user called. Admin Actor: 1, Target: 4
+2026-04-27 22:08:52 - DB Exec Affected Rows: 0
+2026-04-27 22:09:13 - admit_user called. Admin Actor: 1, Target: 4
+2026-04-27 22:09:13 - DB Exec Affected Rows: 0
+2026-04-27 22:49:29 - admit_user called. Admin Actor: 1, Target: 4
+2026-04-27 22:49:29 - DB Exec Affected Rows: 1

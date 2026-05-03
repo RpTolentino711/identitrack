@@ -1,0 +1,73 @@
+POST started.
+Params: agree=1, roundNo=6, suggestedBy=7
+POST started.
+Params: agree=1, roundNo=7, suggestedBy=7
+POST started.
+Params: agree=1, roundNo=7, suggestedBy=7
+POST started.
+Params: agree=1, roundNo=7, suggestedBy=7
+POST started.
+Params: agree=1, roundNo=7, suggestedBy=7
+POST started.
+Params: agree=1, roundNo=8, suggestedBy=7
+Failed: existing vote found.
+POST started.
+Params: agree=1, roundNo=8, suggestedBy=7
+Failed: existing vote found.
+POST started.
+Params: agree=1, roundNo=8, suggestedBy=7
+Failed: existing vote found.
+POST started.
+Params: agree=1, roundNo=8, suggestedBy=7
+Failed: existing vote found.
+POST started.
+Params: agree=0, roundNo=8, suggestedBy=7
+Failed: existing vote found.
+POST started.
+Params: agree=1, roundNo=9, suggestedBy=7
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service","Referral for Counseling"],"service_hours":500,"description":""}
+POST started.
+Params: agree=0, roundNo=1, suggestedBy=4
+Insert SUCCEEDED. Cat=0, Details=
+POST started.
+Params: agree=1, roundNo=1, suggestedBy=4
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service"],"service_hours":500,"description":""}
+POST started.
+Params: agree=1, roundNo=1, suggestedBy=7
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service"],"service_hours":500,"description":""}
+POST started.
+Params: agree=1, roundNo=1, suggestedBy=4
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service"],"service_hours":500,"description":""}
+POST started.
+Params: agree=0, roundNo=1, suggestedBy=4
+Insert SUCCEEDED. Cat=0, Details=
+POST started.
+Params: agree=0, roundNo=2, suggestedBy=7
+Insert SUCCEEDED. Cat=0, Details=
+POST started.
+Params: agree=0, roundNo=3, suggestedBy=7
+Insert SUCCEEDED. Cat=0, Details=
+POST started.
+Params: agree=1, roundNo=4, suggestedBy=4
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service","Referral for Counseling","Attendance to lectures"],"service_hours":900,"description":""}
+POST started.
+Params: agree=1, roundNo=1, suggestedBy=4
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service"],"service_hours":900,"description":""}
+POST started.
+Params: agree=1, roundNo=1, suggestedBy=4
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service"],"service_hours":900,"description":""}
+POST started.
+Params: agree=1, roundNo=1, suggestedBy=7
+Insert SUCCEEDED. Cat=1, Details={"probation_terms":1,"description":""}
+POST started.
+Params: agree=1, roundNo=1, suggestedBy=7
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service"],"service_hours":900,"description":""}
+POST started.
+Params: agree=1, roundNo=1, suggestedBy=4
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service"],"service_hours":100,"description":""}
+POST started.
+Params: agree=1, roundNo=1, suggestedBy=7
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service"],"service_hours":100,"description":""}
+POST started.
+Params: agree=1, roundNo=1, suggestedBy=7
+Insert SUCCEEDED. Cat=2, Details={"interventions":["University Service","Referral for Counseling"],"service_hours":900,"description":""}
