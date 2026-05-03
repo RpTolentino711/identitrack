@@ -830,7 +830,21 @@ function student_account_mode(string $studentId): array
     $details = [];
   }
 
-  if ($row['status'] === 'CLOSED' && $isInGracePeriod && !$hasHadAppeal) {
+  // For Category 2: if student already has ACTIVE/COMPLETED community service,
+  // they accepted the decision — skip the grace period banner.
+  $hasAcceptedViaService = false;
+  if ((int)($row['decided_category'] ?? 0) === 2) {
+    $csrCheck = db_one(
+      "SELECT requirement_id FROM community_service_requirement
+       WHERE student_id = :sid
+         AND status IN ('ACTIVE', 'COMPLETED')
+       LIMIT 1",
+      [':sid' => $studentId]
+    );
+    $hasAcceptedViaService = !empty($csrCheck);
+  }
+
+  if ($row['status'] === 'CLOSED' && $isInGracePeriod && !$hasHadAppeal && !$hasAcceptedViaService) {
     $daysLeft = max(0, ceil(($gracePeriodEnds - time()) / 86400));
     return [
       'mode' => 'APPEAL_GRACE_PERIOD',
@@ -859,10 +873,16 @@ function student_account_mode(string $studentId): array
         [':sid' => $studentId, ':cid' => (int)($row['case_id'] ?? 0)]
     );
 
-    if (!$activeReq) {
+    // Only congratulate if there's a COMPLETED requirement (officially done)
+    $completedReq = db_one(
+        "SELECT 1 FROM community_service_requirement 
+         WHERE student_id = :sid AND status = 'COMPLETED' LIMIT 1",
+        [':sid' => $studentId]
+    );
+    if ($completedReq) {
       return [
         'mode' => 'FULL_ACCESS',
-        'message' => 'Congratulations! You have completed the required hours for your community service',
+        'message' => 'You have completed your community service requirement.',
       ];
     }
 
