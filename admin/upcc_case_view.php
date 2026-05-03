@@ -1,5 +1,4 @@
 <?php
-die('DEBUG: SERVER IS SERVING THE CORRECT FILE');
 require_once __DIR__ . '/../database/database.php';
 require_admin();
 ensure_hearing_workflow_schema();
@@ -457,7 +456,7 @@ $cooldownSecs = max(0, (int)($activeCooldown['remaining'] ?? 0));
 $hasPanel         = !empty($case['assigned_department_id']);
 $isClosed         = in_array($case['status'], ['CLOSED', 'RESOLVED']);
 $isHearingOpen    = (int)($case['hearing_is_open']   ?? 0) === 1;
-$isHearingPaused  = (int)($case['hearing_is_paused'] ?? 0) === 1;
+$isHearingPaused  = false; // Forced false to eradicate automated pause logic.
 $caseLabel        = 'UPCC-' . date('Y', strtotime($case['created_at'])) . '-' . str_pad((string)$case_id, 3, '0', STR_PAD_LEFT);
 $caseStatusPillClass = match ($case['status']) {
     'UNDER_INVESTIGATION'         => 'pill-investigating',
@@ -888,7 +887,7 @@ textarea.form-control{resize:vertical}
               </div>
 
               <?php if ($isHearingOpen): ?>
-                <div id="liveHearingAlert" class="alert alert-info">
+                <div id="liveHearingStatus" class="alert alert-info">
                   🗳️ Hearing is live — panel may now vote.
                 </div>
               <?php endif; ?>
@@ -2033,33 +2032,8 @@ if (chatForm) {
 }
 
 // ── HEARING PAUSE TOGGLE ──────────────────────────────────────────────────
-// ── HEARING PAUSE UI UPDATE ──────────────────────────────────────────────
 function updatePauseUI(isPaused, votingActive = false) {
-    _currentPauseState = !!isPaused;
-    const btn = document.getElementById('btnTogglePause');
-    const al  = document.getElementById('liveHearingAlert');
-    
-    if (btn) {
-        btn.disabled = votingActive;
-        btn.title = votingActive ? 'Cannot pause while voting is ongoing' : '';
-        
-        if (isPaused) {
-            btn.innerHTML = '▶️ Resume';
-            if (!btn.className.includes('btn-warning')) {
-                btn.className = btn.className.replace('btn-secondary', 'btn-warning');
-            }
-        } else {
-            btn.innerHTML = '⏸ Pause';
-            if (!btn.className.includes('btn-secondary')) {
-                btn.className = btn.className.replace('btn-warning', 'btn-secondary');
-            }
-        }
-    }
-    
-    if (al) {
-        al.innerHTML = isPaused ? '⏸️ Hearing is paused.' : '🗳️ Hearing is live — panel may now vote.';
-        al.className = 'alert ' + (isPaused ? 'alert-warning' : 'alert-info');
-    }
+    // Functionality removed: Hearing is always live.
 }
 
 // ── HEARING PAUSE TOGGLE ──────────────────────────────────────────────────
@@ -2226,10 +2200,7 @@ function syncLive() {
                 location.reload();
             }
 
-            // Pause toggle
-            if (data.hasOwnProperty('is_paused')) {
-                updatePauseUI(data.is_paused, roundActiveNow);
-            }
+            // Pause toggle logic removed.
 
             // Disable End Hearing if voting is ongoing
             const endBtn = document.getElementById('btnEndHearing');
