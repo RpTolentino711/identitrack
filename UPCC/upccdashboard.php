@@ -359,6 +359,26 @@ body {
   line-height: 1.5;
 }
 
+/* Polished controls */
+.toolbar {
+  display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px;
+}
+.search-input {
+  width:420px; max-width:60%; padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02); color:var(--text-main); outline:none; transition: box-shadow .15s ease, transform .08s ease;
+}
+.search-input:focus { box-shadow: 0 6px 22px rgba(0,0,0,0.6); transform: translateY(-1px); }
+.filter-select { padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); color:var(--text-main); }
+.btn-secondary { padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-main); cursor:pointer; }
+.btn-secondary:hover { background: rgba(255,255,255,0.03); }
+.btn-join { background: linear-gradient(90deg,#059669,#10b981); box-shadow: 0 6px 20px rgba(16,185,129,0.12); }
+.btn-join:hover { transform: translateY(-2px); }
+.badge { transition: all .18s ease; }
+.table td { border-radius: 10px; }
+.stat-value { letter-spacing: -1px; }
+.modal-actions .action-btn { min-width: 140px; }
+.modal-overlay { transition: opacity .18s ease; }
+
 /* Dynamic Animated Background */
 body::before {
   content: '';
@@ -788,6 +808,22 @@ body::before {
         <?php echo date('Y-m-d H:i:s'); ?> SECURE
       </div>
     </header>
+    
+    <!-- Toolbar: Search + Filters -->
+    <div class="toolbar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <input id="caseSearch" class="search-input" type="search" placeholder="Search cases or respondent name...">
+        <select id="caseFilter" class="filter-select">
+          <option value="">All statuses</option>
+          <option value="Hearing Live">Hearing Live</option>
+          <option value="Paused">Paused</option>
+          <option value="Locked">Locked</option>
+        </select>
+      </div>
+      <div>
+        <button class="btn-secondary" onclick="refreshCaseStatus()">Refresh</button>
+      </div>
+    </div>
 
     <?php if (isset($_GET['hearing_msg'])): ?>
       <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #6ee7b7; padding: 16px; border-radius: 12px; margin-bottom: 25px; display:flex; align-items:center; gap:10px; font-weight:500;">
@@ -1146,7 +1182,7 @@ function sendRejoinRequest() {
 
 // ─── LIVE POLLING FOR CASE STATUS UPDATES ──────
 function refreshCaseStatus() {
-  fetch('./upccdashboard.php?action=refresh_cases', { method: 'GET' })
+  fetch('./upccdashboard.php?action=refresh_cases&t=' + Date.now(), { method: 'GET', cache: 'no-store' })
     .then(r => r.text())
     .then(html => {
       // Parse the new case rows from response
@@ -1174,8 +1210,8 @@ function refreshCaseStatus() {
     .catch(err => console.log('Refresh failed:', err));
 }
 
-// Poll every 3 seconds for live updates
-setInterval(refreshCaseStatus, 3000);
+// Poll every 5 seconds for live updates (reduced churn, more reliable state propagation)
+setInterval(refreshCaseStatus, 5000);
 
 // Anti-screenshot basics
 document.addEventListener('keyup', (e) => {
@@ -1198,6 +1234,27 @@ function dismissResolvedCase(caseId) {
             .catch(err => console.error(err));
     }
 }
+
+// Client-side search & filter for faster UX
+document.getElementById('caseSearch')?.addEventListener('input', function (e) {
+  const q = (e.target.value || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('tbody tr');
+  rows.forEach(r => {
+    const text = (r.textContent || '').toLowerCase();
+    r.style.display = q === '' || text.indexOf(q) !== -1 ? '' : 'none';
+  });
+});
+
+document.getElementById('caseFilter')?.addEventListener('change', function (e) {
+  const v = e.target.value;
+  const rows = document.querySelectorAll('tbody tr');
+  rows.forEach(r => {
+    if (!v) { r.style.display = ''; return; }
+    const badge = r.querySelector('.badge');
+    const label = badge ? badge.textContent.trim() : '';
+    r.style.display = label.indexOf(v) !== -1 ? '' : 'none';
+  });
+});
 </script>
 </body>
 </html>
