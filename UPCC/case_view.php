@@ -1729,6 +1729,7 @@ let lastRejoinTs      = parseInt(localStorage.getItem('lastRejoin_' + CASE_ID) |
 let currentPauseState = <?= $isHearingPaused ? 'true' : 'false' ?>;
 let pauseReason       = <?= $pauseReason ? json_encode($pauseReason) : 'null' ?>;
 let pauseModalOpen    = false;
+let resumeReloadQueued = false;
 
 // ─────────────────────────────────────────────────────────────────────────
 //  LIVE VOTING TIMER
@@ -2475,6 +2476,12 @@ function syncLive() {
                     
                     // Re-enable controls
                     enablePauseableControls();
+
+                    // Reload once so every server-rendered badge/placeholder syncs to the live state
+                    if (!resumeReloadQueued) {
+                        resumeReloadQueued = true;
+                        setTimeout(() => window.location.reload(), 500);
+                    }
                 }
             }
 
