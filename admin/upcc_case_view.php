@@ -1522,11 +1522,38 @@ textarea.form-control{resize:vertical}
       <button class="btn btn-danger" onclick="submitCancelConsensus()">Confirm — Restart Voting</button>
     </div>
   </div>
+
+    <!-- Confirm Pause Modal -->
+    <!-- Rejoin Request Modal -->
+    <div id="rejoinRequestModal" class="modal-overlay" role="dialog" aria-modal="true">
+      <div class="modal-content" style="max-width:520px">
+        <h3>Panel Rejoin Requests</h3>
+        <p id="rejoinIntro">One or more panel members are requesting to rejoin the hearing. Choose who to admit.</p>
+        <div id="rejoinUsersList" style="max-height:260px;overflow:auto;margin-top:8px;margin-bottom:8px"></div>
+        <div class="modal-buttons" style="margin-top:12px">
+          <button class="btn btn-outline" onclick="closeRejoinModal()">Dismiss</button>
+          <button class="btn btn-primary" onclick="admitAllWaitingUsers()">Admit All</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirmPauseModal" class="modal-overlay" role="dialog" aria-modal="true">
+      <div class="modal-content">
+        <h3>Pause Hearing?</h3>
+        <p>The hearing is currently live. If you leave or pause the hearing now, panel members will be prevented from joining or continuing until you resume. Do you want to pause the hearing?</p>
+        <div style="margin-top:8px;font-size:13px;color:#666">You can resume the hearing later from this admin panel. Panel members will be notified.</div>
+        <div class="modal-buttons" style="margin-top:18px">
+          <button class="btn btn-outline" onclick="closeConfirmPauseModal()">Cancel</button>
+          <button class="btn btn-danger" onclick="confirmPauseFromModal()">Yes — Pause Hearing</button>
+        </div>
+      </div>
+    </div>
 </div>
 
 <script>
 // ── CONSTANTS ─────────────────────────────────────────────────────────────
 const CASE_ID          = <?= isset($case_id) ? (int)$case_id : 0 ?>;
+const IS_HEARING_OPEN  = <?= (!empty($isHearingOpen) ? 'true' : 'false') ?>;
 const TOTAL_MEMBERS    = <?= isset($totalPanelMembers) ? (int)$totalPanelMembers : 0 ?>;
 const VOTER_COUNT      = <?= isset($voterCount) ? (int)$voterCount : 0 ?>;
 const ROUND_ENDS_EPOCH = <?= (isset($roundEndsAt) && $roundEndsAt) ? strtotime($roundEndsAt) : 0 ?>;
@@ -2062,26 +2089,81 @@ function updatePauseUI(isPaused, pauseReason = null) {
 
 // ── HEARING PAUSE TOGGLE ──────────────────────────────────────────────────
 function toggleHearingPause() {
-    const fd = new FormData();
-    fd.append('action', 'toggle_pause');
-    fd.append('actor', 'admin');
+  // If hearing is currently open (not paused), show confirmation modal before pausing
+  if (!_currentPauseState) {
+    document.getElementById('confirmPauseModal').classList.add('open');
+    return;
+  }
+
+  // Otherwise (currently paused) resume immediately
+  const fd = new FormData();
+  fd.append('action', 'toggle_pause');
+  fd.append('actor', 'admin');
     
-    fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
-        .then(r => r.json())
-        .then(res => {
-            if (res.ok) {
-                _currentPauseState = res.is_paused ? true : false;
-                updatePauseUI(_currentPauseState);
-                syncLive();
-            } else {
-                alert('Error: ' + (res.error || 'Failed to toggle pause'));
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert('Network error while toggling pause');
-        });
+  fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) {
+        _currentPauseState = res.is_paused ? true : false;
+        updatePauseUI(_currentPauseState);
+        syncLive();
+      } else {
+        alert('Error: ' + (res.error || 'Failed to toggle pause'));
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Network error while toggling pause');
+    });
 }
+
+function closeConfirmPauseModal() {
+  document.getElementById('confirmPauseModal').classList.remove('open');
+}
+
+function confirmPauseFromModal() {
+  // perform the pause action
+  closeConfirmPauseModal();
+  const fd = new FormData();
+  fd.append('action', 'toggle_pause');
+  fd.append('actor', 'admin');
+  fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) {
+        _currentPauseState = res.is_paused ? true : false;
+        updatePauseUI(_currentPauseState);
+        syncLive();
+      } else {
+        alert('Error: ' + (res.error || 'Failed to pause hearing'));
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Network error while pausing hearing');
+    });
+}
+
+// If the admin attempts to close or navigate away while hearing is live, warn and try to pause via sendBeacon
+window.addEventListener('beforeunload', function (e) {
+  if (!_currentPauseState && IS_HEARING_OPEN) {
+    const msg = 'The hearing is live. Leaving will pause the hearing. Are you sure you want to leave?';
+    (e || window.event).returnValue = msg; // Gecko + IE
+    return msg; // Webkit, Safari, Chrome
+  }
+});
+
+window.addEventListener('unload', function () {
+  try {
+    if (!_currentPauseState && IS_HEARING_OPEN && navigator.sendBeacon) {
+      const url = `../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`;
+      const params = new URLSearchParams();
+      params.append('action', 'toggle_pause');
+      params.append('actor', 'admin');
+      navigator.sendBeacon(url, params.toString());
+    }
+  } catch (e) { /* ignore */ }
+});
 
 function normalizePauseState(value) {
   return value === true || value === 1 || value === '1' || value === 'true';
@@ -2093,6 +2175,40 @@ function admitUser(upccId) {
         .then(r => r.json())
         .then(res => { if (res.ok) syncLive(); else alert('Failed: ' + (res.error || 'Unknown')); })
         .catch(err => console.error(err));
+}
+
+function admitAllWaitingUsers() {
+  const buttons = Array.from(document.querySelectorAll('#rejoinUsersList button[data-upcc]'));
+  if (!buttons.length) return closeRejoinModal();
+  const ids = buttons.map(b => b.getAttribute('data-upcc'));
+  (function admitNext(i) {
+    if (i >= ids.length) { syncLive(); closeRejoinModal(); return; }
+    admitUser(ids[i]);
+    setTimeout(() => admitNext(i+1), 250);
+  })(0);
+}
+
+function showRejoinModal(users) {
+  const modal = document.getElementById('rejoinRequestModal');
+  const list = document.getElementById('rejoinUsersList');
+  if (!modal || !list) return;
+  if (!Array.isArray(users) || users.length === 0) { return closeRejoinModal(); }
+  list.innerHTML = users.map(u => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #eee">
+      <div style="font-size:13px">👤 ${escapeHtml(u.name)}<div style="font-size:11px;color:#666">${escapeHtml(u.role || '')}</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-outline" style="padding:6px 10px;font-size:12px" onclick="closeRejoinModal();">Dismiss</button>
+        <button class="btn btn-primary" data-upcc="${u.upcc_id}" style="padding:6px 10px;font-size:12px" onclick="admitUser(${u.upcc_id});">Let In</button>
+      </div>
+    </div>
+  `).join('');
+  modal.classList.add('open');
+}
+
+function closeRejoinModal() {
+  const modal = document.getElementById('rejoinRequestModal');
+  if (!modal) return;
+  modal.classList.remove('open');
 }
 
 // ── PRESENCE PING ─────────────────────────────────────────────────────────
@@ -2275,9 +2391,11 @@ function syncLive() {
                 const sig = data.latest_rejoin_request_at || '';
                 if (!rejoinSigInit) { lastRejoinSig = sig; rejoinSigInit = true; }
                 else if (sig && sig !== lastRejoinSig) {
-                    lastRejoinSig = sig;
-                    if (data.waiting_users.length > 0)
-                        showToast('Rejoin Request', data.waiting_users.map(u => u.name).join(', ') + ' requesting to rejoin.', 'warning');
+                  lastRejoinSig = sig;
+                  if (data.waiting_users.length > 0) {
+                    showToast('Rejoin Request', data.waiting_users.map(u => u.name).join(', ') + ' requesting to rejoin.', 'warning');
+                    try { showRejoinModal(data.waiting_users); } catch(e) { /* ignore */ }
+                  }
                 }
                 if (data.waiting_users.length > 0) {
                     wuCont.style.display = 'block';

@@ -1701,6 +1701,17 @@ function _renderSugDetails(array $sd): void {
     </div>
 </div>
 
+<!-- Rejoin Sent Modal -->
+<div id="rejoinSentModal" style="position:fixed;inset:0;z-index:9400;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);padding:16px">
+    <div style="background:var(--bg-card);border-radius:12px;padding:20px;max-width:360px;width:100%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.45)">
+        <div style="font-size:22px;margin-bottom:8px">🔔 Rejoin Request Sent</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Your request to rejoin has been sent. Please wait for the Admin to let you in.</div>
+        <div style="display:flex;gap:8px;justify-content:center">
+            <button class="btn btn-outline" onclick="document.getElementById('rejoinSentModal').style.display='none'">Close</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // ─────────────────────────────────────────────────────────────────────────
 //  CONSTANTS
@@ -2595,7 +2606,11 @@ function requestJoinHearing() {
     fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(res => {
-            if (res.ok) { lastRejoinTs = now; localStorage.setItem('lastRejoin_' + CASE_ID, now); alert('✓ Rejoin request sent.'); }
+            if (res.ok) {
+                lastRejoinTs = now;
+                localStorage.setItem('lastRejoin_' + CASE_ID, now);
+                const m = document.getElementById('rejoinSentModal'); if (m) m.style.display = 'flex'; else alert('✓ Rejoin request sent.');
+            }
             else alert('Error: ' + (res.message || 'Could not send request'));
         })
         .catch(() => alert('Network error'));
