@@ -2046,7 +2046,7 @@ function updatePauseUI(isPaused, pauseReason = null) {
         if (status) {
             status.classList.remove('pill-open');
             status.classList.add('pill-warning');
-            status.textContent = 'Hearing Paused' + (pauseReason === 'AUTO_PAUSE_ADMIN_LEFT' ? ' (Admin Disconnected)' : '');
+        status.innerHTML = '<span class="pill-dot"></span>Hearing Paused' + (pauseReason === 'AUTO_PAUSE_ADMIN_LEFT' ? ' (Admin Disconnected)' : '');
         }
     } else {
         btn.classList.remove('btn-success');
@@ -2055,7 +2055,7 @@ function updatePauseUI(isPaused, pauseReason = null) {
         if (status) {
             status.classList.remove('pill-warning');
             status.classList.add('pill-open');
-            status.textContent = 'Hearing Open';
+        status.innerHTML = '<span class="pill-dot"></span>Hearing Open';
         }
     }
 }
