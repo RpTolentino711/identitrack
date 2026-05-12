@@ -1072,6 +1072,11 @@ hr{border-color:var(--border-glass);margin:16px 0}
                 <span class="pill purple">🏢 <?= htmlspecialchars($case['assigned_dept_name'] ?? 'No dept') ?></span>
                 <span class="pill blue">🎓 <?= htmlspecialchars($case['year_level']) ?> Yr • <?= htmlspecialchars($case['section'] ?? 'N/A') ?></span>
                 <span class="pill green">📌 <?= htmlspecialchars($statusBadge['label']) ?></span>
+                <?php if ($isHearingOpen && $isHearingPaused): ?>
+                  <span class="pill" data-pause-pill="1" style="background: #fca5a5; color: #7f1d1d; border-color: #ef4444;">⏸️ HEARING PAUSED</span>
+                <?php elseif ($isHearingOpen): ?>
+                  <span class="pill" data-pause-pill="1" style="background: #86efac; color: #15803d; border-color: #22c55e;"><span style="display:inline-block;width:6px;height:6px;background:#15803d;border-radius:50%;margin-right:4px"></span> HEARING LIVE</span>
+                <?php endif; ?>
             </div>
         </div>
         <div class="stack" style="min-width:260px">
@@ -1197,11 +1202,11 @@ hr{border-color:var(--border-glass);margin:16px 0}
                             <?php $isHearingOpen = ((int)$case['hearing_is_open'] === 1); ?>
                             <div class="field">
                                 <textarea id="chat_message" name="message" class="fld-input" 
-                                    placeholder="<?= $isHearingOpen ? 'Type your message…' : 'Chat disabled until hearing is open…' ?>" 
-                                    required style="min-height:60px" <?= !$isHearingOpen ? 'disabled' : '' ?>></textarea>
+                                    placeholder="<?= $isHearingOpen && !$isHearingPaused ? 'Type your message…' : ($isHearingPaused ? 'Chat disabled - hearing is paused' : 'Chat disabled until hearing is open…') ?>" 
+                                    required style="min-height:60px" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_message_input"></textarea>
                             </div>
                             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-                                <button class="btn btn-primary" type="submit" <?= !$isHearingOpen ? 'disabled' : '' ?>>Post Message</button>
+                                <button class="btn btn-primary" type="submit" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_submit_btn">Post Message</button>
                                 <a class="btn btn-secondary" href="#decision-panel">Jump to Decision</a>
                             </div>
                         </form>
@@ -1700,6 +1705,10 @@ let cooldownModalOpen = false;
 let votingModalRound  = 0;
 let isPartialReloading= false;
 let lastRejoinTs      = parseInt(localStorage.getItem('lastRejoin_' + CASE_ID) || '0', 10);
+let currentPauseState = <?= $isHearingPaused ? 'true' : 'false' ?>;
+let pauseReason       = <?= $pauseReason ? json_encode($pauseReason) : 'null' ?>;
+let currentPauseState = <?= $isHearingPaused ? 'true' : 'false' ?>;
+let pauseReason       = <?= $pauseReason ? json_encode($pauseReason) : 'null' ?>;
 
 // ─────────────────────────────────────────────────────────────────────────
 //  LIVE VOTING TIMER
@@ -2064,6 +2073,83 @@ function closeVotingModal() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────
+//  PAUSE STATE HANDLERS
+// ─────────────────────────────────────────────────────────────────────────
+function updatePauseUI(isPaused, pauseReason = null) {
+    const heroMeta = document.querySelector('.hero-meta');
+    if (!heroMeta) return;
+    
+    // Remove old pause pill if exists
+    const oldPausePill = heroMeta.querySelector('[data-pause-pill]');
+    if (oldPausePill) oldPausePill.remove();
+    
+    if (isPaused) {
+        const pill = document.createElement('span');
+        pill.className = 'pill';
+        pill.setAttribute('data-pause-pill', '1');
+        pill.style.background = '#fca5a5';
+        pill.style.color = '#7f1d1d';
+        pill.style.borderColor = '#ef4444';
+        pill.innerHTML = '⏸️ HEARING PAUSED';
+        heroMeta.appendChild(pill);
+    } else {
+        const pill = document.createElement('span');
+        pill.className = 'pill';
+        pill.setAttribute('data-pause-pill', '1');
+        pill.style.background = '#86efac';
+        pill.style.color = '#15803d';
+        pill.style.borderColor = '#22c55e';
+        pill.innerHTML = '<span style="display:inline-block;width:6px;height:6px;background:#15803d;border-radius:50%;margin-right:4px"></span> HEARING LIVE';
+        heroMeta.appendChild(pill);
+    }
+}
+
+function disablePauseableControls() {
+    // Disable chat
+    const chatInput = document.getElementById('chat_message_input');
+    const chatSubmit = document.getElementById('chat_submit_btn');
+    if (chatInput) {
+        chatInput.disabled = true;
+        chatInput.placeholder = 'Chat disabled - hearing is paused';
+    }
+    if (chatSubmit) chatSubmit.disabled = true;
+    
+    // Disable voting buttons
+    document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = true);
+    
+    // Disable suggestion form
+    const suggestForm = document.getElementById('suggestForm');
+    if (suggestForm) {
+        suggestForm.querySelectorAll('input:not([type=\"hidden\"]), select, textarea, button').forEach(el => el.disabled = true);
+    }
+}
+
+function enablePauseableControls() {
+    // Only re-enable if hearing is still open (not just unpaused, but actually open)
+    const hearingOpen = <?= $isHearingOpen ? 'true' : 'false' ?>;
+    if (!hearingOpen) return;
+    
+    // Enable chat
+    const chatInput = document.getElementById('chat_message_input');
+    const chatSubmit = document.getElementById('chat_submit_btn');
+    if (chatInput) {
+        chatInput.disabled = false;
+        chatInput.placeholder = 'Type your message…';
+    }
+    if (chatSubmit) chatSubmit.disabled = false;
+    
+    // Enable voting buttons
+    document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = false);
+    
+    // Enable suggestion form
+    const suggestForm = document.getElementById('suggestForm');
+    if (suggestForm) {
+        suggestForm.querySelectorAll('input:not([type=\"hidden\"]), select, textarea, button').forEach(el => el.disabled = false);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 //  MAIN LIVE SYNC LOOP
 // ─────────────────────────────────────────────────────────────────────────
 let prevRoundActive = IS_ROUND_ACTIVE;
@@ -2247,6 +2333,32 @@ function syncLive() {
                 startCooldownDisplay(rem, null);
             } else if (!hasCooldown && !roundActive) {
                 setSuggestionLocked(false, 0);
+            }
+
+            // ── PAUSE STATE HANDLING ──────────────────────────────────
+            if (data.is_paused !== undefined && data.is_paused !== currentPauseState) {
+                currentPauseState = data.is_paused;
+                pauseReason = data.pause_reason || null;
+                
+                // Update UI to reflect pause state
+                updatePauseUI(currentPauseState, pauseReason);
+                
+                if (currentPauseState) {
+                    // Hearing is now paused
+                    const reason = pauseReason === 'AUTO_PAUSE_ADMIN_LEFT' 
+                        ? 'Admin disconnected' 
+                        : 'Admin paused the hearing';
+                    showToast('⏸️ Hearing Paused', reason, 'warning');
+                    
+                    // Disable voting/chat when paused
+                    disablePauseableControls();
+                } else {
+                    // Hearing is now resumed
+                    showToast('▶️ Hearing Resumed', 'You may continue voting and messaging.', 'success');
+                    
+                    // Re-enable controls
+                    enablePauseableControls();
+                }
             }
 
             // ── CONSENSUS FLASH & MODAL ───────────────────────────────

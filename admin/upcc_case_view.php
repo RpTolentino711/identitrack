@@ -456,7 +456,8 @@ $cooldownSecs = max(0, (int)($activeCooldown['remaining'] ?? 0));
 $hasPanel         = !empty($case['assigned_department_id']);
 $isClosed         = in_array($case['status'], ['CLOSED', 'RESOLVED']);
 $isHearingOpen    = (int)($case['hearing_is_open']   ?? 0) === 1;
-$isHearingPaused  = false; // Forced false to eradicate automated pause logic.
+$isHearingPaused  = (int)($case['hearing_is_paused'] ?? 0) === 1;
+$pauseReason      = $case['hearing_pause_reason']    ?? null;
 $caseLabel        = 'UPCC-' . date('Y', strtotime($case['created_at'])) . '-' . str_pad((string)$case_id, 3, '0', STR_PAD_LEFT);
 $caseStatusPillClass = match ($case['status']) {
     'UNDER_INVESTIGATION'         => 'pill-investigating',
@@ -769,7 +770,7 @@ textarea.form-control{resize:vertical}
             <?= ucfirst(strtolower(str_replace('_', ' ', $case['status']))) ?>
           </span>
           <?php if ($hasPanel && !$isClosed): ?>
-            <span class="pill <?= $isHearingOpen ? ($isHearingPaused ? 'pill-warning' : 'pill-open') : 'pill-neutral' ?>">
+            <span class="pill <?= $isHearingOpen ? ($isHearingPaused ? 'pill-warning' : 'pill-open') : 'pill-neutral' ?>" id="hearing-status-pill">
               <?php if ($isHearingOpen && !$isHearingPaused): ?><span class="pill-dot"></span><?php endif; ?>
               Hearing <?= $isHearingOpen ? ($isHearingPaused ? 'Paused' : 'Open') : 'Closed' ?>
             </span>
@@ -875,6 +876,7 @@ textarea.form-control{resize:vertical}
                       <?php endif; ?>
                     </form>
                   <?php else: ?>
+                    <button type="button" id="togglePauseBtn" class="btn btn-warning btn-sm" onclick="toggleHearingPause()">⏸️ Pause Hearing</button>
                     <form method="post" style="display:inline">
                       <input type="hidden" name="action" value="close_hearing">
                       <button type="submit" id="btnEndHearing" class="btn btn-danger btn-sm">⬛ End Hearing</button>
@@ -2032,13 +2034,53 @@ if (chatForm) {
 }
 
 // ── HEARING PAUSE TOGGLE ──────────────────────────────────────────────────
-function updatePauseUI(isPaused, votingActive = false) {
-    // Functionality removed: Hearing is always live.
+function updatePauseUI(isPaused, pauseReason = null) {
+    const btn = document.getElementById('togglePauseBtn');
+    const status = document.getElementById('hearing-status-pill');
+    if (!btn) return;
+    
+    if (isPaused) {
+        btn.classList.remove('btn-warning');
+        btn.classList.add('btn-success');
+        btn.innerHTML = '▶️ Resume Hearing';
+        if (status) {
+            status.classList.remove('pill-open');
+            status.classList.add('pill-warning');
+            status.textContent = 'Hearing Paused' + (pauseReason === 'AUTO_PAUSE_ADMIN_LEFT' ? ' (Admin Disconnected)' : '');
+        }
+    } else {
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-warning');
+        btn.innerHTML = '⏸️ Pause Hearing';
+        if (status) {
+            status.classList.remove('pill-warning');
+            status.classList.add('pill-open');
+            status.textContent = 'Hearing Open';
+        }
+    }
 }
 
 // ── HEARING PAUSE TOGGLE ──────────────────────────────────────────────────
 function toggleHearingPause() {
-    console.log('Hearing pause functionality removed.');
+    const fd = new FormData();
+    fd.append('action', 'toggle_pause');
+    fd.append('actor', 'admin');
+    
+    fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
+        .then(r => r.json())
+        .then(res => {
+            if (res.ok) {
+                _currentPauseState = res.is_paused ? true : false;
+                updatePauseUI(_currentPauseState);
+                syncLive();
+            } else {
+                alert('Error: ' + (res.error || 'Failed to toggle pause'));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Network error while toggling pause');
+        });
 }
 
 
@@ -2200,7 +2242,16 @@ function syncLive() {
                 location.reload();
             }
 
-            // Pause toggle logic removed.
+            // Pause state handling
+            if (data.is_paused !== undefined && data.is_paused !== _currentPauseState) {
+                _currentPauseState = data.is_paused;
+                updatePauseUI(_currentPauseState, data.pause_reason);
+                
+                // Show toast notification for auto-pause
+                if (data.is_paused && data.pause_reason === 'AUTO_PAUSE_ADMIN_LEFT') {
+                    showToast('⏸️ Hearing Paused', 'Hearing has been auto-paused: Admin disconnected.', 'warning');
+                }
+            }
 
             // Disable End Hearing if voting is ongoing
             const endBtn = document.getElementById('btnEndHearing');

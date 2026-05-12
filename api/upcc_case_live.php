@@ -387,9 +387,39 @@ if ($action === 'ping_presence' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // ─────────────────────────────────────────────────────────────────────────
 // TOGGLE PAUSE ACTION (Admin only)
 // ─────────────────────────────────────────────────────────────────────────
-if ($action === 'toggle_pause' && $isAdmin) {
-    // Action disabled: Hearing pause/resume functionality has been removed.
-    echo json_encode(['ok' => true, 'is_paused' => 0]);
+if ($action === 'toggle_pause' && $isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $case = db_one("SELECT hearing_is_paused, hearing_is_open FROM upcc_case WHERE case_id = :id", [':id' => $caseId]);
+    $isCurrentlyPaused = (int)($case['hearing_is_paused'] ?? 0) === 1;
+    $isHearingOpen = (int)($case['hearing_is_open'] ?? 0) === 1;
+    
+    // Can only toggle if hearing is open
+    if (!$isHearingOpen) {
+        echo json_encode(['ok' => false, 'error' => 'Hearing is not open']);
+        exit;
+    }
+    
+    $newPausedState = $isCurrentlyPaused ? 0 : 1;
+    $pauseReason = $newPausedState === 1 ? 'MANUAL' : null;
+    
+    db_exec(
+        "UPDATE upcc_case SET hearing_is_paused = :paused, hearing_pause_reason = :reason WHERE case_id = :id",
+        [':paused' => $newPausedState, ':reason' => $pauseReason, ':id' => $caseId]
+    );
+    
+    $actionMsg = $newPausedState === 1 ? 'HEARING_PAUSED_MANUALLY' : 'HEARING_RESUMED_MANUALLY';
+    upcc_log_case_activity($caseId, 'ADMIN', $actorId, $actionMsg, ['admin_id' => $actorId]);
+    
+    // Notify in chat
+    $adminName = $user['full_name'] ?? 'Admin';
+    $notificationMsg = $newPausedState === 1 
+        ? "⏸️ " . $adminName . " has PAUSED the hearing manually."
+        : "▶️ " . $adminName . " has RESUMED the hearing.";
+    db_exec(
+        "INSERT INTO upcc_case_discussion (case_id, message, created_at, updated_at) VALUES (:c, :m, NOW(), NOW())",
+        [':c' => $caseId, ':m' => $notificationMsg]
+    );
+    
+    echo json_encode(['ok' => true, 'is_paused' => $newPausedState]);
     exit;
 }
 
@@ -485,12 +515,18 @@ if ($action === 'sync') {
     $isClosed = in_array($case['status'] ?? '', ['CLOSED', 'RESOLVED']);
     
     // Check admin presence for auto-pause/resume
-    $adminPresence = db_one("SELECT last_ping FROM upcc_hearing_presence WHERE case_id = :c AND user_type = 'ADMIN'", [':c' => $caseId]);
+    $adminPresence = db_one("SELECT last_ping, status FROM upcc_hearing_presence WHERE case_id = :c AND user_type = 'ADMIN'", [':c' => $caseId]);
     $isAdminOnline = false;
+    $wasAdminOnline = false;
+    
     if ($adminPresence) {
         $secondsAgo = time() - strtotime($adminPresence['last_ping']);
         if ($secondsAgo <= 15) {
             $isAdminOnline = true;
+            $wasAdminOnline = true;
+        } else {
+            // Admin was online but now disconnected - check if they were previously marked as online
+            $wasAdminOnline = (string)($adminPresence['status']) === 'ADMITTED';
         }
     }
 
@@ -500,13 +536,26 @@ if ($action === 'sync') {
         // Implicitly update their presence ping so panel members know they are here
         db_exec("INSERT INTO upcc_hearing_presence (case_id, user_type, user_id, status, last_ping) 
                  VALUES (:c, 'ADMIN', :u, 'ADMITTED', NOW())
-                 ON DUPLICATE KEY UPDATE last_ping = NOW()", [':c' => $caseId, ':u' => $actorId]);
+                 ON DUPLICATE KEY UPDATE last_ping = NOW(), status = 'ADMITTED'", [':c' => $caseId, ':u' => $actorId]);
     }
     
-    $activeVoteRound = db_one("SELECT 1 FROM upcc_case_vote_round WHERE case_id = :c AND is_active = 1 LIMIT 1", [':c' => $caseId]);
-    $isVotingOngoing = $activeVoteRound !== null;
-
-    // Auto-pause logic removed to allow full manual control by Admin.
+    // Auto-pause when admin goes offline (if hearing was open and not already paused)
+    if (!$isAdminOnline && $wasAdminOnline && (int)($case['hearing_is_open'] ?? 0) === 1 && (int)($case['hearing_is_paused'] ?? 0) === 0) {
+        db_exec(
+            "UPDATE upcc_case SET hearing_is_paused = 1, hearing_pause_reason = 'AUTO_PAUSE_ADMIN_LEFT' WHERE case_id = :c",
+            [':c' => $caseId]
+        );
+        upcc_log_case_activity($caseId, 'SYSTEM', 0, 'HEARING_AUTO_PAUSED_ADMIN_LEFT');
+        
+        // Notify in chat
+        db_exec(
+            "INSERT INTO upcc_case_discussion (case_id, message, created_at, updated_at) VALUES (:c, :m, NOW(), NOW())",
+            [':c' => $caseId, ':m' => "🔴 Hearing has been AUTO-PAUSED: Admin disconnected."]
+        );
+        
+        // Refresh the case to get updated pause state
+        $case = db_one("SELECT hearing_is_paused, hearing_pause_reason FROM upcc_case WHERE case_id = :id", [':id' => $caseId]);
+    }
 
     
     // Get user presence status
@@ -684,7 +733,9 @@ if ($action === 'sync') {
         'total_members' => $totalMembers,
         'votes' => $votes,
         'chat' => $chat_messages,
-        'is_paused' => false,
+        'is_paused' => (int)($case['hearing_is_paused'] ?? 0) === 1 ? true : false,
+        'pause_reason' => $case['hearing_pause_reason'] ?? null,
+        'is_admin_online' => $isAdminOnline,
         'is_closed' => $isClosed,
         'case_status' => (string)($case['status'] ?? ''),
         'my_status' => $myPresenceStatus,
