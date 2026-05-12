@@ -26,7 +26,6 @@ class OffenseScreen extends StatefulWidget {
 
 class _OffenseScreenState extends State<OffenseScreen> {
   final _api = OffenseApi();
-  Timer? _refreshTimer;
 
   bool _loading = true;
   String? _error;
@@ -50,16 +49,10 @@ class _OffenseScreenState extends State<OffenseScreen> {
     super.initState();
     _studentName = widget.studentName.trim();
     _load();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (mounted && !_loading) {
-        _load();
-      }
-    });
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -380,7 +373,11 @@ class _OffenseScreenState extends State<OffenseScreen> {
         ],
       ),
       body: SafeArea(
-        child: Container(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          color: blue,
+          backgroundColor: Colors.white,
+          child: Container(
           width: double.infinity,
           decoration: const BoxDecoration(
             color: Color(0xFFF5F6FB),
@@ -499,3 +496,6 @@ class _OffenseScreenState extends State<OffenseScreen> {
     );
   }
 }
+
+          ),
+        ),

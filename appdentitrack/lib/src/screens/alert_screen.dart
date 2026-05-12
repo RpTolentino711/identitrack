@@ -31,14 +31,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   void initState() {
     super.initState();
     _load();
-    // Auto-refresh every 10 seconds
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 10));
-      if (mounted) {
-        await _load();
-      }
-      return mounted;
-    });
+    // No auto-refresh - use pull-to-refresh instead
   }
 
   Future<void> _load() async {
@@ -195,7 +188,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
         title: const Text('Alerts', style: TextStyle(fontWeight: FontWeight.w900)),
       ),
       body: SafeArea(
-        child: Container(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          color: blue,
+          backgroundColor: Colors.white,
+          child: Container(
           width: double.infinity,
           decoration: const BoxDecoration(
             color: Color(0xFFF5F6FB),
@@ -263,3 +260,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
     );
   }
 }
+
+          ),
+        ),

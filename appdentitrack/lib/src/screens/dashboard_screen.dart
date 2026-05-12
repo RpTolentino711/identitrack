@@ -28,7 +28,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final _api = DashboardApi();
-  Timer? _refreshTimer;
+  Timer? _alertSyncTimer;
 
   bool _loading = true;
   String? _error;
@@ -83,16 +83,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     _load();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    // Smart background sync: only check alerts every 60 seconds (not full page refresh)
+    _alertSyncTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       if (mounted && !_loading) {
-        _load(silent: true);
+        _syncAlertsOnly();
       }
     });
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    _alertSyncTimer?.cancel();
     super.dispose();
   }
 
@@ -307,6 +308,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return 'Category 5 - Expulsion';
       default:
         return 'Category $category';
+    }
+  }
+
+  // Smart background sync: only checks for new alerts (not full page refresh)
+  Future<void> _syncAlertsOnly() async {
+    try {
+      final summary = await _api.getSummary(studentId: widget.studentId);
+      if (!mounted) return;
+
+      // Only update if there are NEW unseen offenses or alerts
+      if (summary.unseenOffensesCount > _unseenOffensesCount && summary.unseenOffensesCount > 0) {
+        if (mounted) {
+          setState(() {
+            _unseenOffensesCount = summary.unseenOffensesCount;
+            _totalOffense = summary.totalOffense;
+            _minorOffense = summary.minorOffense;
+            _majorOffense = summary.majorOffense;
+          });
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(
+              const SnackBar(
+                content: Text('🔔 New Offense Recorded. Check your Offenses tab.'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 4),
+              ),
+            );
+        }
+      }
+
+      // Check for new hearing notice
+      if (summary.hearingNotice != null && summary.hearingNotice?.popup == true) {
+        final hearing = summary.hearingNotice!;
+        final popupKey = '${hearing.caseId}-${hearing.hearingDate}-${hearing.hearingTime}';
+        if (_lastHearingPopupKey != popupKey) {
+          _lastHearingPopupKey = popupKey;
+          if (mounted) {
+            setState(() {
+              _hearingNotice = hearing;
+            });
+            _showHearingPopup(hearing);
+          }
+        }
+      }
+    } catch (e) {
+      // Silent fail - don't disrupt user experience with background sync errors
     }
   }
 
@@ -1306,31 +1353,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
       body: SafeArea(
-        child: Stack(
-          children: [
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F6FB),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(28),
-                  topRight: Radius.circular(28),
+        child: RefreshIndicator(
+          onRefresh: _load,
+          color: blue,
+          backgroundColor: Colors.white,
+          child: Stack(
+            children: [
+              Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF5F6FB),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
                 ),
-              ),
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : (_error != null)
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(_error!, textAlign: TextAlign.center),
-                            const SizedBox(height: 10),
-                            ElevatedButton(
-                              onPressed: _load,
-                              child: const Text('Retry'),
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : (_error != null)
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_error!, textAlign: TextAlign.center),
+                              const SizedBox(height: 10),
+                              ElevatedButton(
+                                onPressed: _load,
+                                child: const Text('Retry'),
                             ),
                           ],
                         ),
@@ -1563,6 +1614,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ),
+          ],
+        ),
+            ),
           ],
         ),
       ),
