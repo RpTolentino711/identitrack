@@ -1581,9 +1581,11 @@ function fmt_case_id(int $id, string $created): string {
 // Dept name map from PHP
 const deptNames = {<?php foreach ($departments as $d): ?><?= $d['dept_id'] ?>: "<?= e($d['dept_name']) ?>", <?php endforeach; ?>};
 const committeeMembers = <?= json_encode($members) ?>;
+let currentFilterLevel = 'all';
 
 // Updated filterCases function to handle the new "panel" and "nopanel" filters
 function filterCases(level, btn) {
+    currentFilterLevel = level;
     document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     document.querySelectorAll('#cases-table tbody tr').forEach(row => {
@@ -1820,6 +1822,46 @@ function openManageHearingModal(caseId, row) {
 
     loadDepartmentMembers(assignedDept, assignedPanel);
     overlay.classList.add('open');
+}
+
+function syncQueueRows() {
+    const table = document.getElementById('cases-table');
+    const manageOverlay = document.getElementById('manage-hearing-overlay');
+    if (!table || (manageOverlay && manageOverlay.classList.contains('open'))) return;
+
+    const selectedRow = document.querySelector('#cases-table tbody tr.selected');
+    const selectedCaseId = selectedRow ? selectedRow.dataset.caseId : '';
+
+    fetch(location.pathname + location.search + (location.search ? '&' : '?') + '_t=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.text())
+        .then(html => {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const freshTableBody = doc.querySelector('#cases-table tbody');
+            const currentTableBody = document.querySelector('#cases-table tbody');
+            if (!freshTableBody || !currentTableBody) return;
+
+            const freshRows = Array.from(freshTableBody.querySelectorAll('tr[data-case-id]'));
+            const rowsById = new Map(freshRows.map(row => [row.dataset.caseId, row]));
+
+            document.querySelectorAll('#cases-table tbody tr[data-case-id]').forEach(currentRow => {
+                const freshRow = rowsById.get(currentRow.dataset.caseId);
+                if (!freshRow) return;
+                currentRow.outerHTML = freshRow.outerHTML;
+            });
+
+            const activeFilterBtn = document.querySelector('.filter-tab.active') || document.querySelector('.filter-tab');
+            if (activeFilterBtn) {
+                filterCases(currentFilterLevel, activeFilterBtn);
+            }
+
+            if (selectedCaseId) {
+                const refreshedSelected = document.querySelector(`#cases-table tbody tr[data-case-id="${CSS.escape(selectedCaseId)}"]`);
+                if (refreshedSelected) {
+                    selectCase(refreshedSelected);
+                }
+            }
+        })
+        .catch(() => {});
 }
 
 function closeManageHearingModal() {
@@ -2181,6 +2223,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 <?php endif; ?>
+
+setInterval(syncQueueRows, 15000);
 </script>
 </body>
 </html>
