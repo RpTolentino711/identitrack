@@ -2092,6 +2092,10 @@ function closeVotingModal() {
     if (modal) modal.classList.remove('open');
 }
 
+function normalizePauseState(value) {
+    return value === true || value === 1 || value === '1' || value === 'true';
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────
 //  PAUSE STATE HANDLERS
@@ -2302,7 +2306,9 @@ function showCaseResolvedModal() {
 }
 
 function syncLive() {
-    fetch('../api/upcc_case_live.php?case_id=' + CASE_ID + '&actor=upcc')
+    fetch('../api/upcc_case_live.php?case_id=' + CASE_ID + '&actor=upcc&t=' + Date.now(), {
+        cache: 'no-store'
+    })
         .then(r => r.json())
         .then(data => {
             if (!data.ok) return;
@@ -2438,8 +2444,9 @@ function syncLive() {
             }
 
             // ── PAUSE STATE HANDLING ──────────────────────────────────
-            if (data.is_paused !== undefined && data.is_paused !== currentPauseState) {
-                currentPauseState = data.is_paused;
+            const nextPauseState = normalizePauseState(data.is_paused);
+            if (data.is_paused !== undefined && nextPauseState !== currentPauseState) {
+                currentPauseState = nextPauseState;
                 pauseReason = data.pause_reason || null;
                 
                 // Update UI to reflect pause state

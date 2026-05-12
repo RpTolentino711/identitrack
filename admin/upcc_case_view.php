@@ -2083,6 +2083,10 @@ function toggleHearingPause() {
         });
 }
 
+function normalizePauseState(value) {
+  return value === true || value === 1 || value === '1' || value === 'true';
+}
+
 
 function admitUser(upccId) {
     fetch(`../api/upcc_case_live.php?action=admit_user&case_id=${CASE_ID}&upcc_id=${upccId}&actor=admin`)
@@ -2106,7 +2110,9 @@ function voteSig(votes) {
 
 // ── MAIN LIVE SYNC ────────────────────────────────────────────────────────
 function syncLive() {
-    fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`)
+  fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin&t=${Date.now()}`, {
+    cache: 'no-store'
+  })
         .then(r => r.json())
         .then(data => {
             if (!data.ok) return;
@@ -2243,8 +2249,9 @@ function syncLive() {
             }
 
             // Pause state handling
-            if (data.is_paused !== undefined && data.is_paused !== _currentPauseState) {
-                _currentPauseState = data.is_paused;
+            const nextPauseState = normalizePauseState(data.is_paused);
+            if (data.is_paused !== undefined && nextPauseState !== _currentPauseState) {
+              _currentPauseState = nextPauseState;
                 updatePauseUI(_currentPauseState, data.pause_reason);
                 
                 // Show toast notification for auto-pause
