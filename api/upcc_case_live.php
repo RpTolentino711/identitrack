@@ -440,6 +440,15 @@ if ($action === 'admit_user' && $isAdmin) {
 // REQUEST REJOIN ACTION (UPCC only)
 // ─────────────────────────────────────────────────────────────────────────
 if ($action === 'request_rejoin' && $_SERVER['REQUEST_METHOD'] === 'POST' && $isUpcc) {
+    // Check if hearing is paused - if so, reject rejoin request
+    $caseCheck = db_one("SELECT hearing_is_open, hearing_is_paused FROM upcc_case WHERE case_id = :id", [':id' => $caseId]);
+    if (!$caseCheck || (int)($caseCheck['hearing_is_open'] ?? 0) !== 1 || (int)($caseCheck['hearing_is_paused'] ?? 0) === 1) {
+        echo json_encode(['ok' => false, 'error' => $caseCheck && (int)($caseCheck['hearing_is_paused'] ?? 0) === 1 
+            ? 'Cannot join while hearing is paused. Please wait for the admin to resume.' 
+            : 'Hearing is not active']);
+        exit;
+    }
+    
     // Ensure table exists
     db_exec("CREATE TABLE IF NOT EXISTS upcc_panel_rejoin_requests (
         request_id BIGINT NOT NULL AUTO_INCREMENT,

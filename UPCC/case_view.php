@@ -1680,6 +1680,27 @@ function _renderSugDetails(array $sd): void {
     </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════════════
+     HEARING PAUSED MODAL — shown when hearing is paused while panel is in
+══════════════════════════════════════════════════════════════════════ -->
+<div id="hearingPausedModal" style="position:fixed;inset:0;z-index:9200;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.96);backdrop-filter:blur(12px);padding:24px">
+    <div style="background:var(--bg-card);border:2px solid rgba(239,68,68,.4);border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:480px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(239,68,68,.2)">
+        <div style="font-size:48px;margin-bottom:16px">⏸️</div>
+        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#fca5a5;margin-bottom:8px">Hearing Has Been Paused</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:24px">
+            <p id="pauseReasonText" style="margin:0 0 12px">The admin has paused the hearing.</p>
+            <p style="margin:0;font-size:12px;font-style:italic">You can stay in the hearing and wait for it to resume, or return to your dashboard.</p>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <button type="button" class="btn btn-primary" onclick="closePauseModal(); document.getElementById('waitInHearingBtn').focus();" style="padding:14px;font-size:14px;">⏳ Wait & Stay</button>
+            <button type="button" class="btn btn-secondary" id="exitPauseBtn" onclick="exitHearingDueToPause()" style="padding:14px;font-size:14px;">← Go to Dashboard</button>
+        </div>
+        <div id="waitInHearingBtn" style="margin-top:16px;padding:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:12px;color:#6ee7b7">
+            The hearing will automatically resume. Stay and keep your place in the panel.
+        </div>
+    </div>
+</div>
+
 <script>
 // ─────────────────────────────────────────────────────────────────────────
 //  CONSTANTS
@@ -1707,8 +1728,7 @@ let isPartialReloading= false;
 let lastRejoinTs      = parseInt(localStorage.getItem('lastRejoin_' + CASE_ID) || '0', 10);
 let currentPauseState = <?= $isHearingPaused ? 'true' : 'false' ?>;
 let pauseReason       = <?= $pauseReason ? json_encode($pauseReason) : 'null' ?>;
-let currentPauseState = <?= $isHearingPaused ? 'true' : 'false' ?>;
-let pauseReason       = <?= $pauseReason ? json_encode($pauseReason) : 'null' ?>;
+let pauseModalOpen    = false;
 
 // ─────────────────────────────────────────────────────────────────────────
 //  LIVE VOTING TIMER
@@ -2149,6 +2169,88 @@ function enablePauseableControls() {
     }
 }
 
+function disablePauseableControls() {
+    // Disable chat
+    const chatInput = document.getElementById('chat_message_input');
+    const chatSubmit = document.getElementById('chat_submit_btn');
+    if (chatInput) {
+        chatInput.disabled = true;
+        chatInput.placeholder = 'Chat disabled - hearing is paused';
+    }
+    if (chatSubmit) chatSubmit.disabled = true;
+    
+    // Disable voting buttons
+    document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = true);
+    
+    // Disable suggestion form
+    const suggestForm = document.getElementById('suggestForm');
+    if (suggestForm) {
+        suggestForm.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach(el => el.disabled = true);
+    }
+}
+
+function enablePauseableControls() {
+    // Only re-enable if hearing is still open (not just unpaused, but actually open)
+    const hearingOpen = <?= $isHearingOpen ? 'true' : 'false' ?>;
+    if (!hearingOpen) return;
+    
+    // Enable chat
+    const chatInput = document.getElementById('chat_message_input');
+    const chatSubmit = document.getElementById('chat_submit_btn');
+    if (chatInput) {
+        chatInput.disabled = false;
+        chatInput.placeholder = 'Type your message…';
+    }
+    if (chatSubmit) chatSubmit.disabled = false;
+    
+    // Enable voting buttons
+    document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = false);
+    
+    // Enable suggestion form
+    const suggestForm = document.getElementById('suggestForm');
+    if (suggestForm) {
+        suggestForm.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach(el => el.disabled = false);
+    }
+}
+
+function showPauseModal(pauseReasonStr = null) {
+    const modal = document.getElementById('hearingPausedModal');
+    const reasonEl = document.getElementById('pauseReasonText');
+    if (!modal) return;
+    
+    if (pauseReasonStr === 'AUTO_PAUSE_ADMIN_LEFT') {
+        reasonEl.textContent = 'The admin has disconnected. The hearing is paused while they reconnect.';
+    } else {
+        reasonEl.textContent = 'The admin has paused the hearing.';
+    }
+    
+    modal.style.display = 'flex';
+    pauseModalOpen = true;
+    disablePauseableControls();
+}
+
+function closePauseModal() {
+    const modal = document.getElementById('hearingPausedModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    pauseModalOpen = false;
+    enablePauseableControls();
+}
+
+function exitHearingDueToPause() {
+    const fd = new FormData();
+    fd.append('action', 'exit_hearing');
+    fd.append('case_id', CASE_ID);
+    
+    fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
+        .then(() => {
+            window.location.href = 'upccdashboard.php?msg=exited_due_to_pause';
+        })
+        .catch(() => {
+            window.location.href = 'upccdashboard.php';
+        });
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 //  MAIN LIVE SYNC LOOP
 // ─────────────────────────────────────────────────────────────────────────
@@ -2352,9 +2454,17 @@ function syncLive() {
                     
                     // Disable voting/chat when paused
                     disablePauseableControls();
+                    
+                    // Show pause modal so panel members have options
+                    showPauseModal(pauseReason);
                 } else {
                     // Hearing is now resumed
                     showToast('▶️ Hearing Resumed', 'You may continue voting and messaging.', 'success');
+                    
+                    // Close modal if open
+                    if (pauseModalOpen) {
+                        closePauseModal();
+                    }
                     
                     // Re-enable controls
                     enablePauseableControls();
