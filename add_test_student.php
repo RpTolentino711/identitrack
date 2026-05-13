@@ -2,43 +2,65 @@
 require_once __DIR__ . '/database/database.php';
 
 header('Content-Type: text/plain');
-echo "--- IdentiTrack Encryption Test Generator ---\n\n";
+echo "--- IdentiTrack MULTI-TEST Generator ---\n\n";
 
 $key = db_encryption_key();
 
-$sid = 'TEST-999';
-$fn  = 'Test';
-$ln  = 'Student';
-$em  = 'test@identitrack.site';
-$ph  = '0912-345-6789';
-$ad  = '123 Security Lane, Encryption City';
+$test_students = [
+    [
+        'id' => 'T-001',
+        'fn' => 'Juan',
+        'ln' => 'Dela Cruz',
+        'em' => 'juan@example.com',
+        'ph' => '0912-111-1111'
+    ],
+    [
+        'id' => 'T-002',
+        'fn' => 'Maria',
+        'ln' => 'Santos',
+        'em' => 'maria@example.com',
+        'ph' => '0912-222-2222'
+    ],
+    [
+        'id' => 'T-003',
+        'fn' => 'Pedro',
+        'ln' => 'Penduko',
+        'em' => 'pedro@example.com',
+        'ph' => '0912-333-3333'
+    ]
+];
 
 try {
-    // Delete if exists first
-    db_exec("DELETE FROM student WHERE student_id = :sid", [':sid' => $sid]);
+    foreach ($test_students as $s) {
+        echo "Adding " . $s['fn'] . " (" . $s['id'] . ")... ";
+        
+        // Delete if exists
+        db_exec("DELETE FROM student WHERE student_id = :sid", [':sid' => $s['id']]);
 
-    // Insert with encryption
-    db_exec("INSERT INTO student (student_id, student_fn, student_ln, student_email, phone_number, home_address, year_level, program, school, section) 
-             VALUES (:sid, 
-             " . db_encrypt_col('fn', ':fn') . ", 
-             " . db_encrypt_col('ln', ':ln') . ", 
-             " . db_encrypt_col('em', ':em') . ", 
-             " . db_encrypt_col('ph', ':ph') . ", 
-             " . db_encrypt_col('ad', ':ad') . ", 
-             1, 'BSIT', 'College', 'INF-101')", 
-             [
-                ':sid' => $sid,
-                ':fn'  => $fn,
-                ':ln'  => $ln,
-                ':em'  => $em,
-                ':ph'  => $ph,
-                ':ad'  => $ad,
-                ':__enckey' => $key
-             ]
-    );
+        // Insert
+        db_exec("INSERT INTO student (student_id, student_fn, student_ln, student_email, phone_number, home_address, year_level, program, school, section) 
+                 VALUES (:sid, 
+                 " . db_encrypt_col('fn', ':fn') . ", 
+                 " . db_encrypt_col('ln', ':ln') . ", 
+                 " . db_encrypt_col('em', ':em') . ", 
+                 " . db_encrypt_col('ph', ':ph') . ", 
+                 " . db_encrypt_col('ad', ':ad') . ", 
+                 2, 'BSIT', 'College', 'INF232')", 
+                 [
+                    ':sid' => $s['id'],
+                    ':fn'  => $s['fn'],
+                    ':ln'  => $s['ln'],
+                    ':em'  => $s['em'],
+                    ':ph'  => $s['ph'],
+                    ':ad'  => 'Encryption Test City',
+                    ':__enckey' => $key
+                 ]
+        );
+        echo "[DONE]\n";
+    }
 
-    echo "SUCCESS! Test student 'TEST-999' has been added.\n";
-    echo "Go to your dashboard and search for 'TEST-999' to verify.\n";
+    echo "\nSUCCESS! 3 Test students added.\n";
+    echo "Check your dashboard now!\n";
 
 } catch (Exception $e) {
     echo "ERROR: " . $e->getMessage() . "\n";
