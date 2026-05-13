@@ -9,7 +9,21 @@ echo "Current Dir: " . __DIR__ . "\n";
 echo "Looking for .env in: " . realpath(__DIR__ . '/.env') . "\n";
 echo "Looking for .env in: " . realpath(__DIR__ . '/../.env') . "\n";
 echo "File exists (./.env): " . (file_exists(__DIR__ . '/.env') ? "YES" : "NO") . "\n";
-echo "File exists (../.env): " . (file_exists(__DIR__ . '/../.env') ? "YES" : "NO") . "\n\n";
+echo "File exists (../.env): " . (file_exists(__DIR__ . '/../.env') ? "YES" : "NO") . "\n";
+
+if (file_exists(__DIR__ . '/.env')) {
+    echo "\nKeys found in .env:\n";
+    $lines = file(__DIR__ . '/.env');
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || strpos($line, '#') === 0) continue;
+        if (strpos($line, '=') !== false) {
+            list($name, $value) = explode('=', $line, 2);
+            echo "- " . trim($name) . " (Value length: " . strlen(trim($value)) . ")\n";
+        }
+    }
+}
+echo "\n";
 
 $key = db_encryption_key();
 echo "1. Encryption Key Found: " . ($key !== '' ? "YES (Length: " . strlen($key) . ")" : "NO") . "\n";

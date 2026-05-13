@@ -73,7 +73,8 @@ function db_encryption_key(): string
                   if ($line === '' || strpos($line, '#') === 0) continue;
                   if (strpos($line, '=') !== false) {
                       list($name, $value) = explode('=', $line, 2);
-                      if (trim($name) === 'DB_ENCRYPTION_KEY') {
+                      $cleanName = preg_replace('/[^a-zA-Z0-9_]/', '', $name);
+                      if ($cleanName === 'DB_ENCRYPTION_KEY') {
                           $envKey = trim(trim($value), " \t\n\r\0\x0B\"'");
                           break 2;
                       }
