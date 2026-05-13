@@ -251,7 +251,10 @@ $sql = "
 
     (SELECT " . db_decrypt_col('description', 'o2') . " FROM offense o2
      WHERE o2.student_id = s.student_id
-     ORDER BY o2.date_committed DESC LIMIT 1)  AS last_description
+     ORDER BY o2.date_committed DESC LIMIT 1)  AS last_description,
+     
+     -- Debug: Is decryption actually working?
+     (SELECT CASE WHEN " . db_decrypt_col('student_fn', 's') . " IS NULL THEN 1 ELSE 0 END) AS _dec_fail
 
   FROM student s
   LEFT JOIN offense o ON o.student_id = s.student_id
@@ -1165,7 +1168,12 @@ $students = db_all($sql, $params) ?: [];
                         <div class="card-left">
                           <div class="avatar"><?php echo e($init); ?></div>
                           <div>
-                            <div class="student-name"><?php echo e($name); ?></div>
+                            <div class="student-name">
+                              <?php echo e($name); ?>
+                              <?php if ((int)($s['_dec_fail'] ?? 0) === 1): ?>
+                                <span style="color:red;font-size:10px;font-weight:800;">[DECRYPT FAIL]</span>
+                              <?php endif; ?>
+                            </div>
                             <div class="student-sid"><?php  echo e($sid);  ?></div>
                           </div>
                         </div>
