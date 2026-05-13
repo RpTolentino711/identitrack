@@ -123,18 +123,20 @@ $pendingCases  = (int)(db_one("SELECT COUNT(*) AS c FROM upcc_case WHERE status=
 $resolvedCases = (int)(db_one("SELECT COUNT(*) AS c FROM upcc_case WHERE status IN ('CLOSED','RESOLVED')")['c'] ?? 0);
 $appealCases   = (int)(db_one("SELECT COUNT(*) AS c FROM upcc_case WHERE status='UNDER_APPEAL'")['c'] ?? 0);
 
+$casesParams = [];
+db_add_encryption_key($casesParams);
+
 // ── All cases — now includes case_summary AND consensus category ───────────────────
 $cases = db_all("SELECT
         uc.case_id,
         uc.status,
         uc.created_at,
         uc.resolution_date,
-        uc.final_decision,
+        " . db_decrypt_cols(['final_decision', 'case_summary', 'punishment_details'], 'uc') . ",
         uc.decided_category,
         uc.assigned_department_id,
         uc.assigned_panel_members,
         uc.case_kind,
-        uc.case_summary,
         uc.hearing_vote_consensus_category,
         uc.hearing_date,
         uc.hearing_time,
@@ -142,7 +144,7 @@ $cases = db_all("SELECT
         uc.hearing_is_paused,
         (SELECT MAX(p.last_ping) FROM upcc_hearing_presence p WHERE p.case_id = uc.case_id AND p.user_type = 'ADMIN') as admin_last_ping,
         s.student_id,
-        CONCAT(s.student_fn,' ',s.student_ln) AS student_name,
+        " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ",
         GROUP_CONCAT(ot.name ORDER BY ot.offense_type_id SEPARATOR ' | ') AS offense_names,
         MAX(ot.level) AS offense_level,
         MAX(ot.major_category) AS major_category,
@@ -154,7 +156,7 @@ $cases = db_all("SELECT
     LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
     GROUP BY uc.case_id
     ORDER BY uc.created_at DESC
-");
+", $casesParams);
 
 // ── Members with department info ────────────────────────────
 $members = db_all("SELECT u.upcc_id, u.full_name, u.role, u.email, u.photo_path, u.is_active, u.department_id, d.dept_name
@@ -1113,7 +1115,7 @@ function fmt_case_id(int $id, string $created): string {
                             <tr data-level="<?= e($lvl) ?>"
                                 data-filter-category="<?= e($filterCategory) ?>"
                                 data-caseid="<?= e($caseLabel) ?>"
-                                data-student="<?= e($c['student_name']) ?>"
+                                data-student="<?= e(trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? '')) ?: $c['student_id']) ?>"
                                 data-sid="<?= e($c['student_id']) ?>"
                                 data-offense="<?= e($offenseShort) ?>"
                                 data-category="<?= e(strip_tags($categoryHtml)) ?>"
@@ -1139,7 +1141,11 @@ function fmt_case_id(int $id, string $created): string {
                                 onclick="selectCase(this)">
                                 <td><div class="case-id"><?= e($caseLabel) ?></div></td>
                                 <td>
-                                    <div class="student-name"><?= e($c['student_name']) ?></div>
+                                        <?php
+                                        $caseStudentName = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
+                                        if ($caseStudentName === '') $caseStudentName = $c['student_id'];
+                                        ?>
+                                        <div class="student-name"><?= htmlspecialchars($caseStudentName) ?></div>
                                     <div class="student-id"><?= e($c['student_id']) ?></div>
                                 </td>
                                 <td>
