@@ -163,18 +163,18 @@ $whereParts = [];
 $params     = [];
 
 if ($q !== '') {
+  $params[':q'] = "%$q%";
+  db_add_encryption_key($params);
+  
   $decFn = db_decrypt_col('student_fn', 's');
   $decLn = db_decrypt_col('student_ln', 's');
-  $whereParts[] = "(s.student_id LIKE :q1 OR $decFn LIKE :q2 OR $decLn LIKE :q3
-                    OR CONCAT($decFn,' ',$decLn) LIKE :q4
-                    OR CONCAT($decLn,', ',$decFn) LIKE :q5)";
-  $like = '%' . $q . '%';
-  $params[':q1'] = $q . '%';
-  $params[':q2'] = $like;
-  $params[':q3'] = $like;
-  $params[':q4'] = $like;
-  $params[':q5'] = $like;
-  db_add_encryption_key($params);
+  
+  $whereParts[] = "(
+    s.student_id LIKE :q OR 
+    $decFn LIKE :q OR 
+    $decLn LIKE :q OR 
+    CONCAT($decFn, ' ', $decLn) LIKE :q
+  )";
 }
 
 if ($filter === 'minor') {
