@@ -4,6 +4,13 @@ require_once __DIR__ . '/database/database.php';
 header('Content-Type: text/plain');
 echo "--- IDENTITRACK ENCRYPTION DEBUG ---\n\n";
 
+echo "DEBUG INFO:\n";
+echo "Current Dir: " . __DIR__ . "\n";
+echo "Looking for .env in: " . realpath(__DIR__ . '/.env') . "\n";
+echo "Looking for .env in: " . realpath(__DIR__ . '/../.env') . "\n";
+echo "File exists (./.env): " . (file_exists(__DIR__ . '/.env') ? "YES" : "NO") . "\n";
+echo "File exists (../.env): " . (file_exists(__DIR__ . '/../.env') ? "YES" : "NO") . "\n\n";
+
 $key = db_encryption_key();
 echo "1. Encryption Key Found: " . ($key !== '' ? "YES (Length: " . strlen($key) . ")" : "NO") . "\n";
 if ($key === 'IdentiTrack_Secure_Key_2024_@SDO') {

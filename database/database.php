@@ -64,15 +64,20 @@ function db_encryption_key(): string
   static $envKey = null;
 
   if (!$envLoaded) {
-      $envPath = __DIR__ . '/../.env';
-      if (file_exists($envPath)) {
-          $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-          foreach ($lines as $line) {
-              if (strpos(trim($line), '#') === 0) continue;
-              list($name, $value) = explode('=', $line, 2);
-              if (trim($name) === 'DB_ENCRYPTION_KEY') {
-                  $envKey = trim($value, " \t\n\r\0\x0B\"'");
-                  break;
+      $paths = [__DIR__ . '/../.env', __DIR__ . '/.env'];
+      foreach ($paths as $envPath) {
+          if (file_exists($envPath)) {
+              $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+              foreach ($lines as $line) {
+                  $line = trim($line);
+                  if ($line === '' || strpos($line, '#') === 0) continue;
+                  if (strpos($line, '=') !== false) {
+                      list($name, $value) = explode('=', $line, 2);
+                      if (trim($name) === 'DB_ENCRYPTION_KEY') {
+                          $envKey = trim(trim($value), " \t\n\r\0\x0B\"'");
+                          break 2;
+                      }
+                  }
               }
           }
       }
