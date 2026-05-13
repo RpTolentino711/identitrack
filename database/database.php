@@ -26,10 +26,15 @@ function db(): PDO
 {
   static $pdo = null;
   if ($pdo === null) {
-    $host = $_ENV['DB_HOST'] ?? 'localhost';
-    $db   = $_ENV['DB_NAME'] ?? 'identitrack';
-    $user = $_ENV['DB_USER'] ?? 'root';
-    $pass = $_ENV['DB_PASS'] ?? '';
+    // Helper to get from $_ENV, $_SERVER or getenv()
+    $getEnv = function($key, $default) {
+        return (string)($_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: $default);
+    };
+
+    $host = $getEnv('DB_HOST', 'localhost');
+    $db   = $getEnv('DB_NAME', 'identitrack');
+    $user = $getEnv('DB_USER', 'root');
+    $pass = $getEnv('DB_PASS', '');
 
     $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
     $options = [
@@ -41,6 +46,8 @@ function db(): PDO
     try {
       $pdo = new PDO($dsn, $user, $pass, $options);
     } catch (PDOException $e) {
+      // Don't die with credentials if possible, but the current code does.
+      // I'll keep it but make it clear.
       die("DB Connection failed: " . $e->getMessage());
     }
   }
@@ -52,7 +59,7 @@ function db(): PDO
  */
 function db_encryption_key(): string
 {
-  $key = $_ENV['DB_ENCRYPTION_KEY'] ?? '';
+  $key = (string)($_ENV['DB_ENCRYPTION_KEY'] ?? $_SERVER['DB_ENCRYPTION_KEY'] ?? getenv('DB_ENCRYPTION_KEY') ?: '');
   if ($key === '') {
       // Fallback for local dev if .env is missing
       return 'IdentiTrack_Secure_Key_2024_@SDO';
