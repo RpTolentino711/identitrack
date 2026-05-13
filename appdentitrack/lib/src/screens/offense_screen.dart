@@ -12,7 +12,7 @@ import 'shared_bottom_nav.dart';
 
 class OffenseScreen extends StatefulWidget {
   final String studentId;
-  final String studentName; // optional fallback from login
+  final String studentName;
 
   const OffenseScreen({
     super.key,
@@ -100,11 +100,16 @@ class _OffenseScreenState extends State<OffenseScreen> {
             Text('Hard Delete', style: TextStyle(fontWeight: FontWeight.w900)),
           ],
         ),
-        content: const Text('Are you sure you want to PERMANENTLY delete this offense? This will wipe all associated records (appeals, cases, etc.) and cannot be undone.'),
+        content: const Text(
+            'Are you sure you want to PERMANENTLY delete this offense? '
+            'This will wipe all associated records (appeals, cases, etc.) '
+            'and cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w700)),
+            child: const Text('Cancel',
+                style: TextStyle(
+                    color: Colors.grey, fontWeight: FontWeight.w700)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -113,7 +118,8 @@ class _OffenseScreenState extends State<OffenseScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
             ),
-            child: const Text('PERMANENT DELETE', style: TextStyle(fontWeight: FontWeight.w900)),
+            child: const Text('PERMANENT DELETE',
+                style: TextStyle(fontWeight: FontWeight.w900)),
           ),
         ],
       ),
@@ -123,7 +129,8 @@ class _OffenseScreenState extends State<OffenseScreen> {
 
     setState(() => _loading = true);
     try {
-      await _api.deleteOffense(studentId: widget.studentId, offenseId: o.offenseId);
+      await _api.deleteOffense(
+          studentId: widget.studentId, offenseId: o.offenseId);
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -149,7 +156,7 @@ class _OffenseScreenState extends State<OffenseScreen> {
   Color _levelColor(String level) {
     switch (level.toUpperCase()) {
       case 'UPCC DECISION':
-        return const Color(0xFF673AB7); // Deep Purple
+        return const Color(0xFF673AB7);
       case 'MAJOR':
         return const Color(0xFFD32F2F);
       case 'MINOR':
@@ -169,7 +176,6 @@ class _OffenseScreenState extends State<OffenseScreen> {
         return Icons.report_gmailerrorred_rounded;
     }
   }
-
 
   Widget _statRow() {
     Widget statChip(String label, String value, {Color? color}) {
@@ -238,10 +244,11 @@ class _OffenseScreenState extends State<OffenseScreen> {
   Widget _offenseTile(OffenseItem o) {
     final level = o.level.toUpperCase();
     final isBundle = o.isBundle;
-    
+
     final color = isBundle ? const Color(0xFFC62828) : _levelColor(level);
     final bgColor = isBundle ? const Color(0xFFFFEBEE) : Colors.white;
-    final borderColor = isBundle ? const Color(0xFFEF9A9A) : Colors.grey.shade200;
+    final borderColor =
+        isBundle ? const Color(0xFFEF9A9A) : Colors.grey.shade200;
 
     return InkWell(
       onTap: () {
@@ -303,7 +310,9 @@ class _OffenseScreenState extends State<OffenseScreen> {
                     Text(
                       o.description.trim(),
                       style: TextStyle(
-                        color: isBundle ? const Color(0xFFC62828) : Colors.grey.shade700,
+                        color: isBundle
+                            ? const Color(0xFFC62828)
+                            : Colors.grey.shade700,
                         height: 1.4,
                       ),
                     ),
@@ -311,12 +320,17 @@ class _OffenseScreenState extends State<OffenseScreen> {
                   if (o.appealStatus.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: o.appealStatus == 'APPROVED' ? Colors.green.shade50 : Colors.red.shade50,
+                        color: o.appealStatus == 'APPROVED'
+                            ? Colors.green.shade50
+                            : Colors.red.shade50,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: o.appealStatus == 'APPROVED' ? Colors.green.shade300 : Colors.red.shade300,
+                          color: o.appealStatus == 'APPROVED'
+                              ? Colors.green.shade300
+                              : Colors.red.shade300,
                         ),
                       ),
                       child: Text(
@@ -324,7 +338,9 @@ class _OffenseScreenState extends State<OffenseScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color: o.appealStatus == 'APPROVED' ? Colors.green.shade800 : Colors.red.shade800,
+                          color: o.appealStatus == 'APPROVED'
+                              ? Colors.green.shade800
+                              : Colors.red.shade800,
                         ),
                       ),
                     ),
@@ -339,6 +355,7 @@ class _OffenseScreenState extends State<OffenseScreen> {
     );
   }
 
+  // ── BUILD ────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -373,11 +390,7 @@ class _OffenseScreenState extends State<OffenseScreen> {
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          color: blue,
-          backgroundColor: Colors.white,
-          child: Container(
+        child: Container(
           width: double.infinity,
           decoration: const BoxDecoration(
             color: Color(0xFFF5F6FB),
@@ -386,106 +399,128 @@ class _OffenseScreenState extends State<OffenseScreen> {
               topRight: Radius.circular(28),
             ),
           ),
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : (_error != null)
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: _load,
-                          child: const Text('Retry'),
+          // FIX: CustomScrollView makes ALL states (loading, error, list)
+          // scrollable, so RefreshIndicator can always detect a pull gesture.
+          child: RefreshIndicator(
+            onRefresh: _load,
+            color: blue,
+            backgroundColor: Colors.white,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                if (_loading)
+                  const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_error != null)
+                  SliverFillRemaining(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_error!, textAlign: TextAlign.center),
+                            const SizedBox(height: 10),
+                            ElevatedButton(
+                              onPressed: _load,
+                              child: const Text('Retry'),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 90),
-                  children: [
-                    const Text(
-                      'All Recorded Violations',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: blueDark,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${_greeting()}, ${_displayName()}',
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Student ID: ${widget.studentId}',
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _statRow(),
-                    const SizedBox(height: 14),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _filterToggle(),
-                    ),
-                    const SizedBox(height: 14),
-
-                    if (_items.where((o) => !o.isDeletedByStudent).isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 90),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        const Text(
+                          'All Recorded Violations',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: blueDark,
+                          ),
                         ),
-                        child: Text(
-                          'No offenses found.',
+                        const SizedBox(height: 6),
+                        Text(
+                          '${_greeting()}, ${_displayName()}',
                           style: TextStyle(
                             color: Colors.grey.shade700,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      )
-                    else ...[
-                      ..._items.where((o) {
-                        if (o.isDeletedByStudent) return false;
-                        if (_filter == 'ALL') return true;
-                        return o.level.toUpperCase() == _filter;
-                      }).map(_offenseTile).toList(),
-                      if (_items.where((o) {
-                        if (o.isDeletedByStudent) return false;
-                        if (_filter == 'ALL') return true;
-                        return o.level.toUpperCase() == _filter;
-                      }).isEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade200),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Student ID: ${widget.studentId}',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w600,
                           ),
-                          child: Text(
-                            'No $_filter offenses found.',
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w700,
+                        ),
+                        const SizedBox(height: 14),
+                        _statRow(),
+                        const SizedBox(height: 14),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: _filterToggle(),
+                        ),
+                        const SizedBox(height: 14),
+                        if (_items
+                            .where((o) => !o.isDeletedByStudent)
+                            .isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border:
+                                  Border.all(color: Colors.grey.shade200),
                             ),
-                          ),
-                        )
-                    ],
-                  ],
-                ),
+                            child: Text(
+                              'No offenses found.',
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          )
+                        else ...[
+                          ..._items.where((o) {
+                            if (o.isDeletedByStudent) return false;
+                            if (_filter == 'ALL') return true;
+                            return o.level.toUpperCase() == _filter;
+                          }).map(_offenseTile).toList(),
+                          if (_items.where((o) {
+                            if (o.isDeletedByStudent) return false;
+                            if (_filter == 'ALL') return true;
+                            return o.level.toUpperCase() == _filter;
+                          }).isEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                    color: Colors.grey.shade200),
+                              ),
+                              child: Text(
+                                'No $_filter offenses found.',
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ]),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: SharedBottomNav(
@@ -496,6 +531,3 @@ class _OffenseScreenState extends State<OffenseScreen> {
     );
   }
 }
-
-          ),
-        ),

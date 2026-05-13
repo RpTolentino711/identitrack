@@ -79,6 +79,68 @@ function db_last_id(): string
   return db()->lastInsertId();
 }
 
+function student_api_unauthorized(string $message = 'Unauthorized', int $status = 401): void
+{
+  http_response_code($status);
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode(['ok' => false, 'message' => $message, 'data' => null]);
+  exit;
+}
+
+function student_api_bearer_token(): string
+{
+  $headers = function_exists('getallheaders') ? getallheaders() : [];
+  $candidates = [
+    (string)($headers['Authorization'] ?? $headers['authorization'] ?? ''),
+    (string)($_SERVER['HTTP_AUTHORIZATION'] ?? ''),
+    (string)($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? ''),
+    (string)($_SERVER['HTTP_X_STUDENT_TOKEN'] ?? ''),
+  ];
+
+  foreach ($candidates as $candidate) {
+    $candidate = trim($candidate);
+    if ($candidate === '') {
+      continue;
+    }
+
+    if (stripos($candidate, 'Bearer ') === 0) {
+      return trim(substr($candidate, 7));
+    }
+
+    return $candidate;
+  }
+
+  return '';
+}
+
+function require_student_api_auth(?string $studentId = null): array
+{
+  $token = student_api_bearer_token();
+  if ($token === '') {
+    student_api_unauthorized('Unauthorized.');
+  }
+
+  $sql = "SELECT student_id, session_token_hash, expires_at
+          FROM auth_session
+          WHERE actor_type = 'STUDENT'
+            AND expires_at > NOW()";
+  $params = [];
+
+  if ($studentId !== null && $studentId !== '') {
+    $sql .= ' AND student_id = :sid';
+    $params[':sid'] = $studentId;
+  }
+
+  $sessions = db_all($sql, $params);
+  foreach ($sessions as $session) {
+    if (password_verify($token, (string)($session['session_token_hash'] ?? ''))) {
+      return $session;
+    }
+  }
+
+  student_api_unauthorized('Unauthorized.');
+}
+
 /* =========================
    UTILS
    ========================= */

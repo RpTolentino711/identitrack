@@ -37,6 +37,8 @@ $offenseId = (int)($body['offense_id'] ?? 0);
 if ($studentId === '') json_out(false, 'student_id is required.', null, 400);
 if ($offenseId === 0) json_out(false, 'offense_id is required.', null, 400);
 
+require_student_api_auth($studentId);
+
 $student = db_one(
   "SELECT student_id, is_active FROM student WHERE student_id = :sid LIMIT 1",
   [':sid' => $studentId]

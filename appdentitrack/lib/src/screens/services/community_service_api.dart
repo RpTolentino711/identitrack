@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config.dart';
+import 'student_api_auth.dart';
 
 class CommunityServiceApi {
   Future<CommunityServiceOverview> getOverview(String studentId) async {
+    final headers = await StudentApiAuth.jsonHeaders();
     final res = await http.post(
       Uri.parse(AppConfig.communityServiceOverviewUrl),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      headers: headers,
       body: jsonEncode({'student_id': studentId}),
     );
     final decoded = jsonDecode(res.body);
@@ -19,9 +21,10 @@ class CommunityServiceApi {
     required int requirementId,
     String reason = '',
   }) async {
+    final headers = await StudentApiAuth.jsonHeaders();
     final res = await http.post(
       Uri.parse(AppConfig.communityServiceLoginUrl),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      headers: headers,
       body: jsonEncode({
         'student_id': studentId,
         'requirement_id': requirementId,
@@ -68,9 +71,15 @@ class CommunityServiceOverview {
     required this.activeSession,
     required this.pendingManualRequest,
   });
-  factory CommunityServiceOverview.fromJson(Map<String, dynamic> json) => CommunityServiceOverview(
-    requirements: (json['requirements'] as List).map((e) => ServiceRequirement.fromJson(e)).toList(),
-    sessions: (json['sessions'] as List).map((e) => ServiceSession.fromJson(e)).toList(),
+  factory CommunityServiceOverview.fromJson(
+    Map<String, dynamic> json,
+  ) => CommunityServiceOverview(
+    requirements: (json['requirements'] as List)
+        .map((e) => ServiceRequirement.fromJson(e))
+        .toList(),
+    sessions: (json['sessions'] as List)
+        .map((e) => ServiceSession.fromJson(e))
+        .toList(),
     hoursAssigned: double.tryParse(json['hours_assigned'].toString()) ?? 0.0,
     hoursCompleted: double.tryParse(json['hours_completed'].toString()) ?? 0.0,
     hasAssignment: json['has_assignment'] == true,
@@ -78,10 +87,14 @@ class CommunityServiceOverview {
     investigationMessage: (json['investigation_message'] ?? '').toString(),
     hasActiveAdmin: json['has_active_admin'] == true,
     activeSession: json['active_session'] is Map
-        ? ActiveServiceSession.fromJson((json['active_session'] as Map).cast<String, dynamic>())
+        ? ActiveServiceSession.fromJson(
+            (json['active_session'] as Map).cast<String, dynamic>(),
+          )
         : null,
     pendingManualRequest: json['pending_manual_request'] is Map
-        ? PendingManualRequest.fromJson((json['pending_manual_request'] as Map).cast<String, dynamic>())
+        ? PendingManualRequest.fromJson(
+            (json['pending_manual_request'] as Map).cast<String, dynamic>(),
+          )
         : null,
   );
 }
@@ -103,14 +116,16 @@ class ActiveServiceSession {
     required this.location,
   });
 
-  factory ActiveServiceSession.fromJson(Map<String, dynamic> json) => ActiveServiceSession(
-    sessionId: int.tryParse((json['session_id'] ?? 0).toString()) ?? 0,
-    requirementId: int.tryParse((json['requirement_id'] ?? 0).toString()) ?? 0,
-    timeIn: (json['time_in'] ?? '').toString(),
-    loginMethod: (json['login_method'] ?? '').toString(),
-    taskName: (json['task_name'] ?? '').toString(),
-    location: (json['location'] ?? '').toString(),
-  );
+  factory ActiveServiceSession.fromJson(Map<String, dynamic> json) =>
+      ActiveServiceSession(
+        sessionId: int.tryParse((json['session_id'] ?? 0).toString()) ?? 0,
+        requirementId:
+            int.tryParse((json['requirement_id'] ?? 0).toString()) ?? 0,
+        timeIn: (json['time_in'] ?? '').toString(),
+        loginMethod: (json['login_method'] ?? '').toString(),
+        taskName: (json['task_name'] ?? '').toString(),
+        location: (json['location'] ?? '').toString(),
+      );
 }
 
 class PendingManualRequest {
@@ -128,13 +143,15 @@ class PendingManualRequest {
     required this.reason,
   });
 
-  factory PendingManualRequest.fromJson(Map<String, dynamic> json) => PendingManualRequest(
-    requestId: int.tryParse((json['request_id'] ?? 0).toString()) ?? 0,
-    requirementId: int.tryParse((json['requirement_id'] ?? 0).toString()) ?? 0,
-    requestedAt: (json['requested_at'] ?? '').toString(),
-    status: (json['status'] ?? '').toString(),
-    reason: (json['reason'] ?? '').toString(),
-  );
+  factory PendingManualRequest.fromJson(Map<String, dynamic> json) =>
+      PendingManualRequest(
+        requestId: int.tryParse((json['request_id'] ?? 0).toString()) ?? 0,
+        requirementId:
+            int.tryParse((json['requirement_id'] ?? 0).toString()) ?? 0,
+        requestedAt: (json['requested_at'] ?? '').toString(),
+        status: (json['status'] ?? '').toString(),
+        reason: (json['reason'] ?? '').toString(),
+      );
 }
 
 class LoginRequestResult {
@@ -163,15 +180,16 @@ class ServiceRequirement {
     required this.assignedAt,
     required this.completedAt,
   });
-  factory ServiceRequirement.fromJson(Map<String, dynamic> json) => ServiceRequirement(
-    requirementId: json['requirement_id'],
-    taskName: json['task_name'],
-    location: json['location'] ?? '',
-    hoursRequired: double.tryParse(json['hours_required'].toString()) ?? 0,
-    status: json['status'],
-    assignedAt: json['assigned_at'],
-    completedAt: json['completed_at'] ?? '',
-  );
+  factory ServiceRequirement.fromJson(Map<String, dynamic> json) =>
+      ServiceRequirement(
+        requirementId: json['requirement_id'],
+        taskName: json['task_name'],
+        location: json['location'] ?? '',
+        hoursRequired: double.tryParse(json['hours_required'].toString()) ?? 0,
+        status: json['status'],
+        assignedAt: json['assigned_at'],
+        completedAt: json['completed_at'] ?? '',
+      );
 }
 
 class ServiceSession {

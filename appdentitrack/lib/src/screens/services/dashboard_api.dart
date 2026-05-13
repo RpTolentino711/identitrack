@@ -2,16 +2,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../config.dart';
+import 'student_api_auth.dart';
 
 class DashboardApi {
   Future<DashboardSummary> getSummary({required String studentId}) async {
+    final headers = await StudentApiAuth.jsonHeaders();
     final res = await http
         .post(
           Uri.parse(AppConfig.dashboardSummaryUrl),
-          headers: const {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
+          headers: headers,
           body: jsonEncode({'student_id': studentId}),
         )
         .timeout(const Duration(seconds: 30));
@@ -85,8 +84,10 @@ class DashboardApi {
       totalOffense: int.tryParse((data['total_offense'] ?? 0).toString()) ?? 0,
       minorOffense: int.tryParse((data['minor_offense'] ?? 0).toString()) ?? 0,
       majorOffense: int.tryParse((data['major_offense'] ?? 0).toString()) ?? 0,
-      unseenOffensesCount: int.tryParse((data['unseen_offenses_count'] ?? 0).toString()) ?? 0,
-      totalAlertsCount: int.tryParse((data['total_alerts_count'] ?? 0).toString()) ?? 0,
+      unseenOffensesCount:
+          int.tryParse((data['unseen_offenses_count'] ?? 0).toString()) ?? 0,
+      totalAlertsCount:
+          int.tryParse((data['total_alerts_count'] ?? 0).toString()) ?? 0,
       communityServiceHours:
           double.tryParse((data['community_service_hours'] ?? 0).toString()) ??
           0,
@@ -97,8 +98,10 @@ class DashboardApi {
       unseenAppeals: unseenAppeals,
       activeServiceSession: data['active_service_session'] == true,
       recentServiceLogout: data['recent_service_logout'] == true,
-      activeServiceSessionId: (data['active_service_session_id'] ?? '').toString(),
-      recentServiceLogoutId: (data['recent_service_logout_id'] ?? '').toString(),
+      activeServiceSessionId: (data['active_service_session_id'] ?? '')
+          .toString(),
+      recentServiceLogoutId: (data['recent_service_logout_id'] ?? '')
+          .toString(),
     );
   }
 
@@ -112,23 +115,28 @@ class DashboardApi {
   }) async {
     final uri = Uri.parse(AppConfig.submitAppealUrl);
     final req = http.MultipartRequest('POST', uri);
+    req.headers.addAll(await StudentApiAuth.multipartHeaders());
 
     req.fields['student_id'] = studentId;
     req.fields['case_id'] = caseId.toString();
     req.fields['reason'] = reason;
 
     if (fileBytes != null && fileName != null) {
-      req.files.add(http.MultipartFile.fromBytes(
-        'attachment',
-        fileBytes,
-        filename: fileName,
-      ));
+      req.files.add(
+        http.MultipartFile.fromBytes(
+          'attachment',
+          fileBytes,
+          filename: fileName,
+        ),
+      );
     } else if (filePath != null && fileName != null) {
-      req.files.add(await http.MultipartFile.fromPath(
-        'attachment',
-        filePath,
-        filename: fileName,
-      ));
+      req.files.add(
+        await http.MultipartFile.fromPath(
+          'attachment',
+          filePath,
+          filename: fileName,
+        ),
+      );
     }
 
     final streamRes = await req.send().timeout(const Duration(seconds: 30));
@@ -157,17 +165,12 @@ class DashboardApi {
     required String studentId,
     required int appealId,
   }) async {
+    final headers = await StudentApiAuth.jsonHeaders();
     final res = await http
         .post(
           Uri.parse(AppConfig.acknowledgeAppealUrl),
-          headers: const {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: jsonEncode({
-            'student_id': studentId,
-            'appeal_id': appealId,
-          }),
+          headers: headers,
+          body: jsonEncode({'student_id': studentId, 'appeal_id': appealId}),
         )
         .timeout(const Duration(seconds: 30));
 

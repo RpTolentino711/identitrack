@@ -34,6 +34,8 @@ if ($studentId === '' || $appealId <= 0) {
     json_out(false, 'student_id and appeal_id are required.', null, 400);
 }
 
+require_student_api_auth($studentId);
+
 db_exec(
     "UPDATE student_appeal_request SET is_seen_by_student = 1 WHERE appeal_id = :aid AND student_id = :sid",
     [':aid' => $appealId, ':sid' => $studentId]

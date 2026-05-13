@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pinput/pinput.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'services/auth_api.dart';
 import 'dashboard_screen.dart';
@@ -12,6 +14,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static const _secureStorage = FlutterSecureStorage();
+
   final _email = TextEditingController();
   final _pinController = TextEditingController();
   final _pinFocusNode = FocusNode();
@@ -64,7 +68,9 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(
           content: Text(msg),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -180,6 +186,11 @@ class _LoginScreenState extends State<LoginScreen> {
       final res = await _api.verifyOtp(email: email, otp: _otp);
       if (!mounted) return;
 
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('student_id', res.studentId);
+      await prefs.setString('student_name', res.studentName);
+      await _secureStorage.write(key: 'otp_token', value: res.token);
+
       _pinController.clear();
 
       Navigator.of(context).pushReplacement(
@@ -212,59 +223,59 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _card({Key? key, required Widget child}) => Container(
-        key: key,
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
+    key: key,
+    width: double.infinity,
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.07),
+          blurRadius: 24,
+          offset: const Offset(0, 8),
         ),
-        child: child,
-      );
+      ],
+    ),
+    child: child,
+  );
 
   Widget _stepBadge(String label, {bool done = false}) => AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: done ? Colors.green : blueDark,
-          shape: BoxShape.circle,
-        ),
-        child: Center(
-          child: done
-              ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
-              : Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-        ),
-      );
+    duration: const Duration(milliseconds: 250),
+    width: 28,
+    height: 28,
+    decoration: BoxDecoration(
+      color: done ? Colors.green : blueDark,
+      shape: BoxShape.circle,
+    ),
+    child: Center(
+      child: done
+          ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+          : Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+    ),
+  );
 
   Widget _switcher({required Widget child}) => AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: SizeTransition(
-            sizeFactor: animation,
-            axisAlignment: -1,
-            child: child,
-          ),
-        ),
+    duration: const Duration(milliseconds: 300),
+    switchInCurve: Curves.easeOut,
+    switchOutCurve: Curves.easeIn,
+    transitionBuilder: (child, animation) => FadeTransition(
+      opacity: animation,
+      child: SizeTransition(
+        sizeFactor: animation,
+        axisAlignment: -1,
         child: child,
-      );
+      ),
+    ),
+    child: child,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -315,7 +326,11 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 28),
-              child: Image.asset('lib/assets/logo.png', width: 100, height: 100),
+              child: Image.asset(
+                'lib/assets/logo.png',
+                width: 100,
+                height: 100,
+              ),
             ),
             Expanded(
               child: Container(
@@ -329,7 +344,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: SingleChildScrollView(
                   controller: _scrollController,
-                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.fromLTRB(20, 28, 20, 40),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,7 +364,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         _otpSent
                             ? 'Enter the OTP sent to your email'
                             : 'Sign in with your student email',
-                        style: TextStyle(fontSize: 13.5, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       _switcher(
@@ -364,7 +383,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                         const SizedBox(width: 10),
                                         const Text(
                                           'Your email',
-                                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 15,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -374,24 +396,38 @@ class _LoginScreenState extends State<LoginScreen> {
                                       focusNode: _emailFocusNode,
                                       keyboardType: TextInputType.emailAddress,
                                       textInputAction: TextInputAction.done,
-                                      onSubmitted: (_) => _loading ? null : _sendOtp(),
+                                      onSubmitted: (_) =>
+                                          _loading ? null : _sendOtp(),
                                       decoration: InputDecoration(
                                         labelText: 'Email address',
-                                        hintText: 'example@student.nu-lipa.edu.ph',
+                                        hintText:
+                                            'example@student.nu-lipa.edu.ph',
                                         filled: true,
                                         fillColor: const Color(0xFFF0F2FA),
-                                        prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                                        prefixIcon: const Icon(
+                                          Icons.email_outlined,
+                                          size: 20,
+                                        ),
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
                                           borderSide: BorderSide.none,
                                         ),
                                         enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
                                           borderSide: BorderSide.none,
                                         ),
                                         focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(14),
-                                          borderSide: const BorderSide(color: blueDark, width: 1.6),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          borderSide: const BorderSide(
+                                            color: blueDark,
+                                            width: 1.6,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -405,7 +441,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                           foregroundColor: Colors.white,
                                           elevation: 0,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(14),
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
                                           ),
                                         ),
                                         onPressed: _loading ? null : _sendOtp,
@@ -413,14 +451,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ? const SizedBox(
                                                 height: 20,
                                                 width: 20,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2.4,
-                                                  color: Colors.white,
-                                                ),
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2.4,
+                                                      color: Colors.white,
+                                                    ),
                                               )
                                             : const Text(
                                                 'SEND OTP',
-                                                style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  letterSpacing: 1,
+                                                ),
                                               ),
                                       ),
                                     ),
@@ -438,14 +480,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                         const SizedBox(width: 10),
                                         const Text(
                                           'Enter OTP',
-                                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 15,
+                                          ),
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
                                       'Sent to $otpHint',
-                                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        color: Colors.grey.shade600,
+                                      ),
                                     ),
                                     const SizedBox(height: 20),
                                     Center(
@@ -458,14 +506,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                         defaultPinTheme: defaultPinTheme,
                                         focusedPinTheme: focusedPinTheme,
                                         submittedPinTheme: submittedPinTheme,
-                                        hapticFeedbackType: HapticFeedbackType.lightImpact,
+                                        hapticFeedbackType:
+                                            HapticFeedbackType.lightImpact,
                                         onChanged: (v) {
                                           _otp = v;
-                                          if (v.length == 6 && !_loading) _verifyOtp();
+                                          if (v.length == 6 && !_loading)
+                                            _verifyOtp();
                                         },
                                         validator: (value) {
                                           final v = (value ?? '').trim();
-                                          if (!RegExp(r'^\d{0,6}$').hasMatch(v)) return 'Digits only';
+                                          if (!RegExp(r'^\d{0,6}$').hasMatch(v))
+                                            return 'Digits only';
                                           return null;
                                         },
                                       ),
@@ -486,17 +537,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Center(
                                       child: _canResendOtp
                                           ? TextButton.icon(
-                                              onPressed: _loading ? null : _sendOtp,
-                                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                                              onPressed: _loading
+                                                  ? null
+                                                  : _sendOtp,
+                                              icon: const Icon(
+                                                Icons.refresh_rounded,
+                                                size: 16,
+                                              ),
                                               label: const Text('Resend OTP'),
                                               style: TextButton.styleFrom(
-                                                foregroundColor: Colors.grey.shade600,
-                                                textStyle: const TextStyle(fontSize: 13),
+                                                foregroundColor:
+                                                    Colors.grey.shade600,
+                                                textStyle: const TextStyle(
+                                                  fontSize: 13,
+                                                ),
                                               ),
                                             )
                                           : Text(
                                               'Resend available in ${_resendCountdown ~/ 60}:${(_resendCountdown % 60).toString().padLeft(2, '0')}',
-                                              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                                              style: TextStyle(
+                                                color: Colors.grey.shade500,
+                                                fontSize: 13,
+                                              ),
                                             ),
                                     ),
                                     if (_failedAttempts >= 3) ...[
@@ -509,11 +571,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                               _failedAttempts = 0;
                                             });
                                           },
-                                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                                          label: const Text('Change Email / Go Back'),
+                                          icon: const Icon(
+                                            Icons.arrow_back_rounded,
+                                            size: 16,
+                                          ),
+                                          label: const Text(
+                                            'Change Email / Go Back',
+                                          ),
                                           style: TextButton.styleFrom(
                                             foregroundColor: blueDark,
-                                            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                            textStyle: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
                                       ),

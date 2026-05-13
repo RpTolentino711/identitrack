@@ -43,6 +43,8 @@ if ($studentId === '' || $requirementId <= 0) {
   json_out(false, 'student_id and requirement_id are required.', null, 400);
 }
 
+require_student_api_auth($studentId);
+
 $student = db_one(
   "SELECT student_id, is_active FROM student WHERE student_id = :sid LIMIT 1",
   [':sid' => $studentId]

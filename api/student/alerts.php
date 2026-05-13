@@ -6,7 +6,7 @@ ensure_hearing_workflow_schema();
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Accept, Authorization');
 header('Content-Type: application/json; charset=utf-8');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
@@ -29,6 +29,8 @@ try {
     if ($studentId === '') {
         throw new Exception('Missing student_id');
     }
+
+    require_student_api_auth($studentId);
 
     // Alerts are allowed even if account has restrictions
 

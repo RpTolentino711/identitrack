@@ -3,15 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config.dart';
+import 'student_api_auth.dart';
 
 class AlertsApi {
   Future<List<StudentAlert>> getAlerts(String studentId) async {
+    final headers = await StudentApiAuth.jsonHeaders();
     final res = await http.post(
       Uri.parse(AppConfig.alertsUrl),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers: headers,
       body: jsonEncode({'student_id': studentId}),
     );
 

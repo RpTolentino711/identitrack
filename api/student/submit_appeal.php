@@ -42,6 +42,12 @@ if ($isMultipart) {
     $reason = trim((string)($body['reason'] ?? ''));
 }
 
+  if ($studentId === '' || ($offenseId <= 0 && $caseId <= 0)) {
+    json_out(false, 'student_id and either offense_id or case_id are required.', null, 400);
+  }
+
+  require_student_api_auth($studentId);
+
 $attachmentPath = null;
 $attachmentName = null;
 

@@ -34,6 +34,8 @@ if ($studentId === '' || $offenseId === 0) {
     json_out(false, 'student_id and offense_id are required.', null, 400);
 }
 
+require_student_api_auth($studentId);
+
 try {
     // If it's a virtual bundle (Section 4 Major), find the linked case
     if ($offenseId < 0) {

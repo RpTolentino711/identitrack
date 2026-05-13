@@ -32,6 +32,8 @@ if ($studentId === '' || $caseId <= 0) {
     json_out(false, 'student_id and case_id are required.', null, 400);
 }
 
+require_student_api_auth($studentId);
+
 $student = db_one("SELECT is_active FROM student WHERE student_id = :sid", [':sid' => $studentId]);
 if (!$student) json_out(false, 'Student not found.', null, 404);
 if ((int)($student['is_active'] ?? 0) !== 1) json_out(false, 'Student is not active.', null, 403);

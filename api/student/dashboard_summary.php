@@ -36,6 +36,8 @@ if (!is_array($body)) $body = [];
 $studentId = trim((string)($body['student_id'] ?? ''));
 if ($studentId === '') json_out(false, 'student_id is required.', null, 400);
 
+require_student_api_auth($studentId);
+
 // Confirm student exists
 $student = db_one(
   "SELECT student_id, student_fn, student_ln, is_active

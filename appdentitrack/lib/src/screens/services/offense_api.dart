@@ -2,13 +2,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../config.dart';
+import 'student_api_auth.dart';
 
 class OffenseApi {
   Future<OffenseListResponse> getOffenses({required String studentId}) async {
+    final headers = await StudentApiAuth.jsonHeaders();
     final res = await http
         .post(
           Uri.parse(AppConfig.offenseListUrl),
-          headers: const {'Content-Type': 'application/json', 'Accept': 'application/json'},
+          headers: headers,
           body: jsonEncode({'student_id': studentId}),
         )
         .timeout(const Duration(seconds: 30));
@@ -27,7 +29,8 @@ class OffenseApi {
 
     final ok = decoded['ok'] == true;
     final msg = (decoded['message'] ?? 'Request failed').toString();
-    if (!ok || res.statusCode < 200 || res.statusCode >= 300) throw Exception(msg);
+    if (!ok || res.statusCode < 200 || res.statusCode >= 300)
+      throw Exception(msg);
 
     final data = (decoded['data'] as Map).cast<String, dynamic>();
 
@@ -56,7 +59,9 @@ class OffenseApi {
           isDeletedByStudent: m['is_deleted_by_student'] == true,
           isBundle: m['is_bundle'] == true,
           appealStatus: (m['appeal_status'] ?? '').toString(),
-          upccCaseId: m['upcc_case_id'] != null ? int.tryParse(m['upcc_case_id'].toString()) : null,
+          upccCaseId: m['upcc_case_id'] != null
+              ? int.tryParse(m['upcc_case_id'].toString())
+              : null,
           explanationText: m['explanation_text']?.toString(),
           explanationImage: m['explanation_image']?.toString(),
           explanationPdf: m['explanation_pdf']?.toString(),
@@ -74,8 +79,11 @@ class OffenseApi {
     List<int>? fileBytes,
     String? fileName,
   }) async {
-    final uri = Uri.parse('${AppConfig.baseUrl}/api/student/submit_explanation.php');
+    final uri = Uri.parse(
+      '${AppConfig.baseUrl}/api/student/submit_explanation.php',
+    );
     final req = http.MultipartRequest('POST', uri);
+    req.headers.addAll(await StudentApiAuth.multipartHeaders());
 
     req.fields['student_id'] = studentId;
     req.fields['case_id'] = caseId.toString();
@@ -86,17 +94,21 @@ class OffenseApi {
       final fieldName = ext == 'pdf' ? 'explanation_pdf' : 'explanation_image';
 
       if (fileBytes != null) {
-        req.files.add(http.MultipartFile.fromBytes(
-          fieldName,
-          fileBytes,
-          filename: fileName,
-        ));
+        req.files.add(
+          http.MultipartFile.fromBytes(
+            fieldName,
+            fileBytes,
+            filename: fileName,
+          ),
+        );
       } else if (filePath != null) {
-        req.files.add(await http.MultipartFile.fromPath(
-          fieldName,
-          filePath,
-          filename: fileName,
-        ));
+        req.files.add(
+          await http.MultipartFile.fromPath(
+            fieldName,
+            filePath,
+            filename: fileName,
+          ),
+        );
       }
     }
 
@@ -116,8 +128,10 @@ class OffenseApi {
     if (decoded is! Map) throw Exception('Invalid server response.');
 
     final ok = decoded['ok'] == true;
-    final msg = (decoded['message'] ?? 'Explanation submission failed').toString();
-    if (!ok || res.statusCode < 200 || res.statusCode >= 300) throw Exception(msg);
+    final msg = (decoded['message'] ?? 'Explanation submission failed')
+        .toString();
+    if (!ok || res.statusCode < 200 || res.statusCode >= 300)
+      throw Exception(msg);
   }
 
   Future<void> submitAppeal({
@@ -130,23 +144,28 @@ class OffenseApi {
   }) async {
     final uri = Uri.parse(AppConfig.submitAppealUrl);
     final req = http.MultipartRequest('POST', uri);
+    req.headers.addAll(await StudentApiAuth.multipartHeaders());
 
     req.fields['student_id'] = studentId;
     req.fields['offense_id'] = offenseId.toString();
     req.fields['reason'] = reason;
 
     if (fileBytes != null && fileName != null) {
-      req.files.add(http.MultipartFile.fromBytes(
-        'attachment',
-        fileBytes,
-        filename: fileName,
-      ));
+      req.files.add(
+        http.MultipartFile.fromBytes(
+          'attachment',
+          fileBytes,
+          filename: fileName,
+        ),
+      );
     } else if (filePath != null && fileName != null) {
-      req.files.add(await http.MultipartFile.fromPath(
-        'attachment',
-        filePath,
-        filename: fileName,
-      ));
+      req.files.add(
+        await http.MultipartFile.fromPath(
+          'attachment',
+          filePath,
+          filename: fileName,
+        ),
+      );
     }
 
     final streamRes = await req.send().timeout(const Duration(seconds: 30));
@@ -166,21 +185,20 @@ class OffenseApi {
 
     final ok = decoded['ok'] == true;
     final msg = (decoded['message'] ?? 'Appeal request failed').toString();
-    if (!ok || res.statusCode < 200 || res.statusCode >= 300) throw Exception(msg);
+    if (!ok || res.statusCode < 200 || res.statusCode >= 300)
+      throw Exception(msg);
   }
 
   Future<void> acceptOffense({
     required String studentId,
     required int offenseId,
   }) async {
+    final headers = await StudentApiAuth.jsonHeaders();
     final res = await http
         .post(
           Uri.parse(AppConfig.acceptOffenseUrl),
-          headers: const {'Content-Type': 'application/json', 'Accept': 'application/json'},
-          body: jsonEncode({
-            'student_id': studentId,
-            'offense_id': offenseId,
-          }),
+          headers: headers,
+          body: jsonEncode({'student_id': studentId, 'offense_id': offenseId}),
         )
         .timeout(const Duration(seconds: 30));
 
@@ -198,21 +216,20 @@ class OffenseApi {
 
     final ok = decoded['ok'] == true;
     final msg = (decoded['message'] ?? 'Request failed').toString();
-    if (!ok || res.statusCode < 200 || res.statusCode >= 300) throw Exception(msg);
+    if (!ok || res.statusCode < 200 || res.statusCode >= 300)
+      throw Exception(msg);
   }
 
   Future<void> hideOffense({
     required String studentId,
     required int offenseId,
   }) async {
+    final headers = await StudentApiAuth.jsonHeaders();
     final res = await http
         .post(
           Uri.parse(AppConfig.hideOffenseUrl),
-          headers: const {'Content-Type': 'application/json', 'Accept': 'application/json'},
-          body: jsonEncode({
-            'student_id': studentId,
-            'offense_id': offenseId,
-          }),
+          headers: headers,
+          body: jsonEncode({'student_id': studentId, 'offense_id': offenseId}),
         )
         .timeout(const Duration(seconds: 30));
 
@@ -230,21 +247,20 @@ class OffenseApi {
 
     final ok = decoded['ok'] == true;
     final msg = (decoded['message'] ?? 'Hide request failed').toString();
-    if (!ok || res.statusCode < 200 || res.statusCode >= 300) throw Exception(msg);
+    if (!ok || res.statusCode < 200 || res.statusCode >= 300)
+      throw Exception(msg);
   }
 
   Future<void> acceptUpccCase({
     required String studentId,
     required int caseId,
   }) async {
+    final headers = await StudentApiAuth.jsonHeaders();
     final res = await http
         .post(
           Uri.parse(AppConfig.acceptUpccCaseUrl),
-          headers: const {'Content-Type': 'application/json', 'Accept': 'application/json'},
-          body: jsonEncode({
-            'student_id': studentId,
-            'case_id': caseId,
-          }),
+          headers: headers,
+          body: jsonEncode({'student_id': studentId, 'case_id': caseId}),
         )
         .timeout(const Duration(seconds: 30));
 
@@ -262,21 +278,20 @@ class OffenseApi {
 
     final ok = decoded['ok'] == true;
     final msg = (decoded['message'] ?? 'Accept request failed').toString();
-    if (!ok || res.statusCode < 200 || res.statusCode >= 300) throw Exception(msg);
+    if (!ok || res.statusCode < 200 || res.statusCode >= 300)
+      throw Exception(msg);
   }
 
   Future<void> deleteOffense({
     required String studentId,
     required int offenseId,
   }) async {
+    final headers = await StudentApiAuth.jsonHeaders();
     final res = await http
         .post(
           Uri.parse(AppConfig.deleteOffenseUrl),
-          headers: const {'Content-Type': 'application/json', 'Accept': 'application/json'},
-          body: jsonEncode({
-            'student_id': studentId,
-            'offense_id': offenseId,
-          }),
+          headers: headers,
+          body: jsonEncode({'student_id': studentId, 'offense_id': offenseId}),
         )
         .timeout(const Duration(seconds: 30));
 
@@ -294,7 +309,8 @@ class OffenseApi {
 
     final ok = decoded['ok'] == true;
     final msg = (decoded['message'] ?? 'Delete request failed').toString();
-    if (!ok || res.statusCode < 200 || res.statusCode >= 300) throw Exception(msg);
+    if (!ok || res.statusCode < 200 || res.statusCode >= 300)
+      throw Exception(msg);
   }
 }
 
