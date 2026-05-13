@@ -68,17 +68,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
 
   if (empty($errors)) {
 
+    $params = [
+      ':sid'   => $student_id,
+      ':admin' => $adminId,
+      ':tid'   => $existing_type_id,
+      ':lvl'   => $level,
+      ':desc'  => ($description === '' ? null : $description),
+      ':dt'    => $date_committed,
+    ];
+    db_add_encryption_key($params);
+
     db_exec(
       "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, date_committed, status, created_at, updated_at)
-       VALUES (:sid, :admin, :tid, :lvl, :desc, :dt, 'OPEN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-      [
-        ':sid'   => $student_id,
-        ':admin' => $adminId,
-        ':tid'   => $existing_type_id,
-        ':lvl'   => $level,
-        ':desc'  => ($description === '' ? null : $description),
-        ':dt'    => $date_committed,
-      ]
+       VALUES (:sid, :admin, :tid, :lvl, " . db_encrypt_col('description', ':desc') . ", :dt, 'OPEN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+      $params
     );
 
     $newRow       = db_one(
@@ -241,10 +244,12 @@ $postSection4Minors  = 0;
 $studentInfo         = null;
 
 if ($postStudentId !== '') {
+  $params = [':sid' => $postStudentId];
+  db_add_encryption_key($params);
   $studentInfo = db_one(
-    "SELECT student_id, student_fn, student_ln, year_level, section, school, program, student_email, phone_number
+    "SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number']) . ", year_level, section, school, program
      FROM student WHERE student_id = :sid LIMIT 1",
-    [':sid' => $postStudentId]
+    $params
   );
 
   $mRow = db_one(

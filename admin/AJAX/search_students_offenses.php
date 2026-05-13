@@ -23,19 +23,24 @@ $params = [
   ':qLike' => '%' . $q . '%',
 ];
 
+$decFn = db_decrypt_col('student_fn', 's');
+$decLn = db_decrypt_col('student_ln', 's');
+
+db_add_encryption_key($params);
+
 try {
   // NOTE: This query does NOT require offenses to exist.
   // It uses LEFT JOIN to compute counts, so students with no offenses still show up.
   $rows = db_all(
     "SELECT
         s.student_id,
-        s.student_fn,
-        s.student_ln,
+        $decFn AS student_fn,
+        $decLn AS student_ln,
         s.year_level,
         s.program,
-        s.student_email,
-        s.home_address,
-        s.phone_number,
+        " . db_decrypt_col('student_email', 's') . " AS student_email,
+        " . db_decrypt_col('home_address', 's') . " AS home_address,
+        " . db_decrypt_col('phone_number', 's') . " AS phone_number,
 
         COALESCE(COUNT(o.offense_id), 0) AS total_offenses,
         COALESCE(SUM(CASE WHEN ot.level = 'MINOR' THEN 1 ELSE 0 END), 0) AS minor_offenses,
@@ -52,10 +57,10 @@ try {
        s.is_active = 1
        AND (
          s.student_id LIKE :q
-         OR s.student_fn LIKE :qLike
-         OR s.student_ln LIKE :qLike
-         OR CONCAT(s.student_fn, ' ', s.student_ln) LIKE :qLike
-         OR CONCAT(s.student_ln, ', ', s.student_fn) LIKE :qLike
+         OR $decFn LIKE :qLike
+         OR $decLn LIKE :qLike
+         OR CONCAT($decFn, ' ', $decLn) LIKE :qLike
+         OR CONCAT($decLn, ', ', $decFn) LIKE :qLike
        )
 
      GROUP BY

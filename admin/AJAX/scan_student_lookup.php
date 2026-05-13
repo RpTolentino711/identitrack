@@ -38,21 +38,26 @@ function student_has_scanner_hash_column(): bool {
   return $hasColumn;
 }
 
+$params = [':sid' => $scanInput];
+db_add_encryption_key($params);
+
 $student = db_one(
-  "SELECT student_id, student_fn, student_ln
+  "SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln']) . "
    FROM student
    WHERE student_id = :sid
    LIMIT 1",
-  [':sid' => $scanInput]
+  $params
 );
 
 if (!$student && student_has_scanner_hash_column()) {
+  $hashParams = [':scanner_hash' => scanner_hash_value($scanInput)];
+  db_add_encryption_key($hashParams);
   $student = db_one(
-    "SELECT student_id, student_fn, student_ln
+    "SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln']) . "
      FROM student
      WHERE scanner_id_hash = :scanner_hash
      LIMIT 1",
-    [':scanner_hash' => scanner_hash_value($scanInput)]
+    $hashParams
   );
 }
 

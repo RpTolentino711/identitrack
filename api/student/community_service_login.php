@@ -143,11 +143,13 @@ if ($pendingRequest) {
   ]);
 }
 
-db_exec(
-  "INSERT INTO manual_login_request (requirement_id, student_id, request_type, login_method, requested_at, reason, status)
-   VALUES (:rid, :sid, 'LOGIN', :method, NOW(), :reason, 'PENDING')",
-  [':rid' => $requirementId, ':sid' => $studentId, ':method' => $method, ':reason' => $reason]
-);
+  $params = [':rid' => $requirementId, ':sid' => $studentId, ':method' => $method, ':reason' => $reason];
+  db_add_encryption_key($params);
+  db_exec(
+    "INSERT INTO manual_login_request (requirement_id, student_id, request_type, login_method, requested_at, reason, status)
+     VALUES (:rid, :sid, 'LOGIN', :method, NOW(), " . db_encrypt_col('reason', ':reason') . ", 'PENDING')",
+    $params
+  );
 
 $requestId = (int)db_last_id();
 

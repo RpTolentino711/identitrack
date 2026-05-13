@@ -88,10 +88,12 @@ if ($_POST) {
               [':sid' => (int)$activeSession['session_id']]
             );
 
+            $params = [':rid' => (int)$activeSession['requirement_id'], ':sid' => $studentId, ':reason' => $reason];
+            db_add_encryption_key($params);
             db_exec(
               "INSERT INTO manual_login_request (requirement_id, student_id, request_type, login_method, requested_at, reason, status)
-               VALUES (:rid, :sid, 'LOGOUT', 'MANUAL', NOW(), :reason, 'PENDING')",
-              [':rid' => (int)$activeSession['requirement_id'], ':sid' => $studentId, ':reason' => $reason]
+               VALUES (:rid, :sid, 'LOGOUT', 'MANUAL', NOW(), " . db_encrypt_col('reason', ':reason') . ", 'PENDING')",
+              $params
             );
             $msg = "Manual logout request sent. Your timer has stopped exactly at this time, pending admin validation.";
             $msgType = 'success';
@@ -103,10 +105,12 @@ if ($_POST) {
           $msg = "You are already timed in.";
           $msgType = 'info';
         } else {
+          $params = [':sid' => $studentId, ':method' => $method, ':reason' => $reason];
+          db_add_encryption_key($params);
           db_exec(
             "INSERT INTO manual_login_request (requirement_id, student_id, request_type, login_method, requested_at, reason, status)
-             VALUES (NULL, :sid, 'LOGIN', :method, NOW(), :reason, 'PENDING')",
-            [':sid' => $studentId, ':method' => $method, ':reason' => $reason]
+             VALUES (NULL, :sid, 'LOGIN', :method, NOW(), " . db_encrypt_col('reason', ':reason') . ", 'PENDING')",
+            $params
           );
           $msg = "Login request sent. The admin will assign your task and start your timer.";
           $msgType = 'success';

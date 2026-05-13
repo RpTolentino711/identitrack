@@ -18,12 +18,14 @@ $action = trim((string)($_POST['action'] ?? ''));
 $reportId = (int)($_POST['report_id'] ?? 0);
 
 function send_guardian_notice(string $studentId, string $subject, string $letterBody) {
+    $params = [':sid' => $studentId];
+    db_add_encryption_key($params);
     $studentRow = db_one(
-      "SELECT s.student_fn, s.student_ln, g.guardian_email, g.guardian_fn, g.guardian_ln
+      "SELECT " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ", g.guardian_email, g.guardian_fn, g.guardian_ln
        FROM student s
        LEFT JOIN guardian g ON s.student_id = g.student_id
        WHERE s.student_id = :sid LIMIT 1",
-      [':sid' => $studentId]
+      $params
     );
 
     $guardianEmail = trim((string)($studentRow['guardian_email'] ?? ''));
@@ -102,17 +104,20 @@ if ($action === 'approve_guard_report') {
   $majorCategory = (int)($offenseType['major_category'] ?? 0);
   $studentId = (string)$report['student_id'];
 
+  $insParams = [
+    ':sid' => $studentId,
+    ':admin' => $adminId,
+    ':tid' => (int)$report['offense_type_id'],
+    ':lvl' => $level,
+    ':descr' => trim((string)($report['description'] ?? '')) === '' ? null : $report['description'],
+    ':dt' => (string)$report['date_committed'],
+  ];
+  db_add_encryption_key($insParams);
+
   db_exec(
     "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, date_committed, status, created_at, updated_at)
-     VALUES (:sid, :admin, :tid, :lvl, :descr, :dt, 'OPEN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-    [
-      ':sid' => $studentId,
-      ':admin' => $adminId,
-      ':tid' => (int)$report['offense_type_id'],
-      ':lvl' => $level,
-      ':descr' => trim((string)($report['description'] ?? '')) === '' ? null : $report['description'],
-      ':dt' => (string)$report['date_committed'],
-    ]
+     VALUES (:sid, :admin, :tid, :lvl, " . db_encrypt_col('description', ':descr') . ", :dt, 'OPEN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+    $insParams
   );
   
   $newOffenseId = (int)db_last_id();
@@ -136,7 +141,9 @@ if ($action === 'approve_guard_report') {
       );
 
       // Send email to guardian
-      $studentRow = db_one("SELECT student_fn, student_ln FROM student WHERE student_id = :sid", [':sid' => $studentId]);
+      $sParams = [':sid' => $studentId];
+      db_add_encryption_key($sParams);
+      $studentRow = db_one("SELECT " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student WHERE student_id = :sid", $sParams);
       $studentName = trim(($studentRow['student_fn'] ?? '') . ' ' . ($studentRow['student_ln'] ?? ''));
       $letterBody = "Please be advised that $studentName has been reported for a Major Offense. This case is now an active case under UPCC investigation and a hearing will be required.";
       send_guardian_notice($studentId, 'Major Offense Notice - UPCC Investigation Required', $letterBody);
@@ -152,7 +159,9 @@ if ($action === 'approve_guard_report') {
       $defaultBody = '';
       $guardianEmail = '';
 
-      $studentRow = db_one("SELECT student_fn, student_ln FROM student WHERE student_id = :sid", [':sid' => $studentId]);
+      $sParams = [':sid' => $studentId];
+      db_add_encryption_key($sParams);
+      $studentRow = db_one("SELECT " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student WHERE student_id = :sid", $sParams);
       $studentName = trim(($studentRow['student_fn'] ?? '') . ' ' . ($studentRow['student_ln'] ?? ''));
 
       $guardianRow = db_one("SELECT guardian_email FROM guardian WHERE student_id = :sid LIMIT 1", [':sid' => $studentId]);
@@ -164,12 +173,16 @@ if ($action === 'approve_guard_report') {
           $defaultSubject = 'Student Conduct Notice — 2nd Minor Offense Warning';
           
           $defaultBody = "Dear Guardian,\n\nThis is to inform you that your student has been reported for a conduct offense and an investigation is underway. Please see the detailed notice below for more information.\n\n";
-          $coff = db_one("SELECT o.description, o.date_committed, ot.code, ot.name, ot.level FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.offense_id = :oid", [':oid' => $newOffenseId]);
+          $coffParams = [':oid' => $newOffenseId];
+          db_add_encryption_key($coffParams);
+          $coff = db_one("SELECT " . db_decrypt_col('description', 'o') . " AS description, o.date_committed, ot.code, ot.name, ot.level FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.offense_id = :oid", $coffParams);
           if ($coff) {
               $dt = date('F j, Y g:i A', strtotime($coff['date_committed']));
               $defaultBody .= "CURRENT OFFENSE:\n- {$coff['code']} — {$coff['name']}\n- Level: {$coff['level']}\n- Date: {$dt}\n- Notes: " . ($coff['description'] ?: '(none)') . "\n\n";
           }
-          $history = db_all("SELECT o.date_committed, o.description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", [':sid' => $studentId]);
+          $histParams = [':sid' => $studentId];
+          db_add_encryption_key($histParams);
+          $history = db_all("SELECT o.date_committed, " . db_decrypt_col('description', 'o') . " AS description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", $histParams);
           $defaultBody .= "OFFENSE HISTORY (Most recent first):\n";
           if (empty($history)) {
               $defaultBody .= "(No offenses found.)\n";
@@ -223,12 +236,16 @@ if ($action === 'approve_guard_report') {
         $defaultSubject = 'Student Conduct Notice — 3rd Minor Offense Escalation';
         
         $defaultBody = "Dear Guardian,\n\nThis is to inform you that your student has been reported for a conduct offense and an investigation is underway. Please see the detailed notice below for more information.\n\n";
-        $coff = db_one("SELECT o.description, o.date_committed, ot.code, ot.name, ot.level FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.offense_id = :oid", [':oid' => $newOffenseId]);
+        $coffParams = [':oid' => $newOffenseId];
+        db_add_encryption_key($coffParams);
+        $coff = db_one("SELECT " . db_decrypt_col('description', 'o') . " AS description, o.date_committed, ot.code, ot.name, ot.level FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.offense_id = :oid", $coffParams);
         if ($coff) {
             $dt = date('F j, Y g:i A', strtotime($coff['date_committed']));
             $defaultBody .= "CURRENT OFFENSE:\n- {$coff['code']} — {$coff['name']}\n- Level: {$coff['level']}\n- Date: {$dt}\n- Notes: " . ($coff['description'] ?: '(none)') . "\n\n";
         }
-        $history = db_all("SELECT o.date_committed, o.description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", [':sid' => $studentId]);
+        $histParams = [':sid' => $studentId];
+        db_add_encryption_key($histParams);
+        $history = db_all("SELECT o.date_committed, " . db_decrypt_col('description', 'o') . " AS description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", $histParams);
         $defaultBody .= "OFFENSE HISTORY (Most recent first):\n";
         if (empty($history)) {
             $defaultBody .= "(No offenses found.)\n";

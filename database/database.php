@@ -14,34 +14,67 @@ if (session_status() === PHP_SESSION_NONE) {
 function db_config(): array {
   return [
     'host'    => 'localhost',
-    'db'      => 'u321173822_track',
-    'user'    => 'u321173822_titrack',
-    'pass'    => 'Pogilameg@10',
+    'db'      => 'identitrack',
+    'user'    => 'root',
+    'pass'    => '',
     'charset' => 'utf8mb4',
     'tz'      => 'Asia/Manila',
   ];
 }
 
-/* =========================
-   PDO CONNECTION
-   ========================= */
+/**
+ * ENCRYPTION KEY - Store in .env for production
+ * This key is used for AES_ENCRYPT/AES_DECRYPT in MySQL
+ * 256-bit key for AES_128, AES_192, AES_256
+ */
+function db_encryption_key(): string {
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Dotenv\Dotenv;
+
+// Load .env from root
+$dotenv = Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->safeLoad();
+
+/**
+ * Get DB connection (PDO)
+ */
 function db(): PDO
 {
   static $pdo = null;
-  if ($pdo instanceof PDO) return $pdo;
+  if ($pdo === null) {
+    $host = $_ENV['DB_HOST'] ?? 'localhost';
+    $db   = $_ENV['DB_NAME'] ?? 'identitrack';
+    $user = $_ENV['DB_USER'] ?? 'root';
+    $pass = $_ENV['DB_PASS'] ?? '';
 
-  $cfg = db_config();
-  date_default_timezone_set($cfg['tz']);
+    $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
+    $options = [
+      PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+      PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+      PDO::ATTR_EMULATE_PREPARES   => true, // Required for named params in encrypted queries
+    ];
 
-  $dsn = "mysql:host={$cfg['host']};dbname={$cfg['db']};charset={$cfg['charset']}";
-  $options = [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES => false,
-  ];
-
-  $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], $options);
+    try {
+      $pdo = new PDO($dsn, $user, $pass, $options);
+    } catch (PDOException $e) {
+      die("DB Connection failed: " . $e->getMessage());
+    }
+  }
   return $pdo;
+}
+
+/**
+ * Get the encryption key from environment
+ */
+function db_encryption_key(): string
+{
+  $key = $_ENV['DB_ENCRYPTION_KEY'] ?? '';
+  if ($key === '') {
+      // Fallback for local dev if .env is missing, but should be set in production
+      return 'IdentiTrack_Secure_Key_2024_@SDO';
+  }
+  return $key;
 }
 
 function getConnection(): PDO
@@ -77,6 +110,71 @@ function db_exec(string $sql, array $params = []): int
 function db_last_id(): string
 {
   return db()->lastInsertId();
+}
+
+/* =========================
+   DATABASE ENCRYPTION HELPERS
+   ========================= */
+/**
+ * Encrypt a value using MySQL's AES_ENCRYPT for storage
+ * Call this in INSERT/UPDATE queries with UNHEX() wrapper
+ * Example: INSERT INTO student (student_fn) VALUES (UNHEX(AES_ENCRYPT(:name, UNHEX(SHA2(:key, 256)))))
+ */
+function db_encrypt_sql_value(string $value, string $key = ''): string
+{
+  if ($key === '') {
+    $key = db_encryption_key();
+  }
+  // This is used for binding values, but actually the encryption happens in SQL.
+  // This helper is rarely used directly for SQL values; usually db_encrypt_col() is used in the query.
+  return $value;
+}
+
+/**
+ * Create encrypted INSERT value for PDO binding
+ * Usage: db_exec("INSERT INTO student (student_fn) VALUES (UNHEX(AES_ENCRYPT(:fn, UNHEX(SHA2(:enckey, 256)))))", 
+ *               [':fn' => $name, ':enckey' => db_encryption_key()])
+ */
+function db_encrypt_col(string $columnName, string $paramName = ''): string
+{
+  if ($paramName === '') {
+    $paramName = ':' . $columnName;
+  }
+  return "UNHEX(AES_ENCRYPT($paramName, UNHEX(SHA2(:__enckey, 256))))";
+}
+
+/**
+ * Decrypt column in SELECT query
+ * Usage: SELECT AES_DECRYPT(UNHEX(student_fn), UNHEX(SHA2(:enckey, 256))) as student_fn
+ */
+function db_decrypt_col(string $columnName, string $alias = ''): string
+{
+  $col = ($alias !== '') ? "$alias.$columnName" : $columnName;
+  return "AES_DECRYPT(UNHEX($col), UNHEX(SHA2(:__enckey, 256)))";
+}
+
+/**
+ * Build a SELECT with decryption for multiple encrypted columns
+ * $cols = ['student_fn', 'student_ln', 'student_email']
+ * $tableAlias = 's'
+ */
+function db_decrypt_cols(array $cols, string $tableAlias = ''): string
+{
+  $decrypted = [];
+  foreach ($cols as $col) {
+    $source = ($tableAlias !== '') ? "$tableAlias.$col" : $col;
+    $decrypted[] = "AES_DECRYPT(UNHEX($source), UNHEX(SHA2(:__enckey, 256))) AS $col";
+  }
+  return implode(', ', $decrypted);
+}
+
+/**
+ * Apply encryption key to all query parameters
+ * Call this before executing queries with encrypted columns
+ */
+function db_add_encryption_key(array &$params): void
+{
+  $params[':__enckey'] = db_encryption_key();
 }
 
 function student_api_unauthorized(string $message = 'Unauthorized', int $status = 401): void

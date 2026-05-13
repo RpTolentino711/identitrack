@@ -22,11 +22,14 @@ if ($audience === 'SHS') {
 }
 
 // 1. Fetch raw data
+$params = [':start' => $monthStart, ':end' => $monthEnd];
+db_add_encryption_key($params);
+
 $rows = db_all(
   "SELECT
       o.offense_id,
       o.student_id,
-      CONCAT(s.student_ln, ', ', s.student_fn) AS student_name,
+      CONCAT(" . db_decrypt_col('student_ln', 's') . ", ', ', " . db_decrypt_col('student_fn', 's') . ") AS student_name,
       COALESCE(NULLIF(s.program,''), 'N/A') AS program,
       COALESCE(NULLIF(s.section,''), 'N/A') AS section,
       ot.level AS offense_level,
@@ -34,14 +37,14 @@ $rows = db_all(
       ot.name AS offense_name,
       o.status,
       o.date_committed,
-      o.description
+      " . db_decrypt_col('description', 'o') . " AS description
    FROM offense o
    JOIN student s ON s.student_id = o.student_id
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-   WHERE o.date_committed BETWEEN ? AND ?
+   WHERE o.date_committed BETWEEN :start AND :end
    $audienceClause
    ORDER BY o.date_committed DESC",
-  [$monthStart, $monthEnd]
+  $params
 );
 
 // 2. Fetch stats

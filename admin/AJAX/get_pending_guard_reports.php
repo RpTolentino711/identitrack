@@ -7,7 +7,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 $reports = db_all(
     "SELECT r.report_id, r.student_id, r.description, r.created_at,
-            CONCAT(COALESCE(s.student_fn,''), ' ', COALESCE(s.student_ln,'')) AS student_name,
+            CONCAT(COALESCE(" . db_decrypt_col('student_fn', 's') . ",''), ' ', COALESCE(" . db_decrypt_col('student_ln', 's') . ",'')) AS student_name,
             ot.name AS offense_name,
             g.full_name as guard_name,
             'VIOLATION' as item_type
@@ -16,7 +16,8 @@ $reports = db_all(
      LEFT JOIN offense_type ot ON ot.offense_type_id = r.offense_type_id
      LEFT JOIN security_guard g ON r.submitted_by = g.guard_id
      WHERE r.status = 'PENDING' AND r.is_deleted = 0
-     ORDER BY r.created_at DESC"
+     ORDER BY r.created_at DESC",
+    [':__enckey' => db_encryption_key()]
 );
 
 $admin = admin_current();

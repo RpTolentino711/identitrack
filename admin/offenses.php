@@ -111,23 +111,27 @@ $statsWhereParts = [];
 $statsParams     = [];
 
 if ($q !== '') {
+  $decFn = db_decrypt_col('student_fn', 's');
+  $decLn = db_decrypt_col('student_ln', 's');
   $statsWhereParts[] = "student_id IN (
     SELECT student_id FROM student s
-    WHERE (s.student_id LIKE ? OR s.student_fn LIKE ? OR s.student_ln LIKE ?
-           OR CONCAT(s.student_fn,' ',s.student_ln) LIKE ?
-           OR CONCAT(s.student_ln,', ',s.student_fn) LIKE ?)
+    WHERE (s.student_id LIKE :q1 OR $decFn LIKE :q2 OR $decLn LIKE :q3
+           OR CONCAT($decFn,' ',$decLn) LIKE :q4
+           OR CONCAT($decLn,', ',$decFn) LIKE :q5)
   )";
   $like = '%' . $q . '%';
-  $statsParams[] = $q . '%';
-  $statsParams[] = $like;
-  $statsParams[] = $like;
-  $statsParams[] = $like;
-  $statsParams[] = $like;
+  $statsParams[':q1'] = $q . '%';
+  $statsParams[':q2'] = $like;
+  $statsParams[':q3'] = $like;
+  $statsParams[':q4'] = $like;
+  $statsParams[':q5'] = $like;
+  db_add_encryption_key($statsParams);
 }
 
 if ($selectedMonth !== '') {
-  $statsWhereParts[] = "DATE_FORMAT(date_committed, '%Y-%m') = ?";
-  $statsParams[] = $selectedMonth;
+  $statsWhereParts[] = "DATE_FORMAT(date_committed, '%Y-%m') = :month";
+  $statsParams[':month'] = $selectedMonth;
+  db_add_encryption_key($statsParams);
 }
 
 $statsWhere = !empty($statsWhereParts) ? 'WHERE ' . implode(' AND ', $statsWhereParts) : '';
@@ -159,15 +163,18 @@ $whereParts = [];
 $params     = [];
 
 if ($q !== '') {
-  $whereParts[] = "(s.student_id LIKE ? OR s.student_fn LIKE ? OR s.student_ln LIKE ?
-                    OR CONCAT(s.student_fn,' ',s.student_ln) LIKE ?
-                    OR CONCAT(s.student_ln,', ',s.student_fn) LIKE ?)";
+  $decFn = db_decrypt_col('student_fn', 's');
+  $decLn = db_decrypt_col('student_ln', 's');
+  $whereParts[] = "(s.student_id LIKE :q1 OR $decFn LIKE :q2 OR $decLn LIKE :q3
+                    OR CONCAT($decFn,' ',$decLn) LIKE :q4
+                    OR CONCAT($decLn,', ',$decFn) LIKE :q5)";
   $like = '%' . $q . '%';
-  $params[] = $q . '%';
-  $params[] = $like;
-  $params[] = $like;
-  $params[] = $like;
-  $params[] = $like;
+  $params[':q1'] = $q . '%';
+  $params[':q2'] = $like;
+  $params[':q3'] = $like;
+  $params[':q4'] = $like;
+  $params[':q5'] = $like;
+  db_add_encryption_key($params);
 }
 
 if ($filter === 'minor') {
@@ -192,9 +199,10 @@ if ($selectedMonth !== '') {
   $whereParts[] = "EXISTS (
     SELECT 1 FROM offense o4
     WHERE o4.student_id = s.student_id
-      AND DATE_FORMAT(o4.date_committed, '%Y-%m') = ?
+      AND DATE_FORMAT(o4.date_committed, '%Y-%m') = :month
   )";
-  $params[] = $selectedMonth;
+  $params[':month'] = $selectedMonth;
+  db_add_encryption_key($params);
 }
 
 // Only show students who have at least one offense
@@ -209,8 +217,7 @@ $where = !empty($whereParts)
 $sql = "
   SELECT
     s.student_id,
-    s.student_fn,
-    s.student_ln,
+    " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ",
     s.year_level,
     s.program,
     s.school,
@@ -242,7 +249,7 @@ $sql = "
      WHERE o2.student_id = s.student_id
      ORDER BY o2.date_committed DESC LIMIT 1)  AS last_offense_level,
 
-    (SELECT o2.description FROM offense o2
+    (SELECT " . db_decrypt_col('description', 'o2') . " FROM offense o2
      WHERE o2.student_id = s.student_id
      ORDER BY o2.date_committed DESC LIMIT 1)  AS last_description
 
@@ -258,6 +265,7 @@ $sql = "
   ORDER BY last_offense_date DESC, s.student_ln ASC, s.student_fn ASC
 ";
 
+db_add_encryption_key($params);
 $students = db_all($sql, $params) ?: [];
 ?>
 <!doctype html>

@@ -39,12 +39,16 @@ if ($studentId === '') json_out(false, 'student_id is required.', null, 400);
 require_student_api_auth($studentId);
 
 // Confirm student exists
+$decrypted_student = db_decrypt_cols(['student_fn', 'student_ln']);
+$params = [':sid' => $studentId];
+db_add_encryption_key($params);
+
 $student = db_one(
-  "SELECT student_id, student_fn, student_ln, is_active
+  "SELECT student_id, $decrypted_student, is_active
    FROM student
    WHERE student_id = :sid
    LIMIT 1",
-  [':sid' => $studentId]
+  $params
 );
 
 if (!$student) json_out(false, 'Student not found.', null, 404);
@@ -228,14 +232,14 @@ if ($activeCaseRow) {
 }
 
 $closedCase = db_one(
-  "SELECT case_id, status as case_status, decided_category, final_decision, punishment_details, resolution_date
+  "SELECT case_id, status as case_status, decided_category, " . db_decrypt_cols(['final_decision', 'punishment_details']) . ", resolution_date
    FROM upcc_case
    WHERE student_id = :sid
      AND status IN ('CLOSED', 'RESOLVED')
      AND decided_category IS NOT NULL
    ORDER BY resolution_date DESC, case_id DESC
    LIMIT 1",
-  [':sid' => $studentId]
+  [':sid' => $studentId, ':__enckey' => db_encryption_key()]
 );
 
 $latestAppeal = null;

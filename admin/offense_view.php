@@ -18,12 +18,17 @@ if ($offenseId <= 0) {
 }
 
 // Get selected offense + student + offense_type details
+$decrypted_student = db_decrypt_cols(['student_fn', 'student_ln', 'student_email']);
+$decrypted_offense = db_decrypt_cols(['description']);
+$params = [':id' => $offenseId];
+db_add_encryption_key($params);
+
 $row = db_one(
   "SELECT
       o.offense_id,
       o.student_id,
       o.status,
-      o.description,
+      $decrypted_offense,
       o.date_committed,
       ot.level AS level,
       ot.code AS offense_code,
@@ -31,19 +36,17 @@ $row = db_one(
       ot.major_category,
       ot.intervention_first,
       ot.intervention_second,
-      s.student_fn,
-      s.student_ln,
+      $decrypted_student,
       s.year_level,
       s.section,
       s.school,
-      s.program,
-      s.student_email
+      s.program
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
    WHERE o.offense_id = :id
    LIMIT 1",
-  [':id' => $offenseId]
+  $params
 );
 
 if (!$row) {

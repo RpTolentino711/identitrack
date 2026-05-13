@@ -51,14 +51,18 @@ if ((int)($student['is_active'] ?? 0) !== 1) {
 $policy = student_account_mode($studentId);
 // Informational overview is allowed even if account has restrictions
 
-// Get assigned requirements & hours
+// Get assigned requirements & hours with decryption
+$decrypted_cols = db_decrypt_cols(['task_name', 'location', 'contact_person', 'contact_number', 'reason']);
+$params = [':sid' => $studentId];
+db_add_encryption_key($params);
+
 $reqs = db_all("
   SELECT 
-    requirement_id, task_name, location, hours_required, status, assigned_at, completed_at
+    requirement_id, $decrypted_cols, hours_required, status, assigned_at, completed_at
   FROM community_service_requirement
   WHERE student_id = :sid AND status = 'ACTIVE'
   ORDER BY assigned_at DESC
-", [':sid' => $studentId]);
+", $params);
 
 // Sessions (clock-ins with hours)
 $sessions = db_all("
@@ -78,8 +82,8 @@ $activeSession = db_one(
       css.time_in,
       css.login_method,
       css.sdo_notes,
-      csr.task_name,
-      csr.location,
+      " . db_decrypt_col('csr.task_name') . " AS task_name,
+      " . db_decrypt_col('csr.location') . " AS location,
       csr.hours_required,
       csr.status
    FROM community_service_session css
@@ -88,7 +92,7 @@ $activeSession = db_one(
      AND css.time_out IS NULL
    ORDER BY css.time_in DESC
    LIMIT 1",
-  [':sid' => $studentId]
+  array_merge($params, [':sid' => $studentId])
 );
 
 $pendingManual = db_one(

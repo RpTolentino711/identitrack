@@ -36,12 +36,16 @@ try {
 
     $alerts = [];
 
+    $decrypted_offense = db_decrypt_cols(['description', 'location', 'reason']);
+    $params = [':sid' => $studentId];
+    db_add_encryption_key($params);
+    
     $offenses = db_all(
-        "SELECT level, status, date_committed AS recorded_at, guardian_notified_at
+        "SELECT level, status, date_committed AS recorded_at, guardian_notified_at, $decrypted_offense
          FROM offense
          WHERE student_id = :sid
          ORDER BY date_committed DESC",
-        [':sid' => $studentId]
+        $params
     );
 
     foreach ($offenses as $offense) {
@@ -88,14 +92,14 @@ try {
     }
 
     $latestCase = db_one(
-        "SELECT case_id, decided_category, final_decision, punishment_details, resolution_date
+        "SELECT case_id, decided_category, " . db_decrypt_cols(['final_decision', 'punishment_details']) . ", resolution_date
          FROM upcc_case
          WHERE student_id = :sid
            AND status IN ('CLOSED','RESOLVED')
            AND decided_category IS NOT NULL
          ORDER BY resolution_date DESC, case_id DESC
          LIMIT 1",
-        [':sid' => $studentId]
+        [':sid' => $studentId, ':__enckey' => db_encryption_key()]
     );
 
     if ($latestCase) {
@@ -131,12 +135,12 @@ try {
     }
 
     $latestAppeal = db_one(
-        "SELECT appeal_id, appeal_kind, case_id, offense_id, status, created_at, decided_at, admin_response
+        "SELECT appeal_id, appeal_kind, case_id, offense_id, status, created_at, decided_at, " . db_decrypt_col('admin_response') . " AS admin_response
          FROM student_appeal_request
          WHERE student_id = :sid
          ORDER BY created_at DESC, appeal_id DESC
          LIMIT 1",
-        [':sid' => $studentId]
+        [':sid' => $studentId, ':__enckey' => db_encryption_key()]
     );
 
     if ($latestAppeal) {

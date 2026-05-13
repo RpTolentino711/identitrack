@@ -64,18 +64,20 @@ if (!$otCheck->fetch()) {
     exit;
 }
 
-// Insert report
+// Insert report with encrypted description
 $ins = $pdo->prepare("INSERT INTO guard_violation_report
         (student_id, submitted_by, offense_type_id, date_committed, description, status)
     VALUES
-        (:sid, :gid, :oid, :dt, :desc, 'PENDING')
+        (:sid, :gid, :oid, :dt, UNHEX(AES_ENCRYPT(:desc, UNHEX(SHA2(:key, 256)))), 'PENDING')
 ");
+$key = db_encryption_key();
 $ins->execute([
     ':sid'  => $studentId,
     ':gid'  => $guardId,
     ':oid'  => $offenseTypeId,
     ':dt'   => $dateFormatted,
-    ':desc' => $description !== '' ? $description : null,
+    ':desc' => $description !== '' ? $description : '',
+    ':key'  => $key,
 ]);
 
 $reportId = $pdo->lastInsertId();
@@ -93,13 +95,16 @@ $notifStmt = $pdo->prepare("INSERT INTO notification
          0)
 ");
 
-// Get offense name and student name for notification
-$infoStmt = $pdo->prepare(" SELECT s.student_fn, s.student_ln, ot.name AS offense_name, ot.level
+// Get offense name and student name (decrypted) for notification
+$infoStmt = $pdo->prepare("SELECT 
+        AES_DECRYPT(UNHEX(s.student_fn), UNHEX(SHA2(:key, 256))) as student_fn, 
+        AES_DECRYPT(UNHEX(s.student_ln), UNHEX(SHA2(:key, 256))) as student_ln, 
+        ot.name AS offense_name, ot.level
     FROM student s
     JOIN offense_type ot ON ot.offense_type_id = :oid
     WHERE s.student_id = :sid
 ");
-$infoStmt->execute([':oid' => $offenseTypeId, ':sid' => $studentId]);
+$infoStmt->execute([':oid' => $offenseTypeId, ':sid' => $studentId, ':key' => $key]);
 $info = $infoStmt->fetch(PDO::FETCH_ASSOC);
 
 if ($info) {

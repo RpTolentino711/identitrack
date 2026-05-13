@@ -114,7 +114,7 @@ $pendingGuardQueue = db_all(
      ot.code AS offense_code,
      ot.name AS offense_name,
      ot.level AS offense_level,
-     CONCAT(COALESCE(s.student_fn,''), ' ', COALESCE(s.student_ln,'')) AS student_name,
+     CONCAT(COALESCE(" . db_decrypt_col('student_fn', 's') . ",''), ' ', COALESCE(" . db_decrypt_col('student_ln', 's') . ",'')) AS student_name,
      sg.full_name AS guard_name
    FROM guard_violation_report r
    JOIN offense_type ot ON ot.offense_type_id = r.offense_type_id
@@ -122,7 +122,8 @@ $pendingGuardQueue = db_all(
    LEFT JOIN security_guard sg ON sg.guard_id = r.submitted_by
    WHERE r.status = 'PENDING' AND r.is_deleted = 0
    ORDER BY r.created_at DESC
-   LIMIT 20"
+   LIMIT 20",
+  [':__enckey' => db_encryption_key()]
 );
 
 $guardMsgKey = trim((string)($_GET['guard_msg'] ?? ''));

@@ -67,9 +67,11 @@ if (($_GET['action'] ?? '') === 'create_guard') {
   }
 
   if ($hasGuardEmail) {
+    $emailParams = [':email' => $email];
+    db_add_encryption_key($emailParams);
     $existingByEmail = db_one(
-      "SELECT guard_id FROM security_guard WHERE email = ? LIMIT 1",
-      [$email]
+      "SELECT guard_id FROM security_guard WHERE " . db_decrypt_col('email') . " = :email LIMIT 1",
+      $emailParams
     );
     if ($existingByEmail) {
       echo json_encode(['ok' => false, 'message' => 'Email is already registered.']);
@@ -80,32 +82,32 @@ if (($_GET['action'] ?? '') === 'create_guard') {
   $password_hash = password_hash($password, PASSWORD_BCRYPT);
 
   try {
+    $insParams = [
+      ':full_name' => $full_name,
+      ':username' => $username_input,
+      ':password_hash' => $password_hash,
+      ':contact_number' => $phone,
+    ];
+    if ($hasGuardEmail) {
+      $insParams[':email'] = $email;
+    }
+    db_add_encryption_key($insParams);
+
     if ($hasGuardEmail) {
       db_exec(
         "INSERT INTO security_guard
           (full_name, username, email, role, password_hash, contact_number, is_active)
          VALUES
-          (:full_name, :username, :email, 'GUARD', :password_hash, :contact_number, 1)",
-        [
-          ':full_name' => $full_name,
-          ':username' => $username_input,
-          ':email' => $email,
-          ':password_hash' => $password_hash,
-          ':contact_number' => $phone,
-        ]
+          (" . db_encrypt_col('full_name', ':full_name') . ", :username, " . db_encrypt_col('email', ':email') . ", 'GUARD', :password_hash, " . db_encrypt_col('contact_number', ':contact_number') . ", 1)",
+        $insParams
       );
     } else {
       db_exec(
         "INSERT INTO security_guard
           (full_name, username, role, password_hash, contact_number, is_active)
          VALUES
-          (:full_name, :username, 'GUARD', :password_hash, :contact_number, 1)",
-        [
-          ':full_name' => $full_name,
-          ':username' => $username_input,
-          ':password_hash' => $password_hash,
-          ':contact_number' => $phone,
-        ]
+          (" . db_encrypt_col('full_name', ':full_name') . ", :username, 'GUARD', :password_hash, " . db_encrypt_col('contact_number', ':contact_number') . ", 1)",
+        $insParams
       );
     }
 
@@ -149,7 +151,7 @@ if (($_GET['action'] ?? '') === 'list_guards') {
     $guards = db_all(
       "SELECT
          guard_id AS id,
-         full_name,
+         " . db_decrypt_cols(['full_name', 'contact_number']) . ",
          username,
          contact_number AS phone,
          is_active,
@@ -157,7 +159,7 @@ if (($_GET['action'] ?? '') === 'list_guards') {
          created_at
        FROM security_guard
        ORDER BY created_at DESC",
-      []
+      [':__enckey' => db_encryption_key()]
     );
 
     echo json_encode([

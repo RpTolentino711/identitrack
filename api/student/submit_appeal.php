@@ -211,18 +211,21 @@ if ($caseId > 0) {
 }
 
 try {
+  $params = [
+    ':sid' => $studentId,
+    ':oid' => $appealKind === 'OFFENSE' ? $targetId : null,
+    ':cid' => $appealKind === 'UPCC_CASE' ? $targetId : null,
+    ':kind' => $appealKind,
+    ':reason' => $reason,
+    ':apath' => $attachmentPath,
+    ':aname' => $attachmentName,
+  ];
+  db_add_encryption_key($params);
+
   db_exec(
     "INSERT INTO student_appeal_request (student_id, offense_id, case_id, appeal_kind, reason, status, created_at, attachment_path, attachment_name)
-     VALUES (:sid, :oid, :cid, :kind, :reason, 'PENDING', NOW(), :apath, :aname)",
-    [
-      ':sid' => $studentId,
-      ':oid' => $appealKind === 'OFFENSE' ? $targetId : null,
-      ':cid' => $appealKind === 'UPCC_CASE' ? $targetId : null,
-      ':kind' => $appealKind,
-      ':reason' => $reason,
-      ':apath' => $attachmentPath,
-      ':aname' => $attachmentName,
-    ]
+     VALUES (:sid, :oid, :cid, :kind, " . db_encrypt_col('reason', ':reason') . ", 'PENDING', NOW(), :apath, :aname)",
+    $params
   );
   $appealId = (int)db_last_id();
 
@@ -247,13 +250,13 @@ try {
     );
 
     if (!$case) {
+      $summary = 'Student appeal submitted for offense #' . $offenseId;
+      $caseParams = [':sid' => $studentId, ':summary' => $summary];
+      db_add_encryption_key($caseParams);
       db_exec(
         "INSERT INTO upcc_case (student_id, created_by, status, case_kind, case_summary, created_at, updated_at)
-         VALUES (:sid, 0, 'UNDER_APPEAL', 'DIRECT_APPEAL', :summary, NOW(), NOW())",
-        [
-          ':sid' => $studentId,
-          ':summary' => 'Student appeal submitted for offense #' . $offenseId,
-        ]
+         VALUES (:sid, 0, 'UNDER_APPEAL', 'DIRECT_APPEAL', " . db_encrypt_col('case_summary', ':summary') . ", NOW(), NOW())",
+        $caseParams
       );
 
       $newCaseId = (int)db_last_id();

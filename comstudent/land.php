@@ -37,12 +37,14 @@ function find_student_by_input(string $input): ?array
   }
 
   // Backward-compatible: allow direct student ID entry.
+  $studentParams = [':sid' => $input];
+  db_add_encryption_key($studentParams);
   $student = db_one(
-    "SELECT student_id, student_fn, student_ln, is_active
+    "SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln']) . ", is_active
      FROM student
      WHERE student_id = :sid
      LIMIT 1",
-    [':sid' => $input]
+    $studentParams
   );
   if ($student) {
     return $student;
@@ -52,13 +54,14 @@ function find_student_by_input(string $input): ?array
     return null;
   }
 
-  $hash = scanner_hash_value($input);
+  $hashParams = [':scanner_hash' => $hash];
+  db_add_encryption_key($hashParams);
   return db_one(
-    "SELECT student_id, student_fn, student_ln, is_active
+    "SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln']) . ", is_active
      FROM student
      WHERE scanner_id_hash = :scanner_hash
      LIMIT 1",
-    [':scanner_hash' => $hash]
+    $hashParams
   );
 }
 

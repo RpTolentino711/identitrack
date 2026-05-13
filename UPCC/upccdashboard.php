@@ -61,7 +61,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
                          WHERE p.case_id = uc.case_id AND p.user_type = 'UPCC' AND p.user_id = :presence_uid
                 LIMIT 1), 'ADMITTED') AS my_presence_status,
                uc.hearing_vote_consensus_category,
-               CONCAT(s.student_fn,' ',s.student_ln) AS student_name,
+               CONCAT(" . db_decrypt_col('student_fn', 's') . ",' '," . db_decrypt_col('student_ln', 's') . ") AS student_name,
                s.student_id,
                GROUP_CONCAT(ot.name ORDER BY ot.offense_type_id SEPARATOR ', ') AS offense_names,
                MAX(ot.level) AS offense_level,
@@ -79,7 +79,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         GROUP BY uc.case_id
         ORDER BY uc.created_at DESC
         LIMIT 10
-    ", array_merge([':presence_uid' => $panelId, ':vote_uid' => $panelId, ':join_uid2' => $panelId, ':join_uid' => $panelId, ':legacy_uid' => $panelId]));
+    ", array_merge([':presence_uid' => $panelId, ':vote_uid' => $panelId, ':join_uid2' => $panelId, ':join_uid' => $panelId, ':legacy_uid' => $panelId], [':__enckey' => db_encryption_key()]));
     
     $acceptedRows  = db_all("SELECT case_id FROM upcc_case_panel_acceptance WHERE upcc_id = :uid", [':uid' => $panelId]);
     $acceptedCases = [];
@@ -278,8 +278,8 @@ $recentCases = db_all("SELECT uc.case_id, uc.status, uc.created_at,
        COALESCE((SELECT p.status FROM upcc_hearing_presence p
            WHERE p.case_id = uc.case_id AND p.user_type = 'UPCC' AND p.user_id = :presence_uid
            LIMIT 1), 'ADMITTED') AS my_presence_status,
-       uc.hearing_vote_consensus_category, uc.case_kind, uc.case_summary,
-       CONCAT(s.student_fn,' ',s.student_ln) AS student_name,
+       uc.hearing_vote_consensus_category, uc.case_kind, " . db_decrypt_col('case_summary', 'uc') . " AS case_summary,
+       CONCAT(" . db_decrypt_col('student_fn', 's') . ",' '," . db_decrypt_col('student_ln', 's') . ") AS student_name,
        s.student_id,
        GROUP_CONCAT(ot.name ORDER BY ot.offense_type_id SEPARATOR ', ') AS offense_names,
        MAX(ot.level) AS offense_level,
@@ -297,7 +297,7 @@ $recentCases = db_all("SELECT uc.case_id, uc.status, uc.created_at,
   GROUP BY uc.case_id
   ORDER BY uc.created_at DESC
   LIMIT 10
-", array_merge([':presence_uid' => $panelId, ':vote_uid' => $panelId, ':join_uid' => $panelId, ':legacy_uid' => $panelId]));
+", array_merge([':presence_uid' => $panelId, ':vote_uid' => $panelId, ':join_uid' => $panelId, ':legacy_uid' => $panelId], [':__enckey' => db_encryption_key()]));
 
 $acceptedRows  = db_all("SELECT case_id FROM upcc_case_panel_acceptance WHERE upcc_id = :uid", [':uid' => $panelId]);
 $acceptedCases = [];

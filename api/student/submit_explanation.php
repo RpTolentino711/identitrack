@@ -96,19 +96,24 @@ if ($explanation === '' && !$imagePath && !$pdfPath) {
     json_out(false, 'Please provide an explanation (text, image, or PDF).', null, 400);
 }
 
-// Update the case
-db_exec("UPDATE upcc_case SET 
-    student_explanation_text = :text,
-    student_explanation_image = :img,
-    student_explanation_pdf = :pdf,
-    student_explanation_at = NOW(),
-    updated_at = NOW()
-    WHERE case_id = :cid", [
+// Update the case with encryption
+$params = [
     ':text' => $explanation ?: null,
     ':img' => $imagePath ?: null,
     ':pdf' => $pdfPath ?: null,
     ':cid' => $caseId
-]);
+];
+db_add_encryption_key($params);
+
+$encText = $explanation ? db_encrypt_col('student_explanation_text', ':text') : 'student_explanation_text';
+
+db_exec("UPDATE upcc_case SET 
+    student_explanation_text = $encText,
+    student_explanation_image = :img,
+    student_explanation_pdf = :pdf,
+    student_explanation_at = NOW(),
+    updated_at = NOW()
+    WHERE case_id = :cid", $params);
 
 upcc_log_case_activity($caseId, 'SYSTEM', 0, 'STUDENT_EXPLANATION_SUBMITTED', [
     'has_text' => !empty($explanation),

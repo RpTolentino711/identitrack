@@ -78,11 +78,10 @@ try {
 
 // ── LOAD CASE ─────────────────────────────────────────────────────────────
 $legacyPanelMatch = "FIND_IN_SET(:legacy_uid, REPLACE(REPLACE(REPLACE(COALESCE(uc.assigned_panel_members,''),'[',''),']',''),' ','')) > 0";
-$case = db_one("SELECT uc.*,
-        CONCAT(s.student_fn,' ',s.student_ln) AS student_name,
-        s.student_fn, s.student_ln,
+$case = db_one("SELECT uc.*, " . db_decrypt_cols(['case_summary', 'student_explanation_text'], 'uc') . ",
+        CONCAT(" . db_decrypt_col('student_fn', 's') . ",' '," . db_decrypt_col('student_ln', 's') . ") AS student_name,
+        " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number', 'home_address'], 's') . ",
         s.year_level, s.section, s.program, s.school,
-        s.student_email, s.phone_number, s.home_address,
         d.dept_name AS assigned_dept_name
     FROM upcc_case uc
     JOIN student s ON s.student_id = uc.student_id
@@ -93,7 +92,7 @@ $case = db_one("SELECT uc.*,
         OR $legacyPanelMatch
       )
     LIMIT 1",
-    [':case_id' => $caseId, ':join_uid' => $panelId, ':legacy_uid' => $panelId]
+    [':case_id' => $caseId, ':join_uid' => $panelId, ':legacy_uid' => $panelId, ':__enckey' => db_encryption_key()]
 );
 
 if (!$case) {
@@ -668,13 +667,15 @@ if ($isRoundActive && $suggesterId > 0) {
 }
 
 // Re-fetch case
-$case = db_one("SELECT uc.*, CONCAT(s.student_fn,' ',s.student_ln) AS student_name,
-        s.student_fn, s.student_ln, s.year_level, s.section, s.program, s.school,
-        s.student_email, s.phone_number, s.home_address, d.dept_name AS assigned_dept_name
+$case = db_one("SELECT uc.*, " . db_decrypt_cols(['case_summary', 'student_explanation_text'], 'uc') . ",
+        CONCAT(" . db_decrypt_col('student_fn', 's') . ",' '," . db_decrypt_col('student_ln', 's') . ") AS student_name,
+        " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number', 'home_address'], 's') . ",
+        s.year_level, s.section, s.program, s.school,
+        d.dept_name AS assigned_dept_name
     FROM upcc_case uc
     JOIN student s ON s.student_id = uc.student_id
     LEFT JOIN departments d ON d.dept_id = uc.assigned_department_id
-    WHERE uc.case_id = :c LIMIT 1", [':c' => $caseId]);
+    WHERE uc.case_id = :c LIMIT 1", [':c' => $caseId, ':__enckey' => db_encryption_key()]);
 
 $consensusCategory = (int)($case['hearing_vote_consensus_category'] ?? 0);
 $isAwaitingAdmin   = $consensusCategory > 0 && (string)($case['status'] ?? '') === 'AWAITING_ADMIN_FINALIZATION';
@@ -693,13 +694,13 @@ $showVotingPopup = $isRoundActive && $suggestedDetails !== null;
 
 // ── OTHER QUERIES ─────────────────────────────────────────────────────────
 $offenses = db_all(
-    "SELECT o.offense_id, o.level, o.description, o.date_committed, o.status,
+    "SELECT o.offense_id, o.level, " . db_decrypt_col('description', 'o') . " AS description, o.date_committed, o.status,
             ot.code, ot.name AS offense_name, ot.major_category, ot.intervention_first, ot.intervention_second
      FROM upcc_case_offense uco
      JOIN offense o   ON o.offense_id = uco.offense_id
      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
      WHERE uco.case_id = :c ORDER BY o.date_committed ASC",
-    [':c' => $caseId]
+    [':c' => $caseId, ':__enckey' => db_encryption_key()]
 );
 
 $discussion = db_all(

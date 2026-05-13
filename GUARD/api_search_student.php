@@ -15,13 +15,21 @@ if ($q === '') {
 }
 
 require_once __DIR__ . '/../database/database.php';
-$pdo = getConnection();
 
-$like = '%' . $q . '%';
+$decFn = db_decrypt_col('student_fn', 's');
+$decLn = db_decrypt_col('student_ln', 's');
+
+$params = [
+  ':q' => $q . '%',
+  ':qLike' => '%' . $q . '%',
+];
+db_add_encryption_key($params);
+
+$pdo = getConnection();
 $stmt = $pdo->prepare("SELECT
       s.student_id,
-      s.student_fn,
-      s.student_ln,
+      $decFn AS student_fn,
+      $decLn AS student_ln,
       s.year_level,
       s.section,
       s.program,
@@ -29,15 +37,16 @@ $stmt = $pdo->prepare("SELECT
     FROM student s
     WHERE s.is_active = 1
       AND (
-        s.student_id LIKE :q1
-        OR s.student_fn LIKE :q2
-        OR s.student_ln LIKE :q3
-        OR CONCAT(s.student_fn,' ',s.student_ln) LIKE :q4
-        OR CONCAT(s.student_ln,', ',s.student_fn) LIKE :q5
+        s.student_id LIKE :q
+        OR $decFn LIKE :qLike
+        OR $decLn LIKE :qLike
+        OR CONCAT($decFn, ' ', $decLn) LIKE :qLike
+        OR CONCAT($decLn, ', ', $decFn) LIKE :qLike
       )
-    ORDER BY s.student_ln ASC, s.student_fn ASC
+    ORDER BY student_ln ASC, student_fn ASC
     LIMIT 12");
-$stmt->execute([':q1' => $like, ':q2' => $like, ':q3' => $like, ':q4' => $like, ':q5' => $like]);
+
+$stmt->execute($params);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 echo json_encode($rows);

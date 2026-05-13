@@ -38,12 +38,16 @@ if ($studentId === '') json_out(false, 'student_id is required.', null, 400);
 require_student_api_auth($studentId);
 
 // Student info
+$decrypted_student = db_decrypt_cols(['student_fn', 'student_ln']);
+$params = [':sid' => $studentId];
+db_add_encryption_key($params);
+
 $student = db_one(
-  "SELECT student_id, student_fn, student_ln, program, year_level, is_active
+  "SELECT student_id, $decrypted_student, program, year_level, is_active
    FROM student
    WHERE student_id = :sid
    LIMIT 1",
-  [':sid' => $studentId]
+  $params
 );
 
 if (!$student) json_out(false, 'Student not found.', null, 404);
@@ -90,12 +94,17 @@ db_exec(
 );
 
 // List of offenses
+$decrypted_offense = db_decrypt_cols(['description']);
+$decrypted_explanation = db_decrypt_cols(['student_explanation_text']);
+$query_params = [':sid' => $studentId];
+db_add_encryption_key($query_params);
+
 $rows = db_all(
   "SELECT
       o.offense_id,
       o.level,
       o.status,
-      o.description,
+      $decrypted_offense,
       o.date_committed,
       o.acknowledged_at,
       o.is_deleted_by_student,
@@ -103,7 +112,7 @@ $rows = db_all(
       ot.name AS offense_name,
       (SELECT status FROM student_appeal_request sar WHERE sar.offense_id = o.offense_id AND sar.appeal_kind = 'OFFENSE' ORDER BY appeal_id DESC LIMIT 1) AS appeal_status,
       uc.case_id AS upcc_case_id,
-      uc.student_explanation_text,
+      $decrypted_explanation,
       uc.student_explanation_image,
       uc.student_explanation_pdf,
       uc.student_explanation_at,
@@ -115,7 +124,7 @@ $rows = db_all(
    WHERE o.student_id = :sid
      AND (o.status <> 'VOID' OR (SELECT status FROM student_appeal_request sar WHERE sar.offense_id = o.offense_id AND sar.appeal_kind = 'OFFENSE' ORDER BY appeal_id DESC LIMIT 1) = 'APPROVED')
    ORDER BY o.date_committed DESC, o.offense_id DESC",
-  [':sid' => $studentId]
+  $query_params
 );
 
 $minorList = [];
@@ -137,13 +146,13 @@ $items = [];
 
 $resolvedCasesMap = []; 
 $resCases = db_all("
-  SELECT c.case_id, c.decided_category, c.final_decision, c.resolution_date, co.offense_id, c.status,
+  SELECT c.case_id, c.decided_category, " . db_decrypt_col('final_decision', 'c') . " AS final_decision, c.resolution_date, co.offense_id, c.status,
          (SELECT status FROM student_appeal_request sar WHERE sar.case_id = c.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) AS appeal_status
   FROM upcc_case c
   JOIN upcc_case_offense co ON co.case_id = c.case_id
   WHERE c.student_id = :sid 
     AND (c.status = 'RESOLVED' OR (c.status = 'CANCELLED' AND (SELECT status FROM student_appeal_request sar WHERE sar.case_id = c.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) = 'APPROVED'))
-", [':sid' => $studentId]);
+", [':sid' => $studentId, ':__enckey' => db_encryption_key()]);
 foreach ($resCases as $rc) {
   $resolvedCasesMap[(int)$rc['offense_id']] = $rc;
 }

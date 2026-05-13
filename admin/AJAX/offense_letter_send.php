@@ -22,10 +22,12 @@ if ($offenseId <= 0) {
 }
 
 // Load offense + guardian email
+$params = [':oid' => $offenseId];
+db_add_encryption_key($params);
 $row = db_one(
   "SELECT
-     o.offense_id, o.level, o.description, o.date_committed,
-     s.student_id, s.student_fn, s.student_ln, s.student_email,
+     o.offense_id, o.level, " . db_decrypt_col('description', 'o') . " AS description, o.date_committed,
+     s.student_id, " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email'], 's') . ",
      ot.code AS offense_code, ot.name AS offense_name,
      g.guardian_email, g.guardian_fn, g.guardian_ln
    FROM offense o
@@ -34,7 +36,7 @@ $row = db_one(
    LEFT JOIN guardian g ON g.student_id = s.student_id
    WHERE o.offense_id = :oid
    LIMIT 1",
-  [':oid' => $offenseId]
+  $params
 );
 
 if (!$row) {
@@ -77,11 +79,13 @@ if ($guardianEmail !== $dbGuardianEmail && $guardianEmail !== '') {
 }
 
 // ✅ Fetch offense history so attached PDF includes it too
+$histParams = [':sid' => (string)$row['student_id']];
+db_add_encryption_key($histParams);
 $history = db_all(
   "SELECT
       o.offense_id,
       o.date_committed,
-      o.description,
+      " . db_decrypt_col('description', 'o') . " AS description,
       ot.level,
       ot.code,
       ot.name
@@ -90,7 +94,7 @@ $history = db_all(
    WHERE o.student_id = :sid
    ORDER BY o.date_committed DESC, o.offense_id DESC
    LIMIT 30",
-  [':sid' => (string)$row['student_id']]
+  $histParams
 );
 
 // Generate PDF again and attach (so it matches the latest edits + includes offense history)
