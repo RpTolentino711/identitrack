@@ -123,7 +123,7 @@ function db_encrypt_col(string $columnName, string $paramName = ''): string
   if ($paramName === '') {
     $paramName = ':' . $columnName;
   }
-  return "UNHEX(AES_ENCRYPT($paramName, UNHEX(SHA2(:__enckey, 256))))";
+  return "AES_ENCRYPT($paramName, UNHEX(SHA2(:__enckey, 256)))";
 }
 
 /**
@@ -133,7 +133,7 @@ function db_encrypt_col(string $columnName, string $paramName = ''): string
 function db_decrypt_col(string $columnName, string $alias = ''): string
 {
   $col = ($alias !== '') ? "$alias.$columnName" : $columnName;
-  return "AES_DECRYPT(UNHEX($col), UNHEX(SHA2(:__enckey, 256)))";
+  return "AES_DECRYPT($col, UNHEX(SHA2(:__enckey, 256)))";
 }
 
 /**
@@ -146,7 +146,7 @@ function db_decrypt_cols(array $cols, string $tableAlias = ''): string
   $decrypted = [];
   foreach ($cols as $col) {
     $source = ($tableAlias !== '') ? "$tableAlias.$col" : $col;
-    $decrypted[] = "AES_DECRYPT(UNHEX($source), UNHEX(SHA2(:__enckey, 256))) AS $col";
+    $decrypted[] = "AES_DECRYPT($source, UNHEX(SHA2(:__enckey, 256))) AS $col";
   }
   return implode(', ', $decrypted);
 }
