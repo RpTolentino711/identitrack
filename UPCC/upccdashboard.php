@@ -54,20 +54,28 @@ if (isset($_GET['action']) && $_GET['action'] === 'dismiss_case') {
 if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
     header('Content-Type: text/html; charset=utf-8');
     
+    $refreshParams = [
+        ':presence_uid' => $panelId,
+        ':join_uid'     => $panelId,
+        ':join_uid2'    => $panelId,
+        ':legacy_uid'   => $panelId
+    ];
+    db_add_encryption_key($refreshParams);
+
     $recentCases = db_all("
          SELECT uc.case_id, uc.status, uc.created_at,
-           uc.hearing_date, uc.hearing_time, uc.hearing_type, uc.hearing_is_open, uc.hearing_is_paused,
-               COALESCE((SELECT p.status FROM upcc_hearing_presence p
-                         WHERE p.case_id = uc.case_id AND p.user_type = 'UPCC' AND p.user_id = :presence_uid
+            uc.hearing_date, uc.hearing_time, uc.hearing_type, uc.hearing_is_open, uc.hearing_is_paused,
+            COALESCE((SELECT p.status FROM upcc_hearing_presence p
+                        WHERE p.case_id = uc.case_id AND p.user_type = 'UPCC' AND p.user_id = :presence_uid
                 LIMIT 1), 'ADMITTED') AS my_presence_status,
-               uc.hearing_vote_consensus_category,
-               CONCAT(" . db_decrypt_col('student_fn', 's') . ",' '," . db_decrypt_col('student_ln', 's') . ") AS student_name,
-               s.student_id,
-               GROUP_CONCAT(ot.name ORDER BY ot.offense_type_id SEPARATOR ', ') AS offense_names,
-               MAX(ot.level) AS offense_level,
-               GROUP_CONCAT(DISTINCT CONCAT(ot.level, ':', ot.name) ORDER BY ot.level DESC SEPARATOR '||') AS offense_details,
-               (SELECT COUNT(*) FROM upcc_case_vote v WHERE v.case_id = uc.case_id AND v.upcc_id = :join_uid2) AS user_has_voted,
-               (SELECT round_no FROM upcc_case_vote_round WHERE case_id = uc.case_id AND is_active = 1 LIMIT 1) AS active_round
+            uc.hearing_vote_consensus_category,
+            " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ",
+            s.student_id,
+            GROUP_CONCAT(ot.name ORDER BY ot.offense_type_id SEPARATOR ', ') AS offense_names,
+            MAX(ot.level) AS offense_level,
+            GROUP_CONCAT(DISTINCT CONCAT(ot.level, ':', ot.name) ORDER BY ot.level DESC SEPARATOR '||') AS offense_details,
+            (SELECT COUNT(*) FROM upcc_case_vote v WHERE v.case_id = uc.case_id AND v.upcc_id = :join_uid2) AS user_has_voted,
+            (SELECT round_no FROM upcc_case_vote_round WHERE case_id = uc.case_id AND is_active = 1 LIMIT 1) AS active_round
         FROM upcc_case uc
         JOIN upcc_case_panel_member ucpm ON ucpm.case_id = uc.case_id
         JOIN student s ON s.student_id = uc.student_id
@@ -79,7 +87,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         GROUP BY uc.case_id
         ORDER BY uc.created_at DESC
         LIMIT 10
-    ", array_merge([':presence_uid' => $panelId, ':vote_uid' => $panelId, ':join_uid2' => $panelId, ':join_uid' => $panelId, ':legacy_uid' => $panelId], [':__enckey' => db_encryption_key()]));
+    ", $refreshParams);
     
     $acceptedRows  = db_all("SELECT case_id FROM upcc_case_panel_acceptance WHERE upcc_id = :uid", [':uid' => $panelId]);
     $acceptedCases = [];
@@ -126,8 +134,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
       <td>
         <?php if ($isResolved): ?>
           <span class="t-name" style="opacity:0.3; font-style:italic;">[ Respondent Hidden ]</span>
-        <?php else: ?>
-          <span class="t-name"><?php echo htmlspecialchars($c['student_name']); ?></span>
+        <?php else: 
+          $sName = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
+          if ($sName === '') $sName = (string)($c['student_id'] ?? 'N/A');
+          ?>
+          <span class="t-name"><?php echo htmlspecialchars($sName); ?></span>
           <span class="t-sub">ID: <?php echo htmlspecialchars($c['student_id']); ?></span>
         <?php endif; ?>
       </td>
@@ -273,13 +284,21 @@ $pendingCases = (int)(db_one("SELECT COUNT(DISTINCT uc.case_id) AS c FROM upcc_c
 $resolvedCases= (int)(db_one("SELECT COUNT(DISTINCT uc.case_id) AS c FROM upcc_case uc WHERE ($panelAssignmentMatch) AND uc.status IN ('CLOSED','RESOLVED')", $panelParams)['c'] ?? 0);
 $appealCases  = (int)(db_one("SELECT COUNT(DISTINCT uc.case_id) AS c FROM upcc_case uc WHERE ($panelAssignmentMatch) AND uc.status = 'UNDER_APPEAL'", $panelParams)['c'] ?? 0);
 
+$initialParams = [
+    ':presence_uid' => $panelId,
+    ':vote_uid'     => $panelId,
+    ':join_uid'     => $panelId,
+    ':legacy_uid'   => $panelId
+];
+db_add_encryption_key($initialParams);
+
 $recentCases = db_all("SELECT uc.case_id, uc.status, uc.created_at,
        uc.hearing_date, uc.hearing_time, uc.hearing_type, uc.hearing_is_open, uc.hearing_is_paused,
        COALESCE((SELECT p.status FROM upcc_hearing_presence p
            WHERE p.case_id = uc.case_id AND p.user_type = 'UPCC' AND p.user_id = :presence_uid
            LIMIT 1), 'ADMITTED') AS my_presence_status,
        uc.hearing_vote_consensus_category, uc.case_kind, " . db_decrypt_col('case_summary', 'uc') . " AS case_summary,
-       CONCAT(" . db_decrypt_col('student_fn', 's') . ",' '," . db_decrypt_col('student_ln', 's') . ") AS student_name,
+       " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ",
        s.student_id,
        GROUP_CONCAT(ot.name ORDER BY ot.offense_type_id SEPARATOR ', ') AS offense_names,
        MAX(ot.level) AS offense_level,
@@ -297,7 +316,7 @@ $recentCases = db_all("SELECT uc.case_id, uc.status, uc.created_at,
   GROUP BY uc.case_id
   ORDER BY uc.created_at DESC
   LIMIT 10
-", array_merge([':presence_uid' => $panelId, ':vote_uid' => $panelId, ':join_uid' => $panelId, ':legacy_uid' => $panelId], [':__enckey' => db_encryption_key()]));
+", $initialParams);
 
 $acceptedRows  = db_all("SELECT case_id FROM upcc_case_panel_acceptance WHERE upcc_id = :uid", [':uid' => $panelId]);
 $acceptedCases = [];
@@ -933,8 +952,11 @@ body::before {
                   <td>
                     <?php if ($isResolved): ?>
                     <span class="t-name" style="opacity:0.3; font-style:italic;">[ Respondent Hidden ]</span>
-                  <?php else: ?>
-                    <span class="t-name"><?php echo htmlspecialchars($c['student_name']); ?></span>
+                  <?php else: 
+                                  $sName = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
+                                  if ($sName === '') $sName = (string)($c['student_id'] ?? 'N/A');
+                                  ?>
+                                  <span class="t-name"><?php echo htmlspecialchars($sName); ?></span>
                     <span class="t-sub">ID: <?php echo htmlspecialchars($c['student_id']); ?></span>
                   <?php endif; ?>
                   </td>
