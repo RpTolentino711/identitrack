@@ -59,7 +59,7 @@ function db(): PDO
  */
 function db_encryption_key(): string
 {
-  $key = (string)($_ENV['DB_ENCRYPTION_KEY'] ?? $_SERVER['DB_ENCRYPTION_KEY'] ?? getenv('DB_ENCRYPTION_KEY') ?: '');
+  $key = trim((string)($_ENV['DB_ENCRYPTION_KEY'] ?? $_SERVER['DB_ENCRYPTION_KEY'] ?? getenv('DB_ENCRYPTION_KEY') ?: ''));
   if ($key === '') {
       // Fallback for local dev if .env is missing
       return 'IdentiTrack_Secure_Key_2024_@SDO';
