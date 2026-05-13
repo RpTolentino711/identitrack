@@ -45,15 +45,24 @@ try {
         echo "4. Raw Data Length: " . strlen($raw['student_fn'] ?? '') . " bytes\n";
         echo "5. Data starts with HEX: " . substr($raw['hex_fn'] ?? '', 0, 16) . "...\n";
         
-        // Attempt decryption of this specific row
-        $dec = db_one("SELECT CAST(AES_DECRYPT(student_fn, UNHEX(SHA2(:__enckey, 256))) AS CHAR) as name FROM student WHERE student_id = :sid", [
-            ':sid' => $raw['student_id'],
-            ':__enckey' => $key
-        ]);
-        
-        echo "6. Decryption Attempt: " . ($dec['name'] ?? "NULL / FAILED") . "\n";
-        if ($dec['name'] === null) {
-            echo "   !!! POSSIBLE CAUSE: The data in the DB was encrypted with a DIFFERENT key than the one in your .env file.\n";
+        // Attempt decryption with multiple methods
+        $methods = [
+            'Standard (RAW + SHA2)' => "CAST(AES_DECRYPT(student_fn, UNHEX(SHA2(:__enckey, 256))) AS CHAR)",
+            'Legacy (RAW + Plain Key)' => "CAST(AES_DECRYPT(student_fn, :__enckey) AS CHAR)",
+            'Hex-Wrapped (UNHEX + SHA2)' => "CAST(AES_DECRYPT(UNHEX(student_fn), UNHEX(SHA2(:__enckey, 256))) AS CHAR)",
+            'Hex-Wrapped (UNHEX + Plain Key)' => "CAST(AES_DECRYPT(UNHEX(student_fn), :__enckey) AS CHAR)"
+        ];
+
+        foreach ($methods as $name => $sql) {
+            try {
+                $dec = db_one("SELECT $sql as name FROM student WHERE student_id = :sid", [
+                    ':sid' => $raw['student_id'],
+                    ':__enckey' => $key
+                ]);
+                echo "6. Method [$name]: " . ($dec['name'] ?? "NULL") . "\n";
+            } catch (Exception $e) {
+                echo "6. Method [$name]: ERROR (" . $e->getMessage() . ")\n";
+            }
         }
     } else {
         echo "3. No students found with data.\n";
