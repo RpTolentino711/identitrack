@@ -14,12 +14,16 @@ if ($fullName === '') $fullName = (string)($admin['username'] ?? 'User');
 $studentId = trim((string)($_GET['student_id'] ?? ''));
 if ($studentId === '') redirect('offenses.php');
 
+$studentParams = [':sid' => $studentId];
+db_add_encryption_key($studentParams);
+
 $student = db_one(
-  "SELECT student_id, student_fn, student_ln, year_level, program, school, section, student_email
+  "SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number']) . ", 
+          year_level, program, school, section
    FROM student
    WHERE student_id = :sid
    LIMIT 1",
-  [':sid' => $studentId]
+  $studentParams
 );
 if (!$student) redirect('offenses.php');
 
@@ -320,20 +324,23 @@ $avatar = initials2((string)$student['student_fn'], (string)$student['student_ln
 
 $suffix = match((int)$student['year_level']) { 1=>'st', 2=>'nd', 3=>'rd', default=>'th' };
 
+$historyParams = [':sid' => $studentId];
+db_add_encryption_key($historyParams);
+
 // Fetch all offenses, oldest first for correct grouping
 $history = db_all(
-  "SELECT o.offense_id, o.status, o.description, o.date_committed,
+  "SELECT o.offense_id, o.status, " . db_decrypt_col('description', 'o') . " AS description, o.date_committed,
           o.level,
           ot.code, ot.name, ot.major_category,
           uc.status AS uc_status, uc.decided_category AS uc_category,
-          uc.final_decision AS uc_decision, uc.punishment_details AS uc_punishment, uc.resolution_date AS uc_resolution_date
+          " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ", uc.resolution_date AS uc_resolution_date
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
    LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.student_id = :sid
    ORDER BY o.date_committed ASC",
-  [':sid' => $studentId]
+  $historyParams
 );
 
 $totalOffenses   = count($history);
