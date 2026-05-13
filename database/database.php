@@ -59,6 +59,28 @@ function db(): PDO
  */
 function db_encryption_key(): string
 {
+  // 1. Try to find .env manually (Hostinger fix)
+  static $envLoaded = false;
+  static $envKey = null;
+
+  if (!$envLoaded) {
+      $envPath = __DIR__ . '/../.env';
+      if (file_exists($envPath)) {
+          $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+          foreach ($lines as $line) {
+              if (strpos(trim($line), '#') === 0) continue;
+              list($name, $value) = explode('=', $line, 2);
+              if (trim($name) === 'DB_ENCRYPTION_KEY') {
+                  $envKey = trim($value, " \t\n\r\0\x0B\"'");
+                  break;
+              }
+          }
+      }
+      $envLoaded = true;
+  }
+
+  if ($envKey !== null) return $envKey;
+
   $key = trim((string)($_ENV['DB_ENCRYPTION_KEY'] ?? $_SERVER['DB_ENCRYPTION_KEY'] ?? getenv('DB_ENCRYPTION_KEY') ?: ''));
   if ($key === '') {
       // Fallback for local dev if .env is missing
