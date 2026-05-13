@@ -1106,6 +1106,8 @@ function submitReport() {
   const offenseId  = document.getElementById('offenseSelect').value;
   const dateCommit = document.getElementById('dateCommitted').value;
 
+  const desc       = document.getElementById('description').value;
+  
   if (!studentId)  { showToast('No student selected.', 'error'); return; }
   if (!offenseId)  { showToast('Please select an offense type.', 'error'); return; }
   if (!dateCommit) { showToast('Please enter the incident date & time.', 'error'); return; }
@@ -1122,6 +1124,7 @@ function submitReport() {
   fd.append('student_id',      studentId);
   fd.append('offense_type_id', offenseId);
   fd.append('date_committed',  dateCommit);
+  fd.append('description',     desc);
 
   fetch('api_submit_report.php', { method:'POST', body:fd })
     .then(r => r.json())
@@ -1132,6 +1135,7 @@ function submitReport() {
         showToast('Report submitted! Pending admin review.', 'success');
         document.getElementById('reportFormWrap').classList.add('hidden');
         document.getElementById('offenseSelect').value = '';
+        document.getElementById('description').value = '';
         updateLevelBadge();
         searchInput.value = '';
         document.getElementById('selectedStudentId').value = '';
