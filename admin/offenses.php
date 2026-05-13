@@ -258,9 +258,7 @@ $sql = "
 
   $where
 
-  GROUP BY
-    s.student_id, s.student_fn, s.student_ln,
-    s.year_level, s.program, s.school, s.section
+  GROUP BY s.student_id
 
   ORDER BY last_offense_date DESC, s.student_ln ASC, s.student_fn ASC
 ";
