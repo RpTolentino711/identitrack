@@ -133,7 +133,7 @@ $mail->SMTPSecure = 'tls';
 
 // ✅ Set this to the Gmail you are using for SMTP in your project
 $mail->Username = 'romeopaolotolentino@gmail.com';
-$mail->Password = 'xhggajjeixakajoj';
+$mail->Password = 'xhgg ajje ixak ajoj';
 
 $mail->setFrom($mail->Username, 'IdentiTrack SDO');
 $mail->addAddress($guardianEmail, $guardianName);
