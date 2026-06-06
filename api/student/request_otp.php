@@ -34,7 +34,7 @@ function send_otp_email(string $toEmail, string $otp): array {
     $mail->Host = 'smtp.gmail.com';
     $mail->SMTPAuth = true;
     $mail->Username = 'romeopaolotolentino@gmail.com';
-    $mail->Password = 'xhgg ajje ixak ajoj';
+    $mail->Password = 'bzup emxa ewfw uwll';
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
     $mail->SMTPAutoTLS = true;

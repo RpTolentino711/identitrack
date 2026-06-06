@@ -15,7 +15,7 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
 
     // ✅ SDO SMTP Credentials
     $mail->Username = 'romeopaolotolentino@gmail.com';
-    $mail->Password = 'xhgg ajje ixak ajoj'; 
+    $mail->Password = 'bzup emxa ewfw uwll'; 
 
     $mail->setFrom($mail->Username, 'IdentiTrack Admin Security');
     $mail->addAddress($toEmail, $toName);

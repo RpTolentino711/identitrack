@@ -41,7 +41,7 @@ function makeMailer(): PHPMailer {
 
     // ✅ Your Gmail SMTP
     $mail->Username = 'romeopaolotolentino@gmail.com';
-    $mail->Password = 'xhgg ajje ixak ajoj';
+    $mail->Password = 'bzup emxa ewfw uwll';
 
     $mail->Timeout = 30;
     return $mail;

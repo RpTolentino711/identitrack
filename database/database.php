@@ -831,7 +831,7 @@ function upcc_send_panel_assignment_email(int $caseId, array $panelIds): array {
             $mail->SMTPAuth = true;
             $mail->SMTPSecure = 'tls';
             $mail->Username = 'romeopaolotolentino@gmail.com';
-            $mail->Password = 'xhgg ajje ixak ajoj';
+            $mail->Password = 'bzup emxa ewfw uwll';
             $mail->Timeout = 30;
 
             $mail->setFrom('romeopaolotolentino@gmail.com', 'IdentiTrack UPCC');
@@ -905,7 +905,7 @@ function upcc_send_explanation_notification(int $caseId): array {
             $mail->SMTPAuth = true;
             $mail->SMTPSecure = 'tls';
             $mail->Username = 'romeopaolotolentino@gmail.com';
-            $mail->Password = 'xhgg ajje ixak ajoj';
+            $mail->Password = 'bzup emxa ewfw uwll';
             $mail->Timeout = 30;
 
             $mail->setFrom('romeopaolotolentino@gmail.com', 'IdentiTrack UPCC');

@@ -255,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $mail = new PHPMailer(true);
             $mail->CharSet = 'UTF-8'; $mail->isSMTP();
             $mail->Host = 'smtp.gmail.com'; $mail->Port = 587; $mail->SMTPAuth = true; $mail->SMTPSecure = 'tls';
-            $mail->Username = 'romeopaolotolentino@gmail.com'; $mail->Password = 'xhgg ajje ixak ajoj'; $mail->Timeout = 30;
+            $mail->Username = 'romeopaolotolentino@gmail.com'; $mail->Password = 'bzup emxa ewfw uwll'; $mail->Timeout = 30;
             $mail->setFrom('romeopaolotolentino@gmail.com', 'IdentiTrack Admin');
             $mail->addAddress($admin['email'], $admin['full_name']);
             $mail->isHTML(true);

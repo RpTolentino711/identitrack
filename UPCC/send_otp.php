@@ -35,7 +35,7 @@ try {
     $mail->SMTPAuth  = true;
     $mail->SMTPSecure = 'tls';
     $mail->Username  = 'romeopaolotolentino@gmail.com';
-    $mail->Password  = 'xhgg ajje ixak ajoj';
+    $mail->Password  = 'bzup emxa ewfw uwll';
     $mail->Timeout   = 30;
 
     $mail->setFrom('romeopaolotolentino@gmail.com', 'UPCC Panel');
