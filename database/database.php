@@ -107,8 +107,20 @@ function getConnection(): PDO
 /* =========================
    DB HELPERS
    ========================= */
+function db_clean_params(string $sql, array $params): array
+{
+  if (array_key_exists(':__enckey', $params) && strpos($sql, ':__enckey') === false) {
+    unset($params[':__enckey']);
+  }
+  if (array_key_exists('__enckey', $params) && strpos($sql, '__enckey') === false) {
+    unset($params['__enckey']);
+  }
+  return $params;
+}
+
 function db_all(string $sql, array $params = []): array
 {
+  $params = db_clean_params($sql, $params);
   $stmt = db()->prepare($sql);
   $stmt->execute($params);
   return $stmt->fetchAll();
@@ -116,6 +128,7 @@ function db_all(string $sql, array $params = []): array
 
 function db_one(string $sql, array $params = []): ?array
 {
+  $params = db_clean_params($sql, $params);
   $stmt = db()->prepare($sql);
   $stmt->execute($params);
   $row = $stmt->fetch();
@@ -124,6 +137,7 @@ function db_one(string $sql, array $params = []): ?array
 
 function db_exec(string $sql, array $params = []): int
 {
+  $params = db_clean_params($sql, $params);
   $stmt = db()->prepare($sql);
   $stmt->execute($params);
   return $stmt->rowCount();
