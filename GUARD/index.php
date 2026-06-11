@@ -477,7 +477,7 @@ body::after {
     </div>
 </div>
 <div class="page">
-    <button type="button" class="back-btn" onclick="window.history.back();" aria-label="Go back">&larr; Back</button>
+    <button type="button" class="back-btn" onclick="window.location.href='../index.php';" aria-label="Go back">&larr; Back</button>
     <div class="card">
 
         <!-- Brand -->
