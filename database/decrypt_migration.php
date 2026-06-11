@@ -9,6 +9,8 @@ error_reporting(E_ALL);
 
 require_once __DIR__ . '/database.php';
 
+header('Content-Type: text/plain');
+
 $key = db_encryption_key();
 
 echo "=== IdentiTrack Database Decryption Migration ===\n";
