@@ -22,20 +22,26 @@ function decrypt_value($val, $key) {
         return null;
     }
     
-    // Check if the value is hexadecimal or binary representation.
-    // MySQL AES_ENCRYPT returns binary, which is often stored as BLOB or hex string.
-    try {
-        // Try decrypting the value directly using AES_DECRYPT.
-        // We CAST to CHAR to retrieve it as a string.
-        $row = db_one("SELECT CAST(AES_DECRYPT(:val, UNHEX(SHA2(:key, 256))) AS CHAR) AS decrypted", [
-            ':val' => $val,
-            ':key' => $key
-        ]);
-        if ($row && $row['decrypted'] !== null) {
-            return $row['decrypted'];
+    // Test multiple possible keys to cover all environments and migration scripts
+    $candidateKeys = array_unique([
+        $key,
+        'IdentiTrack2024SecureEncryptionKeyForDatabaseFiel!',
+        'IdentiTrack_Secure_Key_2024_@SDO'
+    ]);
+    
+    foreach ($candidateKeys as $candidateKey) {
+        if (empty($candidateKey)) continue;
+        try {
+            $row = db_one("SELECT CAST(AES_DECRYPT(:val, UNHEX(SHA2(:key, 256))) AS CHAR) AS decrypted", [
+                ':val' => $val,
+                ':key' => $candidateKey
+            ]);
+            if ($row && $row['decrypted'] !== null) {
+                return $row['decrypted'];
+            }
+        } catch (Exception $e) {
+            // Try next key
         }
-    } catch (Exception $e) {
-        // Decryption failed or column is not in a format that AES_DECRYPT accepts
     }
     return null;
 }
