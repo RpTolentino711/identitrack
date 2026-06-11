@@ -13,6 +13,40 @@ echo "Loaded DB_ENCRYPTION_KEY: " . var_export($key, true) . "\n";
 echo "Key Length: " . strlen($key) . "\n\n";
 
 try {
+    $tables = db_all("SHOW TABLES");
+    echo "=== Database Tables ===\n";
+    $backupTables = [];
+    foreach ($tables as $t) {
+        $name = array_values($t)[0];
+        echo "  - $name\n";
+        if (strpos(strtolower($name), 'backup') !== false || strpos(strtolower($name), 'student') !== false) {
+            $backupTables[] = $name;
+        }
+    }
+    echo "\n";
+    
+    foreach ($backupTables as $table) {
+        if ($table === 'student') continue;
+        echo "=== Content of Backup Table: $table ===\n";
+        try {
+            $cols = db_all("SHOW COLUMNS FROM `$table`");
+            $colNames = array_map(function($c) { return $c['Field'] ?? $c['FIELD'] ?? ''; }, $cols);
+            echo "Columns: " . implode(', ', $colNames) . "\n";
+            
+            $rows = db_all("SELECT * FROM `$table` LIMIT 10");
+            foreach ($rows as $r) {
+                echo "  Row: " . json_encode($r) . "\n";
+            }
+        } catch (Exception $ex) {
+            echo "  Error querying table $table: " . $ex->getMessage() . "\n";
+        }
+        echo "\n";
+    }
+} catch (Exception $e) {
+    echo "ERROR Listing Tables: " . $e->getMessage() . "\n\n";
+}
+
+try {
     $rows = db_all("SELECT student_id, student_fn, student_ln, student_email, phone_number, home_address FROM student LIMIT 10");
     echo "Total students found: " . count($rows) . "\n\n";
     
