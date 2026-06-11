@@ -97,34 +97,45 @@ foreach ($tablesToDecrypt as $table => $cols) {
     try {
         $rows = db_all("SELECT * FROM `$table`");
         $decryptedCount = 0;
+        $failedCount = 0;
         
         foreach ($rows as $row) {
-            $updateCols = [];
-            $updateParams = [':pk_val' => $row[$pk]];
-            $needsUpdate = false;
-            
-            foreach ($cols as $col) {
-                if (!array_key_exists($col, $row)) {
-                    continue;
+            try {
+                $updateCols = [];
+                $updateParams = [':pk_val' => $row[$pk]];
+                $needsUpdate = false;
+                
+                foreach ($cols as $col) {
+                    if (!array_key_exists($col, $row)) {
+                        continue;
+                    }
+                    
+                    $decrypted = decrypt_value($row[$col], $key);
+                    if ($decrypted !== null) {
+                        // Handle empty emails by setting them to NULL to avoid UNIQUE constraint violation
+                        if (($col === 'student_email' || $col === 'email') && trim($decrypted) === '') {
+                            $decrypted = null;
+                        }
+                        
+                        $updateCols[] = "`$col` = :$col";
+                        $updateParams[":$col"] = $decrypted;
+                        $needsUpdate = true;
+                    }
                 }
                 
-                $decrypted = decrypt_value($row[$col], $key);
-                if ($decrypted !== null) {
-                    $updateCols[] = "`$col` = :$col";
-                    $updateParams[":$col"] = $decrypted;
-                    $needsUpdate = true;
+                if ($needsUpdate) {
+                    $sql = "UPDATE `$table` SET " . implode(', ', $updateCols) . " WHERE `$pk` = :pk_val";
+                    db_exec($sql, $updateParams);
+                    $decryptedCount++;
                 }
-            }
-            
-            if ($needsUpdate) {
-                $sql = "UPDATE `$table` SET " . implode(', ', $updateCols) . " WHERE `$pk` = :pk_val";
-                db_exec($sql, $updateParams);
-                $decryptedCount++;
+            } catch (Exception $rowEx) {
+                $failedCount++;
+                echo "  [WARNING] Failed row PK {$row[$pk]}: " . $rowEx->getMessage() . "\n";
             }
         }
-        echo "  ✓ Table '$table' processed. Decrypted $decryptedCount rows.\n";
+        echo "  ✓ Table '$table' processed. Decrypted: $decryptedCount, Failed: $failedCount\n";
     } catch (Exception $e) {
-        echo "  ✗ Error processing table '$table': " . $e->getMessage() . "\n";
+        echo "  ✗ Fatal error processing table '$table': " . $e->getMessage() . "\n";
     }
 }
 
