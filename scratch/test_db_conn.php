@@ -1,18 +1,11 @@
 <?php
-$configs = [
-    ['user' => 'root', 'pass' => ''],
-    ['user' => 'u321173822_titrack', 'pass' => 'Pogilameg@10'],
-];
-
-foreach ($configs as $cfg) {
-    try {
-        $dsn = "mysql:host=localhost;dbname=u321173822_track;charset=utf8mb4";
-        $pdo = new PDO($dsn, $cfg['user'], $cfg['pass']);
-        echo "SUCCESS with user: {$cfg['user']}\n";
-        exit(0);
-    } catch (PDOException $e) {
-        echo "FAILED with user: {$cfg['user']} - " . $e->getMessage() . "\n";
-    }
+require_once __DIR__ . '/../database/database.php';
+echo "DB_HOST: " . (string)($_ENV['DB_HOST'] ?? $_SERVER['DB_HOST'] ?? getenv('DB_HOST') ?: 'default:localhost') . "\n";
+echo "DB_NAME: " . (string)($_ENV['DB_NAME'] ?? $_SERVER['DB_NAME'] ?? getenv('DB_NAME') ?: 'default:identitrack') . "\n";
+echo "DB_USER: " . (string)($_ENV['DB_USER'] ?? $_SERVER['DB_USER'] ?? getenv('DB_USER') ?: 'default:root') . "\n";
+try {
+    $pdo = db();
+    echo "SUCCESSfully connected to DB!\n";
+} catch (Throwable $e) {
+    echo "Connection failed: " . $e->getMessage() . "\n";
 }
-echo "ALL ATTEMPTS FAILED\n";
-exit(1);

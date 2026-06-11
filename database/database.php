@@ -158,23 +158,20 @@ function db_encrypt_col(string $columnName, string $paramName = ''): string
   if ($paramName === '') {
     $paramName = ':' . $columnName;
   }
-  return "AES_ENCRYPT($paramName, UNHEX(SHA2(:__enckey, 256)))";
+  return $paramName;
 }
 
 /**
- * Decrypt column in SELECT query
- * Usage: SELECT AES_DECRYPT(UNHEX(student_fn), UNHEX(SHA2(:enckey, 256))) as student_fn
+ * Decrypt column in SELECT query (disabled, returns plaintext column)
  */
 function db_decrypt_col(string $columnName, string $alias = ''): string
 {
   $col = ($alias !== '') ? "$alias.$columnName" : $columnName;
-  return "CAST(AES_DECRYPT($col, UNHEX(SHA2(:__enckey, 256))) AS CHAR)";
+  return $col;
 }
 
 /**
- * Build a SELECT with decryption for multiple encrypted columns
- * $cols = ['student_fn', 'student_ln', 'student_email']
- * $tableAlias = 's'
+ * Build a SELECT with decryption for multiple encrypted columns (disabled, returns plaintext columns)
  */
 function db_decrypt_cols(array $cols, string $tableAlias = ''): string
 {
@@ -186,8 +183,7 @@ function db_decrypt_cols(array $cols, string $tableAlias = ''): string
 }
 
 /**
- * Apply encryption key to all query parameters
- * Call this before executing queries with encrypted columns
+ * Apply encryption key to all query parameters (kept for backward compatibility)
  */
 function db_add_encryption_key(array &$params): void
 {

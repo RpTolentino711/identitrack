@@ -190,13 +190,16 @@ $email = trim((string)($body['email'] ?? ''));
 
 if ($email === '') json_out(false, 'Email is required.', null, 400);
 
-// Find student
+// Find student (student_email is AES-encrypted)
+$key = db_encryption_key();
 $student = db_one(
-  "SELECT student_id, student_email, student_fn, student_ln, is_active
+  "SELECT student_id, 
+    " . db_decrypt_cols(['student_email', 'student_fn', 'student_ln']) . ",
+    is_active
    FROM student
-   WHERE student_email = :em
+   WHERE " . db_decrypt_col('student_email') . " = :em
    LIMIT 1",
-  [':em' => $email]
+  [':em' => $email, ':__enckey' => $key]
 );
 
 if (!$student) json_out(false, 'Email not found.', null, 404);
