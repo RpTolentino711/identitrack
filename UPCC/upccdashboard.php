@@ -840,9 +840,6 @@ body::before {
           <option value="Locked">Locked</option>
         </select>
       </div>
-      <div>
-        <button class="btn-secondary" onclick="refreshCaseStatus()">Refresh</button>
-      </div>
     </div>
 
     <?php if (isset($_GET['hearing_msg'])): ?>
