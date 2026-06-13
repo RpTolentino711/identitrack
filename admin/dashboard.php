@@ -934,7 +934,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                       <div class="student-avatar"><?php echo e($initials); ?></div>
                       <div>
                         <div class="student-name"><?php echo e($sDisplay); ?></div>
-                        <div class="student-id"><?php echo e((string)$g['student_id']); ?></div>
+                        <a href="offense_new.php?student_id=<?php echo urlencode((string)$g['student_id']); ?>" class="student-id" style="text-decoration:none; color:var(--blue); font-weight:600; cursor:pointer; display:block;" title="Tap to register offense for this student" onclick="event.stopPropagation();"><?php echo e((string)$g['student_id']); ?></a>
                       </div>
                     </div>
                     <button
@@ -1369,7 +1369,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
               + '<div class="student-avatar">' + esc(inits) + '</div>'
               + '<div>'
                 + '<div class="student-name">' + esc(sName) + '</div>'
-                + '<div class="student-id">' + esc(g.student_id) + '</div>'
+                + '<a href="offense_new.php?student_id=' + encodeURIComponent(String(g.student_id||'')) + '" class="student-id" style="text-decoration:none; color:#1d4ed8; font-weight:600; cursor:pointer; display:block;" title="Tap to register offense for this student" onclick="event.stopPropagation();">' + esc(g.student_id) + '</a>'
               + '</div>'
             + '</div>'
             + '<button type="button" class="guard-review-btn open-guard-modal"'

@@ -90,7 +90,7 @@ $pendingReportId = (int)($pendingRow['report_id'] ?? 0);
 $pendingCount = $pendingReportId > 0 ? 1 : 0;
 $scanMsg = $pendingCount > 0 ? 'pending_guard_found' : 'no_offense_record';
 
-$redirectUrl = 'offenses_student_view.php?student_id=' . urlencode($studentId) . '&scan_msg=' . urlencode($scanMsg);
+$redirectUrl = 'offense_new.php?student_id=' . urlencode($studentId);
 if ($pendingReportId > 0) {
   $redirectUrl .= '&pending_report_id=' . urlencode((string)$pendingReportId);
 }
