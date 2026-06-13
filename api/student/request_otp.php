@@ -31,16 +31,16 @@ function send_otp_email(string $toEmail, string $otp): array {
 
   try {
     $mail->isSMTP();
-    $mail->Host = 'smtp.gmail.com';
+    $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
     $mail->SMTPAuth = true;
-    $mail->Username = 'romeopaolotolentino@gmail.com';
-    $mail->Password = 'bzup emxa ewfw uwll';
+    $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+    $mail->Password = $_ENV['SMTP_PASS'] ?? '';
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
     $mail->SMTPAutoTLS = true;
 
     $mail->CharSet = 'UTF-8';
-    $mail->setFrom('romeopaolotolentino@gmail.com', 'IdentiTrack SDO');
+    $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack SDO');
     $mail->addAddress($toEmail);
     $mail->isHTML(true);
     $mail->Subject = $otp . ' is your IdentiTrack Verification Code';

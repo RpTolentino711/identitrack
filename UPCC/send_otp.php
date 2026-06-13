@@ -30,15 +30,15 @@ try {
     $mail = new PHPMailer(true);
     $mail->CharSet   = 'UTF-8';
     $mail->isSMTP();
-    $mail->Host      = 'smtp.gmail.com';
+    $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
     $mail->Port      = 587;
     $mail->SMTPAuth  = true;
     $mail->SMTPSecure = 'tls';
-    $mail->Username  = 'romeopaolotolentino@gmail.com';
-    $mail->Password  = 'bzup emxa ewfw uwll';
+    $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+    $mail->Password = $_ENV['SMTP_PASS'] ?? '';
     $mail->Timeout   = 30;
 
-    $mail->setFrom('romeopaolotolentino@gmail.com', 'UPCC Panel');
+    $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'UPCC Panel');
     $mail->addAddress($user['email'], $user['full_name']);
     $mail->addReplyTo('no-reply@identitrack.local', 'UPCC Panel');
 

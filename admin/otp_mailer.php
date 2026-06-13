@@ -8,14 +8,14 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
     $mail = new PHPMailer(true);
     $mail->CharSet = 'UTF-8';
     $mail->isSMTP();
-    $mail->Host = 'smtp.gmail.com';
+    $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
     $mail->Port = 587;
     $mail->SMTPAuth = true;
     $mail->SMTPSecure = 'tls';
 
     // ✅ SDO SMTP Credentials
-    $mail->Username = 'romeopaolotolentino@gmail.com';
-    $mail->Password = 'bzup emxa ewfw uwll'; 
+    $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+    $mail->Password = $_ENV['SMTP_PASS'] ?? ''; 
 
     $mail->setFrom($mail->Username, 'IdentiTrack Admin Security');
     $mail->addAddress($toEmail, $toName);

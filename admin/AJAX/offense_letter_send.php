@@ -126,14 +126,14 @@ file_put_contents($fileAbs, $pdfBytes);
 $mail = new PHPMailer(true);
 $mail->CharSet = 'UTF-8';
 $mail->isSMTP();
-$mail->Host = 'smtp.gmail.com';
+$mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
 $mail->Port = 587;
 $mail->SMTPAuth = true;
 $mail->SMTPSecure = 'tls';
 
 // ✅ Set this to the Gmail you are using for SMTP in your project
-$mail->Username = 'romeopaolotolentino@gmail.com';
-$mail->Password = 'bzup emxa ewfw uwll';
+$mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+$mail->Password = $_ENV['SMTP_PASS'] ?? '';
 
 $mail->setFrom($mail->Username, 'IdentiTrack SDO');
 $mail->addAddress($guardianEmail, $guardianName);

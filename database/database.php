@@ -840,15 +840,15 @@ function upcc_send_panel_assignment_email(int $caseId, array $panelIds): array {
             $mail = new PHPMailer(true);
             $mail->CharSet = 'UTF-8';
             $mail->isSMTP();
-            $mail->Host = 'smtp.gmail.com';
+            $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
             $mail->Port = 587;
             $mail->SMTPAuth = true;
             $mail->SMTPSecure = 'tls';
-            $mail->Username = 'romeopaolotolentino@gmail.com';
-            $mail->Password = 'bzup emxa ewfw uwll';
+            $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+            $mail->Password = $_ENV['SMTP_PASS'] ?? '';
             $mail->Timeout = 30;
 
-            $mail->setFrom('romeopaolotolentino@gmail.com', 'IdentiTrack UPCC');
+            $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack UPCC');
             $mail->addAddress($m['email'], $m['full_name']);
             $mail->Subject = "Panel Assignment: Case $caseLabel";
 
@@ -914,15 +914,15 @@ function upcc_send_explanation_notification(int $caseId): array {
             $mail = new PHPMailer(true);
             $mail->CharSet = 'UTF-8';
             $mail->isSMTP();
-            $mail->Host = 'smtp.gmail.com';
+            $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
             $mail->Port = 587;
             $mail->SMTPAuth = true;
             $mail->SMTPSecure = 'tls';
-            $mail->Username = 'romeopaolotolentino@gmail.com';
-            $mail->Password = 'bzup emxa ewfw uwll';
+            $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+            $mail->Password = $_ENV['SMTP_PASS'] ?? '';
             $mail->Timeout = 30;
 
-            $mail->setFrom('romeopaolotolentino@gmail.com', 'IdentiTrack UPCC');
+            $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack UPCC');
             $mail->addAddress($m['email'], $m['full_name']);
             $mail->Subject = "Student Explanation Submitted: Case $caseLabel";
 
