@@ -1080,7 +1080,7 @@ body::before {
                 </div>
                 <span>→</span>
               </a>
-              <a href="upccpanel.php?action=logout" class="q-link danger">
+              <a href="javascript:void(0)" onclick="document.getElementById('logoutModal').classList.add('show');" class="q-link danger">
                 <div style="display:flex; align-items:center; gap:10px;">
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                   Terminate Session
@@ -1125,6 +1125,21 @@ body::before {
     <div class="modal-actions" style="display:flex; gap:15px; justify-content:center;">
       <button type="button" class="action-btn" style="background:var(--bg-glass); border:1px solid var(--border-glass);" onclick="closeRejoinModal()">Cancel</button>
       <button type="button" id="btnSendRejoin" class="action-btn" style="background:var(--accent-primary);" onclick="sendRejoinRequest()">Send Rejoin Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Logout -->
+<div id="logoutModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-icon"><img src="../assets/logo.png" style="width: 60px; height: 60px; border-radius: 12px; margin-bottom: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);" alt="Logo"></div>
+    <div class="modal-title">Terminate Session</div>
+    <div class="modal-desc" style="color:var(--text-muted); font-size:14px; line-height:1.6; margin-bottom:30px;">
+      Are you sure you want to log out of the UPCC Panel? This will end your secure session immediately.
+    </div>
+    <div class="modal-actions" style="display:flex; gap:15px; justify-content:center;">
+      <button type="button" class="action-btn" style="background:var(--bg-glass); border:1px solid var(--border-glass);" onclick="document.getElementById('logoutModal').classList.remove('show');">Cancel</button>
+      <button type="button" class="action-btn" style="background:var(--danger);" onclick="window.location.href='upccpanel.php?action=logout'">Yes, Log Out</button>
     </div>
   </div>
 </div>
