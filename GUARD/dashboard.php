@@ -913,6 +913,19 @@ input[type=datetime-local].form-control { color-scheme: light; }
   </div>
 </div>
 
+<!-- ─── SCANNER OVERLAY ─── -->
+<div id="guardScanOverlay" class="welcome-overlay">
+  <div class="welcome-card" id="guardScanCard">
+    <div class="welcome-icon" id="guardScanIcon" style="background: linear-gradient(135deg, var(--blue), var(--navy2));">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:32px; height:32px; color:#fff;">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-8v4h8v-4z" />
+      </svg>
+    </div>
+    <div class="welcome-title" id="guardScanTitle">Scanning...</div>
+    <div class="welcome-sub" id="guardScanSub">Please wait while verifying...</div>
+  </div>
+</div>
+
 <script>
 // ─── CLOCK ───
 function updateClock() {
@@ -1167,6 +1180,80 @@ function showToast(msg, type='success') {
 // ─── ESCAPE HTML ───
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ─── RFID SCANNER LISTENER ───
+let guardScanBuffer = '';
+let guardScanTimer = null;
+let guardScanBusy = false;
+
+document.addEventListener('keydown', e => {
+  if (guardScanBusy) return;
+
+  const tgt = e.target;
+  if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.tagName === 'SELECT' || tgt.isContentEditable)) return;
+
+  if (e.key === 'Enter') {
+    if (guardScanBuffer.length > 3) processGuardScan(guardScanBuffer);
+    guardScanBuffer = '';
+    return;
+  }
+
+  if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    guardScanBuffer += e.key;
+    if (guardScanTimer) clearTimeout(guardScanTimer);
+    guardScanTimer = setTimeout(() => {
+      if (guardScanBuffer.length > 3) processGuardScan(guardScanBuffer);
+      guardScanBuffer = '';
+    }, 200);
+  }
+});
+
+function processGuardScan(val) {
+  guardScanBusy = true;
+  const overlay = document.getElementById('guardScanOverlay');
+  const title = document.getElementById('guardScanTitle');
+  const sub = document.getElementById('guardScanSub');
+  const icon = document.getElementById('guardScanIcon');
+  
+  if (overlay) overlay.classList.add('show');
+  if (title) title.textContent = 'Scanning ID...';
+  if (sub) sub.textContent = 'Verifying student record...';
+  if (icon) icon.innerHTML = '<div class="spinner" style="margin:0; border-color:rgba(255,255,255,0.2); border-top-color:#fff; width:32px; height:32px;"></div>';
+
+  fetch('api_scan_student.php?scan=' + encodeURIComponent(val.trim()))
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.ok) {
+        if (title) title.textContent = 'Student Found';
+        if (sub) sub.textContent = `Auto-selecting ${data.student_fn} ${data.student_ln}...`;
+        if (icon) icon.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:32px; height:32px; color:#fff;"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+        
+        setTimeout(() => {
+          if (overlay) overlay.classList.remove('show');
+          selectStudent(data.student_id, data.student_fn, data.student_ln, data.year_level, data.program, data.section);
+          guardScanBusy = false;
+        }, 1200);
+      } else {
+        if (title) title.textContent = 'Not Found';
+        if (sub) sub.textContent = data.message || 'No matching student record.';
+        if (icon) icon.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:32px; height:32px; color:#fff;"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
+        
+        setTimeout(() => {
+          if (overlay) overlay.classList.remove('show');
+          guardScanBusy = false;
+        }, 1500);
+      }
+    })
+    .catch(() => {
+      if (title) title.textContent = 'Error';
+      if (sub) sub.textContent = 'Network or server error.';
+      if (icon) icon.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:32px; height:32px; color:#fff;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+      setTimeout(() => {
+        if (overlay) overlay.classList.remove('show');
+        guardScanBusy = false;
+      }, 1500);
+    });
 }
 
 // ─── SPIN KEYFRAME ───
