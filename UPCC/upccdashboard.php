@@ -651,6 +651,7 @@ body::before {
   display: grid; place-items: center;
   font-size: 32px; font-weight: 800; font-family: var(--font-heading); color: #fff;
   box-shadow: 0 10px 25px rgba(0,0,0,0.3), inset 0 2px 5px rgba(255,255,255,0.1);
+  background-size: cover; background-position: center;
 }
 .profile-name { font-family: var(--font-heading); font-size: 20px; font-weight: 700; margin-bottom: 4px; }
 .profile-role { font-size: 13px; color: var(--accent-primary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 25px; }
@@ -1053,7 +1054,11 @@ body::before {
       <div style="display: flex; flex-direction: column; gap: 25px;">
         <!-- Profile Card -->
         <div class="glass-panel profile-wrap">
-          <div class="avatar"><?php echo $initials; ?></div>
+          <?php if (!empty($user['photo_path'])): ?>
+            <div class="avatar" style="background-image: url('<?php echo htmlspecialchars($user['photo_path']); ?>'); border-color: var(--accent-primary);"></div>
+          <?php else: ?>
+            <div class="avatar"><?php echo $initials; ?></div>
+          <?php endif; ?>
           <div class="profile-name"><?php echo htmlspecialchars($user['full_name']); ?></div>
           <div class="profile-role">UPCC Panel Member</div>
           
@@ -1071,7 +1076,7 @@ body::before {
           </div>
           <div style="padding: 20px;">
             <div class="quick-links">
-              <a href="upcc_change_password.php" class="q-link">
+              <a href="upcc_settings.php" class="q-link">
                 <div style="display:flex; align-items:center; gap:10px;">
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                   Security Settings
