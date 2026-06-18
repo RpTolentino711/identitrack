@@ -24,34 +24,34 @@ class _SplashScreenState extends State<SplashScreen>
 
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2500),
     );
 
     _fadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _ctrl,
-        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
+        curve: const Interval(0.0, 0.5, curve: Curves.easeInOutCubic),
       ),
     );
 
-    _scaleIn = Tween<double>(begin: 0.5, end: 1.0).animate(
+    _scaleIn = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(
         parent: _ctrl,
-        curve: const Interval(0.0, 0.4, curve: Curves.easeOutBack),
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
       ),
     );
 
-    _scaleOut = Tween<double>(begin: 1.0, end: 0.3).animate(
+    _scaleOut = Tween<double>(begin: 1.0, end: 0.9).animate(
       CurvedAnimation(
         parent: _ctrl,
-        curve: const Interval(0.6, 1.0, curve: Curves.easeIn),
+        curve: const Interval(0.7, 1.0, curve: Curves.easeInOutCubic),
       ),
     );
 
     _fadeOut = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _ctrl,
-        curve: const Interval(0.6, 1.0, curve: Curves.easeIn),
+        curve: const Interval(0.7, 1.0, curve: Curves.easeOut),
       ),
     );
 

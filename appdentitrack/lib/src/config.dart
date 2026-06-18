@@ -2,14 +2,14 @@ import 'package:flutter/foundation.dart';
 
 class AppConfig {
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost/identitrack';
+    if (kIsWeb) return 'http://127.0.0.1/identitrack';
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        // Production: Hostinger live domain
-        return 'https://identitrack.site';
+        // Local Device / Emulator testing
+        return 'http://192.168.1.10/identitrack';
       default:
-        return 'http://localhost/identitrack';
+        return 'http://192.168.1.10/identitrack';
     }
   }
 
