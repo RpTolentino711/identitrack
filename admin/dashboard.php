@@ -1636,6 +1636,14 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       else preview.innerHTML = '<div style="padding:16px;color:#ef4444;font-weight:600;">Failed to generate preview.</div>';
     };
     
+    let previewTimeout = null;
+    window.debouncePreview = function() {
+        if (previewTimeout) clearTimeout(previewTimeout);
+        previewTimeout = setTimeout(function() {
+            previewLetter();
+        }, 500);
+    };
+    
     window.sendLetter = async function() {
       const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
       const subject = document.getElementById('letter_subject')?.value || '';
@@ -1718,17 +1726,13 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
             </div>
             <div style="margin-bottom:14px;">
               <label for="letter_subject" style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">Subject</label>
-              <input id="letter_subject" type="text" style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px;"/>
+              <input id="letter_subject" type="text" style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px;" oninput="debouncePreview()"/>
             </div>
             <div style="margin-bottom:14px;">
               <label for="letter_body" style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">Message</label>
-              <textarea id="letter_body" style="width:100%; min-height:350px; font-family: monospace; font-size: 13px; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px;"></textarea>
+              <textarea id="letter_body" style="width:100%; min-height:350px; font-family: monospace; font-size: 13px; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px;" oninput="debouncePreview()"></textarea>
             </div>
             <div style="display:flex; gap:10px;">
-              <button type="button" class="gm-btn neutral" onclick="previewLetter()">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px; height:14px; margin-right:6px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                Preview
-              </button>
               <button type="button" class="gm-btn approve" id="btn_send_letter" onclick="sendLetter()">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px; height:14px; margin-right:6px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 Send Email
