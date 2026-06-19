@@ -936,6 +936,21 @@ input[type=datetime-local].form-control { color-scheme: light; }
   </div>
 </div>
 
+<!-- ─── SUBMIT SUCCESS MODAL ─── -->
+<div class="welcome-overlay" id="guardSubmitSuccessModal" style="display: none; align-items: center; justify-content: center; position: fixed; inset: 0; z-index: 10000; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px);">
+  <div class="welcome-card" style="text-align:center; padding:32px 24px; width: 90%; max-width: 400px;">
+    <div style="width:64px; height:64px; border-radius:50%; background:#f0fdf4; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);">
+      <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+    </div>
+    <div class="welcome-title" style="font-size:22px; margin-bottom:8px;">Report Submitted!</div>
+    <div class="welcome-sub" style="font-size:15px; margin-bottom:24px; line-height: 1.5;">The violation has been successfully reported and sent to the Student Discipline Office for review.</div>
+    <button type="button" class="welcome-cta" id="guardSubmitSuccessOk" style="width:100%; justify-content:center;">Got it, thanks!</button>
+  </div>
+</div>
+
 <script>
 // ─── CLOCK ───
 function updateClock() {
@@ -1156,7 +1171,8 @@ function submitReport() {
       btn.disabled = false;
       btn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> Submit Violation Report`;
       if (data.success) {
-        showToast('Report submitted! Pending admin review.', 'success');
+        document.getElementById('guardSubmitSuccessModal').style.display = 'flex';
+        
         document.getElementById('reportFormWrap').classList.add('hidden');
         document.getElementById('offenseSelect').value = '';
         document.getElementById('description').value = '';
@@ -1187,6 +1203,11 @@ function showToast(msg, type='success') {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3500);
 }
+
+// ─── CLOSE SUCCESS MODAL ───
+document.getElementById('guardSubmitSuccessOk').addEventListener('click', function() {
+    document.getElementById('guardSubmitSuccessModal').style.display = 'none';
+});
 
 // ─── ESCAPE HTML ───
 function esc(s) {
