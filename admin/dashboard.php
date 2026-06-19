@@ -1048,6 +1048,21 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     </div>
   </div>
 
+  <!-- ── Approve Success Modal ── -->
+  <div id="approveSuccessModal" class="guard-confirm-overlay" aria-hidden="true">
+    <div class="guard-confirm-box" role="dialog" aria-modal="true" style="text-align:center; padding:32px 24px;">
+      <div style="width:58px; height:58px; border-radius:50%; background:#f0fdf4; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
+        <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </div>
+      <h4 style="font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:#111827; margin:0 0 8px; letter-spacing:-0.5px;">Offense Recorded</h4>
+      <p style="font-size:14px; color:#4b5563; margin:0 0 24px; line-height:1.6;">The offense has been successfully verified and added to the student's disciplinary record.</p>
+      <button id="approveSuccessOkBtn" type="button" class="gm-btn approve" style="width:100%; justify-content:center; font-size:15px; padding:12px;">Got it, thanks!</button>
+    </div>
+  </div>
+
   <!-- ── Scanner Overlay ── -->
   <div id="scanOverlay" class="scan-overlay" aria-hidden="true">
     <div id="scanCard" class="scan-card loading" role="status" aria-live="polite">
@@ -1095,6 +1110,15 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     var scanStudent           = document.getElementById('scanStudent');
     var scanStudentName       = document.getElementById('scanStudentName');
     var scanStudentId         = document.getElementById('scanStudentId');
+
+    var approveSuccessModal   = document.getElementById('approveSuccessModal');
+    var approveSuccessOkBtn   = document.getElementById('approveSuccessOkBtn');
+    if (approveSuccessOkBtn) {
+        approveSuccessOkBtn.addEventListener('click', function() {
+            approveSuccessModal.classList.remove('show');
+            approveSuccessModal.setAttribute('aria-hidden', 'true');
+        });
+    }
 
     if (!feedList) return;
 
@@ -1311,7 +1335,15 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
           if (data.escalation_type) {
               openLetterModal(data);
           } else {
-              showFlash('ok', data.message || 'Guard report updated.', timeout);
+              if (action === 'approve_guard_report') {
+                  var sm = document.getElementById('approveSuccessModal');
+                  if (sm) {
+                      sm.classList.add('show');
+                      sm.setAttribute('aria-hidden', 'false');
+                  }
+              } else {
+                  showFlash('ok', data.message || 'Guard report updated.', timeout);
+              }
           }
         })
         .catch(function () { showFlash('err', 'Unable to process the report.'); })
