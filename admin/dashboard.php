@@ -1620,6 +1620,16 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       return { ok: res.ok, json: await res.json().catch(() => null) };
     }
     
+    async function postForm(url, formData) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: formData,
+        cache: 'no-store'
+      });
+      return { ok: res.ok, json: await res.json().catch(() => null) };
+    }
+    
     window.previewLetter = async function() {
       const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
       const subject = document.getElementById('letter_subject')?.value || '';
@@ -1648,6 +1658,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
       const subject = document.getElementById('letter_subject')?.value || '';
       const body    = document.getElementById('letter_body')?.value    || '';
+      const imageFile = document.getElementById('letter_image')?.files[0];
       const msg     = document.getElementById('letterMsg');
       
       if (!guardianEmail) {
@@ -1657,8 +1668,17 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
           return;
       }
       
-      if (msg) { msg.textContent = 'Sending…'; msg.style.color = '#6b7280'; }
-      const r = await postJSON('AJAX/offense_letter_send.php', { offense_id: currentLetterOffenseId, subject, body, guardian_email: guardianEmail });
+      const formData = new FormData();
+      formData.append('offense_id', currentLetterOffenseId);
+      formData.append('subject', subject);
+      formData.append('body', body);
+      formData.append('guardian_email', guardianEmail);
+      if (imageFile) {
+          formData.append('letter_image', imageFile);
+      }
+      
+      if (msg) { msg.textContent = 'Sending email with attachments…'; msg.style.color = '#6b7280'; }
+      const r = await postForm('AJAX/offense_letter_send.php', formData);
       if (msg) {
           if (r.ok && r.json?.ok) {
               msg.textContent = '✅ Email sent successfully!';
@@ -1730,7 +1750,11 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
             </div>
             <div style="margin-bottom:14px;">
               <label for="letter_body" style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">Message</label>
-              <textarea id="letter_body" style="width:100%; min-height:350px; font-family: monospace; font-size: 13px; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px;" oninput="debouncePreview()"></textarea>
+              <textarea id="letter_body" style="width:100%; min-height:300px; font-family: monospace; font-size: 13px; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px;" oninput="debouncePreview()"></textarea>
+            </div>
+            <div style="margin-bottom:18px;">
+              <label for="letter_image" style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">Attach Evidence Photo (Optional)</label>
+              <input id="letter_image" type="file" accept="image/png, image/jpeg" style="width:100%; padding:6px; border:1px dashed #d1d5db; border-radius:6px; font-size:12px;" />
             </div>
             <div style="display:flex; gap:10px;">
               <button type="button" class="gm-btn approve" id="btn_send_letter" onclick="sendLetter()">

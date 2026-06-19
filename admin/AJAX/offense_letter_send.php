@@ -8,12 +8,9 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/../class.phpmailer.php';
 require_once __DIR__ . '/../class.smtp.php';
 
-$raw = file_get_contents('php://input');
-$body = json_decode($raw, true);
-
-$offenseId = (int)($body['offense_id'] ?? 0);
-$subject = trim((string)($body['subject'] ?? 'Minor Offense Notice'));
-$letterBody = trim((string)($body['body'] ?? ''));
+$offenseId = (int)($_POST['offense_id'] ?? 0);
+$subject = trim((string)($_POST['subject'] ?? 'Minor Offense Notice'));
+$letterBody = trim((string)($_POST['body'] ?? ''));
 
 if ($offenseId <= 0) {
   http_response_code(400);
@@ -45,7 +42,7 @@ if (!$row) {
   exit;
 }
 
-$guardianEmail = trim((string)($body['guardian_email'] ?? $row['guardian_email'] ?? ''));
+$guardianEmail = trim((string)($_POST['guardian_email'] ?? $row['guardian_email'] ?? ''));
 
 if ($guardianEmail === '') {
   http_response_code(400);
@@ -195,6 +192,10 @@ $mail->Body = "
 $mail->AltBody = "Minor Offense Notice\n\n" . $letterBody;
 
 $mail->addAttachment($fileAbs, $filename);
+
+if (isset($_FILES['letter_image']) && $_FILES['letter_image']['error'] === UPLOAD_ERR_OK) {
+    $mail->addAttachment($_FILES['letter_image']['tmp_name'], $_FILES['letter_image']['name']);
+}
 
 try {
   $mail->send();
