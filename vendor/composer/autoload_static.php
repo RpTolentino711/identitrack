@@ -45,6 +45,19 @@ class ComposerStaticInit62e10e6c8df9afc192311b196c75bb33
         array (
             'Composer\\Pcre\\' => 14,
             'Complex\\' => 8,
+            'Com\\Tecnick\\Unicode\\Data\\' => 25,
+            'Com\\Tecnick\\Unicode\\' => 20,
+            'Com\\Tecnick\\Pdf\\Parser\\' => 23,
+            'Com\\Tecnick\\Pdf\\Page\\' => 21,
+            'Com\\Tecnick\\Pdf\\Image\\' => 22,
+            'Com\\Tecnick\\Pdf\\Graph\\' => 22,
+            'Com\\Tecnick\\Pdf\\Font\\' => 21,
+            'Com\\Tecnick\\Pdf\\Filter\\' => 23,
+            'Com\\Tecnick\\Pdf\\Encrypt\\' => 24,
+            'Com\\Tecnick\\Pdf\\' => 16,
+            'Com\\Tecnick\\File\\' => 17,
+            'Com\\Tecnick\\Color\\' => 18,
+            'Com\\Tecnick\\Barcode\\' => 20,
         ),
     );
 
@@ -97,6 +110,58 @@ class ComposerStaticInit62e10e6c8df9afc192311b196c75bb33
         array (
             0 => __DIR__ . '/..' . '/markbaker/complex/classes/src',
         ),
+        'Com\\Tecnick\\Unicode\\Data\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-unicode-data/src',
+        ),
+        'Com\\Tecnick\\Unicode\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-unicode/src',
+        ),
+        'Com\\Tecnick\\Pdf\\Parser\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-pdf-parser/src',
+        ),
+        'Com\\Tecnick\\Pdf\\Page\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-pdf-page/src',
+        ),
+        'Com\\Tecnick\\Pdf\\Image\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-pdf-image/src',
+        ),
+        'Com\\Tecnick\\Pdf\\Graph\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-pdf-graph/src',
+        ),
+        'Com\\Tecnick\\Pdf\\Font\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-pdf-font/src',
+        ),
+        'Com\\Tecnick\\Pdf\\Filter\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-pdf-filter/src',
+        ),
+        'Com\\Tecnick\\Pdf\\Encrypt\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-pdf-encrypt/src',
+        ),
+        'Com\\Tecnick\\Pdf\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-pdf/src',
+        ),
+        'Com\\Tecnick\\File\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-file/src',
+        ),
+        'Com\\Tecnick\\Color\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-color/src',
+        ),
+        'Com\\Tecnick\\Barcode\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/tecnickcom/tc-lib-barcode/src',
+        ),
     );
 
     public static $classMap = array (
@@ -104,6 +169,8 @@ class ComposerStaticInit62e10e6c8df9afc192311b196c75bb33
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'PhpToken' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/PhpToken.php',
         'Stringable' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Stringable.php',
+        'TCPDF' => __DIR__ . '/..' . '/tecnickcom/tcpdf/tcpdf.php',
+        'TCPDF_ENGINE' => __DIR__ . '/..' . '/tecnickcom/tcpdf/tcpdf.php',
         'UnhandledMatchError' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/UnhandledMatchError.php',
         'ValueError' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/ValueError.php',
     );

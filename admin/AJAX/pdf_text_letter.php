@@ -7,89 +7,87 @@
  * Later we can replace with FPDF/TCPDF for better formatting.
  */
 
-function pdf_escape(string $s): string {
-  // escape backslash and parentheses
-  $s = str_replace('\\', '\\\\', $s);
-  $s = str_replace('(', '\\(', $s);
-  $s = str_replace(')', '\\)', $s);
-  return $s;
-}
+require_once __DIR__ . '/../../vendor/autoload.php';
 
 function pdf_make_simple(string $title, array $lines): string {
-  // Basic PDF objects:
-  // 1) Catalog
-  // 2) Pages
-  // 3) Page
-  // 4) Font
-  // 5) Content stream
+    $title = trim($title);
+    if ($title === '') $title = 'Official Notice';
 
-  $title = trim($title);
-  if ($title === '') $title = 'Notice';
+    // Initialize TCPDF
+    $pdf = new \TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 
-  $yStart = 760;
-  $lineHeight = 14;
+    // Set document information
+    $pdf->SetCreator('IdentiTrack');
+    $pdf->SetAuthor('Student Discipline Office');
+    $pdf->SetTitle($title);
 
-  $content = "BT\n/F1 12 Tf\n72 {$yStart} Td\n";
-  $content .= "( " . pdf_escape($title) . " ) Tj\n0 -20 Td\n";
+    // Remove default header/footer
+    $pdf->setPrintHeader(false);
+    $pdf->setPrintFooter(false);
 
-  $y = $yStart - 20;
-  foreach ($lines as $ln) {
-    $ln = rtrim((string)$ln);
-    if ($ln === '') {
-      $content .= "0 -" . ($lineHeight) . " Td\n";
-      continue;
+    // Set margins
+    $pdf->SetMargins(20, 20, 20);
+    $pdf->SetAutoPageBreak(TRUE, 20);
+
+    // Add a page
+    $pdf->AddPage();
+
+    // Add Logo
+    $logoPath = __DIR__ . '/../../assets/logo.png';
+    if (file_exists($logoPath)) {
+        $pdf->Image($logoPath, 20, 20, 22, '', 'PNG');
     }
-    // split long lines (rough)
-    $chunks = str_split($ln, 95);
-    foreach ($chunks as $c) {
-      $content .= "( " . pdf_escape($c) . " ) Tj\n0 -" . ($lineHeight) . " Td\n";
-      $y -= $lineHeight;
-      if ($y < 80) break 2;
+
+    // Letterhead Text
+    $pdf->SetFont('helvetica', 'B', 15);
+    $pdf->SetTextColor(30, 58, 138); // Navy blue
+    $pdf->Cell(26, 8, '', 0, 0); // Spacing for logo
+    $pdf->Cell(0, 8, 'Student Discipline Office', 0, 1, 'L');
+    
+    $pdf->SetFont('helvetica', '', 10);
+    $pdf->SetTextColor(100, 100, 100);
+    $pdf->Cell(26, 5, '', 0, 0);
+    $pdf->Cell(0, 5, 'Official Student Conduct Notice', 0, 1, 'L');
+    $pdf->Cell(26, 5, '', 0, 0);
+    $pdf->Cell(0, 5, 'IdentiTrack System', 0, 1, 'L');
+
+    // Line separator
+    $pdf->Ln(10);
+    $pdf->SetDrawColor(200, 200, 200);
+    $pdf->Line(20, $pdf->GetY(), 190, $pdf->GetY());
+    $pdf->Ln(8);
+    
+    // Title
+    $pdf->SetFont('helvetica', 'B', 13);
+    $pdf->SetTextColor(0, 0, 0);
+    $pdf->Cell(0, 10, $title, 0, 1, 'C');
+    $pdf->Ln(5);
+
+    // Process lines
+    $pdf->SetFont('helvetica', '', 11);
+    
+    foreach ($lines as $ln) {
+        $ln = trim((string)$ln);
+        if ($ln === '') {
+            $pdf->Ln(3);
+            continue;
+        }
+        
+        // Clean up common encoding artifacts from text input
+        $ln = str_replace(['à', 'â€"'], '-', $ln);
+        
+        // Check for headers to bold
+        if (strpos($ln, 'To:') === 0 || strpos($ln, 'Student:') === 0 || strpos($ln, 'Generated:') === 0) {
+            $pdf->SetFont('helvetica', 'B', 11);
+            $pdf->MultiCell(0, 6, $ln, 0, 'L');
+            $pdf->SetFont('helvetica', '', 11);
+            continue;
+        }
+
+        // MultiCell natively handles \n inside $ln
+        $pdf->MultiCell(0, 6, $ln, 0, 'L');
+        $pdf->Ln(3);
     }
-  }
-  $content .= "ET\n";
 
-  $stream = $content;
-  $streamLen = strlen($stream);
-
-  $objects = [];
-
-  // 1 Catalog
-  $objects[] = "<< /Type /Catalog /Pages 2 0 R >>";
-
-  // 2 Pages
-  $objects[] = "<< /Type /Pages /Kids [3 0 R] /Count 1 >>";
-
-  // 3 Page
-  $objects[] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>";
-
-  // 4 Font (Helvetica)
-  $objects[] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
-
-  // 5 Contents
-  $objects[] = "<< /Length {$streamLen} >>\nstream\n{$stream}\nendstream";
-
-  // Build PDF
-  $pdf = "%PDF-1.4\n";
-  $xref = [];
-  $offset = strlen($pdf);
-
-  foreach ($objects as $i => $obj) {
-    $objNum = $i + 1;
-    $xref[$objNum] = $offset;
-    $pdf .= "{$objNum} 0 obj\n{$obj}\nendobj\n";
-    $offset = strlen($pdf);
-  }
-
-  $xrefStart = strlen($pdf);
-  $pdf .= "xref\n0 " . (count($objects) + 1) . "\n";
-  $pdf .= "0000000000 65535 f \n";
-  for ($i = 1; $i <= count($objects); $i++) {
-    $pdf .= str_pad((string)$xref[$i], 10, '0', STR_PAD_LEFT) . " 00000 n \n";
-  }
-
-  $pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root 1 0 R >>\n";
-  $pdf .= "startxref\n{$xrefStart}\n%%EOF";
-
-  return $pdf;
+    return $pdf->Output('letter.pdf', 'S');
 }
