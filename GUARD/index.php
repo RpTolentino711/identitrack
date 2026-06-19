@@ -579,25 +579,34 @@ const logoutSuccessOk = document.getElementById('logoutSuccessOk');
 
 if (logoutSuccessModal && logoutSuccessOk) {
     logoutSuccessOk.focus();
-    logoutSuccessOk.addEventListener('click', () => {
+
+    const hideModal = () => {
         logoutSuccessModal.classList.remove('show');
         logoutSuccessModal.setAttribute('aria-hidden', 'true');
-    });
+        // Remove ?logout=1 from URL so it doesn't reappear on refresh
+        if (window.history?.replaceState) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('logout');
+            window.history.replaceState({}, document.title, url.pathname + (url.search || ''));
+        }
+    };
+
+    logoutSuccessOk.addEventListener('click', hideModal);
 
     logoutSuccessModal.addEventListener('click', (ev) => {
-        if (ev.target === logoutSuccessModal) {
-            logoutSuccessModal.classList.remove('show');
-            logoutSuccessModal.setAttribute('aria-hidden', 'true');
-        }
+        if (ev.target === logoutSuccessModal) hideModal();
     });
 
     document.addEventListener('keydown', (ev) => {
         if (!logoutSuccessModal.classList.contains('show')) return;
         if (ev.key === 'Escape' || ev.key === 'Enter') {
             ev.preventDefault();
-            logoutSuccessOk.click();
+            hideModal();
         }
     });
+
+    // Auto-hide the modal after 2 seconds without clicking OK
+    setTimeout(hideModal, 2000);
 }
 
 if (guardLoginForm && guardLoginLoading) {
