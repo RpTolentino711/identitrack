@@ -1173,6 +1173,11 @@ function submitReport() {
       if (data.success) {
         document.getElementById('guardSubmitSuccessModal').style.display = 'flex';
         
+        // Auto-hide after 3 seconds if not clicked
+        setTimeout(() => {
+          document.getElementById('guardSubmitSuccessModal').style.display = 'none';
+        }, 3000);
+        
         document.getElementById('reportFormWrap').classList.add('hidden');
         document.getElementById('offenseSelect').value = '';
         document.getElementById('description').value = '';
