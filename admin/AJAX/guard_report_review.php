@@ -327,22 +327,19 @@ if ($action === 'approve_guard_report') {
   exit;
 }
 
-// Reject only marks as rejected; it does not create offense and does not soft-delete report.
+// Reject and permanently delete the report
 db_exec(
-  "UPDATE guard_violation_report
-   SET status = 'REJECTED', reviewed_by = :admin, reviewed_at = NOW(), review_notes = :note
-   WHERE report_id = :rid",
-  [':admin' => $adminId, ':note' => 'Rejected by admin via dashboard modal.', ':rid' => $reportId]
+  "DELETE FROM guard_violation_report WHERE report_id = :rid",
+  [':rid' => $reportId]
 );
 
 db_exec(
-  "UPDATE notification
-   SET is_read = 1
+  "DELETE FROM notification
    WHERE type = 'GUARD_REPORT'
      AND related_table = 'guard_violation_report'
      AND related_id = :rid",
   [':rid' => $reportId]
 );
 
-echo json_encode(['ok' => true, 'message' => 'Report rejected. No offense record created.']);
+echo json_encode(['ok' => true, 'message' => 'Report permanently deleted.']);
 exit;

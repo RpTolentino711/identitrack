@@ -1024,11 +1024,11 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       <div class="guard-confirm-icon danger">
         <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
       </div>
-      <h4 class="guard-confirm-title">Reject this report?</h4>
-      <p class="guard-confirm-text">This report will be marked as rejected and kept in guard-report history, but removed from the pending review queue.</p>
+      <h4 class="guard-confirm-title">Reject & Delete this report?</h4>
+      <p class="guard-confirm-text">This report will be permanently deleted and removed from the system.</p>
       <div class="guard-confirm-actions">
         <button id="guardRejectCancel" type="button" class="gm-btn neutral">Cancel</button>
-        <button id="guardRejectConfirmBtn" type="button" class="gm-btn reject">Yes, Reject (Keep History)</button>
+        <button id="guardRejectConfirmBtn" type="button" class="gm-btn reject">Yes, Reject & Delete</button>
       </div>
     </div>
   </div>
