@@ -973,9 +973,10 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
   <!-- ── Review Modal ── -->
   <div id="guardReviewModal" class="guard-modal-overlay" aria-hidden="true">
     <div class="guard-modal" role="dialog" aria-modal="true" aria-labelledby="guardModalTitle">
-      <div class="guard-modal-head">
-        <h3 id="guardModalTitle" class="guard-modal-title">Review Guard Report</h3>
-        <button id="guardModalClose" type="button" class="guard-modal-close" aria-label="Close">&#x2715;</button>
+      <div class="guard-modal-head" style="display:flex; flex-direction:column; align-items:center; position:relative; padding-top:20px;">
+        <img src="../assets/logo.png" style="width:52px; height:52px; margin-bottom:12px; border-radius:10px; box-shadow:0 4px 12px rgba(27,43,107,0.15);" alt="IdentiTrack Logo" />
+        <h3 id="guardModalTitle" class="guard-modal-title" style="font-size:18px;">Review Guard Report</h3>
+        <button id="guardModalClose" type="button" class="guard-modal-close" aria-label="Close" style="position:absolute; top:16px; right:16px;">&#x2715;</button>
       </div>
       <div class="guard-modal-body">
         <div class="guard-modal-offense-block">
