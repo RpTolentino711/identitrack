@@ -455,8 +455,15 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       padding: 14px 16px;
       margin-bottom: 10px;
       transition: border-color .15s, box-shadow .15s;
+      position: relative;
+      animation: pendingPulse 2.5s infinite ease-in-out;
     }
-    .guard-card:hover { border-color: #d1d5db; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+    @keyframes pendingPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(59,130,246,0.1); border-color: #e5e7eb; }
+      50%  { box-shadow: 0 0 0 5px rgba(59,130,246,0.15); border-color: #93c5fd; }
+      100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); border-color: #e5e7eb; }
+    }
+    .guard-card:hover { border-color: #60a5fa; box-shadow: 0 4px 12px rgba(59,130,246,.15); animation: none; }
     .guard-card.is-new {
       border-color: #93c5fd;
       background: linear-gradient(180deg, #f0f7ff 0%, #fff 60%);
@@ -1353,9 +1360,12 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
         if (id) nextSeen.add(id);
         return '<div class="guard-card' + (isNew ? ' is-new' : '') + '">'
           + '<div class="guard-card-top">'
-            + '<div>'
-              + '<div class="guard-offense-code">' + esc(g.offense_code) + '</div>'
-              + '<div class="guard-offense-name">' + esc(g.offense_name) + '</div>'
+            + '<div style="display:flex; gap:12px; align-items:flex-start;">'
+              + '<img src="../assets/logo.png" style="width:36px; height:36px; object-fit:contain; opacity:0.85; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.06);" alt="IdentiTrack Logo" />'
+              + '<div>'
+                + '<div class="guard-offense-code">' + esc(g.offense_code) + '</div>'
+                + '<div class="guard-offense-name">' + esc(g.offense_name) + '</div>'
+              + '</div>'
             + '</div>'
             + '<span class="level-badge ' + lvlClass + '">' + esc(g.offense_level) + '</span>'
           + '</div>'
