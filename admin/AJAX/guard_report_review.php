@@ -314,6 +314,18 @@ if ($action === 'approve_guard_report') {
     [':rid' => $reportId]
   );
 
+  // Store the pending letter in session so it pops up persistently if not sent
+  if (isset($escalationType)) {
+      if (session_status() === PHP_SESSION_NONE) session_start();
+      $_SESSION['pending_letter'] = [
+          'offense_id'      => $newOffenseId,
+          'escalation_type' => $escalationType,
+          'guardian_email'  => $guardianEmail ?? '',
+          'default_subject' => $defaultSubject ?? '',
+          'default_body'    => $defaultBody ?? ''
+      ];
+  }
+
   echo json_encode([
       'ok' => true, 
       'message' => 'Report approved and recorded in offenses.',

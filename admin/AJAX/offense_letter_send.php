@@ -205,6 +205,10 @@ try {
     [':oid' => $offenseId]
   );
   
+  if (isset($_SESSION['pending_letter']) && $_SESSION['pending_letter']['offense_id'] == $offenseId) {
+      unset($_SESSION['pending_letter']);
+  }
+  
   echo json_encode(['ok' => true, 'message' => 'Email sent.']);
   exit;
 } catch (Exception $e) {
