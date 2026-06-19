@@ -1,3 +1,4 @@
+<?php
 function pdf_escape(string $s): string {
   $s = str_replace('\\', '\\\\', $s);
   $s = str_replace('(', '\\(', $s);
