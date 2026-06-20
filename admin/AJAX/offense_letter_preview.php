@@ -78,7 +78,11 @@ if (isset($_FILES['letter_image']) && $_FILES['letter_image']['error'] === UPLOA
     $imagePath = $_FILES['letter_image']['tmp_name'];
 }
 
-$pdfBytes = pdf_make_simple($subject, $lines, $imagePath);
+$imgX = isset($_POST['image_x']) ? (int)$_POST['image_x'] : 72;
+$imgYOffset = isset($_POST['image_y_offset']) ? (int)$_POST['image_y_offset'] : 0;
+$imgW = isset($_POST['image_w']) ? (int)$_POST['image_w'] : 150;
+
+$pdfBytes = pdf_make_simple($subject, $lines, $imagePath, $imgX, $imgYOffset, $imgW);
 
 // Save PDF file under /uploads/letters/
 $dirAbs = __DIR__ . '/../../uploads/letters';

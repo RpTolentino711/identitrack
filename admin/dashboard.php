@@ -1643,11 +1643,19 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       }
       preview.innerHTML = '<div class="loading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating…</div>';
       
+      const imageFile = document.getElementById('letter_image')?.files[0];
+      const imgX = document.getElementById('image_x')?.value || 72;
+      const imgYOffset = document.getElementById('image_y_offset')?.value || 0;
+      const imgW = document.getElementById('image_w')?.value || 150;
+      
       const formData = new FormData();
       formData.append('offense_id', currentLetterOffenseId);
       formData.append('subject', subject);
       formData.append('body', body);
       formData.append('guardian_email', guardianEmail);
+      formData.append('image_x', imgX);
+      formData.append('image_y_offset', imgYOffset);
+      formData.append('image_w', imgW);
       if (imageFile) {
           formData.append('letter_image', imageFile);
       }
@@ -1682,6 +1690,9 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       const subject = document.getElementById('letter_subject')?.value || '';
       const body    = document.getElementById('letter_body')?.value    || '';
       const imageFile = document.getElementById('letter_image')?.files[0];
+      const imgX = document.getElementById('image_x')?.value || 72;
+      const imgYOffset = document.getElementById('image_y_offset')?.value || 0;
+      const imgW = document.getElementById('image_w')?.value || 150;
       const msg     = document.getElementById('letterMsg');
       
       if (!guardianEmail) {
@@ -1696,6 +1707,9 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       formData.append('subject', subject);
       formData.append('body', body);
       formData.append('guardian_email', guardianEmail);
+      formData.append('image_x', imgX);
+      formData.append('image_y_offset', imgYOffset);
+      formData.append('image_w', imgW);
       if (imageFile) {
           formData.append('letter_image', imageFile);
       }
@@ -1776,8 +1790,25 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
               <textarea id="letter_body" style="width:100%; min-height:300px; font-family: monospace; font-size: 13px; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px;" oninput="debouncePreview()"></textarea>
             </div>
             <div style="margin-bottom:18px;">
-              <label for="letter_image" style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">Attach Evidence Photo (Optional)</label>
-              <input id="letter_image" type="file" accept="image/png, image/jpeg" style="width:100%; padding:6px; border:1px dashed #d1d5db; border-radius:6px; font-size:12px;" onchange="debouncePreview()" />
+              <label for="letter_image" style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">Attach Signature / Evidence Photo (Optional)</label>
+              <input id="letter_image" type="file" accept="image/png, image/jpeg" style="width:100%; padding:6px; border:1px dashed #d1d5db; border-radius:6px; font-size:12px;" onchange="document.getElementById('image_controls').style.display = this.files.length > 0 ? 'block' : 'none'; debouncePreview()" />
+              
+              <div id="image_controls" style="display:none; margin-top:8px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:11px;">
+                 <div style="display:flex; gap:10px;">
+                     <div style="flex:1;">
+                         <label style="display:block; margin-bottom:2px; color:#475569;">X Position (Left/Right)</label>
+                         <input type="number" id="image_x" value="72" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
+                     </div>
+                     <div style="flex:1;">
+                         <label style="display:block; margin-bottom:2px; color:#475569;">Y Offset (Up/Down)</label>
+                         <input type="number" id="image_y_offset" value="0" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
+                     </div>
+                     <div style="flex:1;">
+                         <label style="display:block; margin-bottom:2px; color:#475569;">Image Width</label>
+                         <input type="number" id="image_w" value="150" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
+                     </div>
+                 </div>
+              </div>
             </div>
             <div style="display:flex; gap:10px;">
               <button type="button" class="gm-btn approve" id="btn_send_letter" onclick="sendLetter()">

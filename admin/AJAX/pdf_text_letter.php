@@ -10,7 +10,7 @@ function pdf_escape(string $s): string {
   return $s;
 }
 
-function pdf_make_simple(string $title, array $lines, ?string $imagePath = null): string {
+function pdf_make_simple(string $title, array $lines, ?string $imagePath = null, int $imgX = 72, int $imgYOffset = 0, int $imgW = 150): string {
   $title = trim($title);
   if ($title === '') $title = 'Official Notice';
 
@@ -84,9 +84,10 @@ function pdf_make_simple(string $title, array $lines, ?string $imagePath = null)
       if ($info) {
           $w = $info[0];
           $h = $info[1];
-          // Scale it to fit 150 width (good for signature/small evidence)
-          $scale = 150 / $w;
-          $imgWidth = 150;
+          // Scale it to fit custom width
+          if ($imgW <= 0) $imgW = 150;
+          $scale = $imgW / $w;
+          $imgWidth = $imgW;
           $imgHeight = $h * $scale;
           
           $img = null;
@@ -113,8 +114,9 @@ function pdf_make_simple(string $title, array $lines, ?string $imagePath = null)
               $imgObjStr = "<< /Type /XObject /Subtype /Image /Width $w /Height $h /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length $imgLen >>\nstream\n{$jpegBytes}\nendstream";
               $hasImage = true;
               
-              $y -= ($imgHeight + 20);
-              $content .= "q {$imgWidth} 0 0 {$imgHeight} 72 {$y} cm /Im1 Do Q\n";
+              $y -= ($imgHeight + 20); // Base vertical placement below text
+              $finalY = $y + $imgYOffset; // Apply user offset
+              $content .= "q {$imgWidth} 0 0 {$imgHeight} {$imgX} {$finalY} cm /Im1 Do Q\n";
           }
       }
   }
