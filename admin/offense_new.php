@@ -1438,6 +1438,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           </p>
           <a href="offenses.php" class="btn btn-primary" id="successCloseBtn" style="width: 100%; justify-content: center; padding: 12px;">Go to Offenses</a>
         <?php endif; ?>
+        <div id="successModalProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: var(--blue, #2563eb); width: 100%;"></div>
       </div>
     </div>
   </div>
@@ -1454,8 +1455,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         </p>
         <div style="display:flex; gap: 10px;">
             <button class="btn" id="emailSuccessStayBtn" type="button" onclick="closeEmailSuccessModal()" style="flex: 1; justify-content: center;">Stay on page</button>
-            <a href="offenses.php" class="btn btn-primary" style="flex: 1; justify-content: center;">Go to Offenses</a>
+            <a href="offenses.php" class="btn btn-primary" id="emailSuccessGoBtn" style="flex: 1; justify-content: center;">Go to Offenses</a>
         </div>
+        <div id="emailSuccessProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: #10b981; width: 100%;"></div>
       </div>
     </div>
   </div>
@@ -1897,7 +1899,22 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
         // Show the email success modal
         const emailSuccessModal = document.getElementById('emailSuccessModal');
-        if (emailSuccessModal) emailSuccessModal.classList.add('active');
+        if (emailSuccessModal) {
+            emailSuccessModal.classList.add('active');
+            var bar = document.getElementById('emailSuccessProgress');
+            if (bar) {
+                bar.style.transition = 'none';
+                bar.style.width = '100%';
+                setTimeout(() => {
+                    bar.style.transition = 'width 5s linear';
+                    bar.style.width = '0%';
+                }, 50);
+            }
+            window.emailSuccessModalTimer = setTimeout(() => {
+                const btn = document.getElementById('emailSuccessStayBtn');
+                if (btn) btn.click();
+            }, 5000);
+        }
       }
       else { 
         msg.textContent = '❌ Failed: ' + (r.json?.message || 'Unknown error'); 
@@ -1955,21 +1972,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   if (SUCCESS_MODE && successModal) {
       successModal.classList.add('active');
-      let countdown = 5;
-      const btn = document.getElementById('successCloseBtn');
-      const origText = btn ? btn.textContent : '';
-      if (btn) btn.textContent = origText + ' (' + countdown + 's)';
       
-      const timer = setInterval(() => {
-          countdown--;
-          if (btn) btn.textContent = origText + ' (' + countdown + 's)';
-          if (countdown <= 0) {
-              clearInterval(timer);
-              closeSuccessModal();
-          }
-      }, 1000);
+      var bar = document.getElementById('successModalProgress');
+      if (bar) {
+          bar.style.transition = 'none';
+          bar.style.width = '100%';
+          setTimeout(() => {
+              bar.style.transition = 'width 5s linear';
+              bar.style.width = '0%';
+          }, 50);
+      }
       
-      window.successModalTimer = timer;
+      window.successModalTimer = setTimeout(() => {
+          const btn = document.getElementById('successCloseBtn');
+          if (btn) btn.click();
+      }, 5000);
   }
   
   if (LETTER_MODE) {

@@ -1056,6 +1056,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       <h4 style="font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:#111827; margin:0 0 8px; letter-spacing:-0.5px;">Offense Recorded</h4>
       <p style="font-size:14px; color:#4b5563; margin:0 0 24px; line-height:1.6;">The offense has been successfully verified and added to the student's disciplinary record.</p>
       <button id="approveSuccessOkBtn" type="button" class="gm-btn approve" style="width:100%; justify-content:center; font-size:15px; padding:12px;">Got it, thanks!</button>
+      <div id="approveSuccessProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: #10b981; width: 100%;"></div>
     </div>
   </div>
 
@@ -1111,7 +1112,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     var approveSuccessOkBtn   = document.getElementById('approveSuccessOkBtn');
     if (approveSuccessOkBtn) {
         approveSuccessOkBtn.addEventListener('click', function() {
-            if (window.approveSuccessTimer) clearInterval(window.approveSuccessTimer);
+            if (window.approveSuccessTimer) clearTimeout(window.approveSuccessTimer);
             approveSuccessModal.classList.remove('show');
             approveSuccessModal.setAttribute('aria-hidden', 'true');
         });
@@ -1338,19 +1339,20 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                       sm.classList.add('show');
                       sm.setAttribute('aria-hidden', 'false');
                       
-                      var countdown = 5;
-                      var btn = document.getElementById('approveSuccessOkBtn');
-                      var origText = btn ? 'Got it, thanks!' : '';
-                      if (btn) btn.textContent = origText + ' (' + countdown + 's)';
+                      var bar = document.getElementById('approveSuccessProgress');
+                      if (bar) {
+                          bar.style.transition = 'none';
+                          bar.style.width = '100%';
+                          setTimeout(function() {
+                              bar.style.transition = 'width 5s linear';
+                              bar.style.width = '0%';
+                          }, 50);
+                      }
                       
-                      var timer = setInterval(function() {
-                          countdown--;
-                          if (btn) btn.textContent = origText + ' (' + countdown + 's)';
-                          if (countdown <= 0) {
-                              clearInterval(timer);
-                              if (btn) btn.click();
-                          }
-                      }, 1000);
+                      var timer = setTimeout(function() {
+                          var btn = document.getElementById('approveSuccessOkBtn');
+                          if (btn) btn.click();
+                      }, 5000);
                       window.approveSuccessTimer = timer;
                   }
               } else {
