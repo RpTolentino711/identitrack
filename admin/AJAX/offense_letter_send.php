@@ -12,6 +12,9 @@ $offenseId = (int)($_POST['offense_id'] ?? 0);
 $subject = trim((string)($_POST['subject'] ?? 'Minor Offense Notice'));
 $letterBody = trim((string)($_POST['body'] ?? ''));
 
+use Dompdf\Dompdf;
+use Dompdf\Options;
+
 try {
 
 if ($offenseId <= 0) {
@@ -98,8 +101,6 @@ $history = db_all(
 
 // Generate PDF again and attach (so it matches the latest edits + includes offense history)
 require_once __DIR__ . '/../../vendor/autoload.php';
-use Dompdf\Dompdf;
-use Dompdf\Options;
 
 $studentName = trim($row['student_fn'] . ' ' . $row['student_ln']);
 $guardianName = trim((string)($row['guardian_fn'] ?? '') . ' ' . (string)($row['guardian_ln'] ?? ''));
