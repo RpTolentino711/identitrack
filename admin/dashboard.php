@@ -1643,7 +1643,6 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       }
       preview.innerHTML = '<div class="loading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating…</div>';
       
-      const imageFile = document.getElementById('letter_image')?.files[0];
       const imgX = document.getElementById('image_x')?.value || 72;
       const imgYOffset = document.getElementById('image_y_offset')?.value || 0;
       const imgW = document.getElementById('image_w')?.value || 150;
