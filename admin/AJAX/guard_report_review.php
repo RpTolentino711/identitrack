@@ -225,10 +225,10 @@ if ($action === 'approve_guard_report') {
               $dt = date('F j, Y g:i A', strtotime($coff['date_committed']));
               $defaultBody .= "CURRENT OFFENSE:\n- {$coff['code']} — {$coff['name']}\n- Level: {$coff['level']}\n- Date: {$dt}\n- Notes: " . ($coff['description'] ?: '(none)') . "\n\n";
           }
-          $histParams = [':sid' => $studentId];
+          $histParams = [':sid' => $studentId, ':oid' => $newOffenseId];
           db_add_encryption_key($histParams);
-          $history = db_all("SELECT o.date_committed, " . db_decrypt_col('description', 'o') . " AS description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", $histParams);
-          $defaultBody .= "OFFENSE HISTORY (Most recent first):\n";
+          $history = db_all("SELECT o.date_committed, " . db_decrypt_col('description', 'o') . " AS description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid AND o.offense_id != :oid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", $histParams);
+          $defaultBody .= "PAST OFFENSE HISTORY (Most recent first):\n";
           if (empty($history)) {
               $defaultBody .= "(No offenses found.)\n";
           } else {
@@ -288,10 +288,10 @@ if ($action === 'approve_guard_report') {
             $dt = date('F j, Y g:i A', strtotime($coff['date_committed']));
             $defaultBody .= "CURRENT OFFENSE:\n- {$coff['code']} — {$coff['name']}\n- Level: {$coff['level']}\n- Date: {$dt}\n- Notes: " . ($coff['description'] ?: '(none)') . "\n\n";
         }
-        $histParams = [':sid' => $studentId];
+        $histParams = [':sid' => $studentId, ':oid' => $newOffenseId];
         db_add_encryption_key($histParams);
-        $history = db_all("SELECT o.date_committed, " . db_decrypt_col('description', 'o') . " AS description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", $histParams);
-        $defaultBody .= "OFFENSE HISTORY (Most recent first):\n";
+        $history = db_all("SELECT o.date_committed, " . db_decrypt_col('description', 'o') . " AS description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid AND o.offense_id != :oid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", $histParams);
+        $defaultBody .= "PAST OFFENSE HISTORY (Most recent first):\n";
         if (empty($history)) {
             $defaultBody .= "(No offenses found.)\n";
         } else {
