@@ -202,7 +202,7 @@ $mail->addReplyTo('no-reply@identitrack.local', 'IdentiTrack');
 $mail->isHTML(true);
 $mail->Subject = $subject;
 
-$safeBody = nl2br(htmlspecialchars($letterBody, ENT_QUOTES, 'UTF-8'));
+$safeBody = $letterBody; // Use raw HTML from Quill
 
 $logoPath = __DIR__ . '/../../assets/logo.png';
 if (file_exists($logoPath)) {
@@ -252,7 +252,7 @@ $mail->Body = "
 </html>
 ";
 
-$mail->AltBody = "Minor Offense Notice\n\n" . $letterBody;
+$mail->AltBody = "Minor Offense Notice\n\n" . strip_tags($letterBody);
 
 $mail->addAttachment($fileAbs, $filename);
 
