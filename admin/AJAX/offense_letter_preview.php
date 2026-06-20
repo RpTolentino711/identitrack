@@ -90,13 +90,16 @@ $html = '
 <html>
 <head>
     <style>
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #333; line-height: 1.5; }
-        .header { margin-bottom: 30px; }
-        .title { font-size: 16pt; font-weight: bold; margin-bottom: 20px; color: #000; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #333; line-height: 1.4; }
+        .header { margin-bottom: 25px; }
+        .title { font-size: 16pt; font-weight: bold; margin-bottom: 15px; color: #000; }
         .meta { margin-bottom: 20px; font-size: 11pt; }
         .content { font-size: 11pt; }
+        .content p { margin: 0 0 8px 0; }
+        .content ul, .content ol { margin: 0 0 8px 0; padding-left: 20px; }
+        .content li { margin-bottom: 4px; }
         .sdo { font-size: 16pt; font-family: "Times New Roman", Times, serif; margin-bottom: 5px; }
-        .official { font-size: 10pt; color: #666; margin-bottom: 30px; }
+        .official { font-size: 10pt; color: #666; margin-bottom: 25px; }
     </style>
 </head>
 <body>
