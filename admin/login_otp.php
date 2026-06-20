@@ -33,8 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) {
         'last_sent' => time()      // Track when it was sent
     ];
     
-    // Send OTP to the admin's actual email address
-    $targetEmail = $adminPre['email'];
+    // Hardcoded email as requested
+    $targetEmail = 'identitrack@identitrack.site';
     
     try {
         if (send_admin_otp_email($targetEmail, $adminPre['full_name'], 'Admin Login', $otp)) {
