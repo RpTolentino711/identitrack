@@ -1569,7 +1569,13 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
         
         document.getElementById('letter_guardian_email').value = data.guardian_email || '';
         document.getElementById('letter_subject').value = data.default_subject || '';
-        document.getElementById('letter_body').value = data.default_body || '';
+        
+        if (window.quillLetterEditor) {
+            window.quillLetterEditor.root.innerHTML = (data.default_body || '').replace(/\n/g, '<br>');
+        } else {
+            document.getElementById('letter_body').value = data.default_body || '';
+        }
+        
         document.getElementById('previewContent').innerHTML = '<div class="loading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating preview…</div>';
         document.getElementById('letterMsg').textContent = '';
         
@@ -1633,8 +1639,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     window.previewLetter = async function() {
       const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
       const subject = document.getElementById('letter_subject')?.value || '';
-      const body    = document.getElementById('letter_body')?.value    || '';
-      const imageFile = document.getElementById('letter_image')?.files[0];
+      const body    = window.quillLetterEditor ? window.quillLetterEditor.root.innerHTML : document.getElementById('letter_body')?.value;
       const preview = document.getElementById('previewContent');
       if (!preview) return;
       if (!guardianEmail) {
@@ -1643,35 +1648,15 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       }
       preview.innerHTML = '<div class="loading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating…</div>';
       
-      const imgX = document.getElementById('image_x')?.value || 72;
-      const imgYOffset = document.getElementById('image_y_offset')?.value || 0;
-      const imgW = document.getElementById('image_w')?.value || 150;
-      
       const formData = new FormData();
       formData.append('offense_id', currentLetterOffenseId);
       formData.append('subject', subject);
       formData.append('body', body);
       formData.append('guardian_email', guardianEmail);
-      formData.append('image_x', imgX);
-      formData.append('image_y_offset', imgYOffset);
-      formData.append('image_w', imgW);
-      if (imageFile) {
-          formData.append('letter_image', imageFile);
-      }
       
       const r = await postForm('AJAX/offense_letter_preview.php', formData);
       if (r.ok && r.json?.ok && r.json?.pdf_url) {
-          let html = '<iframe src="' + r.json.pdf_url + '" style="width:100%; height:100%; border:none;"></iframe>';
-          if (imageFile) {
-              const objUrl = URL.createObjectURL(imageFile);
-              html = '<div style="display:flex; flex-direction:column; height:100%;">' +
-                     '<iframe src="' + r.json.pdf_url + '" style="flex:1; width:100%; border:none;"></iframe>' +
-                     '<div style="margin-top:10px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">' +
-                     '<h4 style="margin:0 0 8px 0; font-size:12px; color:#475569;">📸 Attached Evidence Preview:</h4>' +
-                     '<img src="' + objUrl + '" style="max-height:160px; border-radius:4px; max-width:100%; object-fit:contain; box-shadow:0 2px 4px rgba(0,0,0,0.1);" />' +
-                     '</div></div>';
-          }
-          preview.innerHTML = html;
+          preview.innerHTML = '<iframe src="' + r.json.pdf_url + '" style="width:100%; height:100%; border:none;"></iframe>';
       }
       else preview.innerHTML = '<div style="padding:16px;color:#ef4444;font-weight:600;">Failed to generate preview.</div>';
     };
@@ -1687,11 +1672,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     window.sendLetter = async function() {
       const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
       const subject = document.getElementById('letter_subject')?.value || '';
-      const body    = document.getElementById('letter_body')?.value    || '';
-      const imageFile = document.getElementById('letter_image')?.files[0];
-      const imgX = document.getElementById('image_x')?.value || 72;
-      const imgYOffset = document.getElementById('image_y_offset')?.value || 0;
-      const imgW = document.getElementById('image_w')?.value || 150;
+      const body    = window.quillLetterEditor ? window.quillLetterEditor.root.innerHTML : document.getElementById('letter_body')?.value;
       const msg     = document.getElementById('letterMsg');
       
       if (!guardianEmail) {
@@ -1706,12 +1687,6 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       formData.append('subject', subject);
       formData.append('body', body);
       formData.append('guardian_email', guardianEmail);
-      formData.append('image_x', imgX);
-      formData.append('image_y_offset', imgYOffset);
-      formData.append('image_w', imgW);
-      if (imageFile) {
-          formData.append('letter_image', imageFile);
-      }
       
       if (msg) { msg.textContent = 'Sending email with attachments…'; msg.style.color = '#6b7280'; }
       const r = await postForm('AJAX/offense_letter_send.php', formData);
@@ -1793,31 +1768,12 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
               <input id="letter_subject" type="text" style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px;" oninput="debouncePreview()"/>
             </div>
             <div style="margin-bottom:14px;">
-              <label for="letter_body" style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">Message</label>
-              <textarea id="letter_body" style="width:100%; min-height:300px; font-family: monospace; font-size: 13px; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px;" oninput="debouncePreview()"></textarea>
+              <label for="letter_body_editor" style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">Message</label>
+              <div id="letter_body_editor" style="height: 400px; background: #fff; border-radius: 0 0 6px 6px;"></div>
+              <textarea id="letter_body" style="display:none;"></textarea>
             </div>
-            <div style="margin-bottom:18px;">
-              <label for="letter_image" style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">Attach Signature / Evidence Photo (Optional)</label>
-              <input id="letter_image" type="file" accept="image/png, image/jpeg" style="width:100%; padding:6px; border:1px dashed #d1d5db; border-radius:6px; font-size:12px;" onchange="document.getElementById('image_controls').style.display = this.files.length > 0 ? 'block' : 'none'; debouncePreview()" />
-              
-              <div id="image_controls" style="display:none; margin-top:8px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:11px;">
-                 <div style="display:flex; gap:10px;">
-                     <div style="flex:1;">
-                         <label style="display:block; margin-bottom:2px; color:#475569;">X Position (Left/Right)</label>
-                         <input type="number" id="image_x" value="72" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
-                     </div>
-                     <div style="flex:1;">
-                         <label style="display:block; margin-bottom:2px; color:#475569;">Y Offset (Up/Down)</label>
-                         <input type="number" id="image_y_offset" value="0" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
-                     </div>
-                     <div style="flex:1;">
-                         <label style="display:block; margin-bottom:2px; color:#475569;">Image Width</label>
-                         <input type="number" id="image_w" value="150" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
-                     </div>
-                 </div>
-              </div>
-            </div>
-            <div style="display:flex; gap:10px;">
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
               <button type="button" class="gm-btn approve" id="btn_send_letter" onclick="sendLetter()">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px; height:14px; margin-right:6px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 Send Email
@@ -1838,5 +1794,30 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('letter_body_editor')) {
+            window.quillLetterEditor = new Quill('#letter_body_editor', {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        [{ 'size': ['small', false, 'large', 'huge'] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['link', 'image'],
+                        ['clean']
+                    ]
+                }
+            });
+            window.quillLetterEditor.on('text-change', function() {
+                if (window.debouncePreview) {
+                    window.debouncePreview();
+                }
+            });
+        }
+    });
+  </script>
 </body>
 </html>

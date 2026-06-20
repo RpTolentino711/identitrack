@@ -1344,30 +1344,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       }
                       $defaultBody .= "\n\nWe encourage you to support your student in maintaining proper conduct within our institution.\n\nSincerely,\nStudent Discipline Office";
                     ?>
-                    <textarea id="letter_body" style="min-height:300px; font-family: monospace; font-size: 13px;" oninput="debouncePreview()"><?php echo htmlspecialchars($defaultBody); ?></textarea>
+                    <?php
+                      // Convert the \n newlines to <br> for the Quill editor initial content
+                      $defaultBodyHtml = nl2br(htmlspecialchars($defaultBody));
+                    ?>
+                    <div id="letter_body_editor" style="height: 400px; background: #fff; border-radius: 0 0 6px 6px;"><?php echo $defaultBodyHtml; ?></div>
+                    <textarea id="letter_body" style="display:none;"></textarea>
                   </div>
-                  <div class="form-group" style="margin-bottom:18px;">
-                    <label for="letter_image">Attach Signature / Evidence Photo (Optional)</label>
-                    <input id="letter_image" type="file" accept="image/png, image/jpeg" style="width:100%; padding:6px; border:1px dashed #d1d5db; border-radius:6px; font-size:12px;" onchange="document.getElementById('image_controls').style.display = this.files.length > 0 ? 'block' : 'none'; debouncePreview()" />
-                    
-                    <div id="image_controls" style="display:none; margin-top:8px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:11px;">
-                       <div style="display:flex; gap:10px;">
-                           <div style="flex:1;">
-                               <label style="display:block; margin-bottom:2px; color:#475569;">X Position</label>
-                               <input type="number" id="image_x" value="72" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
-                           </div>
-                           <div style="flex:1;">
-                               <label style="display:block; margin-bottom:2px; color:#475569;">Y Offset</label>
-                               <input type="number" id="image_y_offset" value="0" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
-                           </div>
-                           <div style="flex:1;">
-                               <label style="display:block; margin-bottom:2px; color:#475569;">Width</label>
-                               <input type="number" id="image_w" value="150" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
-                           </div>
-                       </div>
-                    </div>
-                  </div>
-                  <div class="form-actions" style="border:none;padding:0;margin:0;">
+                  <div class="form-actions" style="border:none;padding:0;margin:0;margin-top:20px;">
                     <button type="button" class="btn" id="btn_send_letter" style="background:#15803d;color:#fff;border-color:#15803d;" onclick="sendLetter()">
                       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                       Send Email
@@ -1849,11 +1833,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   async function previewLetter() {
     const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
     const subject = document.getElementById('letter_subject')?.value || '';
-    const body    = document.getElementById('letter_body')?.value    || '';
-    const imageFile = document.getElementById('letter_image')?.files[0];
-    const imgX = document.getElementById('image_x')?.value || 72;
-    const imgYOffset = document.getElementById('image_y_offset')?.value || 0;
-    const imgW = document.getElementById('image_w')?.value || 150;
+    const body    = window.quillLetterEditor ? window.quillLetterEditor.root.innerHTML : document.getElementById('letter_body')?.value;
     const preview = document.getElementById('previewContent');
     if (!preview) return;
     if (!guardianEmail) {
@@ -1867,37 +1847,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     formData.append('subject', subject);
     formData.append('body', body);
     formData.append('guardian_email', guardianEmail);
-    formData.append('image_x', imgX);
-    formData.append('image_y_offset', imgYOffset);
-    formData.append('image_w', imgW);
-    if (imageFile) {
-        formData.append('letter_image', imageFile);
-    }
     
     const r = await postForm('AJAX/offense_letter_preview.php', formData);
     if (r.ok && r.json?.ok && r.json?.pdf_url) {
-        let html = '<iframe src="' + r.json.pdf_url + '" style="width:100%; height:100%; border:none;"></iframe>';
-        if (imageFile) {
-            const objUrl = URL.createObjectURL(imageFile);
-            html = '<div style="display:flex; flex-direction:column; height:100%;">' +
-                   '<iframe src="' + r.json.pdf_url + '" style="flex:1; width:100%; border:none;"></iframe>' +
-                   '<div style="margin-top:10px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">' +
-                   '<h4 style="margin:0 0 8px 0; font-size:12px; color:#475569;">📸 Attached Evidence Preview:</h4>' +
-                   '<img src="' + objUrl + '" style="max-height:160px; border-radius:4px; max-width:100%; object-fit:contain; box-shadow:0 2px 4px rgba(0,0,0,0.1);" />' +
-                   '</div></div>';
-        }
-        preview.innerHTML = html;
+        preview.innerHTML = '<iframe src="' + r.json.pdf_url + '" style="width:100%; height:100%; border:none;"></iframe>';
     }
     else preview.innerHTML = '<div style="padding:16px;color:var(--red);font-weight:600;">Failed to generate preview.</div>';
   }
   async function sendLetter() {
     const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
     const subject = document.getElementById('letter_subject')?.value || '';
-    const body    = document.getElementById('letter_body')?.value    || '';
-    const imageFile = document.getElementById('letter_image')?.files[0];
-    const imgX = document.getElementById('image_x')?.value || 72;
-    const imgYOffset = document.getElementById('image_y_offset')?.value || 0;
-    const imgW = document.getElementById('image_w')?.value || 150;
+    const body    = window.quillLetterEditor ? window.quillLetterEditor.root.innerHTML : document.getElementById('letter_body')?.value;
     const msg     = document.getElementById('letterMsg');
     
     if (!guardianEmail) {
@@ -1918,12 +1878,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     formData.append('subject', subject);
     formData.append('body', body);
     formData.append('guardian_email', guardianEmail);
-    formData.append('image_x', imgX);
-    formData.append('image_y_offset', imgYOffset);
-    formData.append('image_w', imgW);
-    if (imageFile) {
-        formData.append('letter_image', imageFile);
-    }
     
     if (msg) { msg.textContent = 'Sending email with attachments…'; msg.style.color = 'var(--text-3)'; }
     const r = await postForm('AJAX/offense_letter_send.php', formData);
@@ -2093,6 +2047,36 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
     });
   })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('letter_body_editor')) {
+            window.quillLetterEditor = new Quill('#letter_body_editor', {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        [{ 'size': ['small', false, 'large', 'huge'] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['link', 'image'],
+                        ['clean']
+                    ]
+                }
+            });
+            window.quillLetterEditor.on('text-change', function() {
+                if (window.debouncePreview) {
+                    window.debouncePreview();
+                }
+            });
+            
+            // Kick off an initial preview render
+            if (window.debouncePreview) {
+                window.debouncePreview();
+            }
+        }
+    });
   </script>
 </body>
 </html>

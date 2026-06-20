@@ -59,30 +59,74 @@ $history = db_all(
   $histParams
 );
 
-require_once __DIR__ . '/pdf_text_letter.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 $studentName = trim($row['student_fn'] . ' ' . $row['student_ln']);
 $guardianName = trim((string)($row['guardian_fn'] ?? '') . ' ' . (string)($row['guardian_ln'] ?? ''));
 if ($guardianName === '') $guardianName = 'Parent/Guardian';
 
-$lines = [];
-$lines[] = "To: {$guardianName}";
-$lines[] = "Student: {$studentName} ({$row['student_id']})";
-$lines[] = "Generated: " . date('F j, Y g:i A');
-$lines[] = "";
-
-$lines[] = $letterBody;
+$dateGen = date('F j, Y g:i A');
 
 $imagePath = null;
+$imgHtml = '';
 if (isset($_FILES['letter_image']) && $_FILES['letter_image']['error'] === UPLOAD_ERR_OK) {
     $imagePath = $_FILES['letter_image']['tmp_name'];
+    $imgType = pathinfo($_FILES['letter_image']['name'], PATHINFO_EXTENSION);
+    $imgData = file_get_contents($imagePath);
+    $base64 = 'data:image/' . $imgType . ';base64,' . base64_encode($imgData);
+    
+    $imgX = isset($_POST['image_x']) ? (int)$_POST['image_x'] : 72;
+    $imgYOffset = isset($_POST['image_y_offset']) ? (int)$_POST['image_y_offset'] : 0;
+    $imgW = isset($_POST['image_w']) ? (int)$_POST['image_w'] : 150;
+    
+    // Convert offsets to relative basic CSS or absolute positioning
+    $imgHtml = '<div style="margin-top: 40px; margin-left: '.($imgX - 72).'px;"><img src="'.$base64.'" width="'.$imgW.'" style="position: relative; top: '.$imgYOffset.'px;" /></div>';
 }
 
-$imgX = isset($_POST['image_x']) ? (int)$_POST['image_x'] : 72;
-$imgYOffset = isset($_POST['image_y_offset']) ? (int)$_POST['image_y_offset'] : 0;
-$imgW = isset($_POST['image_w']) ? (int)$_POST['image_w'] : 150;
+$html = '
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #333; line-height: 1.5; }
+        .header { margin-bottom: 30px; }
+        .title { font-size: 16pt; font-weight: bold; margin-bottom: 20px; color: #000; }
+        .meta { margin-bottom: 20px; font-size: 11pt; }
+        .content { font-size: 11pt; }
+        .sdo { font-size: 16pt; font-family: "Times New Roman", Times, serif; margin-bottom: 5px; }
+        .official { font-size: 10pt; color: #666; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="sdo">Student Discipline Office</div>
+        <div class="official">Official Student Conduct Notice<br>IdentiTrack System</div>
+        <div class="title">' . htmlspecialchars($subject) . '</div>
+        <div class="meta">
+            <strong>To:</strong> ' . htmlspecialchars($guardianName) . '<br>
+            <strong>Student:</strong> ' . htmlspecialchars($studentName) . ' (' . htmlspecialchars($row['student_id']) . ')<br>
+            <strong>Generated:</strong> ' . $dateGen . '
+        </div>
+    </div>
+    <div class="content">
+        ' . $letterBody . '
+    </div>
+    ' . $imgHtml . '
+</body>
+</html>';
 
-$pdfBytes = pdf_make_simple($subject, $lines, $imagePath, $imgX, $imgYOffset, $imgW);
+$options = new Options();
+$options->set('isHtml5ParserEnabled', true);
+$options->set('isRemoteEnabled', true);
+
+$dompdf = new Dompdf($options);
+$dompdf->loadHtml($html);
+$dompdf->setPaper('A4', 'portrait');
+$dompdf->render();
+
+$pdfBytes = $dompdf->output();
 
 // Save PDF file under /uploads/letters/
 $dirAbs = __DIR__ . '/../../uploads/letters';
