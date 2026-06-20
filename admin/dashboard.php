@@ -1758,7 +1758,14 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     document.addEventListener('DOMContentLoaded', function() {
         console.log("Pending letter found in session, opening modal...");
         var data = <?php echo json_encode($_SESSION['pending_letter']); ?>;
-        openLetterModal(data);
+        // Yield execution to allow other DOMContentLoaded listeners to define openLetterModal
+        setTimeout(function() {
+            if (typeof window.openLetterModal === 'function') {
+                window.openLetterModal(data);
+            } else {
+                console.error("openLetterModal is still not defined!");
+            }
+        }, 50);
     });
     <?php endif; ?>
 
