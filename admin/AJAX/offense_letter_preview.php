@@ -6,12 +6,9 @@ header('Content-Type: application/json; charset=utf-8');
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-$raw = file_get_contents('php://input');
-$body = json_decode($raw, true);
-
-$offenseId = (int)($body['offense_id'] ?? 0);
-$subject = trim((string)($body['subject'] ?? 'Minor Offense Notice'));
-$letterBody = trim((string)($body['body'] ?? ''));
+$offenseId = (int)($_POST['offense_id'] ?? 0);
+$subject = trim((string)($_POST['subject'] ?? 'Minor Offense Notice'));
+$letterBody = trim((string)($_POST['body'] ?? ''));
 
 if ($offenseId <= 0) {
   http_response_code(400);
@@ -76,7 +73,12 @@ $lines[] = "";
 
 $lines[] = $letterBody;
 
-$pdfBytes = pdf_make_simple($subject, $lines);
+$imagePath = null;
+if (isset($_FILES['letter_image']) && $_FILES['letter_image']['error'] === UPLOAD_ERR_OK) {
+    $imagePath = $_FILES['letter_image']['tmp_name'];
+}
+
+$pdfBytes = pdf_make_simple($subject, $lines, $imagePath);
 
 // Save PDF file under /uploads/letters/
 $dirAbs = __DIR__ . '/../../uploads/letters';

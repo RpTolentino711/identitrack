@@ -1642,7 +1642,17 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
           return;
       }
       preview.innerHTML = '<div class="loading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating…</div>';
-      const r = await postJSON('AJAX/offense_letter_preview.php', { offense_id: currentLetterOffenseId, subject, body, guardian_email: guardianEmail });
+      
+      const formData = new FormData();
+      formData.append('offense_id', currentLetterOffenseId);
+      formData.append('subject', subject);
+      formData.append('body', body);
+      formData.append('guardian_email', guardianEmail);
+      if (imageFile) {
+          formData.append('letter_image', imageFile);
+      }
+      
+      const r = await postForm('AJAX/offense_letter_preview.php', formData);
       if (r.ok && r.json?.ok && r.json?.pdf_url) {
           let html = '<iframe src="' + r.json.pdf_url + '" style="width:100%; height:100%; border:none;"></iframe>';
           if (imageFile) {

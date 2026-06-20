@@ -10,7 +10,7 @@ function pdf_escape(string $s): string {
   return $s;
 }
 
-function pdf_make_simple(string $title, array $lines): string {
+function pdf_make_simple(string $title, array $lines, ?string $imagePath = null): string {
   $title = trim($title);
   if ($title === '') $title = 'Official Notice';
 
@@ -73,6 +73,52 @@ function pdf_make_simple(string $title, array $lines): string {
         $y -= 6;
     }
   }
+  
+  $imgObjStr = '';
+  $hasImage = false;
+  $imgWidth = 0;
+  $imgHeight = 0;
+  
+  if ($imagePath && file_exists($imagePath)) {
+      $info = getimagesize($imagePath);
+      if ($info) {
+          $w = $info[0];
+          $h = $info[1];
+          // Scale it to fit 150 width (good for signature/small evidence)
+          $scale = 150 / $w;
+          $imgWidth = 150;
+          $imgHeight = $h * $scale;
+          
+          $img = null;
+          if ($info[2] === IMAGETYPE_JPEG) $img = @imagecreatefromjpeg($imagePath);
+          elseif ($info[2] === IMAGETYPE_PNG) {
+              $img = @imagecreatefrompng($imagePath);
+              // Handle PNG transparency
+              if ($img) {
+                  $bg = imagecreatetruecolor($w, $h);
+                  imagefill($bg, 0, 0, imagecolorallocate($bg, 255, 255, 255));
+                  imagecopy($bg, $img, 0, 0, 0, 0, $w, $h);
+                  imagedestroy($img);
+                  $img = $bg;
+              }
+          }
+          
+          if ($img) {
+              ob_start();
+              imagejpeg($img, null, 90);
+              $jpegBytes = ob_get_clean();
+              imagedestroy($img);
+              
+              $imgLen = strlen($jpegBytes);
+              $imgObjStr = "<< /Type /XObject /Subtype /Image /Width $w /Height $h /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length $imgLen >>\nstream\n{$jpegBytes}\nendstream";
+              $hasImage = true;
+              
+              $y -= ($imgHeight + 20);
+              $content .= "q {$imgWidth} 0 0 {$imgHeight} 72 {$y} cm /Im1 Do Q\n";
+          }
+      }
+  }
+  
   $content .= "ET\n";
 
   $stream = $content;
@@ -81,10 +127,20 @@ function pdf_make_simple(string $title, array $lines): string {
   $objects = [];
   $objects[] = "<< /Type /Catalog /Pages 2 0 R >>";
   $objects[] = "<< /Type /Pages /Kids [3 0 R] /Count 1 >>";
-  $objects[] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>";
+  
+  if ($hasImage) {
+      $objects[] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> /XObject << /Im1 7 0 R >> >> /Contents 6 0 R >>";
+  } else {
+      $objects[] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>";
+  }
+  
   $objects[] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
   $objects[] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
   $objects[] = "<< /Length {$streamLen} >>\nstream\n{$stream}\nendstream";
+  
+  if ($hasImage) {
+      $objects[] = $imgObjStr;
+  }
 
   $pdf = "%PDF-1.4\n";
   $xref = [];
