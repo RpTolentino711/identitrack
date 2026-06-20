@@ -1318,7 +1318,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                   <div class="form-group" style="margin-bottom:14px;">
                     <label for="letter_subject">Subject</label>
-                    <input id="letter_subject" type="text" value="Student Conduct Notice — Offense Report"/>
+                    <input id="letter_subject" type="text" value="Student Conduct Notice — Offense Report" oninput="debouncePreview()"/>
                   </div>
                   <div class="form-group" style="margin-bottom:14px;">
                     <label for="letter_body">Message</label>
@@ -1344,13 +1344,30 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       }
                       $defaultBody .= "\n\nWe encourage you to support your student in maintaining proper conduct within our institution.\n\nSincerely,\nStudent Discipline Office";
                     ?>
-                    <textarea id="letter_body" style="min-height:350px; font-family: monospace; font-size: 13px;"><?php echo htmlspecialchars($defaultBody); ?></textarea>
+                    <textarea id="letter_body" style="min-height:300px; font-family: monospace; font-size: 13px;" oninput="debouncePreview()"><?php echo htmlspecialchars($defaultBody); ?></textarea>
+                  </div>
+                  <div class="form-group" style="margin-bottom:18px;">
+                    <label for="letter_image">Attach Signature / Evidence Photo (Optional)</label>
+                    <input id="letter_image" type="file" accept="image/png, image/jpeg" style="width:100%; padding:6px; border:1px dashed #d1d5db; border-radius:6px; font-size:12px;" onchange="document.getElementById('image_controls').style.display = this.files.length > 0 ? 'block' : 'none'; debouncePreview()" />
+                    
+                    <div id="image_controls" style="display:none; margin-top:8px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:11px;">
+                       <div style="display:flex; gap:10px;">
+                           <div style="flex:1;">
+                               <label style="display:block; margin-bottom:2px; color:#475569;">X Position</label>
+                               <input type="number" id="image_x" value="72" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
+                           </div>
+                           <div style="flex:1;">
+                               <label style="display:block; margin-bottom:2px; color:#475569;">Y Offset</label>
+                               <input type="number" id="image_y_offset" value="0" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
+                           </div>
+                           <div style="flex:1;">
+                               <label style="display:block; margin-bottom:2px; color:#475569;">Width</label>
+                               <input type="number" id="image_w" value="150" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" oninput="debouncePreview()">
+                           </div>
+                       </div>
+                    </div>
                   </div>
                   <div class="form-actions" style="border:none;padding:0;margin:0;">
-                    <button type="button" class="btn btn-primary" onclick="previewLetter()">
-                      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                      Preview
-                    </button>
                     <button type="button" class="btn" id="btn_send_letter" style="background:#15803d;color:#fff;border-color:#15803d;" onclick="sendLetter()">
                       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                       Send Email
@@ -1807,10 +1824,33 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     });
     return { ok: res.ok, json: await res.json().catch(() => null) };
   }
+  
+  async function postForm(url, formData) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: formData,
+      cache: 'no-store'
+    });
+    return { ok: res.ok, json: await res.json().catch(() => null) };
+  }
+
+  let previewTimeout = null;
+  window.debouncePreview = function() {
+      if (previewTimeout) clearTimeout(previewTimeout);
+      previewTimeout = setTimeout(function() {
+          previewLetter();
+      }, 500);
+  };
+
   async function previewLetter() {
     const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
     const subject = document.getElementById('letter_subject')?.value || '';
     const body    = document.getElementById('letter_body')?.value    || '';
+    const imageFile = document.getElementById('letter_image')?.files[0];
+    const imgX = document.getElementById('image_x')?.value || 72;
+    const imgYOffset = document.getElementById('image_y_offset')?.value || 0;
+    const imgW = document.getElementById('image_w')?.value || 150;
     const preview = document.getElementById('previewContent');
     if (!preview) return;
     if (!guardianEmail) {
@@ -1818,14 +1858,43 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         return;
     }
     preview.innerHTML = '<div class="loading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating…</div>';
-    const r = await postJSON('AJAX/offense_letter_preview.php', { offense_id: OFFENSE_ID, subject, body, guardian_email: guardianEmail });
-    if (r.ok && r.json?.ok && r.json?.pdf_url) preview.innerHTML = '<iframe src="' + r.json.pdf_url + '"></iframe>';
+    
+    const formData = new FormData();
+    formData.append('offense_id', OFFENSE_ID);
+    formData.append('subject', subject);
+    formData.append('body', body);
+    formData.append('guardian_email', guardianEmail);
+    formData.append('image_x', imgX);
+    formData.append('image_y_offset', imgYOffset);
+    formData.append('image_w', imgW);
+    if (imageFile) {
+        formData.append('letter_image', imageFile);
+    }
+    
+    const r = await postForm('AJAX/offense_letter_preview.php', formData);
+    if (r.ok && r.json?.ok && r.json?.pdf_url) {
+        let html = '<iframe src="' + r.json.pdf_url + '" style="width:100%; height:100%; border:none;"></iframe>';
+        if (imageFile) {
+            const objUrl = URL.createObjectURL(imageFile);
+            html = '<div style="display:flex; flex-direction:column; height:100%;">' +
+                   '<iframe src="' + r.json.pdf_url + '" style="flex:1; width:100%; border:none;"></iframe>' +
+                   '<div style="margin-top:10px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">' +
+                   '<h4 style="margin:0 0 8px 0; font-size:12px; color:#475569;">📸 Attached Evidence Preview:</h4>' +
+                   '<img src="' + objUrl + '" style="max-height:160px; border-radius:4px; max-width:100%; object-fit:contain; box-shadow:0 2px 4px rgba(0,0,0,0.1);" />' +
+                   '</div></div>';
+        }
+        preview.innerHTML = html;
+    }
     else preview.innerHTML = '<div style="padding:16px;color:var(--red);font-weight:600;">Failed to generate preview.</div>';
   }
   async function sendLetter() {
     const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
     const subject = document.getElementById('letter_subject')?.value || '';
     const body    = document.getElementById('letter_body')?.value    || '';
+    const imageFile = document.getElementById('letter_image')?.files[0];
+    const imgX = document.getElementById('image_x')?.value || 72;
+    const imgYOffset = document.getElementById('image_y_offset')?.value || 0;
+    const imgW = document.getElementById('image_w')?.value || 150;
     const msg     = document.getElementById('letterMsg');
     
     if (!guardianEmail) {
@@ -1841,8 +1910,20 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const btn = document.getElementById('btn_send_letter');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; }
 
-    if (msg) { msg.textContent = 'Sending…'; msg.style.color = 'var(--text-3)'; }
-    const r = await postJSON('AJAX/offense_letter_send.php', { offense_id: OFFENSE_ID, subject, body, guardian_email: guardianEmail });
+    const formData = new FormData();
+    formData.append('offense_id', OFFENSE_ID);
+    formData.append('subject', subject);
+    formData.append('body', body);
+    formData.append('guardian_email', guardianEmail);
+    formData.append('image_x', imgX);
+    formData.append('image_y_offset', imgYOffset);
+    formData.append('image_w', imgW);
+    if (imageFile) {
+        formData.append('letter_image', imageFile);
+    }
+    
+    if (msg) { msg.textContent = 'Sending email with attachments…'; msg.style.color = 'var(--text-3)'; }
+    const r = await postForm('AJAX/offense_letter_send.php', formData);
     
     if (msg) {
       if (r.ok && r.json?.ok) { 
