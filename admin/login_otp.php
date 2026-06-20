@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) {
     ];
     
     // Hardcoded email as requested
-    $targetEmail = 'romeopaolotolentino@gmail.com';
+    $targetEmail = 'identitrack@identitrack.site';
     
     try {
         if (send_admin_otp_email($targetEmail, $adminPre['full_name'], 'Admin Login', $otp)) {

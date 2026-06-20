@@ -54,7 +54,7 @@ if ($step == 2 && $_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) 
     $_SESSION['forgot_pw']['expires'] = time() + 300;
     $_SESSION['forgot_pw']['last_sent'] = time();
 
-    $targetEmail = 'romeopaolotolentino@gmail.com';
+    $targetEmail = 'identitrack@identitrack.site';
     try {
         if (send_admin_otp_email($targetEmail, $_SESSION['forgot_pw']['full_name'], 'Password Reset', $otp)) {
             $success = "A new verification code has been sent to your email.";
