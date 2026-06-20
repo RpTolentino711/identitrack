@@ -1754,11 +1754,12 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     }
     
     /* ── Persistent Guardian Letter ── */
-    <?php if (isset($_SESSION['pending_letter'])): ?>
+    <?php if (isset($_SESSION['pending_letter']) && is_array($_SESSION['pending_letter'])): ?>
+    console.log("Pending letter found in session, opening modal...");
     setTimeout(function() {
         var data = <?php echo json_encode($_SESSION['pending_letter']); ?>;
         openLetterModal(data);
-    }, 600);
+    }, 100);
     <?php endif; ?>
 
   })();
