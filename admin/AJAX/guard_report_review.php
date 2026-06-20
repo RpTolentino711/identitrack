@@ -187,7 +187,7 @@ if ($action === 'approve_guard_report') {
       db_add_encryption_key($sParams);
       $studentRow = db_one("SELECT " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student WHERE student_id = :sid", $sParams);
       $studentName = trim(($studentRow['student_fn'] ?? '') . ' ' . ($studentRow['student_ln'] ?? ''));
-      $defaultBody = "Please be advised that $studentName has been reported for a Major Offense. This case is now an active case under UPCC investigation and a hearing will be required.";
+      $defaultBody = "Dear Guardian,\n\nThis is an urgent official notification from the Student Discipline Office. We are writing to formally inform you that your student, $studentName, has been involved in a MAJOR disciplinary offense.\n\nDue to the severity of this infraction, an immediate investigation is currently underway by the University Panel on Community Conduct (UPCC). Such offenses carry significant consequences, which may include suspension or expulsion. We strongly advise that you discuss this matter with your student immediately.\n\nPlease review the official conduct record for full details.\n\nSincerely,\nStudent Discipline Office";
       
       $guardianRow = db_one("SELECT guardian_email FROM guardian WHERE student_id = :sid LIMIT 1", [':sid' => $studentId]);
       $guardianEmail = trim($guardianRow['guardian_email'] ?? '');
@@ -217,7 +217,7 @@ if ($action === 'approve_guard_report') {
           $escalationType = 'letter';
           $defaultSubject = 'Student Conduct Notice — 2nd Minor Offense Warning';
           
-          $defaultBody = "Dear Guardian,\n\nThis is to inform you that your student has been reported for a conduct offense and an investigation is underway. Please see the detailed notice below for more information.\n\n";
+          $defaultBody = "Dear Guardian,\n\nThis is to inform you that your student has been reported for a second minor conduct offense. Please see the detailed notice below for more information regarding this incident.\n\n";
           $coffParams = [':oid' => $newOffenseId];
           db_add_encryption_key($coffParams);
           $coff = db_one("SELECT " . db_decrypt_col('description', 'o') . " AS description, o.date_committed, ot.code, ot.name, ot.level FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.offense_id = :oid", $coffParams);
@@ -280,7 +280,7 @@ if ($action === 'approve_guard_report') {
         $escalationType = 'escalation';
         $defaultSubject = 'Student Conduct Notice — 3rd Minor Offense Escalation';
         
-        $defaultBody = "Dear Guardian,\n\nThis is to inform you that your student has been reported for a conduct offense and an investigation is underway. Please see the detailed notice below for more information.\n\n";
+        $defaultBody = "Dear Guardian,\n\nThis is an official notice to inform you that your student has accumulated their 3rd minor offense, which triggers an automatic escalation to a Major Offense status under our discipline policy.\n\nThe student's case has now been forwarded to the University Panel on Community Conduct (UPCC), and a formal investigation is underway. We ask for your immediate cooperation as we review these repeated infractions.\n\nPlease see the detailed notice below for the complete offense history.\n\n";
         $coffParams = [':oid' => $newOffenseId];
         db_add_encryption_key($coffParams);
         $coff = db_one("SELECT " . db_decrypt_col('description', 'o') . " AS description, o.date_committed, ot.code, ot.name, ot.level FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.offense_id = :oid", $coffParams);

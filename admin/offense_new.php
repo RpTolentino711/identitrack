@@ -1349,7 +1349,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   <div class="form-group" style="margin-bottom:14px;">
                     <label for="letter_body">Message</label>
                     <?php
-                      $defaultBody = "Dear Guardian,\n\nThis is to inform you that your student has been reported for a conduct offense and an investigation is underway. Please see the detailed notice below for more information.\n\n";
+                      if ($letterType === 'major') {
+                          $defaultBody = "Dear Guardian,\n\nThis is an urgent official notification from the Student Discipline Office. We are writing to formally inform you that your student has been involved in a MAJOR disciplinary offense.\n\nDue to the severity of this infraction, an immediate investigation is currently underway by the University Panel on Community Conduct (UPCC). Such offenses carry significant consequences, which may include suspension or expulsion. We strongly advise that you discuss this matter with your student immediately.\n\n";
+                      } elseif ($letterType === 'escalation') {
+                          $defaultBody = "Dear Guardian,\n\nThis is an official notice to inform you that your student has accumulated their 3rd minor offense, which triggers an automatic escalation to a Major Offense status under our discipline policy.\n\nThe student's case has now been forwarded to the University Panel on Community Conduct (UPCC), and a formal investigation is underway. We ask for your immediate cooperation as we review these repeated infractions.\n\nPlease see the detailed notice below for the complete offense history.\n\n";
+                      } elseif ($letterType === 'letter') {
+                          $defaultBody = "Dear Guardian,\n\nThis is to inform you that your student has been reported for a second minor conduct offense. Please see the detailed notice below for more information regarding this incident.\n\n";
+                      } else {
+                          $defaultBody = "Dear Guardian,\n\nThis is to inform you that your student has been reported for a conduct offense. Please see the detailed notice below for more information.\n\n";
+                      }
                       if ($studentInfo && $letterOffenseId > 0) {
                           $coff = db_one("SELECT o.description, o.date_committed, ot.code, ot.name, ot.level FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.offense_id = :oid", [':oid' => $letterOffenseId]);
                           if ($coff) {
