@@ -1396,9 +1396,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               </div>
             </div>
           </div>
-        <script>
-           const OFFENSE_ID = <?php echo (int)$letterOffenseId; ?>;
-        </script>
+
         <?php endif; ?>
 
       </div>
@@ -1661,8 +1659,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </div>`;
   }
 
-  const LETTER_MODE = <?php echo $letterMode ? 'true' : 'false'; ?>;
-  const SUCCESS_MODE = <?php echo $successMode ? 'true' : 'false'; ?>;
 
   const studentIdInput    = document.getElementById('studentIdInput');
   const levelSelect       = document.getElementById('levelSelect');
