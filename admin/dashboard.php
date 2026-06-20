@@ -1050,13 +1050,9 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
 
   <!-- ── Approve Success Modal ── -->
   <div id="approveSuccessModal" class="guard-confirm-overlay" aria-hidden="true">
-    <div class="guard-confirm-box" role="dialog" aria-modal="true" style="text-align:center; padding:32px 24px;">
-      <div style="width:58px; height:58px; border-radius:50%; background:#f0fdf4; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
-        <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-        </svg>
-      </div>
+    <div class="guard-confirm-box" role="dialog" aria-modal="true" style="text-align:center; padding:40px 30px; position:relative; overflow:hidden;">
+      <button class="modal-close" onclick="document.getElementById('approveSuccessOkBtn').click()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b;">&times;</button>
+      <img src="../assets/logo.png" alt="IdentiTrack Logo" style="height: 64px; margin-bottom: 20px;">
       <h4 style="font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:#111827; margin:0 0 8px; letter-spacing:-0.5px;">Offense Recorded</h4>
       <p style="font-size:14px; color:#4b5563; margin:0 0 24px; line-height:1.6;">The offense has been successfully verified and added to the student's disciplinary record.</p>
       <button id="approveSuccessOkBtn" type="button" class="gm-btn approve" style="width:100%; justify-content:center; font-size:15px; padding:12px;">Got it, thanks!</button>
@@ -1115,6 +1111,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     var approveSuccessOkBtn   = document.getElementById('approveSuccessOkBtn');
     if (approveSuccessOkBtn) {
         approveSuccessOkBtn.addEventListener('click', function() {
+            if (window.approveSuccessTimer) clearInterval(window.approveSuccessTimer);
             approveSuccessModal.classList.remove('show');
             approveSuccessModal.setAttribute('aria-hidden', 'true');
         });
@@ -1340,6 +1337,21 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                   if (sm) {
                       sm.classList.add('show');
                       sm.setAttribute('aria-hidden', 'false');
+                      
+                      var countdown = 5;
+                      var btn = document.getElementById('approveSuccessOkBtn');
+                      var origText = btn ? 'Got it, thanks!' : '';
+                      if (btn) btn.textContent = origText + ' (' + countdown + 's)';
+                      
+                      var timer = setInterval(function() {
+                          countdown--;
+                          if (btn) btn.textContent = origText + ' (' + countdown + 's)';
+                          if (countdown <= 0) {
+                              clearInterval(timer);
+                              if (btn) btn.click();
+                          }
+                      }, 1000);
+                      window.approveSuccessTimer = timer;
                   }
               } else {
                   showFlash('ok', data.message || 'Guard report updated.', timeout);

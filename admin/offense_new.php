@@ -1422,27 +1422,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   <!-- MODAL: Success after register -->
   <div id="successModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Offense Registered Successfully</h3>
-        <button class="modal-close" onclick="closeSuccessModal()">&times;</button>
-      </div>
-      <div class="modal-body">
+    <div class="modal-content" style="text-align: center; max-width: 400px; border-radius: 12px; overflow: hidden; position: relative;">
+      <div class="modal-body" style="padding: 40px 30px;">
+        <button class="modal-close" onclick="closeSuccessModal()" style="position: absolute; top: 15px; right: 15px;">&times;</button>
+        <img src="../assets/logo.png" alt="IdentiTrack Logo" style="height: 64px; margin-bottom: 24px;">
+        <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #1e293b;">Offense Registered</h3>
         <?php if ($letterMode): ?>
-          <p style="font-size:13px;color:var(--text-2);line-height:1.6;">
+          <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
             The offense record has been saved. You may now review and send the guardian notification letter below.
           </p>
+          <button class="btn btn-primary" id="successCloseBtn" type="button" onclick="closeSuccessModal()" style="width: 100%; justify-content: center; padding: 12px;">Compose Guardian Email</button>
         <?php else: ?>
-          <p style="font-size:13px;color:var(--text-2);line-height:1.6;">
+          <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
             The offense record has been saved successfully.
           </p>
-        <?php endif; ?>
-      </div>
-      <div class="modal-footer">
-        <?php if ($letterMode): ?>
-          <button class="btn btn-primary" type="button" onclick="closeSuccessModal()">Compose Guardian Email</button>
-        <?php else: ?>
-          <a href="offenses.php" class="btn btn-primary" style="width: 100%; justify-content: center;">Go to Offenses</a>
+          <a href="offenses.php" class="btn btn-primary" id="successCloseBtn" style="width: 100%; justify-content: center; padding: 12px;">Go to Offenses</a>
         <?php endif; ?>
       </div>
     </div>
@@ -1450,19 +1444,18 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   <!-- MODAL: Success after sending email -->
   <div id="emailSuccessModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Email Sent Successfully</h3>
-        <button class="modal-close" onclick="closeEmailSuccessModal()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p style="font-size:13px;color:var(--text-2);line-height:1.6;">
-          The guardian notification letter has been sent successfully!
+    <div class="modal-content" style="text-align: center; max-width: 400px; border-radius: 12px; overflow: hidden; position: relative;">
+      <div class="modal-body" style="padding: 40px 30px;">
+        <button class="modal-close" onclick="closeEmailSuccessModal()" style="position: absolute; top: 15px; right: 15px;">&times;</button>
+        <img src="../assets/logo.png" alt="IdentiTrack Logo" style="height: 64px; margin-bottom: 24px;">
+        <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #10b981;">Email Sent Successfully</h3>
+        <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
+          The guardian notification letter has been dispatched to the parent/guardian.
         </p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn" type="button" onclick="closeEmailSuccessModal()">Stay on page</button>
-        <a href="offenses.php" class="btn btn-primary">Go to Offenses</a>
+        <div style="display:flex; gap: 10px;">
+            <button class="btn" id="emailSuccessStayBtn" type="button" onclick="closeEmailSuccessModal()" style="flex: 1; justify-content: center;">Stay on page</button>
+            <a href="offenses.php" class="btn btn-primary" style="flex: 1; justify-content: center;">Go to Offenses</a>
+        </div>
       </div>
     </div>
   </div>
@@ -1712,17 +1705,19 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   const modal = document.getElementById('offenseTypeModal');
   const successModal = document.getElementById('successModal');
   function closeModal() { modal.classList.remove('active'); document.getElementById('modalError').innerText = ''; }
-  function closeEmailSuccessModal() {
-    const m = document.getElementById('emailSuccessModal');
-    if (m) m.classList.remove('active');
-  }
-  function closeSuccessModal() { 
+  function closeSuccessModal() {
+    if (window.successModalTimer) clearInterval(window.successModalTimer);
     if (successModal) successModal.classList.remove('active'); 
     if (typeof LETTER_MODE !== 'undefined' && LETTER_MODE) {
       const letterModal = document.getElementById('modal-guardian-letter');
       if (letterModal) letterModal.classList.add('active');
       if (typeof previewLetter === 'function') previewLetter();
     }
+  }
+  function closeEmailSuccessModal() {
+    if (window.emailSuccessModalTimer) clearInterval(window.emailSuccessModalTimer);
+    const m = document.getElementById('emailSuccessModal');
+    if (m) m.classList.remove('active');
   }
   function openStudentRecordModal() {
     const studentModal = document.getElementById('studentRecordModal');
@@ -1958,11 +1953,29 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }, 600);
   }
 
-  if (SUCCESS_MODE && successModal) successModal.classList.add('active');
+  if (SUCCESS_MODE && successModal) {
+      successModal.classList.add('active');
+      let countdown = 5;
+      const btn = document.getElementById('successCloseBtn');
+      const origText = btn ? btn.textContent : '';
+      if (btn) btn.textContent = origText + ' (' + countdown + 's)';
+      
+      const timer = setInterval(() => {
+          countdown--;
+          if (btn) btn.textContent = origText + ' (' + countdown + 's)';
+          if (countdown <= 0) {
+              clearInterval(timer);
+              closeSuccessModal();
+          }
+      }, 1000);
+      
+      window.successModalTimer = timer;
+  }
+  
   if (LETTER_MODE) {
       setTimeout(() => {
           checkEmailRequired();
-          previewLetter();
+          if (typeof previewLetter === 'function') previewLetter();
       }, 500);
   }
 
