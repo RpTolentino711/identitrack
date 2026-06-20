@@ -1663,7 +1663,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   const LETTER_MODE = <?php echo $letterMode ? 'true' : 'false'; ?>;
   const SUCCESS_MODE = <?php echo $successMode ? 'true' : 'false'; ?>;
-  const OFFENSE_ID = <?php echo $letterOffenseId; ?>;
 
   const studentIdInput    = document.getElementById('studentIdInput');
   const levelSelect       = document.getElementById('levelSelect');

@@ -1559,7 +1559,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
         }
       }
       if (letterOpen) {
-        if (ev.key === 'Escape') { ev.preventDefault(); closeLetterModal(); return; }
+        // Enforce rule: email sender cannot be dismissed
       }
       if (modalOpen && !approveOpen && !rejectOpen && !letterOpen) {
         if (ev.key === 'Escape') { ev.preventDefault(); closeModal(); }
@@ -1764,7 +1764,6 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     <div class="guard-modal" style="max-width: 1100px; width: 95%; max-height: 95vh; overflow-y: auto;">
       <div class="guard-modal-head">
         <h3 class="guard-modal-title" id="letter_modal_title">📧 Guardian Notification</h3>
-        <button class="guard-modal-close" onclick="closeLetterModal()">&times;</button>
       </div>
       <div class="guard-modal-body" style="padding: 24px;">
         <p style="color: #6b7280; margin-top: 0; margin-bottom: 20px; font-size: 13px;">Review and send the notification letter to the guardian. You can update the email address if needed before sending.</p>
