@@ -170,8 +170,10 @@ $dompdf->render();
 
 $pdfBytes = $dompdf->output();
 
-// We don't save to disk to avoid Hostinger file permission issues.
+// Save temp file to sys_get_temp_dir to avoid Hostinger uploads/ permissions, and bypass addStringAttachment bugs
 $filename = 'minor_offense_' . $offenseId . '_' . date('Ymd_His') . '.pdf';
+$fileAbs = sys_get_temp_dir() . '/' . $filename;
+file_put_contents($fileAbs, $pdfBytes);
 
 // Send email via PHPMailer
 $mail = new PHPMailer(true);
@@ -192,7 +194,7 @@ $mail->isSMTP();
 
 $mail->setFrom($mail->Username, 'IdentiTrack SDO');
 $mail->addAddress($guardianEmail, $guardianName);
-$mail->addReplyTo('no-reply@identitrack.local', 'IdentiTrack');
+$mail->addReplyTo('no-reply@identitrack.site', 'IdentiTrack');
 
 $mail->isHTML(true);
 $mail->Subject = $subject;
@@ -249,7 +251,7 @@ $mail->Body = "
 
 $mail->AltBody = "Minor Offense Notice\n\n" . strip_tags($letterBody);
 
-$mail->addStringAttachment($pdfBytes, $filename, 'base64', 'application/pdf');
+$mail->addAttachment($fileAbs, $filename);
 
 if (isset($_FILES['letter_image']) && $_FILES['letter_image']['error'] === UPLOAD_ERR_OK) {
     $mail->addAttachment($_FILES['letter_image']['tmp_name'], $_FILES['letter_image']['name']);
