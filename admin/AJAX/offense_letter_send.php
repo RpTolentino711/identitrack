@@ -192,9 +192,9 @@ $mail->isSMTP();
     $mail->Username = $getEnv('SMTP_USER', 'identitrack@identitrack.site');
     $mail->Password = $getEnv('SMTP_PASS', 'Pogilameg@10');
 
-$mail->setFrom($mail->Username, 'IdentiTrack SDO');
+$mail->setFrom($mail->Username, 'IdentiTrack Admin');
 $mail->addAddress($guardianEmail, $guardianName);
-$mail->addReplyTo('no-reply@identitrack.site', 'IdentiTrack');
+$mail->addReplyTo('no-reply@identitrack.local', 'IdentiTrack');
 
 $mail->isHTML(true);
 $mail->Subject = $subject;
