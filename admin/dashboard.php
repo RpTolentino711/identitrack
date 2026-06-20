@@ -1634,6 +1634,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
       const subject = document.getElementById('letter_subject')?.value || '';
       const body    = document.getElementById('letter_body')?.value    || '';
+      const imageFile = document.getElementById('letter_image')?.files[0];
       const preview = document.getElementById('previewContent');
       if (!preview) return;
       if (!guardianEmail) {
@@ -1642,7 +1643,19 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       }
       preview.innerHTML = '<div class="loading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating…</div>';
       const r = await postJSON('AJAX/offense_letter_preview.php', { offense_id: currentLetterOffenseId, subject, body, guardian_email: guardianEmail });
-      if (r.ok && r.json?.ok && r.json?.pdf_url) preview.innerHTML = '<iframe src="' + r.json.pdf_url + '"></iframe>';
+      if (r.ok && r.json?.ok && r.json?.pdf_url) {
+          let html = '<iframe src="' + r.json.pdf_url + '" style="width:100%; height:100%; border:none;"></iframe>';
+          if (imageFile) {
+              const objUrl = URL.createObjectURL(imageFile);
+              html = '<div style="display:flex; flex-direction:column; height:100%;">' +
+                     '<iframe src="' + r.json.pdf_url + '" style="flex:1; width:100%; border:none;"></iframe>' +
+                     '<div style="margin-top:10px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">' +
+                     '<h4 style="margin:0 0 8px 0; font-size:12px; color:#475569;">📸 Attached Evidence Preview:</h4>' +
+                     '<img src="' + objUrl + '" style="max-height:160px; border-radius:4px; max-width:100%; object-fit:contain; box-shadow:0 2px 4px rgba(0,0,0,0.1);" />' +
+                     '</div></div>';
+          }
+          preview.innerHTML = html;
+      }
       else preview.innerHTML = '<div style="padding:16px;color:#ef4444;font-weight:600;">Failed to generate preview.</div>';
     };
     
@@ -1754,7 +1767,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
             </div>
             <div style="margin-bottom:18px;">
               <label for="letter_image" style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">Attach Evidence Photo (Optional)</label>
-              <input id="letter_image" type="file" accept="image/png, image/jpeg" style="width:100%; padding:6px; border:1px dashed #d1d5db; border-radius:6px; font-size:12px;" />
+              <input id="letter_image" type="file" accept="image/png, image/jpeg" style="width:100%; padding:6px; border:1px dashed #d1d5db; border-radius:6px; font-size:12px;" onchange="debouncePreview()" />
             </div>
             <div style="display:flex; gap:10px;">
               <button type="button" class="gm-btn approve" id="btn_send_letter" onclick="sendLetter()">
