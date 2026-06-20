@@ -84,11 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
       $params
     );
 
-    $newRow       = db_one(
-      "SELECT offense_id FROM offense WHERE student_id = :sid AND recorded_by = :aid ORDER BY offense_id DESC LIMIT 1",
-      [':sid' => $student_id, ':aid' => $adminId]
-    );
-    $newOffenseId = (int)($newRow['offense_id'] ?? 0);
+    $newOffenseId = db_last_id();
 
     // ── AFTER INSERT LOGIC ────────────────────────────────────────────────
     if ($level === 'MINOR') {
@@ -1664,6 +1660,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       </div>
     </div>`;
   }
+
+  const LETTER_MODE = <?php echo $letterMode ? 'true' : 'false'; ?>;
+  const SUCCESS_MODE = <?php echo $successMode ? 'true' : 'false'; ?>;
+  const OFFENSE_ID = <?php echo $letterOffenseId; ?>;
 
   const studentIdInput    = document.getElementById('studentIdInput');
   const levelSelect       = document.getElementById('levelSelect');
