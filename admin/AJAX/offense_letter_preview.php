@@ -90,14 +90,14 @@ $html = '
 <html>
 <head>
     <style>
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #333; line-height: 1.4; }
-        .header { margin-bottom: 25px; }
-        .title { font-size: 16pt; font-weight: bold; margin-bottom: 15px; color: #000; }
-        .meta { margin-bottom: 20px; font-size: 11pt; }
-        .content { font-size: 11pt; }
-        .content p { margin: 0 0 8px 0; }
-        .content ul, .content ol { margin: 0 0 8px 0; padding-left: 20px; }
-        .content li { margin-bottom: 4px; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 10.5pt; color: #333; line-height: 1.3; }
+        .header { margin-bottom: 20px; }
+        .title { font-size: 14pt; font-weight: bold; margin-bottom: 12px; color: #000; }
+        .meta { margin-bottom: 15px; font-size: 10.5pt; }
+        .content { font-size: 10.5pt; }
+        .content p { margin: 0; padding: 0; }
+        .content ul, .content ol { margin: 0; padding-left: 20px; }
+        .content li { margin-bottom: 2px; }
         .sdo { font-size: 16pt; font-family: "Times New Roman", Times, serif; margin-bottom: 5px; }
         .official { font-size: 10pt; color: #666; margin-bottom: 25px; }
     </style>
