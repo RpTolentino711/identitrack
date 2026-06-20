@@ -137,22 +137,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
                       $mail->Password = $_ENV['SMTP_PASS'] ?? '';
                       
-                      $mail->setFrom($mail->Username, 'IdentiTrack SDO');
+                      $mail->setFrom($mail->Username, 'IdentiTrack Admin');
                       $mail->addAddress($guardianEmail, $guardianName);
                       $mail->addReplyTo('no-reply@identitrack.local', 'IdentiTrack');
                       
                       $mail->isHTML(true);
                       $mail->Subject = 'Major Offense Notice - UPCC Investigation Required';
                       
-                      $letterBody = "Please be advised that $studentName has been reported for a Major Offense. This case is now an active case under UPCC investigation and a hearing will be required.";
-                      
-                      $safeBody = nl2br(htmlspecialchars($letterBody, ENT_QUOTES, 'UTF-8'));
-                      
-                      $logoPath = __DIR__ . '/../../assets/logo.png';
-                      if (file_exists($logoPath)) {
-                          $mail->addEmbeddedImage($logoPath, 'identitrack_logo', 'logo.png');
-                      }
-
                       $mail->Body = "
                       <!DOCTYPE html>
                       <html lang='en'>
@@ -163,12 +154,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                           .wrapper { width: 100%; table-layout: fixed; background-color: #f1f5f9; padding: 40px 0; }
                           .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.08); font-family: 'Inter', -apple-system, sans-serif; }
                           .header { background-image: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 50px 40px; text-align: center; }
-                          .logo-img { display: block; width: 85px; height: auto; margin: 0 auto 20px auto; border-radius: 18px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); }
                           .content { padding: 40px 50px; color: #374151; font-size: 15px; line-height: 1.6; }
                           h1 { color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
                           .badge { display: inline-block; padding: 6px 14px; background-color: rgba(255,255,255,0.15); color: #ffffff; font-size: 12px; font-weight: 600; border-radius: 100px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
                           .footer { padding: 30px; text-align: center; background-color: #f8fafc; border-top: 1px solid #f1f5f9; font-size: 13px; color: #94a3b8; }
-                          .letter-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 24px; margin-top: 24px; color: #475569; font-size: 14px; }
                         </style>
                       </head>
                       <body>
@@ -176,14 +165,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                           <div class='email-container'>
                             <div class='header'>
                               <div class='badge'>Official Notice</div>
-                              <img src='cid:identitrack_logo' alt='IdentiTrack' class='logo-img'>
                               <h1>Student Discipline Office</h1>
                             </div>
                             <div class='content'>
                               <p style='font-weight:600;font-size:16px;color:#1e293b;margin-top:0;'>Dear Parent/Guardian,</p>
-                              <div class='letter-box'>
-                                {$safeBody}
-                              </div>
+                              <p>Please review the attached official notice letter regarding the disciplinary record of <strong>{$studentName}</strong>.</p>
                               <p style='margin-top:24px;margin-bottom:0;'>If you have any questions, please coordinate with the Student Discipline Office or the University Panel on Community Conduct.</p>
                             </div>
                             <div class='footer'>
@@ -195,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       </html>
                       ";
                       
-                      $mail->AltBody = "Major Offense Notice\n\n" . $letterBody;
+                      $mail->AltBody = "Dear Parent/Guardian,\n\nPlease review the attached official notice letter regarding the disciplinary record of {$studentName}.\n\nStudent Discipline Office";
                       $mail->send();
                   } catch (Exception $e) {
                       error_log('Guard report mail error: ' . $e->getMessage());
