@@ -27,7 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['admin_pre_2fa'] = [
             'admin_id' => $adminData['admin_id'],
             'username' => $adminData['username'],
-            'full_name' => $adminData['full_name']
+            'full_name' => $adminData['full_name'],
+            'email' => $adminData['email']
         ];
         
         // Clear normal admin session if it was set by admin_login (admin_login usually sets it)
