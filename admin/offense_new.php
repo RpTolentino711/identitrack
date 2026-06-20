@@ -1911,8 +1911,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 }, 50);
             }
             window.emailSuccessModalTimer = setTimeout(() => {
-                const btn = document.getElementById('emailSuccessStayBtn');
-                if (btn) btn.click();
+                closeEmailSuccessModal();
             }, 5000);
         }
       }
@@ -1984,8 +1983,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
       
       window.successModalTimer = setTimeout(() => {
-          const btn = document.getElementById('successCloseBtn');
-          if (btn) btn.click();
+          closeSuccessModal();
       }, 5000);
   }
   
