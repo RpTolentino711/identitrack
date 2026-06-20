@@ -199,57 +199,34 @@ $mail->addReplyTo('no-reply@identitrack.site', 'IdentiTrack');
 $mail->isHTML(true);
 $mail->Subject = $subject;
 
-$safeBody = $letterBody; // Use raw HTML from Quill
-
-$logoPath = __DIR__ . '/../../assets/logo.png';
-if (file_exists($logoPath)) {
-    $mail->addEmbeddedImage($logoPath, 'identitrack_logo', 'logo.png');
-}
-
 $mail->Body = "
 <!DOCTYPE html>
 <html lang='en'>
 <head>
   <meta charset='UTF-8'>
   <style>
-    body { margin: 0; padding: 0; background-color: #f1f5f9; }
-    .wrapper { width: 100%; table-layout: fixed; background-color: #f1f5f9; padding: 40px 0; }
-    .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.08); font-family: 'Inter', -apple-system, sans-serif; }
-    .header { background-image: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 50px 40px; text-align: center; }
-    .logo-img { display: block; width: 85px; height: auto; margin: 0 auto 20px auto; border-radius: 18px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); }
-    .content { padding: 40px 50px; color: #374151; font-size: 15px; line-height: 1.6; }
-    h1 { color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
-    .badge { display: inline-block; padding: 6px 14px; background-color: rgba(255,255,255,0.15); color: #ffffff; font-size: 12px; font-weight: 600; border-radius: 100px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
-    .footer { padding: 30px; text-align: center; background-color: #f8fafc; border-top: 1px solid #f1f5f9; font-size: 13px; color: #94a3b8; }
-    .letter-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 24px; margin-top: 24px; color: #475569; font-size: 14px; }
+    body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    h2 { color: #1e3a8a; margin-top: 0; }
+    p { color: #374151; line-height: 1.6; font-size: 15px; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px; text-align: center; }
   </style>
 </head>
 <body>
-  <div class='wrapper'>
-    <div class='email-container'>
-      <div class='header'>
-        <div class='badge'>Official Notice</div>
-        <img src='cid:identitrack_logo' alt='IdentiTrack' class='logo-img'>
-        <h1>Student Discipline Office</h1>
-      </div>
-      <div class='content'>
-        <p style='font-weight:600;font-size:16px;color:#1e293b;margin-top:0;'>Dear Parent/Guardian,</p>
-        <p>Please review the attached official notice letter regarding the disciplinary record of <strong>{$studentName}</strong>.</p>
-        <div class='letter-box'>
-          {$safeBody}
-        </div>
-        <p style='margin-top:24px;margin-bottom:0;'>If you have any questions, please coordinate with the Student Discipline Office or the University Panel on Community Conduct.</p>
-      </div>
-      <div class='footer'>
-        &copy; " . date('Y') . " IdentiTrack System. All rights reserved.<br>This is an automated notification. Please do not reply.
-      </div>
+  <div class='container'>
+    <h2>Student Discipline Office</h2>
+    <p>Dear Parent/Guardian,</p>
+    <p>Please review the attached official conduct notice regarding the disciplinary record of <strong>{$studentName}</strong>.</p>
+    <p>If you have any questions or concerns, please coordinate directly with the Student Discipline Office or the University Panel on Community Conduct.</p>
+    <div class='footer'>
+      &copy; " . date('Y') . " IdentiTrack System. This is an automated notification.
     </div>
   </div>
 </body>
 </html>
 ";
 
-$mail->AltBody = "Minor Offense Notice\n\n" . strip_tags($letterBody);
+$mail->AltBody = "Dear Parent/Guardian,\n\nPlease review the attached official conduct notice regarding the disciplinary record of {$studentName}.\n\nStudent Discipline Office";
 
 $mail->addAttachment($fileAbs, $filename);
 
