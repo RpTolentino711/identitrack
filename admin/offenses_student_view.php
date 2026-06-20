@@ -154,6 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                           .wrapper { width: 100%; table-layout: fixed; background-color: #f1f5f9; padding: 40px 0; }
                           .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.08); font-family: 'Inter', -apple-system, sans-serif; }
                           .header { background-image: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 50px 40px; text-align: center; }
+                          .logo-img { display: block; width: 85px; height: auto; margin: 0 auto 20px auto; border-radius: 18px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); }
                           .content { padding: 40px 50px; color: #374151; font-size: 15px; line-height: 1.6; }
                           h1 { color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
                           .badge { display: inline-block; padding: 6px 14px; background-color: rgba(255,255,255,0.15); color: #ffffff; font-size: 12px; font-weight: 600; border-radius: 100px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
@@ -165,6 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                           <div class='email-container'>
                             <div class='header'>
                               <div class='badge'>Official Notice</div>
+                              <img src='https://identitrack.site/assets/logo.png' alt='IdentiTrack' class='logo-img'>
                               <h1>Student Discipline Office</h1>
                             </div>
                             <div class='content'>
