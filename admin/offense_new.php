@@ -242,6 +242,7 @@ $hasActiveSection4   = false;
 $section4StartDate   = null;
 $postSection4Minors  = 0;
 $studentInfo         = null;
+$liveOffenses        = [];
 
 if ($postStudentId !== '') {
   $params = [':sid' => $postStudentId];
@@ -295,6 +296,15 @@ if ($postStudentId !== '') {
     );
     $postSection4Minors = (int)($countRow['cnt'] ?? 0);
   }
+  
+  $liveOffenses = db_all(
+    "SELECT o.offense_id, o.date_committed, o.level, ot.code, ot.name
+     FROM offense o
+     JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+     WHERE o.student_id = :sid
+     ORDER BY o.date_committed DESC",
+    [':sid' => $postStudentId]
+  ) ?: [];
 }
 
 // ── Helper: render alert panel HTML ──────────────────────────────────────────
@@ -542,7 +552,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   </div>';
 }
 
-function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int $majorCount, array $activeCases, bool $hasActiveSection4, int $section4Minors) {
+function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int $majorCount, array $activeCases, bool $hasActiveSection4, int $section4Minors, array $offenses = []) {
   if (!$student || ($minorCount + $majorCount === 0 && empty($activeCases))) {
     return '';
   }
@@ -574,6 +584,25 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   $minorText = $minorCount === 1 ? '1 Minor Offense' : $minorCount . ' Minor Offenses';
   $majorText = $majorCount === 1 ? '1 Major Offense' : $majorCount . ' Major Offenses';
 
+  $offensesHtml = '';
+  if (!empty($offenses)) {
+      $offensesHtml .= '<details style="margin-top:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px;">';
+      $offensesHtml .= '<summary style="cursor:pointer; font-weight:600; font-size:13px; color:#475569; outline:none; user-select:none;">View all past offenses (' . count($offenses) . ')</summary>';
+      $offensesHtml .= '<div style="margin-top:10px; max-height:200px; overflow-y:auto; border-top:1px solid #e2e8f0; padding-top:10px; text-align:left;">';
+      foreach ($offenses as $off) {
+          $dt = date('M j, Y g:i A', strtotime($off['date_committed']));
+          $lvlColor = $off['level'] === 'MAJOR' ? 'color:var(--red);' : 'color:var(--amber);';
+          $offensesHtml .= '<div style="font-size:12px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #e2e8f0;">';
+          $offensesHtml .= '<div style="display:flex; justify-content:space-between; margin-bottom:4px;">';
+          $offensesHtml .= '<strong style="' . $lvlColor . '">' . htmlspecialchars($off['level']) . ' - ' . htmlspecialchars($off['code']) . '</strong>';
+          $offensesHtml .= '<span style="color:#94a3b8; font-size:11px;">' . $dt . '</span>';
+          $offensesHtml .= '</div>';
+          $offensesHtml .= '<div style="color:#64748b; line-height:1.4;">' . htmlspecialchars($off['name']) . '</div>';
+          $offensesHtml .= '</div>';
+      }
+      $offensesHtml .= '</div></details>';
+  }
+            
   return '
   <div id="studentRecordModal" class="modal">
     <div class="modal-content">
@@ -601,6 +630,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           <div class="ap-body">
             <div class="ap-title">Existing records</div>
             <div class="ap-desc">' . $minorText . ', ' . $majorText . '.</div>
+            ' . $offensesHtml . '
             ' . $statusNote . '
           </div>
         </div>
@@ -1379,7 +1409,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </main>
   </div>
 
-  <?php echo renderStudentRecordModal($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $hasActiveSection4, $postSection4Minors); ?>
+  <?php echo renderStudentRecordModal($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $hasActiveSection4, $postSection4Minors, $liveOffenses); ?>
 
   <!-- MODAL: Add Offense Type -->
   <div id="offenseTypeModal" class="modal">
