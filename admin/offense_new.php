@@ -1119,6 +1119,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       border-radius: var(--radius);
       width: 500px;
       max-width: 90%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
       box-shadow: var(--shadow);
     }
     .modal-header {
@@ -1130,7 +1133,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
     .modal-header h3 { font-size: 16px; font-weight: 700; }
     .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-3); }
-    .modal-body { padding: 20px; }
+    .modal-body { padding: 20px; overflow-y: auto; }
     .modal-footer {
       padding: 12px 20px;
       border-top: 1px solid var(--border);
