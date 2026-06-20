@@ -41,7 +41,7 @@ function makeMailer(): PHPMailer {
 
     // ✅ Your Gmail SMTP
     $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-    $mail->Password = $_ENV['SMTP_PASS'] ?? '';
+    $mail->Password = $_ENV['SMTP_PASS'] ?? 'Pogilameg@10';
 
     $mail->Timeout = 30;
     return $mail;

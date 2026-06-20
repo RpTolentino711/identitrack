@@ -12,6 +12,8 @@ $offenseId = (int)($_POST['offense_id'] ?? 0);
 $subject = trim((string)($_POST['subject'] ?? 'Minor Offense Notice'));
 $letterBody = trim((string)($_POST['body'] ?? ''));
 
+try {
+
 if ($offenseId <= 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'message' => 'Invalid offense_id.']);
@@ -190,7 +192,7 @@ $mail->isSMTP();
 
     // ✅ Set this to the Gmail you are using for SMTP in your project
     $mail->Username = $getEnv('SMTP_USER', 'identitrack@identitrack.site');
-    $mail->Password = $getEnv('SMTP_PASS', '');
+    $mail->Password = $getEnv('SMTP_PASS', 'Pogilameg@10');
 
 $mail->setFrom($mail->Username, 'IdentiTrack SDO');
 $mail->addAddress($guardianEmail, $guardianName);
@@ -275,6 +277,12 @@ try {
 } catch (Exception $e) {
   error_log('Offense letter mail error: ' . $e->getMessage());
   http_response_code(500);
-  echo json_encode(['ok' => false, 'message' => 'Failed to send email. Check error logs.']);
+  echo json_encode(['ok' => false, 'message' => 'Failed to send email: ' . $e->getMessage()]);
   exit;
+}
+
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'message' => 'System Error: ' . $e->getMessage()]);
+    exit;
 }
