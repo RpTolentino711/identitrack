@@ -178,13 +178,20 @@ if ($action === 'approve_guard_report') {
         [':case_id' => $caseId, ':offense_id' => $newOffenseId]
       );
 
-      // Send email to guardian
+      // Setup escalation for the dashboard modal
+      $escalationMsg = "This is a Major Offense. Please review and send the notice to the guardian.";
+      $escalationType = 'major';
+      $defaultSubject = 'Major Offense Notice - UPCC Investigation Required';
+      
       $sParams = [':sid' => $studentId];
       db_add_encryption_key($sParams);
       $studentRow = db_one("SELECT " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student WHERE student_id = :sid", $sParams);
       $studentName = trim(($studentRow['student_fn'] ?? '') . ' ' . ($studentRow['student_ln'] ?? ''));
-      $letterBody = "Please be advised that $studentName has been reported for a Major Offense. This case is now an active case under UPCC investigation and a hearing will be required.";
-      send_guardian_notice($studentId, 'Major Offense Notice - UPCC Investigation Required', $letterBody);
+      $defaultBody = "Please be advised that $studentName has been reported for a Major Offense. This case is now an active case under UPCC investigation and a hearing will be required.";
+      
+      $guardianRow = db_one("SELECT guardian_email FROM guardian WHERE student_id = :sid LIMIT 1", [':sid' => $studentId]);
+      $guardianEmail = trim($guardianRow['guardian_email'] ?? '');
+      
   } elseif ($level === 'MINOR') {
       $afterRow = db_one(
         "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MINOR'",

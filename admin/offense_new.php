@@ -1386,6 +1386,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               </div>
             </div>
           </div>
+        <script>
+           const OFFENSE_ID = <?php echo (int)$letterOffenseId; ?>;
+        </script>
         <?php endif; ?>
 
       </div>
