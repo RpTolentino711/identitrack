@@ -1515,6 +1515,39 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <button class="btn" onclick="closeModal()">Cancel</button>
         <button class="btn btn-primary" onclick="saveOffenseType()">Save</button>
       </div>
+  </div>
+
+  <!-- MODAL: Confirm Delete Type -->
+  <div id="confirmDeleteTypeModal" class="modal">
+    <div class="modal-content" style="max-width: 400px; text-align: center; border-radius: 12px; padding: 20px;">
+      <div class="modal-body" style="padding: 20px 10px;">
+        <div style="color: var(--red); margin-bottom: 16px;">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 48px; height: 48px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h3 style="margin-top: 0; margin-bottom: 12px; color: #1e293b; font-size: 20px;">Delete Offense Type?</h3>
+        <p style="color: var(--text-2); font-size: 14px; line-height: 1.5; margin-bottom: 24px;">
+          Are you sure you want to delete this offense type?<br><br>
+          <span style="font-size: 12px; opacity: 0.8;">Note: If this offense type is already in use by students, it will be safely kept for historical records but hidden from future selections.</span>
+        </p>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          <button class="btn" onclick="document.getElementById('confirmDeleteTypeModal').classList.remove('active')" style="flex: 1;">Cancel</button>
+          <button class="btn btn-primary" style="flex: 1; background-color: var(--red); border-color: var(--red);" onclick="executeDeleteType()">Yes, Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Action Success -->
+  <div id="typeActionSuccessModal" class="modal">
+    <div class="modal-content" style="max-width: 400px; text-align: center; border-radius: 12px; padding: 20px;">
+      <div class="modal-body" style="padding: 20px 10px;">
+        <div style="color: #10b981; margin-bottom: 16px;">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 48px; height: 48px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <h3 style="margin-top: 0; margin-bottom: 12px; color: #1e293b; font-size: 20px;" id="typeActionSuccessTitle">Success</h3>
+        <p style="color: var(--text-2); font-size: 14px; line-height: 1.5; margin-bottom: 24px;" id="typeActionSuccessMsg"></p>
+        <button class="btn btn-primary" onclick="document.getElementById('typeActionSuccessModal').classList.remove('active')" style="width: 100%;">Continue</button>
+      </div>
     </div>
   </div>
 
@@ -1887,24 +1920,40 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       modal.classList.add('active');
   }
 
-  async function deleteSelectedType() {
+  let pendingDeleteTypeId = null;
+
+  function deleteSelectedType() {
       const sel = document.getElementById('offense_type_id');
       if (!sel.value || sel.value == '22' || sel.value == '23') return;
-      if (!confirm('Are you sure you want to delete this offense type? Note: if this offense type is already in use by students, it will be kept for history but hidden from future selections.')) return;
+      pendingDeleteTypeId = sel.value;
+      document.getElementById('confirmDeleteTypeModal').classList.add('active');
+  }
+
+  async function executeDeleteType() {
+      if (!pendingDeleteTypeId) return;
+      document.getElementById('confirmDeleteTypeModal').classList.remove('active');
       
       const formData = new FormData();
       formData.append('action', 'delete_offense_type');
-      formData.append('offense_type_id', sel.value);
+      formData.append('offense_type_id', pendingDeleteTypeId);
       
       const res = await fetch(window.location.href, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       const data = await res.json();
       if (data.ok) {
-          alert('Offense type deleted successfully.');
+          showTypeSuccessModal('Deleted Successfully', 'The offense type has been securely removed from the selection list.');
           await refreshOffenseTypes();
-          sel.dispatchEvent(new Event('change'));
+          const sel = document.getElementById('offense_type_id');
+          if (sel) sel.dispatchEvent(new Event('change'));
       } else {
           alert(data.error || 'Failed to delete.');
       }
+      pendingDeleteTypeId = null;
+  }
+
+  function showTypeSuccessModal(title, msg) {
+      document.getElementById('typeActionSuccessTitle').innerText = title;
+      document.getElementById('typeActionSuccessMsg').innerText = msg;
+      document.getElementById('typeActionSuccessModal').classList.add('active');
   }
 
   async function refreshOffenseTypes(selectedId = null) {
@@ -1954,7 +2003,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     if (majorCategory) formData.append('major_category', majorCategory);
     const res  = await fetch(window.location.href, { method:'POST', body:formData, headers:{'X-Requested-With':'XMLHttpRequest'} });
     const data = await res.json();
-    if (data.ok) { closeModal(); await refreshOffenseTypes(data.new_id); }
+    if (data.ok) { 
+        closeModal(); 
+        await refreshOffenseTypes(data.new_id); 
+        showTypeSuccessModal(editId ? 'Offense Type Updated' : 'Offense Type Created', 'The custom offense type has been successfully saved to the database.');
+    }
     else { document.getElementById('modalError').innerText = data.error || 'Error saving offense type.'; }
   }
 
