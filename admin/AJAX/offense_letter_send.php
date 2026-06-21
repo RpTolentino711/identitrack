@@ -199,6 +199,15 @@ $mail->addReplyTo('no-reply@identitrack.local', 'IdentiTrack');
 $mail->isHTML(true);
 $mail->Subject = $subject;
 
+$logoPath = realpath(__DIR__ . '/../../assets/logo.png');
+$hasLogo = ($logoPath && is_readable($logoPath));
+$cid = 'identitracklogo';
+if ($hasLogo) {
+    $mail->addEmbeddedImage($logoPath, $cid, 'logo.png');
+}
+
+$logoSrc = $hasLogo ? "cid:$cid" : "https://identitrack.site/assets/logo.png";
+
 $mail->Body = "
 <!DOCTYPE html>
 <html lang='en'>
@@ -221,13 +230,16 @@ $mail->Body = "
     <div class='email-container'>
       <div class='header'>
         <div class='badge'>Official Notice</div>
-        <img src='https://identitrack.site/assets/logo.png' alt='IdentiTrack' class='logo-img'>
+        <img src='{$logoSrc}' alt='IdentiTrack Logo' class='logo-img'>
         <h1>Student Discipline Office</h1>
       </div>
       <div class='content'>
         <p style='font-weight:600;font-size:16px;color:#1e293b;margin-top:0;'>Dear Parent/Guardian,</p>
-        <p>Please review the attached official notice letter regarding the disciplinary record of <strong>{$studentName}</strong>.</p>
-        <p style='margin-top:24px;margin-bottom:0;'>If you have any questions, please coordinate with the Student Discipline Office or the University Panel on Community Conduct.</p>
+        <p>This is an official communication from the Student Discipline Office.</p>
+        <p>We are writing to formally inform you that an incident report involving your student, <strong>{$studentName}</strong>, has been filed and processed by our office.</p>
+        <p>Because we hold our students to the highest standards of conduct, we believe it is essential to keep parents and guardians closely informed of any disciplinary matters. Attached to this email is the official notice detailing the nature of the offense, the date it occurred, and any associated sanctions or next steps.</p>
+        <p>We strongly encourage you to review the attached PDF document carefully and discuss this matter with your student.</p>
+        <p style='margin-top:24px;margin-bottom:0;'>If you have any questions, require further clarification, or wish to schedule a meeting, please coordinate with the Student Discipline Office or the University Panel on Community Conduct.</p>
       </div>
       <div class='footer'>
         &copy; " . date('Y') . " IdentiTrack System. All rights reserved.<br>This is an automated notification. Please do not reply.
@@ -238,7 +250,7 @@ $mail->Body = "
 </html>
 ";
 
-$mail->AltBody = "Dear Parent/Guardian,\n\nPlease review the attached official conduct notice regarding the disciplinary record of {$studentName}.\n\nStudent Discipline Office";
+$mail->AltBody = "Dear Parent/Guardian,\n\nThis is an official communication from the Student Discipline Office. We are writing to formally inform you that an incident report involving your student, {$studentName}, has been filed and processed by our office.\n\nPlease review the attached official conduct notice regarding their disciplinary record. We strongly encourage you to review the attached PDF document carefully and discuss this matter with your student.\n\nIf you have any questions, please coordinate with the Student Discipline Office.\n\nSincerely,\nStudent Discipline Office";
 
 $mail->addAttachment($fileAbs, $filename);
 
