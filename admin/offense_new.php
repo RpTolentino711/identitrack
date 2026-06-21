@@ -541,11 +541,31 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   if (empty($offenses)) {
     $historyHtml .= '<div style="font-size: 11.5px; color: var(--text-4); text-align: center; padding: 10px;">No offense history found.</div>';
   } else {
-    foreach ($offenses as $o) {
+    // Determine Section 4 coloring by processing chronologically (oldest first)
+    $chronological = array_reverse($offenses);
+    $minorCounter = 0;
+    $processed = [];
+    
+    foreach ($chronological as $o) {
+      if ($o['level'] === 'MINOR') {
+          $minorCounter++;
+      }
+      $isSection4 = ($o['level'] === 'MINOR' && $minorCounter >= 3);
       $isMajor = $o['level'] === 'MAJOR';
-      $bgColor = $isMajor ? 'var(--red-soft)' : 'var(--amber-soft)';
-      $textColor = $isMajor ? 'var(--red)' : 'var(--amber)';
-      $borderColor = $isMajor ? 'var(--red-mid)' : 'var(--amber-mid)';
+      
+      $isRed = $isMajor || $isSection4;
+      $o['isRed'] = $isRed;
+      $processed[] = $o;
+    }
+    
+    // Reverse back to newest first for display
+    $displayOffenses = array_reverse($processed);
+
+    foreach ($displayOffenses as $o) {
+      $isRed = $o['isRed'];
+      $bgColor = $isRed ? 'var(--red-soft)' : 'var(--amber-soft)';
+      $textColor = $isRed ? 'var(--red)' : 'var(--amber)';
+      $borderColor = $isRed ? 'var(--red-mid)' : 'var(--amber-mid)';
       $dateStr = date('M j, Y', strtotime($o['date_committed']));
       $historyHtml .= '
       <div style="background: '.$bgColor.'; border: 1px solid '.$borderColor.'; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
