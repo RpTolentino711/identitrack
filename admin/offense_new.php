@@ -192,7 +192,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
          VALUES (:code, :name, :lvl, :cat, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
         [':code' => $code, ':name' => $name, ':lvl' => $lvl, ':cat' => $lvl === 'MAJOR' ? $major_cat : null]
       );
-      echo json_encode(['ok' => true, 'message' => 'Offense type added.']);
+      $newId = db_last_id();
+      echo json_encode(['ok' => true, 'message' => 'Offense type added.', 'new_id' => $newId]);
     } catch (Exception $e) {
       echo json_encode(['ok' => false, 'error' => 'Database error: ' . $e->getMessage()]);
     }
@@ -1265,7 +1266,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 <div class="form-row full">
                   <div class="form-group">
                     <label for="offense_type_id">Offense Type *</label>
-                    <select id="offense_type_id" name="offense_type_id">
+                    <select id="offense_type_id" name="offense_type_id" onchange="if(this.value == '22' || this.value == '23') { openAddModal(); this.value=''; }">
                       <option value="">— Select Offense Type —</option>
                       <?php foreach ($offenseTypes as $t): ?>
                         <option value="<?php echo (int)$t['offense_type_id']; ?>"
@@ -1822,6 +1823,29 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
   document.getElementById('type_level').addEventListener('change', toggleModalCategory);
 
+  async function refreshOffenseTypes(selectedId = null) {
+      const formData = new FormData();
+      formData.append('action', 'list_offense_types');
+      formData.append('level', document.getElementById('levelSelect').value);
+      const catSel = document.getElementById('categorySelect');
+      if (catSel && catSel.value) formData.append('major_category', catSel.value);
+      
+      const res = await fetch(window.location.href, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const data = await res.json();
+      if (data.ok && data.types) {
+          const sel = document.getElementById('offense_type_id');
+          if (!sel) return;
+          sel.innerHTML = '<option value="">— Select Offense Type —</option>';
+          data.types.forEach(t => {
+              const opt = document.createElement('option');
+              opt.value = t.offense_type_id;
+              opt.textContent = t.code + ' — ' + t.name;
+              if (selectedId && t.offense_type_id == selectedId) opt.selected = true;
+              sel.appendChild(opt);
+          });
+      }
+  }
+
   async function saveOffenseType() {
     const code  = document.getElementById('type_code').value.trim();
     const name  = document.getElementById('type_name').value.trim();
@@ -1841,7 +1865,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     if (majorCategory) formData.append('major_category', majorCategory);
     const res  = await fetch(window.location.href, { method:'POST', body:formData, headers:{'X-Requested-With':'XMLHttpRequest'} });
     const data = await res.json();
-    if (data.ok) { closeModal(); await refreshOffenseTypes(); alert(data.message); }
+    if (data.ok) { closeModal(); await refreshOffenseTypes(data.new_id); }
     else { document.getElementById('modalError').innerText = data.error || 'Error saving offense type.'; }
   }
 
