@@ -1193,7 +1193,29 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             <div class="card-body">
 
               <?php if (!empty($errors)): ?>
-                <div class="errors"><ul><?php foreach ($errors as $e): ?><li><?php echo htmlspecialchars($e); ?></li><?php endforeach; ?></ul></div>
+                <div id="errorModal" class="modal active" style="z-index: 9999;">
+                  <div class="modal-content" style="max-width: 440px;">
+                    <div class="modal-header" style="background: var(--red-soft); border-bottom: 1px solid #fca5a5; color: var(--red);">
+                      <h3 style="display:flex; align-items:center; gap:8px;">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:20px;height:20px;"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        Validation Error
+                      </h3>
+                      <button type="button" class="modal-close" onclick="this.closest('.modal').classList.remove('active')" style="color: var(--red);">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding: 24px;">
+                      <ul style="list-style: none; padding: 0; margin: 0; color: var(--text-2); font-weight: 600; font-size: 14px; line-height: 1.5;">
+                        <?php foreach ($errors as $e): ?>
+                          <li style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 8px;">
+                            <span style="color: var(--red); margin-top: -1px;">&bull;</span> <span><?php echo htmlspecialchars($e); ?></span>
+                          </li>
+                        <?php endforeach; ?>
+                      </ul>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn" style="background: var(--surface-2);" onclick="this.closest('.modal').classList.remove('active')">Okay</button>
+                    </div>
+                  </div>
+                </div>
               <?php endif; ?>
 
               <form method="post" id="offenseForm">
