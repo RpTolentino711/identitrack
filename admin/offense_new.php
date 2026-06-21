@@ -1214,7 +1214,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 </div>
               <?php endif; ?>
 
-              <form method="post" id="offenseForm">
+              <form method="post" action="offense_new.php" id="offenseForm">
 
                 <div class="form-row">
                   <div class="form-group">
@@ -2023,7 +2023,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }, 600);
   }
 
-  if (SUCCESS_MODE && successModal) {
+  const HAS_ERRORS = <?php echo empty($errors) ? 'false' : 'true'; ?>;
+  if (SUCCESS_MODE && successModal && !HAS_ERRORS) {
       successModal.classList.add('active');
       
       var bar = document.getElementById('successModalProgress');
