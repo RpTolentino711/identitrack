@@ -1515,6 +1515,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <button class="btn" onclick="closeModal()">Cancel</button>
         <button class="btn btn-primary" onclick="saveOffenseType()">Save</button>
       </div>
+    </div>
   </div>
 
   <!-- MODAL: Confirm Delete Type -->
