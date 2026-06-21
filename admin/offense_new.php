@@ -1784,7 +1784,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     if (studentModal) studentModal.classList.remove('active');
   }
   document.addEventListener('DOMContentLoaded', () => {
-    if (SHOW_STUDENT_RECORD_MODAL && !SUCCESS_MODE) {
+    const hasPhpErrors = <?php echo empty($errors) ? 'false' : 'true'; ?>;
+    if (SHOW_STUDENT_RECORD_MODAL && !SUCCESS_MODE && !hasPhpErrors) {
       openStudentRecordModal();
     }
   });
