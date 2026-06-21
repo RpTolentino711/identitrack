@@ -1194,25 +1194,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
               <?php if (!empty($errors)): ?>
                 <div id="errorModal" class="modal active" style="z-index: 9999;">
-                  <div class="modal-content" style="max-width: 440px;">
-                    <div class="modal-header" style="background: var(--red-soft); border-bottom: 1px solid #fca5a5; color: var(--red);">
-                      <h3 style="display:flex; align-items:center; gap:8px;">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:20px;height:20px;"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                        Validation Error
-                      </h3>
-                      <button type="button" class="modal-close" onclick="this.closest('.modal').classList.remove('active')" style="color: var(--red);">&times;</button>
-                    </div>
-                    <div class="modal-body" style="padding: 24px;">
-                      <ul style="list-style: none; padding: 0; margin: 0; color: var(--text-2); font-weight: 600; font-size: 14px; line-height: 1.5;">
+                  <div class="modal-content" style="max-width: 400px; text-align: center; border-radius: 24px; overflow: hidden; padding-top: 36px; border: none;">
+                    <img src="../assets/logo.png" alt="Logo" style="width: 76px; height: auto; margin: 0 auto 18px; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+                    <h3 style="font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 10px; letter-spacing: -0.5px;">Action Required</h3>
+                    <div style="width: 48px; height: 4px; background: var(--red); margin: 0 auto 24px; border-radius: 4px; opacity: 0.8;"></div>
+                    <div class="modal-body" style="padding: 0 32px 24px;">
+                      <ul style="list-style: none; padding: 0; margin: 0; color: var(--text-2); font-weight: 500; font-size: 15px; line-height: 1.6;">
                         <?php foreach ($errors as $e): ?>
-                          <li style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 8px;">
-                            <span style="color: var(--red); margin-top: -1px;">&bull;</span> <span><?php echo htmlspecialchars($e); ?></span>
+                          <li style="margin-bottom: 8px;">
+                            <?php echo htmlspecialchars($e); ?>
                           </li>
                         <?php endforeach; ?>
                       </ul>
                     </div>
-                    <div class="modal-footer">
-                      <button type="button" class="btn" style="background: var(--surface-2);" onclick="this.closest('.modal').classList.remove('active')">Okay</button>
+                    <div style="padding: 16px 32px 32px;">
+                      <button type="button" class="btn btn-primary" style="width: 100%; justify-content: center; background: linear-gradient(135deg, var(--red) 0%, #b91c1c 100%); border: none; box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3); border-radius: 14px; height: 50px; font-size: 15px; font-weight: 700;" onclick="this.closest('.modal').classList.remove('active')">Got it</button>
                     </div>
                   </div>
                 </div>
