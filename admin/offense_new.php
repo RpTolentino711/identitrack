@@ -1475,23 +1475,40 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   <!-- MODAL: Success after register -->
   <div id="successModal" class="modal">
-    <div class="modal-content" style="text-align: center; max-width: 400px; border-radius: 12px; overflow: hidden; position: relative;">
+    <div class="modal-content" style="text-align: center; max-width: 400px; border-radius: 12px; overflow: hidden; position: relative; <?php echo ($letterType === 'escalation' || $letterType === 'major') ? 'border: 2px solid var(--red); box-shadow: 0 10px 25px rgba(220, 38, 38, 0.2);' : ''; ?>">
       <div class="modal-body" style="padding: 40px 30px;">
         <button class="modal-close" onclick="closeSuccessModal()" style="position: absolute; top: 15px; right: 15px;">&times;</button>
         <img src="../assets/logo.png" alt="IdentiTrack Logo" style="height: 64px; margin-bottom: 24px;">
-        <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #1e293b;">Offense Registered</h3>
-        <?php if ($letterMode): ?>
+        
+        <?php if ($letterType === 'escalation'): ?>
+          <h3 style="margin: 0 0 12px 0; font-size: 20px; color: var(--red);">🚨 Section 4 Triggered</h3>
           <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
-            The offense record has been saved. You may now review and send the guardian notification letter below.
+            <strong style="color:var(--red);">3rd Minor Offense!</strong> The student has reached Section 4. A UPCC case has been automatically created. Please send the guardian notification below.
           </p>
-          <button class="btn btn-primary" id="successCloseBtn" type="button" onclick="closeSuccessModal()" style="width: 100%; justify-content: center; padding: 12px;">Compose Guardian Email</button>
+        <?php elseif ($letterType === 'major'): ?>
+          <h3 style="margin: 0 0 12px 0; font-size: 20px; color: var(--red);">🚨 Major Offense</h3>
+          <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
+            This major offense requires immediate UPCC panel review. A UPCC case has been automatically created. Please send the guardian notification below.
+          </p>
         <?php else: ?>
-          <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
-            The offense record has been saved successfully.
-          </p>
+          <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #1e293b;">Offense Registered</h3>
+          <?php if ($letterMode): ?>
+            <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
+              The offense record has been saved. You may now review and send the guardian notification letter below.
+            </p>
+          <?php else: ?>
+            <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
+              The offense record has been saved successfully.
+            </p>
+          <?php endif; ?>
+        <?php endif; ?>
+
+        <?php if ($letterMode): ?>
+          <button class="btn btn-primary" id="successCloseBtn" type="button" onclick="closeSuccessModal()" style="width: 100%; justify-content: center; padding: 12px; <?php echo ($letterType === 'escalation' || $letterType === 'major') ? 'background: var(--red); border-color: var(--red); box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);' : ''; ?>">Compose Guardian Email</button>
+        <?php else: ?>
           <a href="offenses.php" class="btn btn-primary" id="successCloseBtn" style="width: 100%; justify-content: center; padding: 12px;">Go to Offenses</a>
         <?php endif; ?>
-        <div id="successModalProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: var(--blue, #2563eb); width: 100%;"></div>
+        <div id="successModalProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: <?php echo ($letterType === 'escalation' || $letterType === 'major') ? 'var(--red)' : 'var(--blue, #2563eb)'; ?>; width: 100%;"></div>
       </div>
     </div>
   </div>
