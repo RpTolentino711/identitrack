@@ -31,7 +31,7 @@ $postExistingTypeId = (int)($_POST['offense_type_id'] ?? 0);
 if ($level === 'MINOR') {
   $offenseTypes = db_all(
     "SELECT offense_type_id, code, name FROM offense_type
-     WHERE is_active = 1 AND level = 'MINOR' ORDER BY code ASC",
+     WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
     []
   ) ?: [];
 }
@@ -204,10 +204,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
     $lvl = $_POST['level'] ?? 'MINOR';
     $cat = isset($_POST['major_category']) ? (int)$_POST['major_category'] : 0;
     if ($lvl === 'MAJOR' && $cat >= 1 && $cat <= 5) {
-      $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR' AND major_category = :cat ORDER BY code ASC", [':cat' => $cat]) ?: [];
+      $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR' AND major_category = :cat AND code NOT LIKE '%OTHER%' ORDER BY code ASC", [':cat' => $cat]) ?: [];
       $rows[] = ['offense_type_id' => 23, 'code' => 'OTHER', 'name' => 'Other / Custom Major Offense'];
     } else {
-      $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MINOR' ORDER BY code ASC") ?: [];
+      $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
       $rows[] = ['offense_type_id' => 22, 'code' => 'OTHER', 'name' => 'Other / Custom Minor Offense'];
     }
     echo json_encode(['ok' => true, 'types' => $rows]);
