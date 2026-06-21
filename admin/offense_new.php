@@ -541,20 +541,30 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   if (empty($offenses)) {
     $historyHtml .= '<div style="font-size: 11.5px; color: var(--text-4); text-align: center; padding: 10px;">No offense history found.</div>';
   } else {
-    // Determine Section 4 coloring by processing chronologically (oldest first)
+    $totalMinors = 0;
+    foreach ($offenses as $o) {
+        if ($o['level'] === 'MINOR') $totalMinors++;
+    }
+    
+    // Determine how many minors belong to completed Section 4 groups (multiples of 3)
+    $completedSection4Minors = floor($totalMinors / 3) * 3;
+    
     $chronological = array_reverse($offenses);
     $minorCounter = 0;
     $processed = [];
     
     foreach ($chronological as $o) {
+      $isSection4 = false;
       if ($o['level'] === 'MINOR') {
           $minorCounter++;
+          if ($minorCounter <= $completedSection4Minors) {
+              $isSection4 = true;
+          }
       }
-      $isSection4 = ($o['level'] === 'MINOR' && $minorCounter >= 3);
       $isMajor = $o['level'] === 'MAJOR';
       
-      $isRed = $isMajor || $isSection4;
-      $o['isRed'] = $isRed;
+      $o['isRed'] = $isMajor || $isSection4;
+      $o['isSection4Label'] = $isSection4;
       $processed[] = $o;
     }
     
@@ -563,13 +573,23 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
 
     foreach ($displayOffenses as $o) {
       $isRed = $o['isRed'];
+      $isSection4Label = $o['isSection4Label'] ?? false;
       $bgColor = $isRed ? 'var(--red-soft)' : 'var(--amber-soft)';
       $textColor = $isRed ? 'var(--red)' : 'var(--amber)';
       $borderColor = $isRed ? 'var(--red-mid)' : 'var(--amber-mid)';
       $dateStr = date('M j, Y', strtotime($o['date_committed']));
+      
+      $labelHtml = '';
+      if ($isSection4Label) {
+          $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">SECTION 4</div><br>';
+      } else if ($o['level'] === 'MAJOR') {
+          $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">MAJOR</div><br>';
+      }
+
       $historyHtml .= '
       <div style="background: '.$bgColor.'; border: 1px solid '.$borderColor.'; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
         <div style="flex: 1;">
+          '.$labelHtml.'
           <div style="font-size: 11.5px; font-weight: 700; color: '.$textColor.'; line-height: 1.3;">'.htmlspecialchars($o['code']).' — '.htmlspecialchars($o['name']).'</div>
         </div>
         <div style="font-size: 10px; font-weight: 600; color: '.$textColor.'; opacity: 0.8; white-space: nowrap; margin-top: 1px;">'.$dateStr.'</div>
