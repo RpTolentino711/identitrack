@@ -172,7 +172,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
   header('Content-Type: application/json');
   $action = $_POST['action'] ?? '';
 
-  if ($action === 'add_offense_type') {
+  if ($action === 'add_offense_type' || $action === 'edit_offense_type') {
+    $edit_id   = (int)($_POST['edit_id'] ?? 0);
     $code      = trim($_POST['code'] ?? '');
     $name      = trim($_POST['name'] ?? '');
     $lvl       = $_POST['level'] ?? 'MINOR';
@@ -187,15 +188,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
       exit;
     }
     try {
-      db_exec(
-        "INSERT INTO offense_type (code, name, level, major_category, is_active, created_at, updated_at)
-         VALUES (:code, :name, :lvl, :cat, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-        [':code' => $code, ':name' => $name, ':lvl' => $lvl, ':cat' => $lvl === 'MAJOR' ? $major_cat : null]
-      );
-      $newId = db_last_id();
-      echo json_encode(['ok' => true, 'message' => 'Offense type added.', 'new_id' => $newId]);
+      if ($action === 'edit_offense_type' && $edit_id > 0) {
+        db_exec(
+          "UPDATE offense_type SET code = :code, name = :name, level = :lvl, major_category = :cat, updated_at = CURRENT_TIMESTAMP WHERE offense_type_id = :id",
+          [':code' => $code, ':name' => $name, ':lvl' => $lvl, ':cat' => $lvl === 'MAJOR' ? $major_cat : null, ':id' => $edit_id]
+        );
+        echo json_encode(['ok' => true, 'message' => 'Offense type updated.', 'new_id' => $edit_id]);
+      } else {
+        db_exec(
+          "INSERT INTO offense_type (code, name, level, major_category, is_active, created_at, updated_at)
+           VALUES (:code, :name, :lvl, :cat, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+          [':code' => $code, ':name' => $name, ':lvl' => $lvl, ':cat' => $lvl === 'MAJOR' ? $major_cat : null]
+        );
+        $newId = db_last_id();
+        echo json_encode(['ok' => true, 'message' => 'Offense type added.', 'new_id' => $newId]);
+      }
     } catch (Exception $e) {
       echo json_encode(['ok' => false, 'error' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit;
+  }
+
+  if ($action === 'delete_offense_type') {
+    $tid = (int)($_POST['offense_type_id'] ?? 0);
+    if ($tid > 0 && !in_array($tid, [22, 23], true)) {
+        // Soft delete
+        db_exec("UPDATE offense_type SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE offense_type_id = :id", [':id' => $tid]);
+        echo json_encode(['ok' => true]);
+    } else {
+        echo json_encode(['ok' => false, 'error' => 'Invalid offense type.']);
     }
     exit;
   }
@@ -1266,7 +1287,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 <div class="form-row full">
                   <div class="form-group">
                     <label for="offense_type_id">Offense Type *</label>
-                    <select id="offense_type_id" name="offense_type_id" onchange="if(this.value == '22' || this.value == '23') { openAddModal(); this.value=''; }">
+                    <select id="offense_type_id" name="offense_type_id" onchange="
+                      if(this.value == '22' || this.value == '23') { openAddModal(); this.value=''; }
+                      const btnE = document.getElementById('btnEditType');
+                      const btnD = document.getElementById('btnDeleteType');
+                      const lbl = document.getElementById('typeActionLabel');
+                      if(this.value && this.value != '22' && this.value != '23') {
+                          btnE.style.display = 'inline-flex';
+                          btnD.style.display = 'inline-flex';
+                          lbl.innerText = 'Manage selected offense type';
+                      } else {
+                          btnE.style.display = 'none';
+                          btnD.style.display = 'none';
+                          lbl.innerText = 'Add new offense type';
+                      }
+                    ">
                       <option value="">— Select Offense Type —</option>
                       <?php foreach ($offenseTypes as $t): ?>
                         <option value="<?php echo (int)$t['offense_type_id']; ?>"
@@ -1289,7 +1324,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       <button type="button" class="btn btn-circle" onclick="openAddModal()" title="Add new offense type">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                       </button>
-                      <span style="font-size: 12px; color: var(--text-3);">Add new offense type</span>
+                      <button type="button" class="btn btn-circle" id="btnEditType" onclick="editSelectedType()" title="Edit selected offense type" style="display:none; color: var(--primary);">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button type="button" class="btn btn-circle" id="btnDeleteType" onclick="deleteSelectedType()" title="Delete selected offense type" style="display:none; color: var(--red);">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                      </button>
+                      <span style="font-size: 12px; color: var(--text-3);" id="typeActionLabel">Add new offense type</span>
                     </div>
                   </div>
                 </div>
@@ -1441,10 +1482,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   <div id="offenseTypeModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Add Offense Type</h3>
+        <h3 id="typeModalTitle">Add Offense Type</h3>
         <button class="modal-close" onclick="closeModal()">&times;</button>
       </div>
       <div class="modal-body">
+        <input type="hidden" id="edit_offense_type_id" value="">
         <div class="form-group" style="margin-bottom:12px;">
           <label>Code *</label>
           <input type="text" id="type_code" placeholder="e.g., MIN-099 or MAJ-021">
@@ -1810,6 +1852,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
   });
   function openAddModal() {
+    document.getElementById('edit_offense_type_id').value = '';
+    document.getElementById('typeModalTitle').innerText = 'Add New Offense Type';
     document.getElementById('type_code').value  = '';
     document.getElementById('type_name').value  = '';
     document.getElementById('type_level').value = currentLevel;
@@ -1822,6 +1866,46 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     document.getElementById('modalCategoryGroup').style.display = (lvl === 'MAJOR') ? 'block' : 'none';
   }
   document.getElementById('type_level').addEventListener('change', toggleModalCategory);
+
+  function editSelectedType() {
+      const sel = document.getElementById('offense_type_id');
+      if (!sel.value || sel.value == '22' || sel.value == '23') return;
+      const opt = sel.options[sel.selectedIndex];
+      const parts = opt.textContent.trim().split(' — ');
+      if (parts.length >= 2) {
+          document.getElementById('type_code').value = parts[0].trim();
+          document.getElementById('type_name').value = parts.slice(1).join(' — ').trim();
+      }
+      document.getElementById('type_level').value = currentLevel;
+      if (currentLevel === 'MAJOR') {
+          document.getElementById('type_major_category').value = document.getElementById('categorySelect')?.value || '';
+      }
+      toggleModalCategory();
+      
+      document.getElementById('edit_offense_type_id').value = sel.value;
+      document.getElementById('typeModalTitle').innerText = 'Edit Offense Type';
+      modal.classList.add('active');
+  }
+
+  async function deleteSelectedType() {
+      const sel = document.getElementById('offense_type_id');
+      if (!sel.value || sel.value == '22' || sel.value == '23') return;
+      if (!confirm('Are you sure you want to delete this offense type? Note: if this offense type is already in use by students, it will be kept for history but hidden from future selections.')) return;
+      
+      const formData = new FormData();
+      formData.append('action', 'delete_offense_type');
+      formData.append('offense_type_id', sel.value);
+      
+      const res = await fetch(window.location.href, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const data = await res.json();
+      if (data.ok) {
+          alert('Offense type deleted successfully.');
+          await refreshOffenseTypes();
+          sel.dispatchEvent(new Event('change'));
+      } else {
+          alert(data.error || 'Failed to delete.');
+      }
+  }
 
   async function refreshOffenseTypes(selectedId = null) {
       const formData = new FormData();
@@ -1857,8 +1941,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       majorCategory = parseInt(cat);
     }
     if (!code || !name) { document.getElementById('modalError').innerText = 'Code and Name are required.'; return; }
+    
+    const editId = document.getElementById('edit_offense_type_id').value;
+    
     const formData = new FormData();
-    formData.append('action', 'add_offense_type');
+    formData.append('action', editId ? 'edit_offense_type' : 'add_offense_type');
+    if (editId) formData.append('edit_id', editId);
+    
     formData.append('code', code);
     formData.append('name', name);
     formData.append('level', level);
