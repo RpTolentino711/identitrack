@@ -499,7 +499,7 @@ function renderMajorAlert(int $majorCount, array $upccCases): string {
   </div>';
 }
 
-function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $majorCount = 0, $activeCases = []) {
+function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $majorCount = 0, $activeCases = [], $offenses = []) {
   if (!$student) return '';
   $fullName    = htmlspecialchars($student['student_fn'] . ' ' . $student['student_ln']);
   $studentId   = htmlspecialchars($student['student_id']);
@@ -537,6 +537,26 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
 
   $historyUrl = 'offenses_student_view.php?student_id=' . urlencode($student['student_id']);
 
+  $historyHtml = '';
+  if (empty($offenses)) {
+    $historyHtml .= '<div style="font-size: 11.5px; color: var(--text-4); text-align: center; padding: 10px;">No offense history found.</div>';
+  } else {
+    foreach ($offenses as $o) {
+      $isMajor = $o['level'] === 'MAJOR';
+      $bgColor = $isMajor ? 'var(--red-soft)' : 'var(--amber-soft)';
+      $textColor = $isMajor ? 'var(--red)' : 'var(--amber)';
+      $borderColor = $isMajor ? 'var(--red-mid)' : 'var(--amber-mid)';
+      $dateStr = date('M j, Y', strtotime($o['date_committed']));
+      $historyHtml .= '
+      <div style="background: '.$bgColor.'; border: 1px solid '.$borderColor.'; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+        <div style="flex: 1;">
+          <div style="font-size: 11.5px; font-weight: 700; color: '.$textColor.'; line-height: 1.3;">'.htmlspecialchars($o['code']).' — '.htmlspecialchars($o['name']).'</div>
+        </div>
+        <div style="font-size: 10px; font-weight: 600; color: '.$textColor.'; opacity: 0.8; white-space: nowrap; margin-top: 1px;">'.$dateStr.'</div>
+      </div>';
+    }
+  }
+
   return '
   <div class="student-info-card">
     <div class="sic-header">
@@ -562,9 +582,16 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       </div>
       ' . $caseRows . '
       <div style="margin-top: 12px;">
-        <a href="' . $historyUrl . '" class="btn" style="width: 100%; display: flex; justify-content: center; padding: 7px 12px; font-size: 12px; background: var(--surface-2);">
-          View Full History
-        </a>
+        <details style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+          <summary style="padding: 10px 14px; font-size: 12px; font-weight: 700; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; color: var(--text-2); user-select: none;">
+            View Full History
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 14px; height: 14px; transition: transform 0.2s;"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div style="padding: 12px; border-top: 1px solid var(--border); background: var(--surface); max-height: 250px; overflow-y: auto;">
+            ' . $historyHtml . '
+          </div>
+        </details>
+        <style>details > summary::-webkit-details-marker { display: none; } details[open] summary svg { transform: rotate(180deg); }</style>
       </div>
     </div>
   </div>';
@@ -1405,7 +1432,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <!-- RIGHT: STUDENT INFO + ALERT PANEL -->
         <aside>
           <?php if ($postStudentId !== '' && $studentInfo): ?>
-            <?php echo renderStudentInfoCard($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases); ?>
+            <?php echo renderStudentInfoCard($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $liveOffenses); ?>
           <?php elseif ($postStudentId !== '' && !$studentInfo): ?>
             <div class="panel-placeholder" style="margin-bottom:16px;">
               <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
