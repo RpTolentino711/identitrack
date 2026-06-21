@@ -1878,7 +1878,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
       document.getElementById('type_level').value = currentLevel;
       if (currentLevel === 'MAJOR') {
-          document.getElementById('type_major_category').value = document.getElementById('categorySelect')?.value || '';
+          document.getElementById('type_major_category').value = document.getElementById('major_category')?.value || '';
       }
       toggleModalCategory();
       
