@@ -1049,12 +1049,12 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
   </div>
 
   <!-- ── Approve Success Modal ── -->
-  <div id="approveSuccessModal" class="guard-confirm-overlay" aria-hidden="true">
+  <div id="approveSuccessModal" class="guard-confirm-overlay" aria-hidden="true" style="z-index: 2400;">
     <div class="guard-confirm-box" role="dialog" aria-modal="true" style="text-align:center; padding:40px 30px; position:relative; overflow:hidden;">
       <button class="modal-close" onclick="document.getElementById('approveSuccessOkBtn').click()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b;">&times;</button>
       <img src="../assets/logo.png" alt="IdentiTrack Logo" style="height: 64px; margin-bottom: 20px;">
-      <h4 style="font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:#111827; margin:0 0 8px; letter-spacing:-0.5px;">Offense Recorded</h4>
-      <p style="font-size:14px; color:#4b5563; margin:0 0 24px; line-height:1.6;">The offense has been successfully verified and added to the student's disciplinary record.</p>
+      <h4 id="approveSuccessTitle" style="font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:#111827; margin:0 0 8px; letter-spacing:-0.5px;">Offense Recorded</h4>
+      <p id="approveSuccessDesc" style="font-size:14px; color:#4b5563; margin:0 0 24px; line-height:1.6;">The offense has been successfully verified and added to the student's disciplinary record.</p>
       <button id="approveSuccessOkBtn" type="button" class="gm-btn approve" style="width:100%; justify-content:center; font-size:15px; padding:12px;">Got it, thanks!</button>
       <div id="approveSuccessProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: #10b981; width: 100%;"></div>
     </div>
@@ -1330,31 +1330,90 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
             window.refreshNotifications();
           }
           
-          if (data.escalation_type) {
-              openLetterModal(data);
-          } else {
-              if (action === 'approve_guard_report') {
-                  var sm = document.getElementById('approveSuccessModal');
-                  if (sm) {
-                      sm.classList.add('show');
-                      sm.setAttribute('aria-hidden', 'false');
+          if (action === 'approve_guard_report') {
+              var sm = document.getElementById('approveSuccessModal');
+              var title = document.getElementById('approveSuccessTitle');
+              var desc = document.getElementById('approveSuccessDesc');
+              var btn = document.getElementById('approveSuccessOkBtn');
+              var progress = document.getElementById('approveSuccessProgress');
+              
+              if (sm && title && desc && btn && progress) {
+                  // Replace button to clear old event listeners
+                  var newBtn = btn.cloneNode(true);
+                  btn.parentNode.replaceChild(newBtn, btn);
+                  btn = newBtn;
+                  
+                  if (!data.escalation_type) {
+                      title.textContent = '1st Offense Recorded';
+                      title.style.color = '#111827';
+                      desc.innerHTML = 'This is the student\'s <strong>1st Minor Offense</strong>.<br>It has been successfully verified and added to their record.';
+                      btn.textContent = 'Got it, thanks!';
+                      btn.className = 'gm-btn approve';
+                      btn.style.background = '#f0fdf4';
+                      btn.style.color = '#166534';
+                      btn.style.border = '1px solid #bbf7d0';
+                      progress.style.backgroundColor = '#10b981';
                       
-                      var bar = document.getElementById('approveSuccessProgress');
-                      if (bar) {
-                          bar.style.transition = 'none';
-                          bar.style.width = '100%';
-                          setTimeout(function() {
-                              bar.style.transition = 'width 5s linear';
-                              bar.style.width = '0%';
-                          }, 50);
+                      btn.addEventListener('click', function() {
+                          if (window.approveSuccessTimer) clearTimeout(window.approveSuccessTimer);
+                          sm.classList.remove('show');
+                          sm.setAttribute('aria-hidden', 'true');
+                      });
+                      var timer = setTimeout(function() { btn.click(); }, 5000);
+                      window.approveSuccessTimer = timer;
+                      
+                      progress.style.transition = 'none';
+                      progress.style.width = '100%';
+                      setTimeout(function() {
+                          progress.style.transition = 'width 5s linear';
+                          progress.style.width = '0%';
+                      }, 50);
+                  } else {
+                      if (window.approveSuccessTimer) clearTimeout(window.approveSuccessTimer);
+                      progress.style.backgroundColor = 'transparent';
+                      
+                      if (data.escalation_type === 'letter') {
+                          title.textContent = '2nd Minor Offense Recorded';
+                          title.style.color = '#92400e';
+                          desc.innerHTML = 'This is the student\'s <strong>2nd Minor Offense</strong>.<br>A guardian notification is required.';
+                          btn.textContent = 'Proceed to Notification ➔';
+                          btn.className = 'gm-btn';
+                          btn.style.background = '#fffbeb';
+                          btn.style.color = '#92400e';
+                          btn.style.border = '1px solid #fde68a';
+                      } else if (data.escalation_type === 'escalation') {
+                          title.textContent = 'Section 4 Escalation';
+                          title.style.color = '#b91c1c';
+                          desc.innerHTML = 'This is the student\'s <strong>3rd Minor Offense</strong>.<br>It has been escalated to Section 4 (Major Level).<br>A guardian notification is required.';
+                          btn.textContent = 'Proceed to Notification ➔';
+                          btn.className = 'gm-btn';
+                          btn.style.background = '#fef2f2';
+                          btn.style.color = '#b91c1c';
+                          btn.style.border = '1px solid #fecaca';
+                      } else if (data.escalation_type === 'major') {
+                          title.textContent = 'Major Offense Recorded';
+                          title.style.color = '#b91c1c';
+                          desc.innerHTML = 'This is a <strong>Major Offense</strong>.<br>A UPCC investigation and guardian notification are required.';
+                          btn.textContent = 'Proceed to Notification ➔';
+                          btn.className = 'gm-btn';
+                          btn.style.background = '#fef2f2';
+                          btn.style.color = '#b91c1c';
+                          btn.style.border = '1px solid #fecaca';
                       }
                       
-                      var timer = setTimeout(function() {
-                          var btn = document.getElementById('approveSuccessOkBtn');
-                          if (btn) btn.click();
-                      }, 5000);
-                      window.approveSuccessTimer = timer;
+                      btn.addEventListener('click', function() {
+                          sm.classList.remove('show');
+                          sm.setAttribute('aria-hidden', 'true');
+                          openLetterModal(data);
+                      });
                   }
+                  
+                  sm.classList.add('show');
+                  sm.setAttribute('aria-hidden', 'false');
+              }
+          } else {
+              if (data.escalation_type) {
+                  openLetterModal(data);
               } else {
                   showFlash('ok', data.message || 'Guard report updated.', timeout);
               }
