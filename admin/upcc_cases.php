@@ -901,7 +901,7 @@ function fmt_case_id(int $id, string $created): string {
         .dept-card-btn .cp-card {
             transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
         }
-        .dept-card-btn:hover .cp-card {
+        .dept-card-btn:hover .cp-card, .cp-card[onclick]:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 18px rgba(27, 43, 107, 0.10);
             border-color: #c9d6f4;
@@ -1317,7 +1317,16 @@ function fmt_case_id(int $id, string $created): string {
                         $rb = match(strtolower($m['role'])) { 'chairperson'=>'rb-chair', 'vice chair'=>'rb-vchair', 'secretary'=>'rb-sec', default=>'rb-member' };
                         $isActive = (bool)$m['is_active'];
                     ?>
-                    <div class="cp-card <?= $isActive ? '' : 'inactive' ?>" data-name="<?= e(strtolower($m['full_name'])) ?>" data-role="<?= e(strtolower($m['role'])) ?>" data-email="<?= e(strtolower($m['email'])) ?>">
+                    <div class="cp-card <?= $isActive ? '' : 'inactive' ?>" 
+                         style="cursor:pointer;" 
+                         data-name="<?= e(strtolower($m['full_name'])) ?>" 
+                         data-email="<?= e(strtolower($m['email'])) ?>"
+                         data-upcc-id="<?= (int)$m['upcc_id'] ?>"
+                         data-full-name="<?= e($m['full_name']) ?>"
+                         data-role="<?= e($m['role']) ?>"
+                         data-department-id="<?= $m['department_id'] !== null ? (int)$m['department_id'] : '' ?>"
+                         data-is-active="<?= $m['is_active'] ? '1' : '0' ?>"
+                         onclick="if(!event.target.closest('form')){ openMemberEditModal(this); }">
                         <div class="edit-strip" id="es-<?= $m['upcc_id'] ?>">
                             <div class="es-head">
                                 <div class="es-avatar"><?= e($initials) ?></div>
@@ -1361,19 +1370,8 @@ function fmt_case_id(int $id, string $created): string {
                         <div class="cp-email"><?= e($m['email']) ?></div>
                         <div class="cp-email"><?= e($m['dept_name'] ?? 'No department') ?></div>
                         <div class="cp-status <?= $isActive ? 'on' : 'off' ?>"><?= $isActive ? '● Active' : '● Inactive' ?></div>
-                        <div class="cp-actions">
-                            <button
-                                class="btn-ic edit"
-                                type="button"
-                                data-upcc-id="<?= (int)$m['upcc_id'] ?>"
-                                data-full-name="<?= e($m['full_name']) ?>"
-                                data-email="<?= e($m['email']) ?>"
-                                data-role="<?= e($m['role']) ?>"
-                                data-department-id="<?= $m['department_id'] !== null ? (int)$m['department_id'] : '' ?>"
-                                data-is-active="<?= $m['is_active'] ? '1' : '0' ?>"
-                                onclick="openMemberEditModal(this)">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                            </button>
+                        <div class="cp-actions" style="justify-content:center;">
+                            <span style="font-size:11px;color:#aab8d8;font-weight:600;display:flex;align-items:center;gap:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Click card to edit</span>
                             <?php if (!$isActive): ?>
                                 <form method="post" action="upcc_cases.php" style="display:inline;" onsubmit="return confirm('Hard delete this inactive member? This cannot be undone.')">
                                     <input type="hidden" name="action" value="delete_member">
@@ -2029,16 +2027,18 @@ function switchCpTab(tab, btn) {
     document.querySelectorAll('.cptab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 }
+function showConfirmStrip(id) { document.getElementById('cs-'+id).classList.add('show'); }
+function hideConfirmStrip(id) { document.getElementById('cs-'+id).classList.remove('show'); }
+
 function cpSearch() {
     const q = document.getElementById('cp-search').value.toLowerCase();
     document.querySelectorAll('#cp-member-grid .cp-card').forEach(card => {
-        card.style.display = (card.dataset.name.includes(q) || card.dataset.role.includes(q) || card.dataset.email.includes(q)) ? '' : 'none';
+        const n = card.dataset.name || '';
+        const r = (card.dataset.role || '').toLowerCase();
+        const e = card.dataset.email || '';
+        card.style.display = (n.includes(q) || r.includes(q) || e.includes(q)) ? '' : 'none';
     });
 }
-function showEditStrip(id)    { document.getElementById('es-'+id).classList.add('show'); }
-function hideEditStrip(id)    { document.getElementById('es-'+id).classList.remove('show'); }
-function showConfirmStrip(id) { document.getElementById('cs-'+id).classList.add('show'); }
-function hideConfirmStrip(id) { document.getElementById('cs-'+id).classList.remove('show'); }
 
 function openMemberEditModal(btn) {
     document.getElementById('member-edit-upcc-id').value = btn.dataset.upccId || '';
