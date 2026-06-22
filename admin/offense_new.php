@@ -510,6 +510,12 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   $guardian    = $guardianEmail ? htmlspecialchars($guardianEmail) : '<span class="text-muted">Not provided</span>';
 
   $minorText = $minorCount === 1 ? '1 Minor Offense' : $minorCount . ' Minor Offenses';
+  $section4Count = floor($minorCount / 3);
+  if ($section4Count > 0) {
+      $s4Text = $section4Count === 1 ? '1 Section 4 Escalation' : $section4Count . ' Section 4 Escalations';
+      $minorText .= ' <span style="font-weight:800;color:var(--red);font-size:12px;">(' . $s4Text . ')</span>';
+  }
+  
   $majorText = $majorCount === 1 ? '1 Major Offense' : $majorCount . ' Major Offenses';
 
   $caseRows = '';
