@@ -628,8 +628,13 @@ function fmt_case_id(int $id, string $created): string {
         .stat-card.green .stat-value { color: #27ae60; }
         .stat-card.red .stat-value { color: #e74c3c; }
 
-        .committee-panel { background: linear-gradient(135deg, #1b2b6b 0%, #2a3f8f 60%, #1b2b6b 100%); border-radius: 16px; padding: 28px 28px 24px; margin-bottom: 28px; color: #fff; cursor: pointer; transition: opacity 0.15s, transform 0.15s; }
-        .committee-panel:hover { opacity: .93; transform: translateY(-1px); }
+        .committee-panel { position: relative; overflow: hidden; background: linear-gradient(135deg, #1b2b6b 0%, #2a3f8f 60%, #1b2b6b 100%); border-radius: 16px; padding: 28px 28px 24px; margin-bottom: 28px; color: #fff; cursor: pointer; transition: box-shadow 0.2s, transform 0.2s; box-shadow: 0 4px 15px rgba(27, 43, 107, 0.2); }
+        .committee-panel:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(27, 43, 107, 0.3); }
+        .committee-panel::before { content: ''; position: absolute; top: -100px; right: -50px; width: 350px; height: 350px; background: radial-gradient(circle, rgba(241,194,50,0.15) 0%, rgba(241,194,50,0) 70%); border-radius: 50%; animation: floatGlow 8s ease-in-out infinite; pointer-events: none; z-index: 0; }
+        .committee-panel::after { content: ''; position: absolute; bottom: -80px; left: 15%; width: 250px; height: 250px; background: radial-gradient(circle, rgba(66,133,244,0.12) 0%, rgba(66,133,244,0) 70%); border-radius: 50%; animation: floatGlowAlt 10s ease-in-out infinite; pointer-events: none; z-index: 0; }
+        @keyframes floatGlow { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-30px, 20px) scale(1.1); } }
+        @keyframes floatGlowAlt { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(20px, -20px) scale(1.15); } }
+        .committee-panel > * { position: relative; z-index: 1; }
         .committee-panel h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
         .committee-panel .staff-dir-label { font-size: 12px; color: #f1c232; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 18px; }
         .committee-members { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
