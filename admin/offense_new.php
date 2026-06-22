@@ -523,12 +523,6 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
     $firstCaseId = (int)$activeCases[0]['case_id'];
     $studentIdEnc = urlencode($student['student_id']);
     
-    if ($majorCount > 0) {
-      $majorText = '<a href="upcc_cases.php?student_id=' . $studentIdEnc . '" style="color: var(--blue); text-decoration: underline; cursor: pointer;" title="View Student Active Cases">' . $majorText . '</a>';
-    } elseif ($minorCount >= 3) {
-      $minorText = '<a href="upcc_cases.php?student_id=' . $studentIdEnc . '" style="color: var(--blue); text-decoration: underline; cursor: pointer;" title="View Student Active Cases">' . $minorText . '</a>';
-    }
-
     $caseHtml = '';
     foreach ($activeCases as $case) {
       $caseId = (int)$case['case_id'];
