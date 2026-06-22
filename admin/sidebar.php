@@ -17,6 +17,12 @@ if (function_exists('db_one')) {
     $csRow = db_one("SELECT COUNT(*) AS cnt FROM manual_login_request WHERE status = 'PENDING'");
     $pendingCommunityService = (int)($csRow['cnt'] ?? 0);
   }
+
+  $pendingUPCCCases = 0;
+  if (db_one("SHOW TABLES LIKE 'upcc_case'")) {
+    $upccRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE status = 'PENDING'");
+    $pendingUPCCCases = (int)($upccRow['cnt'] ?? 0);
+  }
 }
 ?>
 <style>
@@ -377,6 +383,9 @@ if (function_exists('db_one')) {
           </svg>
         </span>
         <span>UPCC Cases</span>
+        <?php if (!empty($pendingUPCCCases) && $pendingUPCCCases > 0): ?>
+          <span class="admin-sidebar-count"><?php echo (int)$pendingUPCCCases; ?></span>
+        <?php endif; ?>
       </a>
     </li>
 
