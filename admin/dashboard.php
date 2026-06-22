@@ -1051,7 +1051,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
   <!-- ── Approve Success Modal ── -->
   <div id="approveSuccessModal" class="guard-confirm-overlay" aria-hidden="true" style="z-index: 2400;">
     <div class="guard-confirm-box" role="dialog" aria-modal="true" style="text-align:center; padding:40px 30px; position:relative; overflow:hidden;">
-      <button class="modal-close" onclick="document.getElementById('approveSuccessOkBtn').click()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b;">&times;</button>
+      <button id="approveSuccessCloseIcon" class="modal-close" onclick="document.getElementById('approveSuccessOkBtn').click()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b;">&times;</button>
       <img src="../assets/logo.png" alt="IdentiTrack Logo" style="height: 64px; margin-bottom: 20px;">
       <h4 id="approveSuccessTitle" style="font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:#111827; margin:0 0 8px; letter-spacing:-0.5px;">Offense Recorded</h4>
       <p id="approveSuccessDesc" style="font-size:14px; color:#4b5563; margin:0 0 24px; line-height:1.6;">The offense has been successfully verified and added to the student's disciplinary record.</p>
@@ -1336,6 +1336,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
               var desc = document.getElementById('approveSuccessDesc');
               var btn = document.getElementById('approveSuccessOkBtn');
               var progress = document.getElementById('approveSuccessProgress');
+              var closeIcon = document.getElementById('approveSuccessCloseIcon');
               
               if (sm && title && desc && btn && progress) {
                   // Replace button to clear old event listeners
@@ -1344,6 +1345,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                   btn = newBtn;
                   
                   if (!data.escalation_type) {
+                      if (closeIcon) closeIcon.style.display = 'block';
                       title.textContent = '1st Offense Recorded';
                       title.style.color = '#111827';
                       desc.innerHTML = 'This is the student\'s <strong>1st Minor Offense</strong>.<br>It has been successfully verified and added to their record.';
@@ -1371,6 +1373,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                   } else {
                       if (window.approveSuccessTimer) clearTimeout(window.approveSuccessTimer);
                       progress.style.backgroundColor = 'transparent';
+                      if (closeIcon) closeIcon.style.display = 'none';
                       
                       if (data.escalation_type === 'letter') {
                           title.textContent = '2nd Minor Offense Recorded';
