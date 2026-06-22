@@ -989,6 +989,7 @@ function fmt_case_id(int $id, string $created): string {
                 <div class="section-title">All Cases</div>
                 <div class="filter-tabs">
                     <button class="filter-tab active" onclick="filterCases('all', this)">All</button>
+                    <button class="filter-tab" onclick="filterCases('ready', this)">Upcoming Hearing</button>
                     <button class="filter-tab" onclick="filterCases('assigned', this)">Panel Assigned</button>
                     <button class="filter-tab" onclick="filterCases('unassigned', this)">Unassigned</button>
                 </div>
