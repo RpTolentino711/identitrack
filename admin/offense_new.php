@@ -2249,6 +2249,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           }
         });
 
+        // Strip letter parameters from the URL so refreshing doesn't trigger the modal again
+        if (window.history && window.history.replaceState) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('letter');
+            url.searchParams.delete('offense_id');
+            url.searchParams.delete('type');
+            url.searchParams.delete('minor_no');
+            window.history.replaceState(null, '', url.pathname + url.search);
+        }
+
         // Show the email success modal
         const emailSuccessModal = document.getElementById('emailSuccessModal');
         if (emailSuccessModal) {
@@ -2323,13 +2333,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   const HAS_ERRORS = <?php echo empty($errors) ? 'false' : 'true'; ?>;
   if (SUCCESS_MODE && successModal && !HAS_ERRORS) {
-      // Strip success/letter parameters from the URL so refreshing doesn't trigger the modal again
+      // Strip ONLY success parameter from the URL so refreshing doesn't trigger success again.
+      // (Letter parameters are kept so the email modal persists on refresh if not sent).
       if (window.history && window.history.replaceState) {
           const url = new URL(window.location.href);
           url.searchParams.delete('success');
-          url.searchParams.delete('letter');
-          url.searchParams.delete('offense_id');
-          url.searchParams.delete('type');
           window.history.replaceState(null, '', url.pathname + url.search);
       }
       
