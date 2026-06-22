@@ -1575,10 +1575,23 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
         
         currentLetterOffenseId = data.offense_id;
         
-        if (data.escalation_type === 'escalation') {
+        var head = document.querySelector('#modal-guardian-letter .guard-modal-head');
+        
+        if (data.escalation_type === 'major') {
+            title.textContent = '📧 Guardian Notification — Major Offense';
+            title.style.color = '#7f1d1d';
+            head.style.background = '#fef2f2';
+            head.style.borderBottom = '1px solid #fecaca';
+        } else if (data.escalation_type === 'escalation') {
             title.textContent = '📧 Guardian Notification — Section 4 Panel Referral';
+            title.style.color = '#7f1d1d';
+            head.style.background = '#fef2f2';
+            head.style.borderBottom = '1px solid #fecaca';
         } else {
             title.textContent = '📧 Guardian Notification — 2nd Minor Offense';
+            title.style.color = '#92400e';
+            head.style.background = '#fffbeb';
+            head.style.borderBottom = '1px solid #fde68a';
         }
         
         document.getElementById('letter_guardian_email').value = data.guardian_email || '';
