@@ -520,7 +520,7 @@ if ($action === 'exit_hearing' && $_SERVER['REQUEST_METHOD'] === 'POST' && $isUp
 // ─────────────────────────────────────────────────────────────────────────
 if ($action === 'sync') {
     $case = db_one("SELECT hearing_vote_consensus_category, hearing_vote_suggested_details, hearing_vote_consensus_at, 
-                           hearing_is_paused, hearing_pause_reason, hearing_opened_by_admin, status,
+                           hearing_is_paused, hearing_is_open, hearing_pause_reason, hearing_opened_by_admin, status,
                            student_explanation_text, student_explanation_image, student_explanation_pdf, student_explanation_at,
                            case_kind
                     FROM upcc_case WHERE case_id = :id", [':id' => $caseId]);
