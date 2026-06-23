@@ -2483,9 +2483,8 @@ function syncLive() {
                     showToast('⏸️ Hearing Paused', reason, 'warning');
                     
                     if (pauseReason === 'AUTO_PAUSE_ADMIN_LEFT') {
-                        // Force panel out of the hearing if admin left
-                        alert('⚠️ Admin has disconnected. The hearing is now closed. You are being redirected to the dashboard.');
-                        window.location.href = 'upccdashboard.php?hearing_msg=' + encodeURIComponent('Admin left the hearing. You have been redirected.');
+                        // Allow panel members to wait for the admin to return
+                        showPauseModal(pauseReason);
                     } else {
                         // Show pause modal so panel members have options
                         showPauseModal(pauseReason);
