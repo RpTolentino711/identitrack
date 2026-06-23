@@ -1741,8 +1741,20 @@ body {
         <p>The hearing is currently live. If you leave or pause the hearing now, panel members will be prevented from joining or continuing until you resume. Do you want to pause the hearing?</p>
         <div style="margin-top:8px;font-size:13px;color:#666">You can resume the hearing later from this admin panel. Panel members will be notified.</div>
         <div class="modal-buttons" style="margin-top:18px">
-          <button class="btn btn-outline" onclick="closeConfirmPauseModal()">Cancel</button>
-          <button class="btn btn-danger" onclick="confirmPauseFromModal()">Yes — Pause Hearing</button>
+          <button class="btn btn-outline" id="cancelPauseBtn" onclick="closeConfirmPauseModal()">Cancel</button>
+          <button class="btn btn-danger" id="confirmPauseBtn" onclick="confirmPauseFromModal()">Yes — Pause Hearing</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirmResumeModal" class="modal-overlay" role="dialog" aria-modal="true">
+      <div class="modal-content">
+        <h3>Resume Hearing?</h3>
+        <p>The hearing is currently paused. Panelists will be allowed to rejoin and voting will be unlocked. Do you want to resume the hearing?</p>
+        <div style="margin-top:8px;font-size:13px;color:#666">Panel members will be automatically notified that the hearing is live again.</div>
+        <div class="modal-buttons" style="margin-top:18px">
+          <button class="btn btn-outline" id="cancelResumeBtn" onclick="closeConfirmResumeModal()">Cancel</button>
+          <button class="btn btn-success" id="confirmResumeBtn" onclick="confirmResumeFromModal()">Yes — Resume Hearing</button>
         </div>
       </div>
     </div>
@@ -2318,36 +2330,25 @@ function toggleHearingPause() {
     return;
   }
 
-  // Otherwise (currently paused) resume immediately
-  const fd = new FormData();
-  fd.append('action', 'toggle_pause');
-  fd.append('actor', 'admin');
-  fd.append('set_pause', '0'); // Explicitly resume
-    
-  fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
-    .then(r => r.json())
-    .then(res => {
-      if (res.ok) {
-        _currentPauseState = res.is_paused ? true : false;
-        updatePauseUI(_currentPauseState);
-        syncLive();
-      } else {
-        alert('Error: ' + (res.error || 'Failed to toggle pause'));
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      alert('Network error while toggling pause');
-    });
+  // Otherwise (currently paused) show confirmation modal before resuming
+  document.getElementById('confirmResumeModal').classList.add('open');
 }
 
 function closeConfirmPauseModal() {
   document.getElementById('confirmPauseModal').classList.remove('open');
 }
 
+function closeConfirmResumeModal() {
+  document.getElementById('confirmResumeModal').classList.remove('open');
+}
+
 function confirmPauseFromModal() {
-  // perform the pause action
-  closeConfirmPauseModal();
+  const confirmBtn = document.getElementById('confirmPauseBtn');
+  const cancelBtn = document.getElementById('cancelPauseBtn');
+  
+  if (confirmBtn) { confirmBtn.innerHTML = '⏸️ Pausing...'; confirmBtn.disabled = true; }
+  if (cancelBtn) cancelBtn.disabled = true;
+  
   const fd = new FormData();
   fd.append('action', 'toggle_pause');
   fd.append('actor', 'admin');
@@ -2355,6 +2356,10 @@ function confirmPauseFromModal() {
   fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
     .then(r => r.json())
     .then(res => {
+      closeConfirmPauseModal();
+      if (confirmBtn) { confirmBtn.innerHTML = 'Yes — Pause Hearing'; confirmBtn.disabled = false; }
+      if (cancelBtn) cancelBtn.disabled = false;
+      
       if (res.ok) {
         _currentPauseState = res.is_paused ? true : false;
         updatePauseUI(_currentPauseState);
@@ -2364,8 +2369,46 @@ function confirmPauseFromModal() {
       }
     })
     .catch(err => {
+      closeConfirmPauseModal();
+      if (confirmBtn) { confirmBtn.innerHTML = 'Yes — Pause Hearing'; confirmBtn.disabled = false; }
+      if (cancelBtn) cancelBtn.disabled = false;
       console.error(err);
       alert('Network error while pausing hearing');
+    });
+}
+
+function confirmResumeFromModal() {
+  const confirmBtn = document.getElementById('confirmResumeBtn');
+  const cancelBtn = document.getElementById('cancelResumeBtn');
+  
+  if (confirmBtn) { confirmBtn.innerHTML = '▶️ Resuming...'; confirmBtn.disabled = true; }
+  if (cancelBtn) cancelBtn.disabled = true;
+  
+  const fd = new FormData();
+  fd.append('action', 'toggle_pause');
+  fd.append('actor', 'admin');
+  fd.append('set_pause', '0'); // Explicitly resume
+  fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
+    .then(r => r.json())
+    .then(res => {
+      closeConfirmResumeModal();
+      if (confirmBtn) { confirmBtn.innerHTML = 'Yes — Resume Hearing'; confirmBtn.disabled = false; }
+      if (cancelBtn) cancelBtn.disabled = false;
+      
+      if (res.ok) {
+        _currentPauseState = res.is_paused ? true : false;
+        updatePauseUI(_currentPauseState);
+        syncLive();
+      } else {
+        alert('Error: ' + (res.error || 'Failed to resume hearing'));
+      }
+    })
+    .catch(err => {
+      closeConfirmResumeModal();
+      if (confirmBtn) { confirmBtn.innerHTML = 'Yes — Resume Hearing'; confirmBtn.disabled = false; }
+      if (cancelBtn) cancelBtn.disabled = false;
+      console.error(err);
+      alert('Network error while resuming hearing');
     });
 }
 
