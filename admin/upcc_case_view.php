@@ -2439,7 +2439,12 @@ document.addEventListener('click', function(e) {
 
 function confirmLeavePage() {
   const href = document.getElementById('leaveModalHref').value;
-  document.getElementById('leaveModal').classList.remove('open');
+  
+  // Show loading state on the button
+  const confirmBtn = document.querySelector('#leaveModal .btn-warning');
+  const cancelBtn = document.querySelector('#leaveModal .btn-ghost');
+  if (confirmBtn) { confirmBtn.innerHTML = '⏳ Pausing & Leaving...'; confirmBtn.disabled = true; }
+  if (cancelBtn) { cancelBtn.disabled = true; }
   
   // Pause the hearing first
   const fd = new FormData();
