@@ -1641,10 +1641,10 @@ function _renderSugDetails(array $sd): void {
         <div style="font-size:3rem; margin-bottom:1rem;">⏸️</div>
         <h3 style="color:var(--text); margin-bottom:0.5rem; font-size:1.25rem;">Hearing Paused</h3>
         <p id="pauseModalReason" style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1.5rem;">The admin has paused this hearing.</p>
-        <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:1.5rem;">You may wait here for the hearing to resume, or you can safely exit and rejoin later.</p>
+        <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:1.5rem;">Please wait while the admin is away. The hearing is temporarily locked. You may wait here, or exit to the dashboard.</p>
         <div style="display:flex; gap:0.5rem; justify-content:center;">
-            <button class="btn btn-secondary" onclick="closePauseModal()">Stay & Wait</button>
-            <button class="btn btn-danger" onclick="exitHearing()">Exit Hearing</button>
+            <button class="btn btn-secondary" disabled>Waiting for Admin...</button>
+            <button class="btn btn-danger" onclick="exitHearing()">Back to Dashboard</button>
         </div>
     </div>
 </div>
@@ -2315,8 +2315,14 @@ let prevRoundActive = IS_ROUND_ACTIVE;
 let prevConsensus   = <?= json_encode($consensusCategory > 0) ?>;
 let prevCooldown    = <?= json_encode($isInCooldown) ?>;
 let lastRoundClosureNoticeKey = '';
-let currentPauseState = null;
-let pauseReason = null;
+let currentPauseState = <?= ((int)($case['hearing_is_paused'] ?? 0) === 1) ? 'true' : 'false' ?>;
+let pauseReason = <?= json_encode($case['hearing_pause_reason'] ?? null) ?>;
+
+document.addEventListener("DOMContentLoaded", function() {
+    if (currentPauseState) {
+        showPauseModal(pauseReason);
+    }
+});
 
 function showToast(title, message, type = 'info') {
     const wrap = document.createElement('div');
@@ -2514,9 +2520,6 @@ function syncLive() {
                         : 'Admin paused the hearing';
                     showToast('⏸️ Hearing Paused', reason, 'warning');
                     
-                    // Disable voting/chat when paused
-                    disablePauseableControls();
-                    
                     if (pauseReason === 'AUTO_PAUSE_ADMIN_LEFT') {
                         // Force panel out of the hearing if admin left
                         alert('⚠️ Admin has disconnected. The hearing is now closed. You are being redirected to the dashboard.');
@@ -2533,10 +2536,6 @@ function syncLive() {
                     if (pauseModalOpen) {
                         closePauseModal();
                     }
-                    
-                    // Re-enable controls
-                    enablePauseableControls();
-
                     // Reload once so every server-rendered badge/placeholder syncs to the live state
                     if (!resumeReloadQueued) {
                         resumeReloadQueued = true;
