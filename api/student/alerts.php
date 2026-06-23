@@ -184,7 +184,7 @@ try {
     }
 
     $hearings = db_all(
-        "SELECT case_id, hearing_date, hearing_time, hearing_type, hearing_is_open, status
+        "SELECT case_id, hearing_date, hearing_time, hearing_type, hearing_link_or_location, hearing_is_open, status
          FROM upcc_case
          WHERE student_id = :sid
            AND hearing_date IS NOT NULL
@@ -202,6 +202,7 @@ try {
         $hearingTime = (string)($hearing['hearing_time'] ?? '00:00:00');
         $hearingAt = $hearingDate . ' ' . $hearingTime;
         $hearingType = (string)($hearing['hearing_type'] ?? 'FACE_TO_FACE');
+        $hearingLoc = (string)($hearing['hearing_link_or_location'] ?? '');
         $typeLabel = $hearingType === 'ONLINE' ? 'online' : 'face-to-face';
 
         $alerts[] = [
@@ -212,6 +213,7 @@ try {
             'metadata' => [
                 'case_id' => (int)$hearing['case_id'],
                 'hearing_type' => $hearingType,
+                'hearing_link_or_location' => $hearingLoc,
                 'hearing_date' => $hearingDate,
                 'hearing_time' => $hearingTime,
                 'popup' => true,
@@ -227,6 +229,7 @@ try {
                 'metadata' => [
                     'case_id' => (int)$hearing['case_id'],
                     'hearing_type' => $hearingType,
+                    'hearing_link_or_location' => $hearingLoc,
                     'hearing_date' => $hearingDate,
                     'hearing_time' => $hearingTime,
                     'admin_opened' => (int)($hearing['hearing_is_open'] ?? 0) === 1,

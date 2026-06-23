@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'services/alerts_api.dart';
 import 'shared_bottom_nav.dart';
 
@@ -169,8 +170,96 @@ class _AlertsScreenState extends State<AlertsScreen> {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
+            if (alert.alertType == 'HEARING_SCHEDULE' || alert.alertType == 'HEARING_REMINDER')
+              _buildHearingActions(alert),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHearingActions(StudentAlert alert) {
+    final meta = alert.metadata;
+    if (meta == null) return const SizedBox.shrink();
+
+    final isOnline = meta['hearing_type'] == 'ONLINE';
+    final locationOrLink = meta['hearing_link_or_location']?.toString() ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                if (isOnline && locationOrLink.isNotEmpty) {
+                  final uri = Uri.tryParse(locationOrLink);
+                  if (uri != null && await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Invalid or empty meeting link.')),
+                      );
+                    }
+                  }
+                } else {
+                  if (mounted) {
+                    showDialog(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                        title: const Text('Hearing Location'),
+                        content: Text(locationOrLink.isNotEmpty ? locationOrLink : 'Wait for instructions from Admin.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(c),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: Icon(isOnline ? Icons.video_camera_front_rounded : Icons.location_on_rounded, size: 18),
+              label: Text(isOnline ? 'Join Online' : 'View Location'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isOnline ? blueDark : Colors.amber.shade800,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (c) => AlertDialog(
+                    title: const Text('Decline Hearing'),
+                    content: const Text('To decline this hearing or request a reschedule, please contact the UPCC Administrator directly.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(c),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              icon: const Icon(Icons.cancel_rounded, size: 18),
+              label: const Text('Decline'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red.shade700,
+                side: BorderSide(color: Colors.red.shade200),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
