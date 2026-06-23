@@ -867,6 +867,7 @@ body::before {
         <input id="caseSearch" class="search-input" type="search" placeholder="Search cases or respondent name...">
         <select id="caseFilter" class="filter-select">
           <option value="">All statuses</option>
+          <option value="Near Hearing">Near Hearing</option>
           <option value="Hearing Live">Hearing Live</option>
           <option value="Paused">Paused</option>
           <option value="Locked">Locked</option>
@@ -986,8 +987,9 @@ body::before {
                   $minorOffenses = array_filter($offenseDetails, fn($o) => $o['level'] < 4);
                   $isSection4 = (string)($c['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION' || stripos((string)($c['case_summary'] ?? ''), 'Section 4') !== false || count($minorOffenses) >= 3;
                   $section4Class = $isSection4 ? ' section4-row' : '';
+                  $isNearHearing = (!empty($c['hearing_date']) && $c['hearing_date'] === date('Y-m-d')) ? 1 : 0;
                 ?>
-                <tr class="<?php echo $lockedClass . $section4Class; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>')">
+                <tr class="<?php echo $lockedClass . $section4Class; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>')">
                   <td><span class="t-id"><?php echo htmlspecialchars($cid); ?></span></td>
                   <td>
                     <?php if ($isResolved): ?>
@@ -1057,9 +1059,9 @@ body::before {
                       <span class="t-name" style="font-size:12px; display:block; margin-bottom:4px;"><?php echo $hearingDate; ?></span>
                       <?php if ($c['hearing_is_open'] == 1): ?>
                         <?php if ($c['hearing_is_paused'] == 1 || $adminOffline): ?>
-                          <span class="badge badge-muted" style="font-size:11px;">🔒 Closed (ping: <?php echo var_export($c['admin_ping_diff'], true); ?>)</span>
+                          <span class="badge badge-muted" style="font-size:11px;">🔒 Closed</span>
                         <?php else: ?>
-                          <span class="badge badge-success" style="font-size:11px;">📬 Open (ping: <?php echo var_export($c['admin_ping_diff'], true); ?>)</span>
+                          <span class="badge badge-success" style="font-size:11px;">📬 Open</span>
                         <?php endif; ?>
                       <?php else: ?>
                         <span class="badge badge-muted" style="font-size:11px;">✉️ Locked until Admin opens</span>
@@ -1335,6 +1337,10 @@ document.getElementById('caseFilter')?.addEventListener('change', function (e) {
   const rows = document.querySelectorAll('tbody tr');
   rows.forEach(r => {
     if (!v) { r.style.display = ''; return; }
+    if (v === 'Near Hearing') {
+      r.style.display = r.getAttribute('data-near-hearing') === '1' ? '' : 'none';
+      return;
+    }
     const badge = r.querySelector('.badge');
     const label = badge ? badge.textContent.trim() : '';
     r.style.display = label.indexOf(v) !== -1 ? '' : 'none';
