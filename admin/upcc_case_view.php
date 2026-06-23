@@ -1701,9 +1701,9 @@ body {
       <button class="btn btn-danger" onclick="submitCancelConsensus()">Confirm — Restart Voting</button>
     </div>
   </div>
+</div>
 
-    <!-- Confirm Pause Modal -->
-    <!-- Rejoin Request Modal -->
+<!-- Rejoin Request Modal -->
     <div id="rejoinRequestModal" class="modal-overlay" role="dialog" aria-modal="true">
       <div class="modal-content" style="max-width:520px">
         <h3>Panel Rejoin Requests</h3>
@@ -1742,7 +1742,7 @@ body {
         </div>
       </div>
     </div>
-</div>
+
 
 <script>
 // ── CONSTANTS ─────────────────────────────────────────────────────────────
