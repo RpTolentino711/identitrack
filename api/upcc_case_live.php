@@ -399,7 +399,8 @@ if ($action === 'toggle_pause' && $isAdmin && $_SERVER['REQUEST_METHOD'] === 'PO
     }
     
     $newPausedState = $isCurrentlyPaused ? 0 : 1;
-    $pauseReason = $newPausedState === 1 ? 'MANUAL' : null;
+    $customReason = trim((string)($_POST['pause_reason'] ?? ''));
+    $pauseReason = $newPausedState === 1 ? ($customReason !== '' ? $customReason : 'MANUAL') : null;
     
     db_exec(
         "UPDATE upcc_case SET hearing_is_paused = :paused, hearing_pause_reason = :reason WHERE case_id = :id",

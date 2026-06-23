@@ -1716,6 +1716,21 @@ body {
       </div>
     </div>
 
+  <!-- Leave Modal -->
+  <div class="modal-overlay" id="leaveModal">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <h3 style="color: var(--red-600); margin-bottom: 8px;">⚠️ Leave Hearing?</h3>
+      <p style="color: var(--ink-600); margin-bottom: 24px; font-size: 0.9rem;">
+        The hearing is currently live. Leaving this page will automatically <strong>PAUSE</strong> the hearing, and all panel members will be notified.
+      </p>
+      <input type="hidden" id="leaveModalHref">
+      <div class="modal-buttons" style="display: flex; gap: 12px; justify-content: center;">
+        <button class="btn btn-ghost" onclick="document.getElementById('leaveModal').classList.remove('open')">Cancel</button>
+        <button class="btn btn-warning" onclick="confirmLeavePage()">Yes, Pause & Leave</button>
+      </div>
+    </div>
+  </div>
+
     <div id="confirmPauseModal" class="modal-overlay" role="dialog" aria-modal="true">
       <div class="modal-content">
         <h3>Pause Hearing?</h3>
@@ -2349,13 +2364,51 @@ function confirmPauseFromModal() {
 }
 
 // If the admin attempts to close or navigate away while hearing is live, warn and try to pause via sendBeacon
+let skipUnloadWarn = false;
 window.addEventListener('beforeunload', function (e) {
-  if (!_currentPauseState && IS_HEARING_OPEN) {
+  if (!_currentPauseState && IS_HEARING_OPEN && !skipUnloadWarn) {
     const msg = 'The hearing is live. Leaving will pause the hearing. Are you sure you want to leave?';
     (e || window.event).returnValue = msg; // Gecko + IE
     return msg; // Webkit, Safari, Chrome
   }
 });
+
+// Intercept internal link clicks to show custom modal instead of native prompt
+document.addEventListener('click', function(e) {
+  const link = e.target.closest('a');
+  if (link && link.href && !link.target && !link.href.startsWith('javascript:') && !link.href.includes('#')) {
+    if (!_currentPauseState && IS_HEARING_OPEN) {
+      e.preventDefault();
+      const modal = document.getElementById('leaveModal');
+      if (modal) {
+        document.getElementById('leaveModalHref').value = link.href;
+        modal.classList.add('open');
+      }
+    }
+  }
+});
+
+function confirmLeavePage() {
+  const href = document.getElementById('leaveModalHref').value;
+  document.getElementById('leaveModal').classList.remove('open');
+  
+  // Pause the hearing first
+  const fd = new FormData();
+  fd.append('action', 'toggle_pause');
+  fd.append('actor', 'admin');
+  fd.append('case_id', CASE_ID);
+  fd.append('pause_reason', 'AUTO_PAUSE_ADMIN_LEFT');
+  
+  fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
+    .then(() => {
+       skipUnloadWarn = true;
+       window.location.href = href;
+    })
+    .catch(() => {
+       skipUnloadWarn = true;
+       window.location.href = href;
+    });
+}
 
 window.addEventListener('unload', function () {
   try {
@@ -2364,6 +2417,7 @@ window.addEventListener('unload', function () {
       const params = new URLSearchParams();
       params.append('action', 'toggle_pause');
       params.append('actor', 'admin');
+      params.append('pause_reason', 'AUTO_PAUSE_ADMIN_LEFT');
       navigator.sendBeacon(url, params.toString());
     }
   } catch (e) { /* ignore */ }
