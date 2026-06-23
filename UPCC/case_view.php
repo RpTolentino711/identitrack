@@ -1634,6 +1634,46 @@ function _renderSugDetails(array $sd): void {
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
+     PAUSE MODAL — appears when the admin pauses the hearing
+══════════════════════════════════════════════════════════════════════ -->
+<div id="pauseModal" class="modal-overlay" style="display:none; align-items:center; justify-content:center; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); backdrop-filter:blur(5px); z-index:9999;">
+    <div style="background:#fff; border-radius:16px; padding:2rem; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
+        <div style="font-size:3rem; margin-bottom:1rem;">⏸️</div>
+        <h3 style="color:var(--text); margin-bottom:0.5rem; font-size:1.25rem;">Hearing Paused</h3>
+        <p id="pauseModalReason" style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1.5rem;">The admin has paused this hearing.</p>
+        <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:1.5rem;">You may wait here for the hearing to resume, or you can safely exit and rejoin later.</p>
+        <div style="display:flex; gap:0.5rem; justify-content:center;">
+            <button class="btn btn-secondary" onclick="closePauseModal()">Stay & Wait</button>
+            <button class="btn btn-danger" onclick="exitHearing()">Exit Hearing</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let pauseModalOpen = false;
+
+function showPauseModal(reason) {
+    pauseModalOpen = true;
+    const m = document.getElementById('pauseModal');
+    const r = document.getElementById('pauseModalReason');
+    if (r) r.textContent = reason === 'AUTO_PAUSE_ADMIN_LEFT' ? 'The admin disconnected.' : 'The admin has paused the hearing.';
+    if (m) {
+        m.style.display = 'flex';
+        m.classList.add('open');
+    }
+}
+
+function closePauseModal() {
+    pauseModalOpen = false;
+    const m = document.getElementById('pauseModal');
+    if (m) {
+        m.style.display = 'none';
+        m.classList.remove('open');
+    }
+}
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════════════
      COOLDOWN OVERLAY — shown globally after cancel/disagree/expire
 ══════════════════════════════════════════════════════════════════════ -->
 <div id="cooldownModal" style="position:fixed;inset:0;z-index:9100;display:none;align-items:center;
