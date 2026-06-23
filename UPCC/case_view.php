@@ -2475,8 +2475,14 @@ function syncLive() {
                     // Disable voting/chat when paused
                     disablePauseableControls();
                     
-                    // Show pause modal so panel members have options
-                    showPauseModal(pauseReason);
+                    if (pauseReason === 'AUTO_PAUSE_ADMIN_LEFT') {
+                        // Force panel out of the hearing if admin left
+                        alert('⚠️ Admin has disconnected. The hearing is now closed. You are being redirected to the dashboard.');
+                        window.location.href = 'upccdashboard.php?hearing_msg=' + encodeURIComponent('Admin left the hearing. You have been redirected.');
+                    } else {
+                        // Show pause modal so panel members have options
+                        showPauseModal(pauseReason);
+                    }
                 } else {
                     // Hearing is now resumed
                     showToast('▶️ Hearing Resumed', 'You may continue voting and messaging.', 'success');
