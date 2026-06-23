@@ -1365,7 +1365,7 @@ body {
                       <span style="color:var(--green-700);font-weight:600">(Panel consensus: Category <?= $consensusCategory ?>)</span>
                     <?php endif; ?>
                   </label>
-                  <select name="decided_category" id="decided_category" class="form-control" required onchange="toggleCategoryFields()" <?= !$consensusCategory ? 'disabled' : '' ?>>
+                  <select name="decided_category" id="decided_category" class="form-control" required onchange="toggleCategoryFields()">
                     <option value="">Select category…</option>
                     <?php for ($cat = 1; $cat <= 5; $cat++): ?>
                       <option value="<?= $cat ?>" <?= $cat === ($postedDecidedCategory ?: $consensusCategory) ? 'selected' : '' ?>>
@@ -1465,7 +1465,6 @@ body {
                   if (!cb) return; // If there is a consensus, the checkbox doesn't exist, so don't run this logic!
                   
                   const isChecked = cb.checked;
-                  document.getElementById('decided_category').disabled = !isChecked;
                   document.getElementById('final_decision').disabled = !isChecked;
                   document.getElementById('submit_final_decision').disabled = !isChecked;
                   
@@ -1982,6 +1981,13 @@ function toggleCategoryFields() {
     const c345 = document.getElementById('cat345Fields');
     const txt  = document.getElementById('cat345Text');
     [c1, c2, c345].forEach(el => { if (el) el.style.display = 'none'; });
+    
+    const cb = document.getElementById('force_resolve');
+    if (cb && !cb.checked && cat) {
+        cb.checked = true;
+        toggleForceResolve();
+    }
+    
     if (!cat || !container) { if (container) container.style.display = 'none'; return; }
     container.style.display = 'block';
     if (cat === '1')      { if (c1) c1.style.display = 'block'; }
