@@ -140,6 +140,8 @@ $cases = db_all("SELECT
         uc.hearing_vote_consensus_category,
         uc.hearing_date,
         uc.hearing_time,
+        uc.hearing_type,
+        uc.hearing_link_or_location,
         uc.hearing_is_open,
         uc.hearing_is_paused,
         (SELECT MAX(p.last_ping) FROM upcc_hearing_presence p WHERE p.case_id = uc.case_id AND p.user_type = 'ADMIN') as admin_last_ping,
@@ -453,7 +455,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $panelIds = array_values(array_unique(array_map('intval', $panel)));
         $hearing_date = trim($_POST['hearing_date'] ?? '');
         $hearing_time = trim($_POST['hearing_time'] ?? '');
-        $hearing_type = trim($_POST['hearing_type'] ?? '');
+        $hearing_type = trim($_POST['hearing_type'] ?? 'ONLINE');
+        $hearing_link_or_location = trim($_POST['hearing_link_or_location'] ?? '');
 
         if ($case_id) {
             if (empty($panelIds)) {
@@ -475,6 +478,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                              hearing_date = :hearing_date,
                              hearing_time = :hearing_time,
                              hearing_type = :hearing_type,
+                             hearing_link_or_location = :hearing_link_or_location,
                              status = 'UNDER_INVESTIGATION',
                              hearing_is_open = 0,
                              hearing_opened_at = NULL,
@@ -489,7 +493,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             ':panel' => json_encode($panelIds),
                         ':hearing_date' => $hearing_date !== '' ? $hearing_date : null,
                         ':hearing_time' => $hearing_time !== '' ? $hearing_time : null,
-                        ':hearing_type' => $hearing_type !== '' ? $hearing_type : null,
+                        ':hearing_type' => $hearing_type,
+                        ':hearing_link_or_location' => $hearing_link_or_location !== '' ? $hearing_link_or_location : null,
                         ':id' => $case_id,
                     ]);
                     sync_case_panel_members($case_id, $panelIds);
@@ -501,6 +506,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'hearing_date' => $hearing_date,
                     'hearing_time' => $hearing_time,
                     'hearing_type' => $hearing_type,
+                    'hearing_link_or_location' => $hearing_link_or_location,
                 ]);
 
                 // Notify panel members
@@ -1137,6 +1143,7 @@ function fmt_case_id(int $id, string $created): string {
                                 data-hearing-date="<?= e((string)($c['hearing_date'] ?? '')) ?>"
                                 data-hearing-time="<?= e((string)($c['hearing_time'] ?? '')) ?>"
                                 data-hearing-type="<?= e((string)($c['hearing_type'] ?? '')) ?>"
+                                data-hearing-link-loc="<?= e((string)($c['hearing_link_or_location'] ?? '')) ?>"
                                 data-hearing-label="<?= e((!empty($c['hearing_date']) && !empty($c['hearing_time'])) ? ($c['hearing_date'] . ' ' . $c['hearing_time'] . (!empty($c['hearing_type']) ? ' · ' . $c['hearing_type'] : '')) : 'No hearing scheduled') ?>"
                                 data-decided-cat="<?= $c['decided_category'] ?? '' ?>"
                                 data-final-decision="<?= e($c['final_decision'] ?? '') ?>"
@@ -1273,9 +1280,35 @@ function fmt_case_id(int $id, string $created): string {
                     <div id="hidden-panel-inputs"></div>
                 </div>
                 <div class="field-row">
-                    <div class="es-field"><label>Hearing Date</label><input type="date" name="hearing_date" id="manage-hearing-date"></div>
-                    <div class="es-field"><label>Hearing Time</label><input type="time" name="hearing_time" id="manage-hearing-time"></div>
+                    <div class="es-field"><label>Hearing Date</label><input type="date" name="hearing_date" id="manage-hearing-date" required></div>
+                    <div class="es-field"><label>Hearing Time</label><input type="time" name="hearing_time" id="manage-hearing-time" required></div>
                 </div>
+                <div class="field-row" style="margin-top: 14px;">
+                    <div class="es-field">
+                        <label>Hearing Type</label>
+                        <select name="hearing_type" id="manage-hearing-type" onchange="toggleManageHearingLoc(this.value)" required>
+                            <option value="ONLINE">Online (Virtual Meeting)</option>
+                            <option value="FACE_TO_FACE">Face-to-Face (In-Person)</option>
+                        </select>
+                    </div>
+                    <div class="es-field">
+                        <label id="manage-hearing-loc-label">Meeting Link (URL)</label>
+                        <input type="text" name="hearing_link_or_location" id="manage-hearing-loc" placeholder="e.g. https://meet.jit.si/..." required>
+                    </div>
+                </div>
+                <script>
+                    function toggleManageHearingLoc(val) {
+                        const lbl = document.getElementById('manage-hearing-loc-label');
+                        const inp = document.getElementById('manage-hearing-loc');
+                        if (val === 'FACE_TO_FACE') {
+                            lbl.innerText = 'Room / Location';
+                            inp.placeholder = 'e.g. Conference Room A';
+                        } else {
+                            lbl.innerText = 'Meeting Link (URL)';
+                            inp.placeholder = 'e.g. https://meet.jit.si/...';
+                        }
+                    }
+                </script>
                 <div class="es-form-actions" style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
                     <button type="submit" class="btn-assign">Save Hearing & Panel</button>
                     <button type="button" class="btn-cancel" onclick="closeManageHearingModal()">Cancel</button>
@@ -1825,10 +1858,20 @@ function openManageHearingModal(caseId, row) {
     }
     const hearingDate = row.dataset.hearingDate || '';
     const hearingTime = row.dataset.hearingTime || '';
+    const hearingType = row.dataset.hearingType || 'ONLINE';
+    const hearingLinkLoc = row.dataset.hearingLinkLoc || '';
 
     deptSelect.value = assignedDept;
     dateInput.value = hearingDate;
     timeInput.value = hearingTime;
+    
+    const typeSelect = document.getElementById('manage-hearing-type');
+    const locInput = document.getElementById('manage-hearing-loc');
+    if (typeSelect && locInput) {
+        typeSelect.value = hearingType;
+        locInput.value = hearingLinkLoc;
+        toggleManageHearingLoc(hearingType);
+    }
 
     loadDepartmentMembers(assignedDept, assignedPanel);
     overlay.classList.add('open');

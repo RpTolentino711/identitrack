@@ -816,7 +816,7 @@ function upcc_send_panel_assignment_email(int $caseId, array $panelIds): array {
         return ['ok' => false, 'error' => 'Invalid parameters'];
     }
 
-    $case = db_one("SELECT uc.case_id, uc.hearing_date, uc.hearing_time, uc.created_at,
+    $case = db_one("SELECT uc.case_id, uc.hearing_date, uc.hearing_time, uc.hearing_type, uc.hearing_link_or_location, uc.created_at,
                            CONCAT(s.student_fn, ' ', s.student_ln) as student_name
                     FROM upcc_case uc
                     JOIN student s ON s.student_id = uc.student_id
@@ -835,6 +835,12 @@ function upcc_send_panel_assignment_email(int $caseId, array $panelIds): array {
     $caseLabel = 'UPCC-' . date('Y', strtotime($case['created_at'])) . '-' . str_pad((string)$caseId, 3, '0', STR_PAD_LEFT);
     $hearingAt = $case['hearing_date'] ? date('M j, Y', strtotime($case['hearing_date'])) : 'TBD';
     if ($case['hearing_time']) $hearingAt .= ' at ' . date('g:i A', strtotime($case['hearing_time']));
+
+    $hearingTypeLabel = ($case['hearing_type'] === 'FACE_TO_FACE') ? 'Face-to-Face' : 'Online / Virtual';
+    $hearingLoc = htmlspecialchars($case['hearing_link_or_location'] ?? 'Not provided');
+    if ($case['hearing_type'] === 'ONLINE' && filter_var($case['hearing_link_or_location'], FILTER_VALIDATE_URL)) {
+        $hearingLoc = "<a href='{$case['hearing_link_or_location']}' target='_blank'>{$case['hearing_link_or_location']}</a>";
+    }
 
     foreach ($members as $m) {
         try {
@@ -864,6 +870,8 @@ function upcc_send_panel_assignment_email(int $caseId, array $panelIds): array {
                         <p style='margin:5px 0;'><b>Case ID:</b> <span style='color:#1e3a8a;'>$caseLabel</span></p>
                         <p style='margin:5px 0;'><b>Student:</b> " . htmlspecialchars($case['student_name']) . "</p>
                         <p style='margin:5px 0;'><b>Hearing Schedule:</b> <span style='color:#b91c1c; font-weight: bold;'>$hearingAt</span></p>
+                        <p style='margin:5px 0;'><b>Hearing Mode:</b> $hearingTypeLabel</p>
+                        <p style='margin:5px 0;'><b>Location / Link:</b> $hearingLoc</p>
                     </div>
                     <p>Please log in to the UPCC Panel portal to review the case details and any submitted student explanations.</p>
                     <div style='margin: 25px 0;'>
