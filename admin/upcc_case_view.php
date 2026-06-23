@@ -155,27 +155,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'update_hearing_config') {
         $dept_id     = (int)($_POST['assigned_department_id'] ?? 0);
         $panel       = isset($_POST['panel_members']) && is_array($_POST['panel_members']) ? $_POST['panel_members'] : [];
-      $panelIds    = array_values(array_unique(array_map('intval', $panel)));
+        $panelIds    = array_values(array_unique(array_map('intval', $panel)));
         $hearingDate = trim((string)($_POST['hearing_date'] ?? ''));
         $hearingTime = trim((string)($_POST['hearing_time'] ?? ''));
+        $hearingType = trim((string)($_POST['hearing_type'] ?? 'ONLINE'));
+        $hearingLoc  = trim((string)($_POST['hearing_link_or_location'] ?? ''));
+        if (!in_array($hearingType, ['ONLINE', 'FACE_TO_FACE'])) $hearingType = 'ONLINE';
+
         $validDate   = preg_match('/^\d{4}-\d{2}-\d{2}$/', $hearingDate) === 1;
         $validTime   = preg_match('/^\d{2}:\d{2}$/', $hearingTime) === 1;
         $dept        = $dept_id ? db_one("SELECT dept_id, dept_name FROM departments WHERE dept_id = :id AND is_active = 1", [':id' => $dept_id]) : null;
         if (!$dept)                                              $errMsg = 'Please select a valid department.';
         elseif (empty($panelIds))                                $errMsg = 'Please assign at least one panel member.';
         elseif (!$validDate || !$validTime)                      $errMsg = 'Please select both a hearing date and time.';
+        elseif (empty($hearingLoc) && $hearingType === 'FACE_TO_FACE') $errMsg = 'Please provide a location/room for Face-to-Face hearing.';
+        elseif (empty($hearingLoc) && $hearingType === 'ONLINE') $errMsg = 'Please provide a meeting link for Online hearing.';
         elseif (is_biased_department($case, (string)$dept['dept_name'])) $errMsg = 'Cannot assign a panel from the same department or program as the respondent student.';
-        elseif (!$validDate || !$validTime)                     $errMsg = 'Please provide a valid hearing date and time.';
         else {
             db_exec("UPDATE upcc_case SET
                 assigned_department_id = :dept, assigned_panel_members = :panel,
-                hearing_date = :hd, hearing_time = :ht, hearing_type = 'VOTING',
+                hearing_date = :hd, hearing_time = :ht, hearing_type = :htype,
+                hearing_link_or_location = :hloc,
                 status = 'UNDER_INVESTIGATION', hearing_is_open = 0,
                 hearing_opened_at = NULL, hearing_closed_at = NULL, hearing_opened_by_admin = NULL,
                 hearing_vote_consensus_category = NULL, hearing_vote_consensus_at = NULL,
                 updated_at = NOW() WHERE case_id = :id",
           [':dept' => $dept_id, ':panel' => json_encode($panelIds),
-                 ':hd' => $hearingDate, ':ht' => $hearingTime . ':00', ':id' => $case_id]);
+                 ':hd' => $hearingDate, ':ht' => $hearingTime . ':00',
+                 ':htype' => $hearingType, ':hloc' => $hearingLoc,
+                 ':id' => $case_id]);
         sync_case_panel_members($case_id, $panelIds);
             db_exec("DELETE FROM upcc_case_vote_round WHERE case_id = :c", [':c' => $case_id]);
             db_exec("DELETE FROM upcc_case_vote WHERE case_id = :c", [':c' => $case_id]);
@@ -837,6 +845,19 @@ textarea.form-control{resize:vertical}
                 </div>
                 <div class="form-row">
                   <div class="form-group">
+                    <label class="form-label">Hearing Format</label>
+                    <select name="hearing_type" class="form-control" onchange="toggleHearingLocation(this.value, 'hearing_link_or_location', 'hearing_loc_label')" required>
+                      <option value="ONLINE">Online (Virtual Meeting)</option>
+                      <option value="FACE_TO_FACE">Face-to-Face (In-Person)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" id="hearing_loc_label">Meeting Link (URL)</label>
+                    <input type="text" name="hearing_link_or_location" id="hearing_link_or_location" class="form-control" placeholder="e.g. https://meet.jit.si/..." required>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
                     <label class="form-label">Hearing Date</label>
                     <input type="date" name="hearing_date" class="form-control" required>
                   </div>
@@ -926,6 +947,18 @@ textarea.form-control{resize:vertical}
                   <span class="hearing-val">
                     <?= $case['hearing_date'] ? date('M j, Y', strtotime($case['hearing_date'])) : '—' ?>
                     <?= $case['hearing_time'] ? ' · ' . date('g:i A', strtotime($case['hearing_time'])) : '' ?>
+                  </span>
+                </div>
+                <div class="hearing-row">
+                  <span class="hearing-key">Format &amp; Location</span>
+                  <span class="hearing-val">
+                    <?php if (($case['hearing_type'] ?? '') === 'FACE_TO_FACE'): ?>
+                      <span style="color:var(--amber-700);background:var(--amber-100);padding:2px 6px;border-radius:4px;font-size:.7rem;margin-right:4px;font-weight:700">In-Person</span>
+                      <?= htmlspecialchars($case['hearing_link_or_location'] ?? '—') ?>
+                    <?php else: ?>
+                      <span style="color:var(--blue-700);background:var(--blue-100);padding:2px 6px;border-radius:4px;font-size:.7rem;margin-right:4px;font-weight:700">Online</span>
+                      <a href="<?= htmlspecialchars($case['hearing_link_or_location'] ?? '#') ?>" target="_blank" style="color:var(--blue-600);text-decoration:none;"><?= htmlspecialchars($case['hearing_link_or_location'] ?? '—') ?></a>
+                    <?php endif; ?>
                   </span>
                 </div>
                 <div class="hearing-row">
@@ -1422,6 +1455,19 @@ textarea.form-control{resize:vertical}
             <div class="alert alert-warning" style="margin-bottom:1rem">⚠️ Saving will reset all existing votes and rounds.</div>
             <form method="post" id="editHearingForm" onsubmit="return validateHearingConfigForm()">
               <input type="hidden" name="action" value="update_hearing_config">
+              <div class="form-row" style="grid-template-columns:1fr 1fr">
+                <div class="form-group">
+                  <label class="form-label">Hearing Format</label>
+                  <select name="hearing_type" class="form-control" onchange="toggleHearingLocation(this.value, 'reconfig_hearing_link_or_location', 'reconfig_hearing_loc_label')" required>
+                    <option value="ONLINE" <?= ($case['hearing_type'] ?? '') === 'ONLINE' ? 'selected' : '' ?>>Online (Virtual Meeting)</option>
+                    <option value="FACE_TO_FACE" <?= ($case['hearing_type'] ?? '') === 'FACE_TO_FACE' ? 'selected' : '' ?>>Face-to-Face (In-Person)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" id="reconfig_hearing_loc_label"><?= ($case['hearing_type'] ?? '') === 'FACE_TO_FACE' ? 'Room / Location' : 'Meeting Link (URL)' ?></label>
+                  <input type="text" name="hearing_link_or_location" id="reconfig_hearing_link_or_location" class="form-control" value="<?= htmlspecialchars($case['hearing_link_or_location'] ?? '') ?>" placeholder="<?= ($case['hearing_type'] ?? '') === 'FACE_TO_FACE' ? 'e.g. Conference Room A' : 'e.g. https://meet.jit.si/...' ?>" required>
+                </div>
+              </div>
               <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
                 <div class="form-group">
                   <label class="form-label">Lead Department</label>
@@ -2044,7 +2090,25 @@ function validateHearingConfigForm() {
         alert('Please select a hearing time.');
         return false;
     }
+    const hType = document.querySelector('#editHearingForm select[name="hearing_type"]').value;
+    const hLoc = document.getElementById('reconfig_hearing_link_or_location').value;
+    if (!hLoc) {
+        alert(hType === 'FACE_TO_FACE' ? 'Please enter the room or location.' : 'Please enter the meeting link.');
+        return false;
+    }
     return true;
+}
+
+function toggleHearingLocation(val, inputId, labelId) {
+    const label = document.getElementById(labelId);
+    const input = document.getElementById(inputId);
+    if (val === 'FACE_TO_FACE') {
+        label.textContent = 'Room / Location';
+        input.placeholder = 'e.g. Conference Room A';
+    } else {
+        label.textContent = 'Meeting Link (URL)';
+        input.placeholder = 'e.g. https://meet.jit.si/...';
+    }
 }
 
 const chatForm = document.getElementById('chat-form');

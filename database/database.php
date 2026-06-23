@@ -575,6 +575,7 @@ function ensure_hearing_workflow_schema(): void
     'hearing_date' => "ALTER TABLE upcc_case ADD COLUMN hearing_date DATE DEFAULT NULL",
     'hearing_time' => "ALTER TABLE upcc_case ADD COLUMN hearing_time TIME DEFAULT NULL",
     'hearing_type' => "ALTER TABLE upcc_case ADD COLUMN hearing_type ENUM('ONLINE','FACE_TO_FACE') DEFAULT NULL",
+    'hearing_link_or_location' => "ALTER TABLE upcc_case ADD COLUMN hearing_link_or_location VARCHAR(255) DEFAULT NULL",
     'hearing_is_open' => "ALTER TABLE upcc_case ADD COLUMN hearing_is_open TINYINT(1) NOT NULL DEFAULT 0",
     'hearing_is_paused' => "ALTER TABLE upcc_case ADD COLUMN hearing_is_paused TINYINT(1) NOT NULL DEFAULT 0",
     'hearing_opened_at' => "ALTER TABLE upcc_case ADD COLUMN hearing_opened_at DATETIME DEFAULT NULL",
