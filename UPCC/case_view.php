@@ -2270,30 +2270,6 @@ function enablePauseableControls() {
     }
 }
 
-function showPauseModal(pauseReasonStr = null) {
-    const modal = document.getElementById('hearingPausedModal');
-    const reasonEl = document.getElementById('pauseReasonText');
-    if (!modal) return;
-    
-    if (pauseReasonStr === 'AUTO_PAUSE_ADMIN_LEFT') {
-        reasonEl.textContent = 'The admin has disconnected. The hearing is paused while they reconnect.';
-    } else {
-        reasonEl.textContent = 'The admin has paused the hearing.';
-    }
-    
-    modal.style.display = 'flex';
-    pauseModalOpen = true;
-    disablePauseableControls();
-}
-
-function closePauseModal() {
-    const modal = document.getElementById('hearingPausedModal');
-    if (!modal) return;
-    modal.style.display = 'none';
-    pauseModalOpen = false;
-    enablePauseableControls();
-}
-
 function exitHearingDueToPause() {
     const fd = new FormData();
     fd.append('action', 'exit_hearing');
