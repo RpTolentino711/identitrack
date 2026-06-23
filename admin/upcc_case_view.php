@@ -2623,7 +2623,7 @@ function syncLive() {
             }
 
             // Pause state handling
-            const nextPauseState = normalizePauseState(data.is_paused);
+            const nextPauseState = !!data.is_paused;
             if (data.is_paused !== undefined && nextPauseState !== _currentPauseState) {
               _currentPauseState = nextPauseState;
                 updatePauseUI(_currentPauseState, data.pause_reason);

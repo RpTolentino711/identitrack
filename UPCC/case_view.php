@@ -2497,7 +2497,7 @@ function syncLive() {
             }
 
             // ── PAUSE STATE HANDLING ──────────────────────────────────
-            const nextPauseState = normalizePauseState(data.is_paused);
+            const nextPauseState = !!data.is_paused;
             if (data.is_paused !== undefined && nextPauseState !== currentPauseState) {
                 currentPauseState = nextPauseState;
                 pauseReason = data.pause_reason || null;
