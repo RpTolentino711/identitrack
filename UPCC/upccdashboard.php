@@ -32,8 +32,8 @@ function can_access_case($case) {
         if (isset($case['hearing_is_paused']) && $case['hearing_is_paused'] == 1) {
             return false;
         }
-        if (isset($case['admin_ping_diff'])) {
-            if ($case['admin_ping_diff'] > 15) {
+        if (array_key_exists('admin_ping_diff', $case)) {
+            if ($case['admin_ping_diff'] === null || (int)$case['admin_ping_diff'] > 15 || (int)$case['admin_ping_diff'] < 0) {
                 return false;
             }
         } else {
@@ -122,7 +122,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         }
         
         $adminOffline = false;
-        if (!isset($c['admin_ping_diff']) || $c['admin_ping_diff'] > 15) {
+        if (!array_key_exists('admin_ping_diff', $c) || $c['admin_ping_diff'] === null || (int)$c['admin_ping_diff'] > 15 || (int)$c['admin_ping_diff'] < 0) {
             $adminOffline = true;
         }
 
@@ -228,9 +228,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
           <span class="t-name" style="font-size:12px; display:block; margin-bottom:4px;"><?php echo $hearingDate; ?></span>
           <?php if ($c['hearing_is_open'] == 1): ?>
             <?php if ($c['hearing_is_paused'] == 1 || $adminOffline): ?>
-              <span class="badge badge-muted" style="font-size:11px;">🔒 Closed</span>
+              <span class="badge badge-muted" style="font-size:11px;">🔒 Closed (ping: <?php echo var_export($c['admin_ping_diff'], true); ?>)</span>
             <?php else: ?>
-              <span class="badge badge-success" style="font-size:11px;">📬 Open</span>
+              <span class="badge badge-success" style="font-size:11px;">📬 Open (ping: <?php echo var_export($c['admin_ping_diff'], true); ?>)</span>
             <?php endif; ?>
           <?php else: ?>
             <span class="badge badge-muted" style="font-size:11px;">✉️ Locked until Admin opens</span>
@@ -946,7 +946,7 @@ body::before {
                   }
                   
                   $adminOffline = false;
-                  if (!isset($c['admin_ping_diff']) || $c['admin_ping_diff'] > 15) {
+                  if (!array_key_exists('admin_ping_diff', $c) || $c['admin_ping_diff'] === null || (int)$c['admin_ping_diff'] > 15 || (int)$c['admin_ping_diff'] < 0) {
                       $adminOffline = true;
                   }
                   
@@ -1057,9 +1057,9 @@ body::before {
                       <span class="t-name" style="font-size:12px; display:block; margin-bottom:4px;"><?php echo $hearingDate; ?></span>
                       <?php if ($c['hearing_is_open'] == 1): ?>
                         <?php if ($c['hearing_is_paused'] == 1 || $adminOffline): ?>
-                          <span class="badge badge-muted" style="font-size:11px;">🔒 Closed</span>
+                          <span class="badge badge-muted" style="font-size:11px;">🔒 Closed (ping: <?php echo var_export($c['admin_ping_diff'], true); ?>)</span>
                         <?php else: ?>
-                          <span class="badge badge-success" style="font-size:11px;">📬 Open</span>
+                          <span class="badge badge-success" style="font-size:11px;">📬 Open (ping: <?php echo var_export($c['admin_ping_diff'], true); ?>)</span>
                         <?php endif; ?>
                       <?php else: ?>
                         <span class="badge badge-muted" style="font-size:11px;">✉️ Locked until Admin opens</span>
