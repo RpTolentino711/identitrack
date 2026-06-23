@@ -515,6 +515,7 @@ $avatarColors = ['blue','green','purple','amber','coral'];
   --blue-100: #dbeafe;
   --blue-50: #eff6ff;
   --amber-700: #b45309;
+  --amber-600: #d97706;
   --amber-500: #f59e0b;
   --amber-100: #fef3c7;
   --green-900: #064e3b;
