@@ -1728,6 +1728,21 @@ function closePauseModal() {
     </div>
 </div>
 
+<!-- Confirm Exit Hearing Modal -->
+<div id="confirmExitHearingModal" style="position:fixed;inset:0;z-index:9300;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.96);backdrop-filter:blur(12px);padding:24px">
+    <div style="background:var(--bg-card);border:2px solid rgba(239,68,68,.4);border-radius:var(--radius-lg);padding:32px;text-align:center;max-width:400px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(239,68,68,.2)">
+        <div style="font-size:40px;margin-bottom:12px">⚠️</div>
+        <div style="font-family:var(--font-h);font-size:22px;font-weight:800;color:#fca5a5;margin-bottom:8px">Leave Hearing?</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:24px">
+            If you leave now, you will need the admin's permission to rejoin the hearing later. Are you sure?
+        </div>
+        <div style="display:flex;gap:12px;justify-content:center">
+            <button type="button" class="btn btn-outline" onclick="cancelExitHearing()">Cancel</button>
+            <button type="button" class="btn btn-danger" onclick="proceedExitHearing()" id="confirmExitHearingBtn">Yes, Leave</button>
+        </div>
+    </div>
+</div>
+
 <!-- Rejoin Sent Modal -->
 <div id="rejoinSentModal" style="position:fixed;inset:0;z-index:9400;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);padding:16px">
     <div style="background:var(--bg-card);border-radius:12px;padding:20px;max-width:360px;width:100%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.45)">
@@ -2630,7 +2645,30 @@ function exitHearing() {
         alert('Cannot exit the hearing while a voting round is active.');
         return;
     }
-    if (!confirm('Exit this hearing? You will need admin approval to rejoin.')) return;
+    
+    // Show custom confirmation modal instead of native confirm
+    const m = document.getElementById('confirmExitHearingModal');
+    if (m) {
+        // Hide pause modal if it's currently showing
+        if (pauseModalOpen) {
+            document.getElementById('hearingPausedModal').style.display = 'none';
+        }
+        m.style.display = 'flex';
+    }
+}
+
+function cancelExitHearing() {
+    document.getElementById('confirmExitHearingModal').style.display = 'none';
+    // If the hearing was paused, bring the pause modal back
+    if (pauseModalOpen) {
+        document.getElementById('hearingPausedModal').style.display = 'flex';
+    }
+}
+
+function proceedExitHearing() {
+    const btn = document.getElementById('confirmExitHearingBtn');
+    if (btn) { btn.innerHTML = 'Leaving...'; btn.disabled = true; }
+    
     const fd = new FormData();
     fd.append('action', 'exit_hearing'); fd.append('case_id', CASE_ID);
     fd.append('actor', 'upcc');
@@ -2655,9 +2693,7 @@ document.getElementById('backToDashboardBtn')?.addEventListener('click', functio
     const stat = <?= json_encode($myPresenceStatus) ?>;
     if (open && stat === 'ADMITTED') {
         e.preventDefault();
-        if (confirm('Leave this hearing? You will need to request to rejoin.')) {
-            exitHearing();
-        }
+        exitHearing();
     }
 });
 window.addEventListener('beforeunload', e => {
