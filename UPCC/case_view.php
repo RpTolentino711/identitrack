@@ -1766,7 +1766,6 @@ let isPartialReloading= false;
 let lastRejoinTs      = parseInt(localStorage.getItem('lastRejoin_' + CASE_ID) || '0', 10);
 let currentPauseState = <?= $isHearingPaused ? 'true' : 'false' ?>;
 let pauseReason       = <?= !empty($case['hearing_pause_reason']) ? json_encode($case['hearing_pause_reason']) : 'null' ?>;
-let pauseModalOpen    = false;
 let resumeReloadQueued = false;
 
 // Ensure pause modal is shown immediately if paused on load
