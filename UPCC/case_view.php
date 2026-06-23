@@ -1633,42 +1633,28 @@ function _renderSugDetails(array $sd): void {
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════════
-     PAUSE MODAL — appears when the admin pauses the hearing
-══════════════════════════════════════════════════════════════════════ -->
-<div id="pauseModal" class="modal-overlay" style="display:none; align-items:center; justify-content:center; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); backdrop-filter:blur(5px); z-index:9999;">
-    <div style="background:#fff; border-radius:16px; padding:2rem; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
-        <div style="font-size:3rem; margin-bottom:1rem;">⏸️</div>
-        <h3 style="color:var(--text); margin-bottom:0.5rem; font-size:1.25rem;">Hearing Paused</h3>
-        <p id="pauseModalReason" style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1.5rem;">The admin has paused this hearing.</p>
-        <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:1.5rem;">Please wait while the admin is away. The hearing is temporarily locked. You may wait here, or exit to the dashboard.</p>
-        <div style="display:flex; gap:0.5rem; justify-content:center;">
-            <button class="btn btn-secondary" disabled>Waiting for Admin...</button>
-            <button class="btn btn-danger" onclick="exitHearing()">Back to Dashboard</button>
-        </div>
-    </div>
-</div>
-
 <script>
 let pauseModalOpen = false;
 
 function showPauseModal(reason) {
     pauseModalOpen = true;
-    const m = document.getElementById('pauseModal');
-    const r = document.getElementById('pauseModalReason');
+    const m = document.getElementById('hearingPausedModal');
+    const r = document.getElementById('pauseReasonText');
     if (r) r.textContent = reason === 'AUTO_PAUSE_ADMIN_LEFT' ? 'The admin disconnected.' : 'The admin has paused the hearing.';
     if (m) {
         m.style.display = 'flex';
-        m.classList.add('open');
+        const exitBtn = document.getElementById('exitPauseBtn');
+        if (exitBtn) {
+            // Keep exit button working, no reason to disable it.
+        }
     }
 }
 
 function closePauseModal() {
     pauseModalOpen = false;
-    const m = document.getElementById('pauseModal');
+    const m = document.getElementById('hearingPausedModal');
     if (m) {
         m.style.display = 'none';
-        m.classList.remove('open');
     }
 }
 </script>
@@ -1733,8 +1719,8 @@ function closePauseModal() {
             <p style="margin:0;font-size:12px;font-style:italic">You can stay in the hearing and wait for it to resume, or return to your dashboard.</p>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <button type="button" class="btn btn-primary" onclick="closePauseModal(); document.getElementById('waitInHearingBtn').focus();" style="padding:14px;font-size:14px;">⏳ Wait & Stay</button>
-            <button type="button" class="btn btn-secondary" id="exitPauseBtn" onclick="exitHearingDueToPause()" style="padding:14px;font-size:14px;">← Go to Dashboard</button>
+            <button type="button" class="btn btn-primary" onclick="closePauseModal(); document.getElementById('waitInHearingBtn').focus();" style="padding:14px;font-size:14px;" disabled>⏳ Waiting for Admin</button>
+            <button type="button" class="btn btn-secondary" id="exitPauseBtn" onclick="exitHearing()" style="padding:14px;font-size:14px;">← Go to Dashboard</button>
         </div>
         <div id="waitInHearingBtn" style="margin-top:16px;padding:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:12px;color:#6ee7b7">
             The hearing will automatically resume. Stay and keep your place in the panel.
@@ -1783,11 +1769,14 @@ let pauseReason       = <?= !empty($case['hearing_pause_reason']) ? json_encode(
 let pauseModalOpen    = false;
 let resumeReloadQueued = false;
 
-document.addEventListener("DOMContentLoaded", function() {
-    if (currentPauseState) {
+// Ensure pause modal is shown immediately if paused on load
+if (currentPauseState) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => showPauseModal(pauseReason));
+    } else {
         showPauseModal(pauseReason);
     }
-});
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 //  LIVE VOTING TIMER
