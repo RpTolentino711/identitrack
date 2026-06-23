@@ -1779,9 +1779,15 @@ let votingModalRound  = 0;
 let isPartialReloading= false;
 let lastRejoinTs      = parseInt(localStorage.getItem('lastRejoin_' + CASE_ID) || '0', 10);
 let currentPauseState = <?= $isHearingPaused ? 'true' : 'false' ?>;
-let pauseReason       = <?= $pauseReason ? json_encode($pauseReason) : 'null' ?>;
+let pauseReason       = <?= !empty($case['hearing_pause_reason']) ? json_encode($case['hearing_pause_reason']) : 'null' ?>;
 let pauseModalOpen    = false;
 let resumeReloadQueued = false;
+
+document.addEventListener("DOMContentLoaded", function() {
+    if (currentPauseState) {
+        showPauseModal(pauseReason);
+    }
+});
 
 // ─────────────────────────────────────────────────────────────────────────
 //  LIVE VOTING TIMER
@@ -2291,14 +2297,6 @@ let prevRoundActive = IS_ROUND_ACTIVE;
 let prevConsensus   = <?= json_encode($consensusCategory > 0) ?>;
 let prevCooldown    = <?= json_encode($isInCooldown) ?>;
 let lastRoundClosureNoticeKey = '';
-let currentPauseState = <?= ((int)($case['hearing_is_paused'] ?? 0) === 1) ? 'true' : 'false' ?>;
-let pauseReason = <?= json_encode($case['hearing_pause_reason'] ?? null) ?>;
-
-document.addEventListener("DOMContentLoaded", function() {
-    if (currentPauseState) {
-        showPauseModal(pauseReason);
-    }
-});
 
 function showToast(title, message, type = 'info') {
     const wrap = document.createElement('div');
