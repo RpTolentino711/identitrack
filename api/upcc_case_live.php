@@ -398,7 +398,12 @@ if ($action === 'toggle_pause' && $isAdmin && $_SERVER['REQUEST_METHOD'] === 'PO
         exit;
     }
     
-    $newPausedState = $isCurrentlyPaused ? 0 : 1;
+    if (isset($_POST['set_pause'])) {
+        $newPausedState = (int)$_POST['set_pause'];
+    } else {
+        $newPausedState = $isCurrentlyPaused ? 0 : 1;
+    }
+    
     $customReason = trim((string)($_POST['pause_reason'] ?? ''));
     $pauseReason = $newPausedState === 1 ? ($customReason !== '' ? $customReason : 'MANUAL') : null;
     

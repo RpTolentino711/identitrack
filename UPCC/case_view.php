@@ -2315,6 +2315,8 @@ let prevRoundActive = IS_ROUND_ACTIVE;
 let prevConsensus   = <?= json_encode($consensusCategory > 0) ?>;
 let prevCooldown    = <?= json_encode($isInCooldown) ?>;
 let lastRoundClosureNoticeKey = '';
+let currentPauseState = null;
+let pauseReason = null;
 
 function showToast(title, message, type = 'info') {
     const wrap = document.createElement('div');

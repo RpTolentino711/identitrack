@@ -1022,7 +1022,11 @@ body {
                       <?php endif; ?>
                     </form>
                   <?php else: ?>
-                    <button type="button" id="togglePauseBtn" class="btn btn-warning btn-sm" onclick="toggleHearingPause()">⏸️ Pause Hearing</button>
+                    <?php if (!empty($isHearingPaused)): ?>
+                      <button type="button" id="togglePauseBtn" class="btn btn-success btn-sm" onclick="toggleHearingPause()">▶️ Resume Hearing</button>
+                    <?php else: ?>
+                      <button type="button" id="togglePauseBtn" class="btn btn-warning btn-sm" onclick="toggleHearingPause()">⏸️ Pause Hearing</button>
+                    <?php endif; ?>
                     <form method="post" style="display:inline">
                       <input type="hidden" name="action" value="close_hearing">
                       <button type="submit" id="btnEndHearing" class="btn btn-danger btn-sm">⬛ End Hearing</button>
@@ -2318,6 +2322,7 @@ function toggleHearingPause() {
   const fd = new FormData();
   fd.append('action', 'toggle_pause');
   fd.append('actor', 'admin');
+  fd.append('set_pause', '0'); // Explicitly resume
     
   fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
     .then(r => r.json())
@@ -2346,6 +2351,7 @@ function confirmPauseFromModal() {
   const fd = new FormData();
   fd.append('action', 'toggle_pause');
   fd.append('actor', 'admin');
+  fd.append('set_pause', '1'); // Explicitly pause
   fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
     .then(r => r.json())
     .then(res => {
@@ -2396,7 +2402,7 @@ function confirmLeavePage() {
   const fd = new FormData();
   fd.append('action', 'toggle_pause');
   fd.append('actor', 'admin');
-  fd.append('case_id', CASE_ID);
+  fd.append('set_pause', '1');
   fd.append('pause_reason', 'AUTO_PAUSE_ADMIN_LEFT');
   
   fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
@@ -2417,6 +2423,7 @@ window.addEventListener('unload', function () {
       const params = new URLSearchParams();
       params.append('action', 'toggle_pause');
       params.append('actor', 'admin');
+      params.append('set_pause', '1');
       params.append('pause_reason', 'AUTO_PAUSE_ADMIN_LEFT');
       navigator.sendBeacon(url, params.toString());
     }
