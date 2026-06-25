@@ -253,7 +253,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
             <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
           <?php endif; ?>
         <?php else: ?>
-          <button class="action-btn" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">Unlock Case Access</button>
+          <div style="display:flex; gap:8px;">
+            <button class="action-btn" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">Unlock Access</button>
+            <button class="action-btn" style="background:rgba(239, 68, 68, 0.1); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3);" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">Decline</button>
+          </div>
         <?php endif; ?>
       </td>
     </tr>
@@ -306,6 +309,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') ==
         );
     }
     header('Location: upccdashboard.php');
+    exit;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') === 'decline_assignment') {
+    $caseId = (int)($_POST['case_id'] ?? 0);
+    $reason = trim($_POST['reason'] ?? 'No reason provided');
+    if ($caseId > 0 && $panelId > 0) {
+        db_exec("DELETE FROM upcc_case_panel_member WHERE case_id = :case_id AND upcc_id = :upcc_id", [
+            ':case_id' => $caseId,
+            ':upcc_id' => $panelId
+        ]);
+        $caseRow = db_one("SELECT assigned_panel_members, created_at FROM upcc_case WHERE case_id = :id", [':id' => $caseId]);
+        if ($caseRow) {
+            $panelArray = json_decode((string)$caseRow['assigned_panel_members'], true) ?: [];
+            $panelArray = array_values(array_filter($panelArray, fn($id) => (int)$id !== $panelId));
+            db_exec("UPDATE upcc_case SET assigned_panel_members = :panel WHERE case_id = :id", [
+                ':panel' => json_encode($panelArray),
+                ':id' => $caseId
+            ]);
+            $caseLabel = 'UPCC-' . date('Y', strtotime($caseRow['created_at'])) . '-' . str_pad((string)$caseId, 4, '0', STR_PAD_LEFT);
+            $adminIds = db_all("SELECT admin_id FROM admin_user WHERE is_active = 1");
+            foreach ($adminIds as $adm) {
+                db_exec(
+                    "INSERT INTO notification (type, title, message, admin_id, student_id, related_table, related_id, created_at)
+                     VALUES ('HEARING_DECLINED', 'Panelist Declined', :msg, :adm, '', 'upcc_case', :cid, NOW())",
+                    [
+                        ':msg' => "Panelist {$user['full_name']} declined assignment for {$caseLabel}. Reason: {$reason}",
+                        ':adm' => $adm['admin_id'],
+                        ':cid' => $caseId
+                    ]
+                );
+            }
+            upcc_log_case_activity($caseId, 'UPCC', $panelId, 'DECLINED_ASSIGNMENT', ['reason' => $reason]);
+        }
+    }
+    header('Location: upccdashboard.php?msg=declined');
     exit;
 }
 
@@ -1084,7 +1121,10 @@ body::before {
                         <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
                       <?php endif; ?>
                     <?php else: ?>
-                      <button class="action-btn" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">Unlock Case Access</button>
+                      <div style="display:flex; gap:8px;">
+                        <button class="action-btn" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">Unlock Access</button>
+                        <button class="action-btn" style="background:rgba(239, 68, 68, 0.1); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3);" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">Decline</button>
+                      </div>
                     <?php endif; ?>
                   </td>
                 </tr>
@@ -1161,6 +1201,29 @@ body::before {
   </div>
 </div>
 
+<!-- Modal Decline Assignment -->
+<div id="declineModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-icon">🚫</div>
+    <div class="modal-title">Decline Case Assignment</div>
+    <div class="modal-desc" style="color:var(--text-muted); font-size:14px; line-height:1.6; margin-bottom:20px;">
+      If you are unable to attend this hearing or have a conflict of interest, please provide a brief reason. The administrator will be notified.
+    </div>
+    <form method="post" action="upccdashboard.php">
+      <input type="hidden" name="action" value="decline_assignment">
+      <input type="hidden" name="case_id" id="declineCaseId" value="">
+      <div style="margin-bottom: 20px; text-align: left;">
+        <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:8px;">Reason for declining (Optional)</label>
+        <textarea name="reason" rows="3" style="width:100%; padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.02); color:#fff; font-family:var(--font-body); outline:none; resize:none;" placeholder="e.g. Conflict of schedule, out of office..."></textarea>
+      </div>
+      <div class="modal-actions" style="display:flex; gap:15px; justify-content:center;">
+        <button type="button" class="action-btn" style="background:var(--bg-glass); border:1px solid var(--border-glass);" onclick="closeDeclineModal()">Cancel</button>
+        <button type="submit" class="action-btn" style="background:var(--danger);">Decline Assignment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Modal Rejoin Request -->
 <div id="rejoinModal" class="modal-overlay">
   <div class="modal-content">
@@ -1224,6 +1287,15 @@ function triggerAcknowledge(caseId) {
 
 function closeAckModal() {
   document.getElementById('ackModal').classList.remove('show');
+}
+
+function triggerDecline(caseId) {
+  document.getElementById('declineCaseId').value = caseId;
+  document.getElementById('declineModal').classList.add('show');
+}
+
+function closeDeclineModal() {
+  document.getElementById('declineModal').classList.remove('show');
 }
 
 function triggerRejoin(caseId) {
