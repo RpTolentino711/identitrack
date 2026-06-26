@@ -149,8 +149,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         }
         
         $hearingDate = !empty($c['hearing_date']) ? date('M j, Y', strtotime($c['hearing_date'])) : 'Not scheduled';
+        $isNearHearing = (!empty($c['hearing_date']) && $c['hearing_date'] === date('Y-m-d')) ? 1 : 0;
     ?>
-    <tr class="<?php echo $lockedClass; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>')">
+    <tr class="<?php echo $lockedClass; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>')">
       <td><span class="t-id"><?php echo htmlspecialchars($cid); ?></span></td>
       <td>
         <?php if ($isResolved): ?>
@@ -1415,9 +1416,19 @@ document.getElementById('caseFilter')?.addEventListener('change', function (e) {
       r.style.display = r.getAttribute('data-near-hearing') === '1' ? '' : 'none';
       return;
     }
-    const badge = r.querySelector('.badge');
-    const label = badge ? badge.textContent.trim() : '';
-    r.style.display = label.indexOf(v) !== -1 ? '' : 'none';
+    
+    const text = (r.textContent || '').toLowerCase();
+    let isMatch = false;
+    
+    if (v === 'Hearing Live' && (text.includes('open (ping') || text.includes('join hearing') || text.includes('live'))) {
+       isMatch = true;
+    } else if (v === 'Paused' && (text.includes('closed (ping') || text.includes('closed (admin offline)'))) {
+       isMatch = true;
+    } else if (v === 'Locked' && (text.includes('locked until') || text.includes('click to rejoin'))) {
+       isMatch = true;
+    }
+    
+    r.style.display = isMatch ? '' : 'none';
   });
 });
 </script>
