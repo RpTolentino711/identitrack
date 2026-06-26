@@ -310,6 +310,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') ==
     }
     header('Location: upccdashboard.php');
     exit;
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') === 'decline_assignment') {
     $caseId = (int)($_POST['case_id'] ?? 0);
     $reason = trim($_POST['reason'] ?? 'No reason provided');
