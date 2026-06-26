@@ -258,9 +258,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
             </div>
           <?php endif; ?>
         <?php else: ?>
-          <div style="display:flex; gap:8px;">
-            <button class="action-btn" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">Unlock Access</button>
-            <button class="action-btn" style="background:rgba(239, 68, 68, 0.1); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3);" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">Decline</button>
+          <div class="need-action-box">
+            <span class="need-action-label">⚠️ Be panel of the hearing?</span>
+            <div style="display:flex; gap:8px;">
+              <button class="action-btn" style="background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">✅ Yes</button>
+              <button class="action-btn" style="background:rgba(239, 68, 68, 0.15); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">❌ No</button>
+            </div>
           </div>
         <?php endif; ?>
       </td>
@@ -868,6 +871,24 @@ body::before {
 .modal-desc { color: var(--text-muted); font-size: 14px; margin-bottom: 30px; line-height: 1.6; }
 .modal-actions { display: flex; gap: 15px; justify-content: center; }
 
+@keyframes jumpPulse {
+  0%, 100% { transform: translateY(0); box-shadow: 0 0 0 rgba(245, 158, 11, 0); }
+  50% { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); }
+}
+.need-action-box {
+  animation: jumpPulse 2s infinite ease-in-out;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.05);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+.need-action-label {
+  font-size: 10px; color: var(--amber-400); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+}
 </style>
 </head>
 <body>
@@ -1128,9 +1149,12 @@ body::before {
                         </div>
                       <?php endif; ?>
                     <?php else: ?>
-                      <div style="display:flex; gap:8px;">
-                        <button class="action-btn" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">Unlock Access</button>
-                        <button class="action-btn" style="background:rgba(239, 68, 68, 0.1); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3);" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">Decline</button>
+                      <div class="need-action-box">
+                        <span class="need-action-label">⚠️ Be panel of the hearing?</span>
+                        <div style="display:flex; gap:8px;">
+                          <button class="action-btn" style="background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">✅ Yes</button>
+                          <button class="action-btn" style="background:rgba(239, 68, 68, 0.15); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">❌ No</button>
+                        </div>
                       </div>
                     <?php endif; ?>
                   </td>
