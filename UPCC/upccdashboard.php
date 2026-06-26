@@ -758,6 +758,7 @@ body::before {
   color: #e0e7ff; font-weight: 700; font-size: 13px;
   position: relative; cursor: help;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .offense-badge.major {
