@@ -1014,12 +1014,35 @@ body {
                       <?php
                         $needsExplanation = in_array($case['case_kind'], ['MAJOR_OFFENSE', 'SECTION4_MINOR_ESCALATION']);
                         $hasExplanation   = !empty($case['student_explanation_at']);
-                        $canStartHearing  = !$needsExplanation || $hasExplanation;
+                        $panelCountResult = db_one("
+                            SELECT 
+                                COUNT(*) as total_panel,
+                                SUM(CASE WHEN a.accepted_at IS NOT NULL THEN 1 ELSE 0 END) as accepted_panel
+                            FROM upcc_case_panel_member m
+                            LEFT JOIN upcc_case_panel_acceptance a ON m.case_id = a.case_id AND m.upcc_id = a.upcc_id
+                            WHERE m.case_id = :id
+                        ", [':id' => $case_id]);
+                        $totalPanel = (int)($panelCountResult['total_panel'] ?? 0);
+                        $acceptedPanel = (int)($panelCountResult['accepted_panel'] ?? 0);
+                        $panelMet = ($acceptedPanel === $totalPanel && $totalPanel > 0) || ($acceptedPanel >= 2);
+
+                        $canStartHearing  = (!$needsExplanation || $hasExplanation) && $panelMet;
                       ?>
-                      <button type="submit" class="btn btn-success btn-sm" <?= $canStartHearing ? '' : 'disabled' ?> id="btnStartHearing">▶ Start Hearing</button>
-                      <?php if (!$canStartHearing): ?>
-                        <div style="font-size:10px; color:var(--red-600); margin-top:4px; font-weight:600;">Awaiting Student Explanation</div>
-                      <?php endif; ?>
+                      <div style="display:flex; flex-direction:column; gap:6px;">
+                          <?php if (!$canStartHearing): ?>
+                            <label style="font-size:11px; display:flex; align-items:center; gap:4px; color:#d97706; font-weight:600; cursor:pointer;">
+                              <input type="checkbox" id="forceStartCheck" onclick="document.getElementById('btnStartHearing').disabled = !this.checked;">
+                              Force Start (Bypass requirements)
+                            </label>
+                          <?php endif; ?>
+                          <button type="submit" class="btn btn-success btn-sm" <?= $canStartHearing ? '' : 'disabled' ?> id="btnStartHearing">▶ Start Hearing</button>
+                          <?php if (!$canStartHearing): ?>
+                            <div style="font-size:10px; color:var(--red-600); font-weight:600; line-height:1.4;">
+                              <?php if ($needsExplanation && !$hasExplanation) echo "• Awaiting Student Explanation<br>"; ?>
+                              <?php if (!$panelMet) echo "• Awaiting Panel ({$acceptedPanel}/{$totalPanel} accepted; need all or at least 2)<br>"; ?>
+                            </div>
+                          <?php endif; ?>
+                      </div>
                     </form>
                   <?php else: ?>
                     <?php if (!empty($isHearingPaused)): ?>
