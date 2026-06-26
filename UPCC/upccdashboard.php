@@ -252,9 +252,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
           <?php else: ?>
             <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
               <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
-              <?php if (!in_array($c['status'], ['RESOLVED', 'CLOSED', 'UNDER_APPEAL'])): ?>
-                <button class="action-btn" style="background:rgba(239, 68, 68, 0.1); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3); padding:6px 10px; font-size:11px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);" title="Decline Assignment">Decline</button>
-              <?php endif; ?>
             </div>
           <?php endif; ?>
         <?php else: ?>
@@ -1143,9 +1140,6 @@ body::before {
                       <?php else: ?>
                         <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
                           <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
-                          <?php if (!in_array($c['status'], ['RESOLVED', 'CLOSED', 'UNDER_APPEAL'])): ?>
-                            <button class="action-btn" style="background:rgba(239, 68, 68, 0.1); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3); padding:6px 10px; font-size:11px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);" title="Decline Assignment">Decline</button>
-                          <?php endif; ?>
                         </div>
                       <?php endif; ?>
                     <?php else: ?>
