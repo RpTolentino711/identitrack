@@ -124,12 +124,23 @@ $assignedPanelNames = [];
 if (!empty($assignedPanelIds)) {
   $ids = array_map('intval', $assignedPanelIds);
   $in = implode(',', $ids);
-  $rows = db_all("SELECT upcc_id, full_name, role FROM upcc_user WHERE upcc_id IN ($in) AND is_active = 1");
+  
+  $rows = db_all("
+    SELECT u.upcc_id, u.full_name, u.role, a.accepted_at 
+    FROM upcc_user u 
+    LEFT JOIN upcc_case_panel_acceptance a ON a.upcc_id = u.upcc_id AND a.case_id = :id
+    WHERE u.upcc_id IN ($in) AND u.is_active = 1
+  ", [':id' => $case_id]);
+  
   $byId = [];
   foreach ($rows as $r) { $byId[(int)$r['upcc_id']] = $r; }
   foreach ($ids as $id) {
     if (isset($byId[$id])) {
-      $assignedPanelNames[] = ['name' => $byId[$id]['full_name'], 'role' => $byId[$id]['role']];
+      $assignedPanelNames[] = [
+          'name' => $byId[$id]['full_name'], 
+          'role' => $byId[$id]['role'],
+          'accepted' => !empty($byId[$id]['accepted_at'])
+      ];
     }
   }
 }
@@ -1132,11 +1143,20 @@ body {
                 <div class="panel-list">
                   <?php foreach ($assignedPanelNames as $idx => $pm):
                     $avClass = 'av-' . $avatarColors[$idx % count($avatarColors)]; ?>
-                    <div class="panel-member">
-                      <div class="avatar <?= $avClass ?>"><?= htmlspecialchars(initials($pm['name'])) ?></div>
+                    <div class="panel-member" style="display:flex; justify-content:space-between; align-items:center;">
+                      <div style="display:flex; align-items:center; gap:12px;">
+                          <div class="avatar <?= $avClass ?>"><?= htmlspecialchars(initials($pm['name'])) ?></div>
+                          <div>
+                            <div class="member-name"><?= htmlspecialchars($pm['name']) ?></div>
+                            <div class="member-role"><?= htmlspecialchars($pm['role']) ?></div>
+                          </div>
+                      </div>
                       <div>
-                        <div class="member-name"><?= htmlspecialchars($pm['name']) ?></div>
-                        <div class="member-role"><?= htmlspecialchars($pm['role']) ?></div>
+                        <?php if ($pm['accepted']): ?>
+                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dcfce7; color:#16a34a; font-weight:bold; font-size:14px;" title="Accepted">✓</span>
+                        <?php else: ?>
+                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fef3c7; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">×</span>
+                        <?php endif; ?>
                       </div>
                     </div>
                   <?php endforeach; ?>
