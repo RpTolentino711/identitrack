@@ -608,12 +608,13 @@ function ensure_hearing_workflow_schema(): void
     }
   }
 
-  $statusCol = db_one(
-    "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'upcc_case' AND COLUMN_NAME = 'status'"
-  );
   if ($statusCol && strpos((string)$statusCol['COLUMN_TYPE'], 'AWAITING_ADMIN_FINALIZATION') === false) {
     db_exec("ALTER TABLE upcc_case MODIFY status ENUM('PENDING','UNDER_INVESTIGATION','RESOLVED','CLOSED','UNDER_APPEAL','CANCELLED','AWAITING_ADMIN_FINALIZATION') NOT NULL DEFAULT 'PENDING'");
+  }
+
+  $hasReminderCol = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'upcc_case_panel_member' AND COLUMN_NAME = 'last_reminder_sent_at'");
+  if (!$hasReminderCol && db_one("SHOW TABLES LIKE 'upcc_case_panel_member'")) {
+      db_exec("ALTER TABLE upcc_case_panel_member ADD COLUMN last_reminder_sent_at DATETIME DEFAULT NULL");
   }
 
   db_exec("CREATE TABLE IF NOT EXISTS upcc_case_activity (
@@ -889,6 +890,83 @@ function upcc_send_panel_assignment_email(int $caseId, array $panelIds): array {
 
     return ['ok' => true, 'results' => $results];
 }
+
+/**
+ * Periodically reminds assigned panelists who haven't accepted or declined.
+ */
+function upcc_process_panel_reminders(): void {
+    // Look for panel assignments where the case is still pending/investigating
+    // and the panelist has not accepted (not in upcc_case_panel_acceptance)
+    // and we haven't sent a reminder in the last 24 hours.
+    $pending = db_all("
+        SELECT pm.case_id, pm.upcc_id, u.email, u.full_name, uc.created_at, uc.hearing_date, uc.hearing_time
+        FROM upcc_case_panel_member pm
+        JOIN upcc_case uc ON uc.case_id = pm.case_id
+        JOIN upcc_user u ON u.upcc_id = pm.upcc_id
+        LEFT JOIN upcc_case_panel_acceptance pa ON pa.case_id = pm.case_id AND pa.upcc_id = pm.upcc_id
+        WHERE uc.status IN ('PENDING', 'UNDER_INVESTIGATION')
+          AND pa.acceptance_id IS NULL
+          AND u.is_active = 1
+          AND (pm.last_reminder_sent_at IS NULL OR pm.last_reminder_sent_at < DATE_SUB(NOW(), INTERVAL 24 HOUR))
+    ");
+
+    if (empty($pending)) return;
+
+    require_once __DIR__ . '/../UPCC/class.phpmailer.php';
+    require_once __DIR__ . '/../UPCC/class.smtp.php';
+
+    $loginUrl = "http://" . $_SERVER['HTTP_HOST'] . "/identitrack/UPCC/login.php";
+
+    foreach ($pending as $row) {
+        $caseLabel = 'UPCC-' . date('Y', strtotime($row['created_at'])) . '-' . str_pad((string)$row['case_id'], 3, '0', STR_PAD_LEFT);
+        $hearingAt = $row['hearing_date'] ? date('M j, Y', strtotime($row['hearing_date'])) : 'TBD';
+        if ($row['hearing_time']) $hearingAt .= ' at ' . date('g:i A', strtotime($row['hearing_time']));
+
+        try {
+            $mail = new PHPMailer(true);
+            $mail->CharSet = 'UTF-8';
+            $mail->isSMTP();
+            $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
+            $mail->Port = 587;
+            $mail->SMTPAuth = true;
+            $mail->SMTPSecure = 'tls';
+            $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+            $mail->Password = $_ENV['SMTP_PASS'] ?? '';
+            $mail->Timeout = 30;
+
+            $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack UPCC');
+            $mail->addAddress($row['email'], $row['full_name']);
+            $mail->Subject = "REMINDER: Pending Panel Assignment for $caseLabel";
+
+            $mail->isHTML(true);
+            $mail->Body = "
+                <div style='font-family:sans-serif; max-width:600px; line-height:1.6; color:#333; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;'>
+                    <h2 style='color:#f59e0b; margin-top: 0;'>Action Required: Pending Hearing Assignment</h2>
+                    <p>Hello <b>" . htmlspecialchars($row['full_name']) . "</b>,</p>
+                    <p>This is a reminder that you have been assigned to a UPCC hearing panel, but you have not yet confirmed or declined your participation.</p>
+                    <div style='background:#f8fafc; padding:20px; border-radius:10px; border: 1px solid #f1f5f9; margin:20px 0;'>
+                        <p style='margin:5px 0;'><b>Case ID:</b> <span style='color:#1e3a8a;'>$caseLabel</span></p>
+                        <p style='margin:5px 0;'><b>Hearing Schedule:</b> <span style='color:#b91c1c; font-weight: bold;'>$hearingAt</span></p>
+                    </div>
+                    <p>Please log in to the UPCC Panel portal to either <b>Unlock Case Access</b> (Accept) or <b>Decline</b> the assignment.</p>
+                    <div style='margin: 25px 0;'>
+                        <a href='$loginUrl' style='background:#1e3a8a; color:white; padding:12px 24px; text-decoration:none; border-radius:6px; font-weight:bold; display:inline-block;'>Go to Panel Portal</a>
+                    </div>
+                    <p style='margin-top:30px; font-size:12px; color:#94a3b8; border-top: 1px solid #f1f5f9; padding-top: 15px;'>This is an automated notification from IdentiTrack. Please do not reply.</p>
+                </div>
+            ";
+            $mail->send();
+
+            db_exec("UPDATE upcc_case_panel_member SET last_reminder_sent_at = NOW() WHERE case_id = :c AND upcc_id = :u", [
+                ':c' => $row['case_id'],
+                ':u' => $row['upcc_id']
+            ]);
+        } catch (Exception $e) {
+            error_log("Failed to send panel reminder to {$row['email']}: " . $e->getMessage());
+        }
+    }
+}
+
 
 /**
  * Notifies the panel that the student has submitted their explanation.

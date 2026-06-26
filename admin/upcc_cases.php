@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../database/database.php';
 require_admin();
 ensure_hearing_workflow_schema();
+upcc_process_panel_reminders();
 
 $admin = admin_current();
 $activeSidebar = 'upcc';
