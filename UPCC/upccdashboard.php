@@ -166,17 +166,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         <?php endif; ?>
       </td>
       <td>
-        <?php if (!$accessGranted): ?>
-          <?php if ($c['hearing_is_paused'] == 1 || $adminOffline): ?>
-            <span class="badge badge-muted" style="font-size:10px; padding:4px 10px; background:rgba(148, 163, 184, 0.1); color:#cbd5e1; border:1px solid rgba(148, 163, 184, 0.2);">
-              🔒 CLOSED (ADMIN OFFLINE)
-            </span>
-          <?php else: ?>
-            <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:rgba(245, 158, 11, 0.15); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.3);">
-              🔐 LOCKED · CLICK TO REJOIN
-            </button>
-          <?php endif; ?>
-        <?php elseif (!$accepted || $isLocked): ?>
+        <?php if (!$accepted): ?>
           <span style="opacity:0.5; font-style:italic;">📩 [ Confidential Data Hidden ]</span>
         <?php else: ?>
           <?php 
@@ -251,6 +241,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         <?php if ($accepted): ?>
           <?php if ($c['hearing_is_open'] == 1 && $accessGranted): ?>
             <button class="action-btn" style="background:#10b981; pointer-events:auto;" onclick="event.stopPropagation(); window.location.href='<?php echo htmlspecialchars($href); ?>'">▶️ JOIN HEARING</button>
+          <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && !($c['hearing_is_paused'] == 1 || $adminOffline)): ?>
+            <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
+              <?php if ($myPresenceStatus === 'WAITING'): ?>
+                <span class="badge badge-warning" style="font-size:10px; padding:4px 10px; background:rgba(245, 158, 11, 0.1); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.2);">⏳ Awaiting Admin</span>
+              <?php else: ?>
+                <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 10px; background:rgba(245, 158, 11, 0.15); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.3);">🔐 CLICK TO REJOIN</button>
+              <?php endif; ?>
+            </div>
           <?php else: ?>
             <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
               <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
@@ -1050,21 +1048,7 @@ body::before {
                   <?php endif; ?>
                   </td>
                   <td>
-                    <?php if (!$accessGranted): ?>
-                      <?php if ($c['hearing_is_paused'] == 1 || $adminOffline): ?>
-                        <span class="badge badge-muted" style="font-size:10px; padding:4px 10px; background:rgba(148, 163, 184, 0.1); color:#cbd5e1; border:1px solid rgba(148, 163, 184, 0.2);">
-                          🔒 CLOSED (ADMIN OFFLINE)
-                        </span>
-                      <?php elseif ($myPresenceStatus === 'WAITING'): ?>
-                        <span class="badge badge-warning" style="font-size:10px; padding:4px 10px; background:rgba(245, 158, 11, 0.1); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.2);">
-                          ⏳ Awaiting Admin Approval
-                        </span>
-                      <?php else: ?>
-                        <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:rgba(245, 158, 11, 0.15); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.3);">
-                          🔐 LOCKED · CLICK TO REJOIN
-                        </button>
-                      <?php endif; ?>
-                    <?php elseif (!$accepted || $isLocked): ?>
+                    <?php if (!$accepted): ?>
                       <span style="opacity:0.5; font-style:italic;">📩 [ Confidential Data Hidden ]</span>
                     <?php else: ?>
                       <?php 
@@ -1127,6 +1111,14 @@ body::before {
                     <?php if ($accepted): ?>
                       <?php if ($c['hearing_is_open'] == 1 && $accessGranted): ?>
                         <button class="action-btn" style="background:#10b981; pointer-events:auto;" onclick="event.stopPropagation(); window.location.href='<?php echo htmlspecialchars($href); ?>'">▶️ JOIN HEARING</button>
+                      <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && !($c['hearing_is_paused'] == 1 || $adminOffline)): ?>
+                        <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
+                          <?php if ($myPresenceStatus === 'WAITING'): ?>
+                            <span class="badge badge-warning" style="font-size:10px; padding:4px 10px; background:rgba(245, 158, 11, 0.1); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.2);">⏳ Awaiting Admin</span>
+                          <?php else: ?>
+                            <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 10px; background:rgba(245, 158, 11, 0.15); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.3);">🔐 CLICK TO REJOIN</button>
+                          <?php endif; ?>
+                        </div>
                       <?php else: ?>
                         <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
                           <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
