@@ -881,7 +881,7 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 .need-action-label {
   font-size: 10px; color: var(--amber-400); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
