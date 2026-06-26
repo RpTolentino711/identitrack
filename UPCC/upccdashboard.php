@@ -458,6 +458,7 @@ body {
 }
 .search-input:focus { box-shadow: 0 6px 22px rgba(0,0,0,0.6); transform: translateY(-1px); }
 .filter-select { padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); color:var(--text-main); }
+.filter-select option { background: #0f172a; color: #fff; }
 .btn-secondary { padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-main); cursor:pointer; }
 .btn-secondary:hover { background: rgba(255,255,255,0.03); }
 .btn-join { background: linear-gradient(90deg,#059669,#10b981); box-shadow: 0 6px 20px rgba(16,185,129,0.12); }
