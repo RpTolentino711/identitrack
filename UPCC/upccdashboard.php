@@ -150,8 +150,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         
         $hearingDate = !empty($c['hearing_date']) ? date('M j, Y', strtotime($c['hearing_date'])) : 'Not scheduled';
         $isNearHearing = (!empty($c['hearing_date']) && $c['hearing_date'] === date('Y-m-d')) ? 1 : 0;
+        $adminOff = isset($adminOffline) && $adminOffline ? 1 : 0;
     ?>
-    <tr class="<?php echo $lockedClass; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>')">
+    <tr class="<?php echo $lockedClass; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" data-is-open="<?php echo (int)($c['hearing_is_open'] ?? 0); ?>" data-is-paused="<?php echo (int)($c['hearing_is_paused'] ?? 0); ?>" data-admin-offline="<?php echo $adminOff; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>')">
       <td><span class="t-id"><?php echo htmlspecialchars($cid); ?></span></td>
       <td>
         <?php if ($isResolved): ?>
@@ -1028,8 +1029,9 @@ body::before {
                   $isSection4 = (string)($c['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION' || stripos((string)($c['case_summary'] ?? ''), 'Section 4') !== false || count($minorOffenses) >= 3;
                   $section4Class = $isSection4 ? ' section4-row' : '';
                   $isNearHearing = (!empty($c['hearing_date']) && $c['hearing_date'] === date('Y-m-d')) ? 1 : 0;
+                  $adminOff = isset($adminOffline) && $adminOffline ? 1 : 0;
                 ?>
-                <tr class="<?php echo $lockedClass . $section4Class; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>')">
+                <tr class="<?php echo $lockedClass . $section4Class; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" data-is-open="<?php echo (int)($c['hearing_is_open'] ?? 0); ?>" data-is-paused="<?php echo (int)($c['hearing_is_paused'] ?? 0); ?>" data-admin-offline="<?php echo $adminOff; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>')">
                   <td><span class="t-id"><?php echo htmlspecialchars($cid); ?></span></td>
                   <td>
                     <?php if ($isResolved): ?>
@@ -1417,14 +1419,16 @@ document.getElementById('caseFilter')?.addEventListener('change', function (e) {
       return;
     }
     
-    const text = (r.textContent || '').toLowerCase();
-    let isMatch = false;
+    const isOpen = r.getAttribute('data-is-open') === '1';
+    const isPaused = r.getAttribute('data-is-paused') === '1';
+    const isAdminOffline = r.getAttribute('data-admin-offline') === '1';
     
-    if (v === 'Hearing Live' && (text.includes('open (ping') || text.includes('join hearing') || text.includes('live'))) {
+    let isMatch = false;
+    if (v === 'Hearing Live' && isOpen && !isPaused && !isAdminOffline) {
        isMatch = true;
-    } else if (v === 'Paused' && (text.includes('closed (ping') || text.includes('closed (admin offline)'))) {
+    } else if (v === 'Paused' && isOpen && (isPaused || isAdminOffline)) {
        isMatch = true;
-    } else if (v === 'Locked' && (text.includes('locked until') || text.includes('click to rejoin'))) {
+    } else if (v === 'Locked' && !isOpen) {
        isMatch = true;
     }
     
