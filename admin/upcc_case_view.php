@@ -1145,6 +1145,59 @@ body {
               
               <?php if (!$isHearingOpen): ?>
               </div> <!-- End clickable config wrap -->
+              
+              <div id="editPanel" style="display:none; margin-top:1rem; padding:16px; background:#fff; border:1px solid #e2e8f0; border-radius:12px;">
+                <div style="font-weight:700; margin-bottom:12px;">Edit Hearing Configuration</div>
+                <form method="post">
+                  <input type="hidden" name="action" value="update_hearing_config">
+                  <div class="form-group">
+                    <label class="form-label">Lead Department</label>
+                    <select name="assigned_department_id" id="hearing_edit_dept_select" class="form-control" onchange="filterPanelDropdown('hearing_edit')" required>
+                      <option value="">Select department…</option>
+                      <?php foreach ($departments as $dept): ?>
+                        <option value="<?= $dept['dept_id'] ?>" <?= (($case['assigned_department_id'] ?? $defaultDeptId) == $dept['dept_id']) ? 'selected' : '' ?>>
+                          <?= htmlspecialchars($dept['dept_name']) ?>
+                        </option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" id="hearing_edit-panel-label">Panel Members (Select from lead department)</label>
+                    <div class="panel-select-wrapper">
+                        <div id="hearing_edit-selected-panel-members" class="selected-panel-members"></div>
+                        <div style="position:relative;">
+                            <input type="text" id="hearing_edit-panel-member-search" class="panel-member-search" placeholder="Search and click to add panel members..." oninput="filterPanelDropdown('hearing_edit')" onfocus="showPanelDropdown('hearing_edit')" onblur="setTimeout(() => hidePanelDropdown('hearing_edit'), 200)">
+                            <div id="hearing_edit-panel-member-dropdown" class="panel-member-dropdown"></div>
+                        </div>
+                    </div>
+                    <div id="hearing_edit-hidden-panel-inputs"></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label class="form-label">Hearing Format</label>
+                      <select name="hearing_type" class="form-control" onchange="toggleHearingLocation(this.value, 'hearing_edit_link_or_location', 'hearing_edit_loc_label')" required>
+                        <option value="ONLINE" <?= ($case['hearing_type'] ?? '') === 'ONLINE' ? 'selected' : '' ?>>Online (Virtual Meeting)</option>
+                        <option value="FACE_TO_FACE" <?= ($case['hearing_type'] ?? '') === 'FACE_TO_FACE' ? 'selected' : '' ?>>Face-to-Face (In-Person)</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" id="hearing_edit_loc_label"><?= ($case['hearing_type'] ?? '') === 'FACE_TO_FACE' ? 'Room / Location' : 'Meeting Link (URL)' ?></label>
+                      <input type="text" name="hearing_link_or_location" id="hearing_edit_link_or_location" class="form-control" value="<?= htmlspecialchars($case['hearing_link_or_location'] ?? '') ?>" placeholder="..." required>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label class="form-label">Hearing Date</label>
+                      <input type="date" name="hearing_date" class="form-control" value="<?= htmlspecialchars($case['hearing_date'] ?? '') ?>" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Hearing Time</label>
+                      <input type="time" name="hearing_time" class="form-control" value="<?= $case['hearing_time'] ? date('H:i', strtotime($case['hearing_time'])) : '' ?>" required>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-full">Save Changes</button>
+                </form>
+              </div>
               <?php endif; ?>
 
               <!-- Rejoin requests -->
@@ -1956,6 +2009,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (hearingDept) {
         loadMembersForDepartment('hearing', hearingDept.value, currentPanel);
     }
+    const hearingEditDept = document.getElementById('hearing_edit_dept_select');
+    if (hearingEditDept) {
+        loadMembersForDepartment('hearing_edit', hearingEditDept.value, currentPanel);
+    }
     const reconfigDept = document.getElementById('reconfig_dept_select');
     if (reconfigDept) {
         loadMembersForDepartment('reconfig', reconfigDept.value, currentPanel);
@@ -2762,8 +2819,8 @@ function showToast(title, msg, type = 'info') {
 function toggleEditPanel() {
     const ep = document.getElementById('editPanel');
     if (!ep) return;
-    ep.classList.toggle('open');
-    if (ep.classList.contains('open')) ep.scrollIntoView({ behavior:'smooth', block:'start' });
+    ep.style.display = ep.style.display === 'none' ? 'block' : 'none';
+    if (ep.style.display === 'block') ep.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 
