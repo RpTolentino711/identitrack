@@ -250,7 +250,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
               <?php endif; ?>
             </div>
           <?php else: ?>
-            <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
+            <div style="display:flex; gap:8px; align-items:center; justify-content:flex-start;">
               <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
             </div>
           <?php endif; ?>
@@ -1138,7 +1138,7 @@ body::before {
                           <?php endif; ?>
                         </div>
                       <?php else: ?>
-                        <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
+                        <div style="display:flex; gap:8px; align-items:center; justify-content:flex-start;">
                           <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
                         </div>
                       <?php endif; ?>
