@@ -1481,14 +1481,14 @@ body {
                 <input type="hidden" name="action" value="resolve_case">
                 <input type="hidden" id="use_suggested" name="use_suggested" value="0">
 
-                <div class="form-group">
+                <div class="form-group" id="decided_category_group" style="<?= !$consensusCategory ? 'display:none;' : '' ?>">
                   <label class="form-label">
                     Category
                     <?php if ($consensusCategory): ?>
                       <span style="color:var(--green-700);font-weight:600">(Panel consensus: Category <?= $consensusCategory ?>)</span>
                     <?php endif; ?>
                   </label>
-                  <select name="decided_category" id="decided_category" class="form-control" required onchange="toggleCategoryFields()">
+                  <select name="decided_category" id="decided_category" class="form-control" <?= $consensusCategory ? 'required' : 'disabled' ?> onchange="toggleCategoryFields()">
                     <option value="">Select category…</option>
                     <?php for ($cat = 1; $cat <= 5; $cat++): ?>
                       <option value="<?= $cat ?>" <?= $cat === ($postedDecidedCategory ?: $consensusCategory) ? 'selected' : '' ?>>
@@ -1591,6 +1591,17 @@ body {
                   document.getElementById('final_decision').disabled = !isChecked;
                   document.getElementById('submit_final_decision').disabled = !isChecked;
                   
+                  // Hide/Show the category dropdown group
+                  const catGroup = document.getElementById('decided_category_group');
+                  if (catGroup) {
+                      catGroup.style.display = isChecked ? 'block' : 'none';
+                      const decCat = document.getElementById('decided_category');
+                      if (decCat) {
+                          decCat.disabled = !isChecked;
+                          decCat.required = isChecked;
+                      }
+                  }
+                  
                   // Disable or enable category dynamic fields based on selection
                   const terms = document.getElementById('cat1_terms');
                   if (terms) terms.disabled = !isChecked;
@@ -1598,6 +1609,15 @@ body {
                   document.querySelectorAll('input[name^="cat2_"]').forEach(el => {
                       el.disabled = !isChecked;
                   });
+
+                  if (!isChecked) {
+                      const dfc = document.getElementById('dynamicFieldsContainer');
+                      if (dfc) dfc.style.display = 'none';
+                  } else {
+                      if (typeof toggleCategoryFields === 'function') {
+                          toggleCategoryFields();
+                      }
+                  }
               }
               document.addEventListener('DOMContentLoaded', toggleForceResolve);
               </script>
