@@ -2004,7 +2004,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     document.getElementById('type_code').value  = '';
     document.getElementById('type_name').value  = '';
     document.getElementById('type_level').value = currentLevel;
-    document.getElementById('type_major_category').value = '';
+    document.getElementById('type_major_category').value = document.getElementById('major_category')?.value || '';
     toggleModalCategory();
     modal.classList.add('active');
   }
