@@ -116,6 +116,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         $accepted = isset($acceptedCases[(int)$c['case_id']]);
         $isLocked = !$accessGranted;
         $lockedClass = $isLocked ? 'case-locked' : '';
+        if (!$accepted) {
+            $lockedClass .= ' case-needs-action';
+        }
         $isResolved = in_array($c['status'], ['CLOSED', 'RESOLVED']);
         if ($isResolved) {
             $lockedClass .= ' case-resolved-row';
@@ -641,11 +644,25 @@ body::before {
 }
 .table tr.case-locked {
   opacity: 0.6;
-  pointer-events: none;
 }
 .table tr.case-locked:hover td {
   background: rgba(255,255,255,0.02);
   cursor: not-allowed;
+}
+.table tr.case-needs-action {
+  opacity: 1 !important;
+  animation: pulseNeedsAction 2s infinite;
+}
+.table tr.case-needs-action td {
+  border-top: 1px solid rgba(16, 185, 129, 0.3);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.3);
+}
+.table tr.case-needs-action td:first-child { border-left: 1px solid rgba(16, 185, 129, 0.3); }
+.table tr.case-needs-action td:last-child { border-right: 1px solid rgba(16, 185, 129, 0.3); }
+@keyframes pulseNeedsAction {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.05); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); background: rgba(16, 185, 129, 0.15); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); background: rgba(16, 185, 129, 0.05); }
 }
 
 .table tr.case-resolved-row {
@@ -1004,6 +1021,9 @@ body::before {
                   $accepted = isset($acceptedCases[(int)$c['case_id']]);
                   $isLocked = !$accessGranted;
                   $lockedClass = $isLocked ? 'case-locked' : '';
+                  if (!$accepted) {
+                      $lockedClass .= ' case-needs-action';
+                  }
                   $isResolved = in_array($c['status'], ['CLOSED', 'RESOLVED']);
                   if ($isResolved) {
                       $lockedClass .= ' case-resolved-row';
