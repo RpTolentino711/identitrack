@@ -15,102 +15,116 @@ if (!$user) {
     exit;
 }
 
-// Generate a fresh OTP
-$otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-$_SESSION['upcc_otp_val']  = $otp;
-$_SESSION['upcc_otp_user'] = $user['username'];
-$_SESSION['upcc_otp_time'] = time();
-
-// --- Send OTP via PHPMailer (v5 style, same as your existing mailer) ---
-require_once __DIR__ . '/class.phpmailer.php';
-require_once __DIR__ . '/class.smtp.php';
+$isLocked = false;
+$lockTimeRemaining = 0;
+if (isset($_SESSION['upcc_otp_locked_until'])) {
+    $diff = $_SESSION['upcc_otp_locked_until'] - time();
+    if ($diff > 0) {
+        $isLocked = true;
+        $lockTimeRemaining = $diff;
+    } else {
+        unset($_SESSION['upcc_otp_locked_until'], $_SESSION['upcc_otp_failures']);
+    }
+}
 
 $mailError = '';
-try {
-    $mail = new PHPMailer(true);
-    $mail->CharSet   = 'UTF-8';
-    $mail->isSMTP();
-    $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
-    $mail->Port      = 587;
-    $mail->SMTPAuth  = true;
-    $mail->SMTPSecure = 'tls';
-    $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-    $mail->Password = $_ENV['SMTP_PASS'] ?? '';
-    $mail->Timeout   = 30;
+if (!$isLocked) {
+    // Generate a fresh OTP
+    $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $_SESSION['upcc_otp_val']  = $otp;
+    $_SESSION['upcc_otp_user'] = $user['username'];
+    $_SESSION['upcc_otp_time'] = time();
 
-    $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'UPCC Panel');
-    $mail->addAddress($user['email'], $user['full_name']);
-    $mail->addReplyTo('no-reply@identitrack.local', 'UPCC Panel');
+    // --- Send OTP via PHPMailer (v5 style, same as your existing mailer) ---
+    require_once __DIR__ . '/class.phpmailer.php';
+    require_once __DIR__ . '/class.smtp.php';
 
-    $logoPath = realpath(__DIR__ . '/../assets/logo.png');
-    $cid = 'upcclogo';
-    if ($logoPath && is_readable($logoPath)) {
-        $mail->addEmbeddedImage($logoPath, $cid, 'logo.png');
-        $logoHtml = "<img src=\"cid:$cid\" width=\"42\" height=\"42\" alt=\"UPCC\" style=\"display:block;border-radius:12px;\" />";
-    } else {
-        $logoHtml = "<div style=\"width:42px;height:42px;border-radius:12px;background:#1e3a8a;color:#fff;font-weight:800;font-size:14px;text-align:center;line-height:42px;\">IT</div>";
-    }
+    try {
+        $mail = new PHPMailer(true);
+        $mail->CharSet   = 'UTF-8';
+        $mail->isSMTP();
+        $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
+        $mail->Port      = 587;
+        $mail->SMTPAuth  = true;
+        $mail->SMTPSecure = 'tls';
+        $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+        $mail->Password = $_ENV['SMTP_PASS'] ?? '';
+        $mail->Timeout   = 30;
 
-    $safeName = htmlspecialchars($user['full_name'], ENT_QUOTES, 'UTF-8');
-    $safeOtp  = htmlspecialchars($otp, ENT_QUOTES, 'UTF-8');
-    $requestedAt = date('F j, Y g:i A');
+        $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'UPCC Panel');
+        $mail->addAddress($user['email'], $user['full_name']);
+        $mail->addReplyTo('no-reply@identitrack.local', 'UPCC Panel');
 
-    $mail->isHTML(true);
-    $mail->Subject = 'Your UPCC Login Code';
-    $mail->Body = "
-<!doctype html>
-<html>
-<head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'></head>
-<body style='margin:0;padding:0;background:#f3f4f6;'>
-  <div style='padding:24px 12px;'>
-    <div style='max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(17,24,39,.10);font-family:Segoe UI,Tahoma,Arial,sans-serif;'>
+        $logoPath = realpath(__DIR__ . '/../assets/logo.png');
+        $cid = 'upcclogo';
+        if ($logoPath && is_readable($logoPath)) {
+            $mail->addEmbeddedImage($logoPath, $cid, 'logo.png');
+            $logoHtml = "<img src=\"cid:$cid\" width=\"42\" height=\"42\" alt=\"UPCC\" style=\"display:block;border-radius:12px;\" />";
+        } else {
+            $logoHtml = "<div style=\"width:42px;height:42px;border-radius:12px;background:#1e3a8a;color:#fff;font-weight:800;font-size:14px;text-align:center;line-height:42px;\">IT</div>";
+        }
 
-      <div style='background:#0b1630;padding:20px 24px;'>
-        <div style='display:flex;align-items:center;gap:12px;'>
-          {$logoHtml}
-          <div>
-            <div style='font-size:17px;font-weight:900;color:#e8ecf7;line-height:1.1;'>UPCC Panel</div>
-            <div style='font-size:12px;color:#7a8aac;margin-top:3px;'>Login Verification</div>
+        $safeName = htmlspecialchars($user['full_name'], ENT_QUOTES, 'UTF-8');
+        $safeOtp  = htmlspecialchars($otp, ENT_QUOTES, 'UTF-8');
+        $requestedAt = date('F j, Y g:i A');
+
+        $mail->isHTML(true);
+        $mail->Subject = 'Your UPCC Login Code';
+        $mail->Body = "
+    <!doctype html>
+    <html>
+    <head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'></head>
+    <body style='margin:0;padding:0;background:#f3f4f6;'>
+      <div style='padding:24px 12px;'>
+        <div style='max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(17,24,39,.10);font-family:Segoe UI,Tahoma,Arial,sans-serif;'>
+
+          <div style='background:#0b1630;padding:20px 24px;'>
+            <div style='display:flex;align-items:center;gap:12px;'>
+              {$logoHtml}
+              <div>
+                <div style='font-size:17px;font-weight:900;color:#e8ecf7;line-height:1.1;'>UPCC Panel</div>
+                <div style='font-size:12px;color:#7a8aac;margin-top:3px;'>Login Verification</div>
+              </div>
+            </div>
+          </div>
+
+          <div style='padding:28px 24px;'>
+            <p style='margin:0 0 10px;color:#111827;font-size:14px;'>Hi <b>{$safeName}</b>,</p>
+            <p style='margin:0 0 20px;color:#374151;font-size:14px;line-height:1.6;'>
+              Use the code below to complete your sign-in. Do not share this code with anyone.
+            </p>
+
+            <div style='background:#f8fafc;border:1px dashed #c7d2fe;border-radius:16px;padding:20px;text-align:center;margin-bottom:20px;'>
+              <div style='font-size:11px;color:#64748b;letter-spacing:.12em;text-transform:uppercase;font-weight:700;'>One-Time Password</div>
+              <div style='font-size:38px;letter-spacing:12px;font-weight:900;color:#1e3a8a;margin-top:12px;'>{$safeOtp}</div>
+              <div style='font-size:12px;color:#6b7280;margin-top:10px;'>Expires in <b>5 minutes</b></div>
+            </div>
+
+            <div style='border-left:4px solid #60a5fa;background:#eff6ff;padding:12px 14px;border-radius:10px;color:#1e3a8a;font-size:13px;line-height:1.6;'>
+              <b>Requested at:</b> {$requestedAt}
+            </div>
+
+            <p style='margin:18px 0 0;color:#9ca3af;font-size:12px;'>If you did not try to log in, ignore this email. Your account is safe.</p>
+          </div>
+
+          <div style='padding:14px 24px;background:#111827;color:#6b7280;font-size:11px;text-align:center;'>
+            © " . date('Y') . " IdentiTrack &bull; Automated message, do not reply.
           </div>
         </div>
       </div>
+    </body>
+    </html>";
 
-      <div style='padding:28px 24px;'>
-        <p style='margin:0 0 10px;color:#111827;font-size:14px;'>Hi <b>{$safeName}</b>,</p>
-        <p style='margin:0 0 20px;color:#374151;font-size:14px;line-height:1.6;'>
-          Use the code below to complete your sign-in. Do not share this code with anyone.
-        </p>
+        $mail->AltBody = "Your UPCC login OTP is: {$otp}\n\nExpires in 5 minutes. Do not share it with anyone.\nRequested at: {$requestedAt}";
 
-        <div style='background:#f8fafc;border:1px dashed #c7d2fe;border-radius:16px;padding:20px;text-align:center;margin-bottom:20px;'>
-          <div style='font-size:11px;color:#64748b;letter-spacing:.12em;text-transform:uppercase;font-weight:700;'>One-Time Password</div>
-          <div style='font-size:38px;letter-spacing:12px;font-weight:900;color:#1e3a8a;margin-top:12px;'>{$safeOtp}</div>
-          <div style='font-size:12px;color:#6b7280;margin-top:10px;'>Expires in <b>5 minutes</b></div>
-        </div>
-
-        <div style='border-left:4px solid #60a5fa;background:#eff6ff;padding:12px 14px;border-radius:10px;color:#1e3a8a;font-size:13px;line-height:1.6;'>
-          <b>Requested at:</b> {$requestedAt}
-        </div>
-
-        <p style='margin:18px 0 0;color:#9ca3af;font-size:12px;'>If you did not try to log in, ignore this email. Your account is safe.</p>
-      </div>
-
-      <div style='padding:14px 24px;background:#111827;color:#6b7280;font-size:11px;text-align:center;'>
-        © " . date('Y') . " IdentiTrack &bull; Automated message, do not reply.
-      </div>
-    </div>
-  </div>
-</body>
-</html>";
-
-    $mail->AltBody = "Your UPCC login OTP is: {$otp}\n\nExpires in 5 minutes. Do not share it with anyone.\nRequested at: {$requestedAt}";
-
-    $mail->send();
-} catch (Exception $e) {
-    $mailError = $e->getMessage();
+        $mail->send();
+    } catch (Exception $e) {
+        $mailError = $e->getMessage();
+    }
 }
 
 $error = $_SESSION['otp_error'] ?? '';
-unset($_SESSION['otp_error']);
+unset($_SESSION['otp_error']);;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -187,7 +201,7 @@ unset($_SESSION['otp_error']);
         <form method="post" action="verify_otp.php" id="otp-form" autocomplete="off">
             <div class="otp-fields">
                 <?php for ($i = 0; $i < 6; $i++): ?>
-                    <input type="number" class="otp-digit" maxlength="1" min="0" max="9" inputmode="numeric" tabindex="<?= $i + 1 ?>">
+                    <input type="number" class="otp-digit" maxlength="1" min="0" max="9" inputmode="numeric" tabindex="<?= $i + 1 ?>" <?= $isLocked ? 'disabled' : '' ?>>
                 <?php endfor; ?>
             </div>
             <input type="hidden" name="otp" id="otp-hidden">
@@ -195,39 +209,75 @@ unset($_SESSION['otp_error']);
                 <span>Code expires in</span>
                 <span id="countdown">05:00</span>
             </div>
-            <button type="submit" class="btn-verify">Verify Code</button>
+            <button type="submit" class="btn-verify" <?= $isLocked ? 'disabled style="opacity: 0.6; cursor: not-allowed;"' : '' ?>>Verify Code</button>
         </form>
         <a href="upccpanel.php" class="back-link">← Back to login</a>
     </div>
 </div>
 <script>
+const isLocked = <?= $isLocked ? 'true' : 'false' ?>;
+let lockRemaining = <?= (int)$lockTimeRemaining ?>;
+const pad = n => String(n).padStart(2, '0');
+
+if (isLocked) {
+    const alertBox = document.querySelector('.alert-err') || (() => {
+        const div = document.createElement('div');
+        div.className = 'alert-err';
+        const card = document.querySelector('.card');
+        card.insertBefore(div, document.getElementById('otp-form'));
+        return div;
+    })();
+    const updateLockTimer = () => {
+        if (lockRemaining <= 0) {
+            clearInterval(lockInterval);
+            window.location.reload();
+            return;
+        }
+        const m = Math.floor(lockRemaining / 60);
+        const s = lockRemaining % 60;
+        alertBox.textContent = `Too many failed attempts. Locked for ${m}m ${pad(s)}s.`;
+        lockRemaining--;
+    };
+    const lockInterval = setInterval(updateLockTimer, 1000);
+    updateLockTimer();
+}
+
 const digits = document.querySelectorAll('.otp-digit');
 const hidden = document.getElementById('otp-hidden');
 const form   = document.getElementById('otp-form');
-digits.forEach((input, i) => {
-    input.addEventListener('input', () => {
-        if (input.value.length > 1) input.value = input.value.slice(-1);
-        if (input.value && i < digits.length - 1) digits[i + 1].focus();
-        assemble();
+
+if (!isLocked) {
+    digits.forEach((input, i) => {
+        input.addEventListener('input', () => {
+            if (input.value.length > 1) input.value = input.value.slice(-1);
+            if (input.value && i < digits.length - 1) digits[i + 1].focus();
+            assemble();
+        });
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Backspace' && !input.value && i > 0) digits[i - 1].focus();
+        });
+        input.addEventListener('paste', e => {
+            e.preventDefault();
+            const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+            [...pasted].slice(0, 6).forEach((ch, j) => { if (digits[i + j]) digits[i + j].value = ch; });
+            digits[Math.min(i + pasted.length, digits.length - 1)].focus();
+            assemble();
+        });
     });
-    input.addEventListener('keydown', e => {
-        if (e.key === 'Backspace' && !input.value && i > 0) digits[i - 1].focus();
-    });
-    input.addEventListener('paste', e => {
-        e.preventDefault();
-        const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
-        [...pasted].slice(0, 6).forEach((ch, j) => { if (digits[i + j]) digits[i + j].value = ch; });
-        digits[Math.min(i + pasted.length, digits.length - 1)].focus();
-        assemble();
-    });
-});
-function assemble() { hidden.value = [...digits].map(d => d.value).join(''); }
-form.addEventListener('submit', e => { assemble(); if (hidden.value.length < 6) { e.preventDefault(); digits[0].focus(); } });
-digits[0].focus();
+    function assemble() { hidden.value = [...digits].map(d => d.value).join(''); }
+    form.addEventListener('submit', e => { assemble(); if (hidden.value.length < 6) { e.preventDefault(); digits[0].focus(); } });
+    if (digits[0]) digits[0].focus();
+}
+
 let remaining = 300;
 const countdown = document.getElementById('countdown');
-const pad = n => String(n).padStart(2, '0');
 const timer = setInterval(() => {
+    if (isLocked) {
+        clearInterval(timer);
+        countdown.textContent = 'Locked';
+        countdown.classList.add('expiring');
+        return;
+    }
     remaining--;
     if (remaining <= 0) { clearInterval(timer); countdown.textContent = '00:00'; countdown.classList.add('expiring'); window.location.href = 'upccpanel.php'; return; }
     countdown.textContent = pad(Math.floor(remaining / 60)) + ':' + pad(remaining % 60);

@@ -8,6 +8,18 @@ if (!isset($_SESSION['upcc_otp_val'], $_SESSION['upcc_otp_user'], $_SESSION['upc
     exit;
 }
 
+// Check lock state
+if (isset($_SESSION['upcc_otp_locked_until'])) {
+    $diff = $_SESSION['upcc_otp_locked_until'] - time();
+    if ($diff > 0) {
+        $_SESSION['otp_error'] = 'Too many failed attempts. Locked for ' . ceil($diff / 60) . ' minutes.';
+        header('Location: send_otp.php');
+        exit;
+    } else {
+        unset($_SESSION['upcc_otp_locked_until'], $_SESSION['upcc_otp_failures']);
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $submitted = trim($_POST['otp'] ?? '');
     $stored    = (string) $_SESSION['upcc_otp_val'];
@@ -19,7 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['upcc_otp_val'],
             $_SESSION['upcc_otp_user'],
             $_SESSION['upcc_otp_time'],
-            $_SESSION['upcc_pending_otp']
+            $_SESSION['upcc_pending_otp'],
+            $_SESSION['upcc_otp_failures'],
+            $_SESSION['upcc_otp_locked_until']
         );
         $_SESSION['login_error'] = 'OTP expired. Please log in again.';
         header('Location: upccpanel.php');
@@ -36,7 +50,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['upcc_otp_val'],
             $_SESSION['upcc_otp_user'],
             $_SESSION['upcc_otp_time'],
-            $_SESSION['upcc_pending_otp']
+            $_SESSION['upcc_pending_otp'],
+            $_SESSION['upcc_otp_failures'],
+            $_SESSION['upcc_otp_locked_until']
         );
 
         // Set the session keys that upcc_current() and upccdashboard.php check
@@ -59,8 +75,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // ❌ Wrong OTP — store error and redirect back to OTP page
-    $_SESSION['otp_error'] = 'Incorrect OTP. Please try again.';
+    // ❌ Wrong OTP — increment failure count
+    $_SESSION['upcc_otp_failures'] = ($_SESSION['upcc_otp_failures'] ?? 0) + 1;
+    if ($_SESSION['upcc_otp_failures'] >= 4) {
+        $_SESSION['upcc_otp_locked_until'] = time() + 300; // Lock for 5 minutes
+        $_SESSION['otp_error'] = 'Too many failed attempts. Locked for 5 minutes.';
+    } else {
+        $left = 4 - $_SESSION['upcc_otp_failures'];
+        $_SESSION['otp_error'] = "Incorrect OTP. Please try again. ({$left} attempts remaining)";
+    }
     header('Location: send_otp.php');
     exit;
 }
