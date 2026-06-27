@@ -72,6 +72,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
     $errors[] = 'Please provide a detailed description for this custom offense.';
   }
 
+  // Check for duplicate offense entry
+  if (empty($errors) && $student_id !== '' && $existing_type_id > 0 && $date_committed !== '') {
+    $duplicateCheck = db_one(
+      "SELECT offense_id FROM offense 
+       WHERE student_id = :sid 
+         AND offense_type_id = :tid 
+         AND DATE_FORMAT(date_committed, '%Y-%m-%d %H:%i') = DATE_FORMAT(:dt, '%Y-%m-%d %H:%i')",
+      [':sid' => $student_id, ':tid' => $existing_type_id, ':dt' => $date_committed]
+    );
+    if ($duplicateCheck) {
+      $errors[] = 'A duplicate offense for this student with the same type and incident date/time already exists.';
+    }
+  }
+
   if (empty($errors)) {
 
     $params = [
