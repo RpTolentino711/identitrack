@@ -656,9 +656,85 @@ function fmt_case_id(int $id, string $created): string {
         .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
         .section-title { font-size: 17px; font-weight: 700; color: #1a1a1a; }
         .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-        .filter-tab { padding: 7px 16px; border-radius: 8px; border: 1px solid #d0d8ea; background: #fff; font-size: 13px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.15s; }
+        .filter-tab { padding: 7px 16px; border-radius: 8px; border: 1px solid #d0d8ea; background: #fff; font-size: 13px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
         .filter-tab:hover { border-color: #1b2b6b; color: #1b2b6b; }
         .filter-tab.active { background: #1b2b6b; color: #fff; border-color: #1b2b6b; }
+
+        /* Glowing count badge style */
+        .tab-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* Inactive tab count styling */
+        .filter-tab:not(.active) .tab-count {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+        .filter-tab:not(.active):hover .tab-count {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+        /* Active tab count styling */
+        .filter-tab.active .tab-count {
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
+            text-shadow: 0 0 3px rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        /* Specific glows when counts are active (>0) and tab is NOT active */
+        .filter-tab:not(.active) .tab-count.glow-blue {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.35);
+            animation: bluePulse 2.5s infinite alternate;
+        }
+        .filter-tab:not(.active) .tab-count.glow-yellow {
+            background: #fffbeb;
+            color: #b45309;
+            border-color: #fde68a;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.35);
+            animation: yellowPulse 2.5s infinite alternate;
+        }
+        .filter-tab:not(.active) .tab-count.glow-purple {
+            background: #faf5ff;
+            color: #6d28d9;
+            border-color: #e9d5ff;
+            box-shadow: 0 0 8px rgba(139, 92, 246, 0.35);
+            animation: purplePulse 2.5s infinite alternate;
+        }
+        .filter-tab:not(.active) .tab-count.glow-red {
+            background: #fef2f2;
+            color: #b91c1c;
+            border-color: #fecaca;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
+            animation: redPulse 2.5s infinite alternate;
+        }
+        @keyframes bluePulse {
+            0% { box-shadow: 0 0 4px rgba(59, 130, 246, 0.25); }
+            100% { box-shadow: 0 0 10px rgba(59, 130, 246, 0.55); }
+        }
+        @keyframes yellowPulse {
+            0% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.25); }
+            100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.55); }
+        }
+        @keyframes purplePulse {
+            0% { box-shadow: 0 0 4px rgba(139, 92, 246, 0.25); }
+            100% { box-shadow: 0 0 10px rgba(139, 92, 246, 0.55); }
+        }
+        @keyframes redPulse {
+            0% { box-shadow: 0 0 4px rgba(239, 68, 68, 0.25); }
+            100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.55); }
+        }
         .status-legend {
             display: flex;
             flex-wrap: wrap;
@@ -1011,10 +1087,10 @@ function fmt_case_id(int $id, string $created): string {
             <div class="section-header">
                 <div class="section-title">All Cases</div>
                 <div class="filter-tabs">
-                    <button class="filter-tab active" onclick="filterCases('all', this)">All <span style="opacity:0.7;font-size:0.9em;margin-left:4px;">(<?= $cntAll ?>)</span></button>
-                    <button class="filter-tab" onclick="filterCases('ready', this)">Upcoming Hearing <span style="opacity:0.7;font-size:0.9em;margin-left:4px;">(<?= $cntReady ?>)</span></button>
-                    <button class="filter-tab" onclick="filterCases('assigned', this)">Panel Assigned <span style="opacity:0.7;font-size:0.9em;margin-left:4px;">(<?= $cntAssigned ?>)</span></button>
-                    <button class="filter-tab" onclick="filterCases('unassigned', this)">Unassigned <span style="opacity:0.7;font-size:0.9em;margin-left:4px;">(<?= $cntUnassigned ?>)</span></button>
+                    <button class="filter-tab active" onclick="filterCases('all', this)">All <span class="tab-count <?= $cntAll > 0 ? 'glow-blue' : '' ?>"><?= $cntAll ?></span></button>
+                    <button class="filter-tab" onclick="filterCases('ready', this)">Upcoming Hearing <span class="tab-count <?= $cntReady > 0 ? 'glow-yellow' : '' ?>"><?= $cntReady ?></span></button>
+                    <button class="filter-tab" onclick="filterCases('assigned', this)">Panel Assigned <span class="tab-count <?= $cntAssigned > 0 ? 'glow-purple' : '' ?>"><?= $cntAssigned ?></span></button>
+                    <button class="filter-tab" onclick="filterCases('unassigned', this)">Unassigned <span class="tab-count <?= $cntUnassigned > 0 ? 'glow-red' : '' ?>"><?= $cntUnassigned ?></span></button>
                 </div>
             </div>
 
@@ -1911,6 +1987,23 @@ function syncQueueRows() {
             const freshTableBody = doc.querySelector('#cases-table tbody');
             const currentTableBody = document.querySelector('#cases-table tbody');
             if (!freshTableBody || !currentTableBody) return;
+
+            // Sync tab counts dynamically
+            const freshTabs = doc.querySelector('.filter-tabs');
+            const currentTabs = document.querySelector('.filter-tabs');
+            if (freshTabs && currentTabs) {
+                const activeTab = document.querySelector('.filter-tab.active');
+                const activeLevel = activeTab ? activeTab.getAttribute('onclick').match(/'([^']+)'/)[1] : 'all';
+                currentTabs.innerHTML = freshTabs.innerHTML;
+                document.querySelectorAll('.filter-tabs .filter-tab').forEach(btn => {
+                    const btnLevel = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                    if (btnLevel === activeLevel) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+            }
 
             const freshRows = Array.from(freshTableBody.querySelectorAll('tr[data-case-id]'));
             const rowsById = new Map(freshRows.map(row => [row.dataset.caseId, row]));
