@@ -992,13 +992,27 @@ function fmt_case_id(int $id, string $created): string {
             </div>
 
             <!-- Cases table -->
+            <?php
+            $cntAll = count($cases);
+            $cntReady = 0; $cntAssigned = 0; $cntUnassigned = 0;
+            foreach ($cases as $c) {
+                $hasPanel = ($c['assigned_members'] && trim($c['assigned_members']) !== '[]');
+                $hearingScheduled = !empty($c['hearing_date']) && !empty($c['hearing_time']);
+                if ($hasPanel) {
+                    $cntAssigned++;
+                    if ($hearingScheduled) $cntReady++;
+                } else {
+                    $cntUnassigned++;
+                }
+            }
+            ?>
             <div class="section-header">
                 <div class="section-title">All Cases</div>
                 <div class="filter-tabs">
-                    <button class="filter-tab active" onclick="filterCases('all', this)">All</button>
-                    <button class="filter-tab" onclick="filterCases('ready', this)">Upcoming Hearing</button>
-                    <button class="filter-tab" onclick="filterCases('assigned', this)">Panel Assigned</button>
-                    <button class="filter-tab" onclick="filterCases('unassigned', this)">Unassigned</button>
+                    <button class="filter-tab active" onclick="filterCases('all', this)">All <span style="opacity:0.7;font-size:0.9em;margin-left:4px;">(<?= $cntAll ?>)</span></button>
+                    <button class="filter-tab" onclick="filterCases('ready', this)">Upcoming Hearing <span style="opacity:0.7;font-size:0.9em;margin-left:4px;">(<?= $cntReady ?>)</span></button>
+                    <button class="filter-tab" onclick="filterCases('assigned', this)">Panel Assigned <span style="opacity:0.7;font-size:0.9em;margin-left:4px;">(<?= $cntAssigned ?>)</span></button>
+                    <button class="filter-tab" onclick="filterCases('unassigned', this)">Unassigned <span style="opacity:0.7;font-size:0.9em;margin-left:4px;">(<?= $cntUnassigned ?>)</span></button>
                 </div>
             </div>
 

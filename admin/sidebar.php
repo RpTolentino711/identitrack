@@ -756,3 +756,169 @@ if (function_exists('db_one')) {
     });
   })();
 </script>
+
+<?php
+$upcomingHearingFound = null;
+if (function_exists('db_all') && db_one("SHOW TABLES LIKE 'upcc_case'")) {
+    $casesWithHearings = db_all("
+        SELECT 
+            uc.case_id, 
+            uc.hearing_date, 
+            uc.hearing_time,
+            " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . "
+        FROM upcc_case uc
+        JOIN student s ON s.student_id = uc.student_id
+        WHERE uc.status IN ('PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL')
+          AND uc.hearing_date IS NOT NULL
+          AND uc.hearing_date != ''
+    ");
+    
+    $nowTime = time();
+    $twoDaysFromNow = $nowTime + (2 * 24 * 60 * 60);
+    
+    $closestHearing = null;
+    $closestDiff = 999999999;
+    
+    foreach ($casesWithHearings as $ch) {
+        $htStr = trim($ch['hearing_date'] . ' ' . $ch['hearing_time']);
+        $htTime = strtotime($htStr);
+        if ($htTime && $htTime >= $nowTime && $htTime <= $twoDaysFromNow) {
+            $diff = $htTime - $nowTime;
+            if ($diff < $closestDiff) {
+                $closestDiff = $diff;
+                $closestHearing = $ch;
+                $closestHearing['timestamp'] = $htTime;
+            }
+        }
+    }
+    
+    $upcomingHearingFound = $closestHearing;
+}
+?>
+
+<?php if ($upcomingHearingFound): ?>
+<style>
+.global-hearing-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #ef4444;
+    width: 320px;
+    z-index: 9999;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes slideInRight {
+    0% { transform: translateX(120%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+.ght-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.ght-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #ef4444;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.ght-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+    line-height: 1;
+}
+.ght-close:hover { color: #475569; }
+.ght-body {
+    font-size: 13px;
+    color: #334155;
+    line-height: 1.4;
+}
+.ght-student {
+    font-weight: 700;
+    color: #0f172a;
+}
+.ght-time {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 4px 8px;
+    background: #fee2e2;
+    color: #b91c1c;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.ght-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+.ght-btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+}
+.ght-btn-view {
+    background: #2563eb;
+    color: #ffffff;
+}
+.ght-btn-view:hover { background: #1d4ed8; color: #fff; }
+.ght-btn-ok {
+    background: #f1f5f9;
+    color: #475569;
+}
+.ght-btn-ok:hover { background: #e2e8f0; }
+</style>
+
+<div class="global-hearing-toast" id="globalHearingToast">
+    <div class="ght-head">
+        <div class="ght-title">⚠️ Hearing Reminder</div>
+        <button class="ght-close" onclick="dismissHearingToast()">×</button>
+    </div>
+    <div class="ght-body">
+        <?php
+            $hStudent = trim(($upcomingHearingFound['student_fn'] ?? '') . ' ' . ($upcomingHearingFound['student_ln'] ?? ''));
+            $hCaseId = $upcomingHearingFound['case_id'];
+            $hTimeFmt = date('M j, Y \a\t g:i A', $upcomingHearingFound['timestamp']);
+        ?>
+        A hearing for <span class="ght-student"><?= htmlspecialchars($hStudent) ?></span> (Case #<?= $hCaseId ?>) is approaching.
+        <div class="ght-time">Scheduled for <?= $hTimeFmt ?></div>
+    </div>
+    <div class="ght-actions">
+        <a href="upcc_cases.php" class="ght-btn ght-btn-view">View Case</a>
+        <button class="ght-btn ght-btn-ok" onclick="dismissHearingToast()">OK</button>
+    </div>
+</div>
+
+<script>
+    if (sessionStorage.getItem('hearing_toast_dismissed_<?= $hCaseId ?>')) {
+        document.getElementById('globalHearingToast').style.display = 'none';
+    }
+    
+    function dismissHearingToast() {
+        document.getElementById('globalHearingToast').style.display = 'none';
+        sessionStorage.setItem('hearing_toast_dismissed_<?= $hCaseId ?>', '1');
+    }
+</script>
+<?php endif; ?>
