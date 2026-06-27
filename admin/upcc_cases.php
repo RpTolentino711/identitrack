@@ -1136,9 +1136,38 @@ function fmt_case_id(int $id, string $created): string {
                             }
 
                             $lvl = strtolower($effectiveLevel);
-                            $days = (int)$c['days_pending'];
-                            $isWarn = ($c['status'] === 'PENDING' && $days >= 7);
                             $hasPanel = !empty($c['assigned_department_id']);
+                            $statusRawTemp = (string)($c['status'] ?? 'PENDING');
+
+                            $days = 0;
+                            $isWarn = false;
+                            $daysLabelText = '—';
+
+                            if (!empty($c['hearing_date'])) {
+                                $today = new DateTime('today');
+                                $hDate = new DateTime($c['hearing_date']);
+                                if ($hDate >= $today) {
+                                    $interval = $today->diff($hDate);
+                                    $days = (int)$interval->format('%r%a');
+                                    $daysLabelText = $days . 'd';
+                                    if ($days <= 5) {
+                                        $isWarn = true;
+                                    }
+                                } else {
+                                    $interval = $hDate->diff($today);
+                                    $days = -(int)$interval->format('%a');
+                                    $daysLabelText = abs($days) . 'd ago';
+                                    if ($statusRawTemp === 'PENDING' || $statusRawTemp === 'UNDER_INVESTIGATION') {
+                                        $isWarn = true;
+                                    }
+                                }
+                            } else {
+                                $days = (int)$c['days_pending'];
+                                $daysLabelText = $days . 'd';
+                                if ($statusRawTemp === 'PENDING' && $days >= 7) {
+                                    $isWarn = true;
+                                }
+                            }
 
                             $effectiveCategory = 0;
                             if (!empty($c['decided_category'])) {
@@ -1227,7 +1256,7 @@ function fmt_case_id(int $id, string $created): string {
                                 data-date="<?= e($dateLabel) ?>"
                                 data-status="<?= e($statusLabel) ?>"
                                 data-status-raw="<?= e($c['status']) ?>"
-                                data-days="<?= $days ?>"
+                                data-days="<?= e($daysLabelText) ?>"
                                 data-warn="<?= $isWarn ? '1' : '0' ?>"
                                 data-case-id="<?= $c['case_id'] ?>"
                                 data-assigned-dept="<?= $c['assigned_department_id'] ?? '' ?>"
@@ -1271,8 +1300,14 @@ function fmt_case_id(int $id, string $created): string {
                                 </td>
                                 <td>
                                     <?php if ($statusRaw === 'PENDING' || $statusRaw === 'UNDER_INVESTIGATION'): ?>
-                                        <div class="days-text <?= $isWarn ? 'warn' : '' ?>"><?= $days ?>d</div>
-                                        <?php if ($isWarn): ?><div class="days-sub">⚠ Soon</div><?php endif; ?>
+                                        <div class="days-text <?= $isWarn ? 'warn' : '' ?>"><?= htmlspecialchars($daysLabelText) ?></div>
+                                        <?php if ($isWarn && !empty($c['hearing_date']) && $days >= 0 && $days <= 5): ?>
+                                            <div class="days-sub" style="color: #e74c3c;">⚠ Under 5 days</div>
+                                        <?php elseif ($isWarn && !empty($c['hearing_date']) && $days < 0): ?>
+                                            <div class="days-sub" style="color: #e74c3c;">⚠ Overdue</div>
+                                        <?php elseif ($isWarn): ?>
+                                            <div class="days-sub">⚠ Soon</div>
+                                        <?php endif; ?>
                                     <?php else: ?>
                                         <span style="color:#bbb">—</span>
                                     <?php endif; ?>
@@ -1839,7 +1874,7 @@ function selectCase(row) {
     document.getElementById('d-offense').textContent  = row.dataset.offense;
     document.getElementById('d-category').textContent = row.dataset.category || '—';
     document.getElementById('d-date').textContent     = row.dataset.date;
-    document.getElementById('d-days').textContent     = isActiveCase ? row.dataset.days + ' days' + (row.dataset.warn === '1' ? ' ⚠' : '') : '—';
+    document.getElementById('d-days').textContent     = isActiveCase ? row.dataset.days + (row.dataset.warn === '1' ? ' ⚠' : '') : '—';
 
     const hearingDate = row.dataset.hearingDate || '';
     const hearingTime = row.dataset.hearingTime || '';
