@@ -315,6 +315,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') ==
              ON DUPLICATE KEY UPDATE accepted_at = VALUES(accepted_at)",
             [':case_id' => $caseId, ':upcc_id' => $panelId]
         );
+        $caseRow = db_one("SELECT created_at FROM upcc_case WHERE case_id = :id", [':id' => $caseId]);
+        if ($caseRow) {
+            $caseLabel = 'UPCC-' . date('Y', strtotime($caseRow['created_at'])) . '-' . str_pad((string)$caseId, 4, '0', STR_PAD_LEFT);
+            $adminIds = db_all("SELECT admin_id FROM admin_user WHERE is_active = 1");
+            foreach ($adminIds as $adm) {
+                db_exec(
+                    "INSERT INTO notification (type, title, message, admin_id, student_id, related_table, related_id, created_at)
+                     VALUES ('HEARING_ACCEPTED', 'Panelist Accepted', :msg, :adm, '', 'upcc_case', :cid, NOW())",
+                    [
+                        ':msg' => "Panelist {$user['full_name']} accepted assignment for {$caseLabel}.",
+                        ':adm' => $adm['admin_id'],
+                        ':cid' => $caseId
+                    ]
+                );
+            }
+            upcc_log_case_activity($caseId, 'UPCC', $panelId, 'ACCEPTED_ASSIGNMENT');
+        }
     }
     header('Location: upccdashboard.php');
     exit;
