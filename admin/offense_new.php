@@ -246,10 +246,17 @@ $postDate      = (string)($_POST['date_committed'] ?? $defaultDate);
 $postDesc      = (string)($_POST['description']    ?? '');
 
 // ── Letter mode ──────────────────────────────────────────────────────────────
-$letterMode      = ((int)($_GET['letter'] ?? 0) === 1);
 $letterOffenseId = (int)($_GET['offense_id'] ?? 0);
 $letterType      = (string)($_GET['type'] ?? '');
 $successMode     = ((int)($_GET['success'] ?? 0) === 1);
+
+$letterMode = false;
+if (((int)($_GET['letter'] ?? 0) === 1) && $letterOffenseId > 0) {
+    $offExists = db_one("SELECT 1 FROM offense WHERE offense_id = :oid", [':oid' => $letterOffenseId]);
+    if ($offExists) {
+        $letterMode = true;
+    }
+}
 
 // ── Live student data ─────────────────────────────────────────────────────────
 $liveMinorCount      = 0;
