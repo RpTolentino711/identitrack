@@ -861,7 +861,7 @@ function upcc_send_panel_assignment_email(int $caseId, array $panelIds): array {
             $mail->addAddress($m['email'], $m['full_name']);
             $mail->Subject = "Panel Assignment: Case $caseLabel";
 
-            $loginUrl = "http://" . $_SERVER['HTTP_HOST'] . "/identitrack/UPCC/login.php";
+            $loginUrl = "https://identitrack.site/UPCC/upccpanel.php";
             $mail->isHTML(true);
             $mail->Body = "
                 <div style='font-family:sans-serif; max-width:600px; line-height:1.6; color:#333; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;'>
@@ -916,7 +916,7 @@ function upcc_process_panel_reminders(): void {
     require_once __DIR__ . '/../UPCC/class.phpmailer.php';
     require_once __DIR__ . '/../UPCC/class.smtp.php';
 
-    $loginUrl = "http://" . $_SERVER['HTTP_HOST'] . "/identitrack/UPCC/login.php";
+    $loginUrl = "https://identitrack.site/UPCC/upccpanel.php";
 
     foreach ($pending as $row) {
         $caseLabel = 'UPCC-' . date('Y', strtotime($row['created_at'])) . '-' . str_pad((string)$row['case_id'], 3, '0', STR_PAD_LEFT);
@@ -995,7 +995,7 @@ function upcc_send_explanation_notification(int $caseId): array {
     
     $results = [];
     $caseLabel = 'UPCC-' . date('Y', strtotime($case['created_at'])) . '-' . str_pad((string)$caseId, 3, '0', STR_PAD_LEFT);
-    $loginUrl = "http://" . $_SERVER['HTTP_HOST'] . "/identitrack/UPCC/login.php";
+    $loginUrl = "https://identitrack.site/UPCC/upccpanel.php";
 
     foreach ($members as $m) {
         try {
