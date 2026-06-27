@@ -620,7 +620,7 @@ function fmt_case_id(int $id, string $created): string {
         .page-title { font-size: 26px; font-weight: 700; color: #1a1a1a; }
         .page-sub { margin-top: 4px; font-size: 14px; color: #6c757d; }
         .content-area { padding: 20px 28px 40px; }
-        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
         .stat-card { background: #fff; border: 1px solid #e0e8f5; border-radius: 14px; padding: 22px 22px 18px; position: relative; overflow: hidden; box-shadow: 0 2px 8px rgba(20,36,74,0.06); transition: transform 0.2s, box-shadow 0.2s; }
         .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(20,36,74,0.10); }
         .stat-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
@@ -1044,7 +1044,6 @@ function fmt_case_id(int $id, string $created): string {
                 <div class="stat-card blue"><div class="stat-label">Total Cases</div><div class="stat-value"><?= $totalCases ?></div></div>
                 <div class="stat-card yellow"><div class="stat-label">Pending Cases</div><div class="stat-value"><?= $pendingCases ?></div></div>
                 <div class="stat-card green"><div class="stat-label">Closed Cases</div><div class="stat-value"><?= $resolvedCases ?></div></div>
-                <div class="stat-card red"><div class="stat-label">Under Appeal</div><div class="stat-value"><?= $appealCases ?></div></div>
             </div>
 
             <!-- Committee Panel Overview -->
