@@ -1079,7 +1079,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
       animation: shimmer 1.5s infinite;
     }
     @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
@@ -1132,26 +1132,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     .ap-step--done::before { content: '✓ '; color: #10b981; margin-right: 6px; font-weight: 800; }
     .ap-step--next     { opacity: 1; background: #ffffff; font-weight: 800; border: 1.5px solid rgba(0,0,0,.08); box-shadow: 0 2px 4px rgba(0,0,0,0.04); transform: scale(1.02); margin: 2px 0; }
     .ap-step--next::before { content: '→ '; margin-right: 6px; color: var(--blue); }
-    .ap-projected-badge {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 6px 10px;
-      border-radius: 7px;
-      margin-bottom: 10px;
-      line-height: 1.4;
-      border: 1px solid rgba(0,0,0,.07);
-    }
-    .ap-projected--info     { background: rgba(255,255,255,.7); color: #1e3a6e; }
-    .ap-projected--warning  { background: rgba(255,255,255,.7); color: #78350f; }
-    .ap-projected--critical {
-      background: rgba(255,255,255,.85);
-      color: #831843;
-      border-color: rgba(190,24,93,.2);
-      animation: criticalPulse 2s ease infinite;
-    }
+
     @keyframes criticalPulse {
       0%, 100% { box-shadow: 0 0 0 0 rgba(190,24,93,.0); }
-      50%       { box-shadow: 0 0 0 4px rgba(190,24,93,.12); }
+      50%       { box-shadow: 0 0 0 6px rgba(190,24,93,.4); }
     }
     .ap-email {
       display: flex;
