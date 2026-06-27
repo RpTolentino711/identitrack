@@ -712,6 +712,7 @@ body {
 .btn-sm { padding: 0.4rem 0.9rem; font-size: 0.75rem; }
 .btn-full { width: 100%; }
 .btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.btn:disabled, .btn[disabled] { opacity: 0.5; cursor: not-allowed; pointer-events: none; box-shadow: none !important; }
 
 /* Voting / Tally Blocks */
 .voting-live-block {
