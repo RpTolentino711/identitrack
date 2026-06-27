@@ -523,7 +523,8 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $minorText .= ' <span style="font-weight:800;color:var(--red);font-size:12px;">(' . $s4Text . ')</span>';
   }
   
-  $majorText = $majorCount === 1 ? '1 Major Offense' : $majorCount . ' Major Offenses';
+  $totalMajorCount = $majorCount + $section4Count;
+  $majorText = $totalMajorCount === 1 ? '1 Major Offense' : $totalMajorCount . ' Major Offenses';
 
   $caseRows = '';
   if (!empty($activeCases)) {
@@ -676,7 +677,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   $minorText = $minorCount === 1 ? '1 Minor Offense' : $minorCount . ' Minor Offenses';
-  $majorText = $majorCount === 1 ? '1 Major Offense' : $majorCount . ' Major Offenses';
+  $section4CountModal = floor($minorCount / 3);
+  $totalMajorCountModal = $majorCount + $section4CountModal;
+  
+  if ($section4CountModal > 0) {
+      $s4Text = $section4CountModal === 1 ? '1 Section 4 Escalation' : $section4CountModal . ' Section 4 Escalations';
+      $minorText .= ' <span style="font-weight:800;color:var(--red);font-size:12px;">(' . $s4Text . ')</span>';
+  }
+  
+  $majorText = $totalMajorCountModal === 1 ? '1 Major Offense' : $totalMajorCountModal . ' Major Offenses';
 
   $offensesHtml = '';
   if (!empty($offenses)) {
