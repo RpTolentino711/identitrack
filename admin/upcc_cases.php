@@ -120,7 +120,7 @@ try {
 
 // ── Statistics ──────────────────────────────────────────────
 $totalCases    = (int)(db_one("SELECT COUNT(*) AS c FROM upcc_case")['c'] ?? 0);
-$pendingCases  = (int)(db_one("SELECT COUNT(*) AS c FROM upcc_case WHERE status='PENDING'")['c'] ?? 0);
+$pendingCases  = (int)(db_one("SELECT COUNT(*) AS c FROM upcc_case WHERE status IN ('PENDING', 'UNDER_INVESTIGATION')")['c'] ?? 0);
 $resolvedCases = (int)(db_one("SELECT COUNT(*) AS c FROM upcc_case WHERE status IN ('CLOSED','RESOLVED')")['c'] ?? 0);
 $appealCases   = (int)(db_one("SELECT COUNT(*) AS c FROM upcc_case WHERE status='UNDER_APPEAL'")['c'] ?? 0);
 
