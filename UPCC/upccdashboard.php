@@ -652,6 +652,14 @@ body::before {
 .table tr.case-needs-action {
   opacity: 1 !important;
   animation: pulseNeedsAction 2s infinite;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.table tr.case-needs-action:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2);
+  animation: none; /* Stop pulse on hover to keep it stable */
+  background: rgba(16, 185, 129, 0.08);
 }
 .table tr.case-needs-action td {
   border-top: 1px solid rgba(16, 185, 129, 0.3);
@@ -659,6 +667,32 @@ body::before {
 }
 .table tr.case-needs-action td:first-child { border-left: 1px solid rgba(16, 185, 129, 0.3); }
 .table tr.case-needs-action td:last-child { border-right: 1px solid rgba(16, 185, 129, 0.3); }
+
+/* Hide the action box until row is hovered */
+.need-action-box {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: absolute;
+  bottom: -20px;
+  right: 20px;
+  background: var(--bg-card);
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+  border: 1px solid var(--border-glass-hover);
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.table tr.case-needs-action:hover .need-action-box {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
 @keyframes pulseNeedsAction {
   0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.05); }
   70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); background: rgba(16, 185, 129, 0.15); }
