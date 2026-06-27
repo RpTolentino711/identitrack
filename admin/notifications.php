@@ -161,8 +161,10 @@ $items = db_all(
       n.created_at
    FROM notification n
    WHERE n.is_deleted = 0
+     AND (n.admin_id IS NULL OR n.admin_id = :admin_id)
    ORDER BY n.created_at DESC
-   LIMIT 200"
+   LIMIT 200",
+  [':admin_id' => $adminId]
 );
 
 // Unread count
@@ -283,7 +285,7 @@ function notifHref(array $n): string {
   }
 
   // UPCC CASE ROUTES
-  if ((str_contains($type, 'UPCC') || str_contains($type, 'CASE')) && $relatedId !== '') {
+  if ((str_contains($type, 'UPCC') || str_contains($type, 'CASE') || str_contains($type, 'HEARING') || str_contains($type, 'DECLINED')) && $relatedId !== '') {
     return 'upcc_case_view.php?id=' . (int)$relatedId;
   }
 
