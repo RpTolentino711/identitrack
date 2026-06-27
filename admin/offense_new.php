@@ -585,6 +585,8 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $textColor = $isRed ? 'var(--red)' : 'var(--amber)';
       $borderColor = $isRed ? 'var(--red-mid)' : 'var(--amber-mid)';
       $dateStr = date('M j, Y', strtotime($o['date_committed']));
+      $timeStr = date('g:i A', strtotime($o['date_committed']));
+      $dateDisplay = $dateStr . '<br><span style="font-size:9px; opacity:0.9;">' . $timeStr . '</span>';
       
       $labelHtml = '';
       if ($isSection4Label) {
@@ -599,7 +601,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           '.$labelHtml.'
           <div style="font-size: 11.5px; font-weight: 700; color: '.$textColor.'; line-height: 1.3;">'.htmlspecialchars($o['code']).' — '.htmlspecialchars($o['name']).'</div>
         </div>
-        <div style="font-size: 10px; font-weight: 600; color: '.$textColor.'; opacity: 0.8; white-space: nowrap; margin-top: 1px;">'.$dateStr.'</div>
+        <div style="font-size: 10px; font-weight: 600; color: '.$textColor.'; opacity: 0.8; white-space: nowrap; text-align: right; margin-top: 1px;">'.$dateDisplay.'</div>
       </div>';
     }
   }
