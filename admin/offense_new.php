@@ -34,6 +34,12 @@ if ($level === 'MINOR') {
      WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
     []
   ) ?: [];
+} else if ($level === 'MAJOR' && $category >= 1 && $category <= 5) {
+  $offenseTypes = db_all(
+    "SELECT offense_type_id, code, name FROM offense_type
+     WHERE is_active = 1 AND level = 'MAJOR' AND major_category = :cat AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
+    [':cat' => $category]
+  ) ?: [];
 }
 // Append the "Other" option to the end of the list
 if ($level === 'MINOR') {
@@ -1907,7 +1913,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     alertPanel.innerHTML = `<div class="panel-placeholder"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><p>Enter a Student ID to see the offense status and history for this student.</p></div>`;
   }
 
-  async function refreshOffenseTypes() {
+  async function refreshOffenseTypes(selectedId = null) {
     const level = levelSelect?.value || 'MINOR';
     let cat = 0;
     if (level === 'MAJOR') {
@@ -1922,7 +1928,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const data = await res.json();
     if (data.ok && data.types) {
       const select     = offenseTypeSelect;
-      const currentVal = select.value;
+      const currentVal = selectedId || select.value;
       select.innerHTML = '<option value="">— Select Offense Type —</option>';
       data.types.forEach(t => {
         const opt       = document.createElement('option');
@@ -2070,28 +2076,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       document.getElementById('typeActionSuccessModal').classList.add('active');
   }
 
-  async function refreshOffenseTypes(selectedId = null) {
-      const formData = new FormData();
-      formData.append('action', 'list_offense_types');
-      formData.append('level', document.getElementById('levelSelect').value);
-      const catSel = document.getElementById('categorySelect');
-      if (catSel && catSel.value) formData.append('major_category', catSel.value);
-      
-      const res = await fetch(window.location.href, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-      const data = await res.json();
-      if (data.ok && data.types) {
-          const sel = document.getElementById('offense_type_id');
-          if (!sel) return;
-          sel.innerHTML = '<option value="">— Select Offense Type —</option>';
-          data.types.forEach(t => {
-              const opt = document.createElement('option');
-              opt.value = t.offense_type_id;
-              opt.textContent = t.code + ' — ' + t.name;
-              if (selectedId && t.offense_type_id == selectedId) opt.selected = true;
-              sel.appendChild(opt);
-          });
-      }
-  }
 
   async function saveOffenseType() {
     const code  = document.getElementById('type_code').value.trim();
