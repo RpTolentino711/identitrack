@@ -891,6 +891,28 @@ body {
 .cat-detail-key{color:var(--ink-500);font-size:.72rem;white-space:nowrap;min-width:130px; font-weight: 700;}
 .cat-detail-val{color:var(--ink-800);font-weight:600;flex:1}
 
+.meta-grid {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.6rem 1rem;
+  align-items: center;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin-top: 0.5rem;
+}
+.meta-key {
+  color: var(--ink-500);
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.meta-val {
+  color: var(--ink-800);
+  font-weight: 600;
+  word-break: break-word;
+}
+
 /* Utils */
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .divider { border: none; border-top: 1px dashed rgba(0,0,0,0.1); margin: 1.25rem 0; }
