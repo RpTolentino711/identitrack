@@ -996,7 +996,7 @@ function fmt_case_id(int $id, string $created): string {
             $cntAll = count($cases);
             $cntReady = 0; $cntAssigned = 0; $cntUnassigned = 0;
             foreach ($cases as $c) {
-                $hasPanel = ($c['assigned_members'] && trim($c['assigned_members']) !== '[]');
+                $hasPanel = !empty($c['assigned_department_id']);
                 $hearingScheduled = !empty($c['hearing_date']) && !empty($c['hearing_time']);
                 if ($hasPanel) {
                     $cntAssigned++;
