@@ -998,9 +998,11 @@ function fmt_case_id(int $id, string $created): string {
             foreach ($cases as $c) {
                 $hasPanel = !empty($c['assigned_department_id']);
                 $hearingScheduled = !empty($c['hearing_date']) && !empty($c['hearing_time']);
+                $isHearingActive = ((int)($c['hearing_is_open'] ?? 0) === 1 || (int)($c['hearing_is_paused'] ?? 0) === 1);
+                
                 if ($hasPanel) {
                     $cntAssigned++;
-                    if ($hearingScheduled) $cntReady++;
+                    if ($hearingScheduled && !$isHearingActive) $cntReady++;
                 } else {
                     $cntUnassigned++;
                 }
@@ -1165,6 +1167,7 @@ function fmt_case_id(int $id, string $created): string {
                                 data-case-kind="<?= e($c['case_kind'] ?? '') ?>"
                                 data-case-summary="<?= $caseSummaryEsc ?>"
                                 data-has-panel="<?= $hasPanel ? '1' : '0' ?>"
+                                data-hearing-active="<?= ($isHearingOpen || $isHearingPaused) ? '1' : '0' ?>"
                                 data-consensus-cat="<?= (int)($c['hearing_vote_consensus_category'] ?? 0) ?>"
                                 onclick="selectCase(this)">
                                 <td><div class="case-id"><?= e($caseLabel) ?></div></td>
@@ -1662,8 +1665,9 @@ function filterCases(level, btn) {
         const rowCategory = row.dataset.filterCategory || '';
         const hasPanel = row.dataset.hasPanel === '1';
         const hearingScheduled = row.dataset.hearingScheduled === '1';
+        const hearingActive = row.dataset.hearingActive === '1';
         const isAssigned = hasPanel;
-        const isReady = hasPanel && hearingScheduled;
+        const isReady = hasPanel && hearingScheduled && !hearingActive;
         const isUnassigned = !hasPanel;
 
         let show = false;
