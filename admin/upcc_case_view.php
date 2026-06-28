@@ -2297,16 +2297,19 @@ function submitCancelConsensus() {
     form.submit();
 }
 
+let currentRoundConsensusDismissed = false;
+
 function openConsensusDecisionModal(category) {
-    if (sessionStorage.getItem(`upccConsensusSeen_${CASE_ID}_${lastRoundNo}`) === '1') return;
+    if (currentRoundConsensusDismissed) return;
     const modal = document.getElementById('consensusDecisionModal');
     const catEl = document.getElementById('consensusDecisionCategory');
     if (catEl) catEl.textContent = 'Category ' + category;
     if (modal) modal.classList.add('open');
 }
+
 function closeConsensusDecisionModal() {
     document.getElementById('consensusDecisionModal')?.classList.remove('open');
-    sessionStorage.setItem(`upccConsensusSeen_${CASE_ID}_${lastRoundNo}`, '1');
+    currentRoundConsensusDismissed = true;
 }
 
 function adoptSuggestedPenalty() {
@@ -2925,10 +2928,12 @@ function syncLive() {
                   if (!isAwaitingAdmin) {
                     isAwaitingAdmin  = true;
                     currentConsensus = data.consensus;
-                    sessionStorage.setItem(`upccConsensusOpen_${CASE_ID}`, '1');
                     showToast('✅ Consensus Reached!', `Panel agreed on Category ${data.consensus}. Review and record the final decision.`, 'success');
                   }
                   openConsensusDecisionModal(data.consensus);
+                } else {
+                  isAwaitingAdmin = false;
+                  currentRoundConsensusDismissed = false;
                 }
 
             // Live voting modal for active rounds
@@ -2951,7 +2956,6 @@ function syncLive() {
                 if (newRound > lastRoundNo && isActive) {
                     lastRoundNo = newRound;
                     showToast('Penalty Proposed', 'A panel member submitted a proposal. Voting has started.', 'info');
-                    setTimeout(() => location.reload(), 1500);
                 }
             }
 
