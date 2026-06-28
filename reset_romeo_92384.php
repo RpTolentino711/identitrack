@@ -46,8 +46,6 @@ try {
     db_exec("DELETE FROM upcc_case WHERE student_id = :sid", [':sid' => $sid]);
     db_exec("DELETE FROM offense WHERE student_id = :sid", [':sid' => $sid]);
 
-    db_exec("UPDATE student SET current_status = 'CLEAN', total_offense_count = 0 WHERE student_id = :sid", [':sid' => $sid]);
-
     echo "Student Romeo Paolo Tolentino ($sid) has been fully reset to CLEAN.";
 } catch (Throwable $e) {
     echo "ERROR: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine();
