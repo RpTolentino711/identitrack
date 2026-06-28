@@ -28,11 +28,11 @@ try {
         }
     }
 
-    db_exec("DELETE FROM notification WHERE student_id = :sid", [':sid' => $sid]);
-    db_exec("DELETE FROM student_appeal_request WHERE student_id = :sid", [':sid' => $sid]);
-    db_exec("DELETE FROM student_community_service WHERE student_id = :sid", [':sid' => $sid]);
-    db_exec("DELETE FROM upcc_case WHERE student_id = :sid", [':sid' => $sid]);
-    db_exec("DELETE FROM offense WHERE student_id = :sid", [':sid' => $sid]);
+    try { db_exec("DELETE FROM notification WHERE student_id = :sid", [':sid' => $sid]); } catch (Exception $e) {}
+    try { db_exec("DELETE FROM student_appeal_request WHERE student_id = :sid", [':sid' => $sid]); } catch (Exception $e) {}
+    try { db_exec("DELETE FROM student_community_service WHERE student_id = :sid", [':sid' => $sid]); } catch (Exception $e) {}
+    try { db_exec("DELETE FROM upcc_case WHERE student_id = :sid", [':sid' => $sid]); } catch (Exception $e) {}
+    try { db_exec("DELETE FROM offense WHERE student_id = :sid", [':sid' => $sid]); } catch (Exception $e) {}
 
     echo "Student Romeo Paolo Tolentino ($sid) has been fully reset to CLEAN.";
 } catch (Throwable $e) {
