@@ -593,11 +593,20 @@ if ($action === 'sync') {
     
     // Get waiting users (for admin)
     $waitingUsers = [];
+    $panelPresence = [];
     if ($isAdmin) {
         $waitingUsers = db_all("SELECT p.user_id as upcc_id, u.full_name as name
                                 FROM upcc_hearing_presence p
                                 JOIN upcc_user u ON u.upcc_id = p.user_id
                                 WHERE p.case_id = :c AND p.user_type = 'UPCC' AND p.status = 'WAITING'", [':c' => $caseId]);
+        
+        $panelPresenceRows = db_all("SELECT user_id, status, last_ping_at 
+                                     FROM upcc_hearing_presence 
+                                     WHERE case_id = :c AND user_type = 'UPCC'", [':c' => $caseId]);
+        foreach ($panelPresenceRows as $row) {
+            $isOnline = $row['status'] === 'ADMITTED' && !empty($row['last_ping_at']) && (time() - strtotime((string)$row['last_ping_at'])) <= 15;
+            $panelPresence[$row['user_id']] = $isOnline;
+        }
     }
     
     $latestRejoinRequestAt = null;
@@ -766,6 +775,7 @@ if ($action === 'sync') {
         'case_status' => (string)($case['status'] ?? ''),
         'my_status' => $myPresenceStatus,
         'waiting_users' => $waitingUsers,
+        'panel_presence' => $panelPresence,
         'latest_rejoin_request_at' => $latestRejoinRequestAt,
         'cooldown' => $cooldownSeconds > 0,
         'cooldown_seconds' => $cooldownSeconds,

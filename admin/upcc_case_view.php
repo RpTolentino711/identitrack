@@ -1187,11 +1187,11 @@ body {
                             <div class="member-role"><?= htmlspecialchars($pm['role']) ?></div>
                           </div>
                       </div>
-                      <div>
+                      <div id="panel-presence-<?= $pm['id'] ?>" data-accepted="<?= $pm['accepted'] ? '1' : '0' ?>">
                         <?php if ($pm['accepted']): ?>
                           <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dcfce7; color:#16a34a; font-weight:bold; font-size:14px;" title="Accepted">✓</span>
                         <?php else: ?>
-                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fef3c7; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">×</span>
+                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fef3c7; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">⌛</span>
                         <?php endif; ?>
                       </div>
                     </div>
@@ -2853,7 +2853,27 @@ function syncLive() {
         .then(r => r.json())
         .then(data => {
             if (!data.ok) return;
-            const roundActiveNow = !!(data.round && parseInt(data.round.is_active, 10) === 1);
+            if (data.panel_presence) {
+                Object.keys(data.panel_presence).forEach(upccId => {
+                    const el = document.getElementById('panel-presence-' + upccId);
+                    if (el) {
+                        const isAccepted = el.getAttribute('data-accepted') === '1';
+                        const isOnline = data.panel_presence[upccId];
+                        
+                        if (isOnline) {
+                            el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dcfce7; color:#16a34a; font-weight:bold; font-size:14px;" title="Online / In Hearing">✓</span>';
+                        } else {
+                            if (isAccepted) {
+                                el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fee2e2; color:#dc2626; font-weight:bold; font-size:14px;" title="Offline / Not in Hearing">×</span>';
+                            } else {
+                                el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fef3c7; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">⌛</span>';
+                            }
+                        }
+                    }
+                });
+            }
+
+            const roundActiveNow = data.round && parseInt(data.round.is_active, 10) === 1;
             const cooldownActiveNow = !!(data.cooldown && parseInt(data.cooldown_seconds || 0, 10) > 0);
 
             // Chat
