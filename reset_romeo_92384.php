@@ -7,7 +7,7 @@ try {
 
     $email = 'romeotolentino804@gmail.com';
 
-    $student = db_one("SELECT student_id FROM student WHERE email = :email", [':email' => $email]);
+    $student = db_one("SELECT student_id FROM student WHERE student_email = :email", [':email' => $email]);
 
     if (!$student) {
         echo "Student not found!\n";
