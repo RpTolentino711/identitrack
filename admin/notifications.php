@@ -26,7 +26,7 @@ db_exec(
    SET is_read = 1
    WHERE is_deleted = 0
      AND is_read = 0
-     AND (admin_id IS NULL OR admin_id <> ?)",
+     AND (admin_id IS NULL OR admin_id = ?)",
   [$adminId]
 );
 
@@ -172,7 +172,7 @@ $unreadRow = db_one(
   "SELECT COUNT(*) AS cnt
    FROM notification
    WHERE is_deleted=0 AND is_read=0
-     AND (admin_id IS NULL OR admin_id <> ?)",
+     AND (admin_id IS NULL OR admin_id = ?)",
   [$adminId]
 );
 $unreadCount = (int)($unreadRow['cnt'] ?? 0);

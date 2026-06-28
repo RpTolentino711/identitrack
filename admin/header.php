@@ -24,7 +24,7 @@ if (function_exists('db_one')) {
      FROM notification
      WHERE is_deleted = 0
        AND is_read = 0
-       AND (admin_id IS NULL OR admin_id <> ?)",
+       AND (admin_id IS NULL OR admin_id = ?)",
     [$adminId]
   );
   $notifCount = (int)($row['cnt'] ?? 0);

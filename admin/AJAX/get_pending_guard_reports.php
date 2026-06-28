@@ -27,7 +27,7 @@ $notifs = db_all(
      FROM notification
      WHERE is_deleted = 0 AND is_read = 0
      AND type <> 'GUARD_REPORT'
-     AND (admin_id IS NULL OR admin_id <> ?)
+     AND (admin_id IS NULL OR admin_id = ?)
      ORDER BY created_at DESC",
     [$adminId]
 );

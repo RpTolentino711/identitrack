@@ -18,7 +18,7 @@ $row = db_one(
    WHERE is_deleted = 0
      AND is_read = 0
      AND type <> 'GUARD_REPORT'
-     AND (admin_id IS NULL OR admin_id <> ?)",
+     AND (admin_id IS NULL OR admin_id = ?)",
   [$adminId]
 );
 
@@ -33,7 +33,7 @@ $totalUnread = (int)($row['cnt'] ?? 0) + $pendingGuardCount;
 
 $lastId = (int)($_GET['last_id'] ?? 0);
 
-if ($lastId > 0) {
+  if ($lastId > 0) {
   $newNotifications = db_all(
     "SELECT notification_id, type, title, message, student_id, related_table, related_id, created_at
      FROM notification
@@ -41,7 +41,7 @@ if ($lastId > 0) {
        AND is_read = 0
        AND type <> 'GUARD_REPORT'
        AND notification_id > ?
-       AND (admin_id IS NULL OR admin_id <> ?)
+       AND (admin_id IS NULL OR admin_id = ?)
      ORDER BY notification_id ASC",
     [$lastId, $adminId]
   );
@@ -53,7 +53,7 @@ if ($lastId > 0) {
      WHERE is_deleted = 0
        AND is_read = 0
        AND type <> 'GUARD_REPORT'
-       AND (admin_id IS NULL OR admin_id <> ?)
+       AND (admin_id IS NULL OR admin_id = ?)
      ORDER BY notification_id DESC
      LIMIT 1",
     [$adminId]

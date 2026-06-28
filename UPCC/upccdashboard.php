@@ -909,9 +909,25 @@ body::before {
 .offense-name { color: #f1f5f9; font-weight: 600; flex: 1; line-height: 1.4; text-align: center; }
 
 @media (max-width: 1024px) {
-  .app-container { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+  .app-container { display: flex; flex-direction: column; min-height: 100vh; }
+  .sidebar { width: 100%; padding: 15px 20px; flex-direction: row; align-items: center; justify-content: space-between; border-right: none; border-bottom: 1px solid var(--border-glass); box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 10; }
+  .brand { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .brand-icon { width: 40px; height: 40px; }
+  .brand-text h1 { font-size: 18px; }
+  .nav-link { margin-bottom: 0; padding: 10px; }
+  nav { display: flex; align-items: center; }
   .dashboard-layout { grid-template-columns: 1fr; }
+  .table-wrapper { overflow-x: auto; padding: 0 16px 16px; }
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .search-input { width: 100%; max-width: 100%; }
+  .stats-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .main-content { padding: 20px; }
+  .greeting h2 { font-size: 24px; }
+  .modal-actions { flex-direction: column; }
+  .action-btn { width: 100%; }
+  .header { flex-direction: column; align-items: flex-start; gap: 10px; }
 }
 
 /* Modal for Acknowledgement */
