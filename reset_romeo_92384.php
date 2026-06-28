@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../database/database.php';
+require_once __DIR__ . '/database/database.php';
 
 $email = 'romeotolentino804@gmail.com';
 
