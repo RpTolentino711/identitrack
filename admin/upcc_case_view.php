@@ -1306,6 +1306,7 @@ body {
                     <div class="vlb-title">
                       🗳️ Active Vote — Round <?= $roundNo ?>
                       <span class="live-badge">● Live</span>
+                      <button type="button" class="btn btn-sm btn-outline" style="margin-left:12px;font-size:10px;padding:2px 8px;border-color:rgba(255,255,255,0.4);color:#fff;" onclick="openLiveVotingModal()">View in Modal</button>
                     </div>
                     <div style="font-family:var(--mono);font-size:.82rem;color:#fff" id="vlbTimer">
                       <?= sprintf('%02d:%02d', floor($roundSecsLeft / 60), $roundSecsLeft % 60) ?>
