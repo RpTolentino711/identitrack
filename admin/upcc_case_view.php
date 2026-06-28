@@ -2853,21 +2853,19 @@ function syncLive() {
         .then(r => r.json())
         .then(data => {
             if (!data.ok) return;
-            if (data.panel_presence) {
-                Object.keys(data.panel_presence).forEach(upccId => {
-                    const el = document.getElementById('panel-presence-' + upccId);
-                    if (el) {
-                        const isAccepted = el.getAttribute('data-accepted') === '1';
-                        const isOnline = data.panel_presence[upccId];
-                        
-                        if (isOnline) {
-                            el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dcfce7; color:#16a34a; font-weight:bold; font-size:14px;" title="Online / In Hearing">✓</span>';
+            if (data.panel_presence !== undefined) {
+                document.querySelectorAll('[id^="panel-presence-"]').forEach(el => {
+                    const upccId = el.id.replace('panel-presence-', '');
+                    const isAccepted = el.getAttribute('data-accepted') === '1';
+                    const isOnline = data.panel_presence[upccId] === true;
+                    
+                    if (isOnline) {
+                        el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dcfce7; color:#16a34a; font-weight:bold; font-size:14px;" title="Online / In Hearing">✓</span>';
+                    } else {
+                        if (isAccepted) {
+                            el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fee2e2; color:#dc2626; font-weight:bold; font-size:14px;" title="Offline / Not in Hearing">×</span>';
                         } else {
-                            if (isAccepted) {
-                                el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fee2e2; color:#dc2626; font-weight:bold; font-size:14px;" title="Offline / Not in Hearing">×</span>';
-                            } else {
-                                el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fef3c7; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">⌛</span>';
-                            }
+                            el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fef3c7; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">⌛</span>';
                         }
                     }
                 });
