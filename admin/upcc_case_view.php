@@ -2246,6 +2246,42 @@ function adoptSuggestedPenalty() {
     showToast('Form Auto-filled', 'Suggested penalty has been loaded. Review and submit.', 'success');
 }
 
+// ── IDLE WARNING MODAL ──────────────────────────────────────────────────────
+function showIdleWarningModal() {
+    let m = document.getElementById('idleWarningModal');
+    if (!m) {
+        m = document.createElement('div');
+        m.id = 'idleWarningModal';
+        m.className = 'modal-overlay';
+        m.innerHTML = `
+          <div class="modal-box">
+            <div class="modal-header">
+              <h3 class="modal-title">⚠️ Are you still there?</h3>
+            </div>
+            <div class="modal-body" style="text-align:center">
+              <p>The system has detected no activity for 4 minutes.</p>
+              <p>If you do not respond, the hearing will be <strong>auto-paused</strong> in 1 minute to secure the session.</p>
+            </div>
+            <div class="modal-footer" style="justify-content:center">
+              <button type="button" class="btn btn-primary" onclick="imHereClick()">Yes, I'm here</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(m);
+    }
+    m.classList.add('open');
+}
+
+function hideIdleWarningModal() {
+    const m = document.getElementById('idleWarningModal');
+    if (m) m.classList.remove('open');
+}
+
+function imHereClick() {
+    resetActivity();
+    hideIdleWarningModal();
+}
+
 // ── CANCEL CONSENSUS MODAL ────────────────────────────────────────────────
 function showCancelConsensusModal() { document.getElementById('cancelConsensusModal').classList.add('open'); }
 function closeCancelModal()         { document.getElementById('cancelConsensusModal').classList.remove('open'); document.getElementById('cancelReason').value = ''; }
@@ -2619,31 +2655,55 @@ function confirmLeavePage() {
        window.location.href = href;
     });
 }
-
-window.addEventListener('unload', function () {
-  try {
-    if (!_currentPauseState && IS_HEARING_OPEN && navigator.sendBeacon) {
-      const url = `../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`;
-      const params = new URLSearchParams();
-      params.append('action', 'toggle_pause');
-      params.append('actor', 'admin');
-      params.append('set_pause', '1');
-      params.append('pause_reason', 'AUTO_PAUSE_ADMIN_LEFT');
-      navigator.sendBeacon(url, params.toString());
-    }
-  } catch (e) { /* ignore */ }
-});
-
 function normalizePauseState(value) {
   return value === true || value === 1 || value === '1' || value === 'true';
 }
 
 
-function admitUser(upccId) {
-    fetch(`../api/upcc_case_live.php?action=admit_user&case_id=${CASE_ID}&upcc_id=${upccId}&actor=admin`)
+function admitUser(upccId, btnElement = null) {
+    if (btnElement) {
+        btnElement.innerHTML = '⏳...';
+        btnElement.disabled = true;
+    }
+    
+    const fd = new FormData();
+    fd.append('action', 'admit_user');
+    fd.append('case_id', CASE_ID);
+    fd.append('upcc_id', upccId);
+    fd.append('actor', 'admin');
+    
+    fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
         .then(r => r.json())
-        .then(res => { if (res.ok) syncLive(); else alert('Failed: ' + (res.error || 'Unknown')); })
-        .catch(err => console.error(err));
+        .then(res => { 
+            if (res.ok) {
+                if (btnElement) {
+                    const row = btnElement.closest('div[style*="border-bottom"]');
+                    if (row) row.remove();
+                    
+                    // Check if there are any users left in the modal list
+                    const list = document.getElementById('rejoinUsersList');
+                    if (list && list.children.length === 0) {
+                        closeRejoinModal();
+                    }
+                } else {
+                    closeRejoinModal();
+                }
+                syncLive(); 
+            } else { 
+                if (btnElement) {
+                    btnElement.innerHTML = 'Let In';
+                    btnElement.disabled = false;
+                }
+                alert('Failed: ' + (res.error || 'Unknown')); 
+            } 
+        })
+        .catch(err => {
+            if (btnElement) {
+                btnElement.innerHTML = 'Let In';
+                btnElement.disabled = false;
+            }
+            console.error(err);
+        });
 }
 
 function admitAllWaitingUsers() {
@@ -2667,7 +2727,7 @@ function showRejoinModal(users) {
       <div style="font-size:13px">👤 ${escapeHtml(u.name)}<div style="font-size:11px;color:#666">${escapeHtml(u.role || '')}</div></div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-outline" style="padding:6px 10px;font-size:12px" onclick="closeRejoinModal();">Dismiss</button>
-        <button class="btn btn-primary" data-upcc="${u.upcc_id}" style="padding:6px 10px;font-size:12px" onclick="admitUser(${u.upcc_id});">Let In</button>
+        <button class="btn btn-primary" data-upcc="${u.upcc_id}" style="padding:6px 10px;font-size:12px" onclick="admitUser(${u.upcc_id}, this);">Let In</button>
       </div>
     </div>
   `).join('');
@@ -2680,8 +2740,33 @@ function closeRejoinModal() {
   modal.classList.remove('open');
 }
 
-// ── PRESENCE PING ─────────────────────────────────────────────────────────
+// ── PRESENCE PING & IDLE TRACKING ─────────────────────────────────────────
+let lastActivityTime = Date.now();
+const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+function resetActivity() { lastActivityTime = Date.now(); }
+activityEvents.forEach(evt => window.addEventListener(evt, resetActivity, true));
+let warningModalShown = false;
 function pingPresence() {
+    const elapsed = Date.now() - lastActivityTime;
+    
+    // If idle for 5 minutes (300000 ms), stop pinging
+    if (elapsed > 300000) {
+        return; 
+    }
+    
+    // If idle for 4 minutes (240000 ms), show warning
+    if (elapsed > 240000) {
+        if (!warningModalShown) {
+            showIdleWarningModal();
+            warningModalShown = true;
+        }
+    } else {
+        if (warningModalShown) {
+            hideIdleWarningModal();
+            warningModalShown = false;
+        }
+    }
+
     const fd = new FormData();
     fd.append('action', 'ping_presence');
     fd.append('status', 'ADMITTED');
@@ -2872,7 +2957,7 @@ function syncLive() {
                     wuList.innerHTML = data.waiting_users.map(u => `
                         <div style="display:flex;justify-content:space-between;align-items:center;background:#fff;padding:6px;margin-bottom:4px;border-radius:4px;border:1px solid #fcd34d">
                             <span style="font-size:12px">👤 ${escapeHtml(u.name)}</span>
-                            <button onclick="admitUser(${u.upcc_id})" class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:11px">Let In</button>
+                            <button onclick="admitUser(${u.upcc_id}, this)" class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:11px">Let In</button>
                         </div>`).join('');
                 } else {
                     wuCont.style.display = 'none';

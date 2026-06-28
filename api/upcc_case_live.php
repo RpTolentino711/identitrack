@@ -412,6 +412,13 @@ if ($action === 'toggle_pause' && $isAdmin && $_SERVER['REQUEST_METHOD'] === 'PO
         [':paused' => $newPausedState, ':reason' => $pauseReason, ':id' => $caseId]
     );
     
+    // Explicitly update last_ping to prevent race conditions where panel members instantly auto-pause a resumed hearing
+    if ($newPausedState === 0) {
+        db_exec("INSERT INTO upcc_hearing_presence (case_id, user_type, user_id, status, last_ping) 
+                 VALUES (:c, 'ADMIN', :u, 'ADMITTED', NOW())
+                 ON DUPLICATE KEY UPDATE last_ping = NOW(), status = 'ADMITTED'", [':c' => $caseId, ':u' => $actorId]);
+    }
+    
     $actionMsg = $newPausedState === 1 ? 'HEARING_PAUSED_MANUALLY' : 'HEARING_RESUMED_MANUALLY';
     upcc_log_case_activity($caseId, 'ADMIN', $actorId, $actionMsg, ['admin_id' => $actorId]);
     
@@ -529,14 +536,17 @@ if ($action === 'sync') {
     $pauseReason = $case['hearing_pause_reason'] ?? null;
     $isClosed = in_array($case['status'] ?? '', ['CLOSED', 'RESOLVED']);
     
-    // Check admin presence for auto-pause/resume
-    $adminPresence = db_one("SELECT last_ping, status FROM upcc_hearing_presence WHERE case_id = :c AND user_type = 'ADMIN'", [':c' => $caseId]);
+    // Check admin presence for auto-pause/resume (get the most recently active admin)
+    $adminPresence = db_one("SELECT last_ping, status, TIMESTAMPDIFF(SECOND, last_ping, NOW()) as seconds_ago 
+                             FROM upcc_hearing_presence 
+                             WHERE case_id = :c AND user_type = 'ADMIN' 
+                             ORDER BY last_ping DESC LIMIT 1", [':c' => $caseId]);
     $isAdminOnline = false;
     $wasAdminOnline = false;
     
     if ($adminPresence) {
-        $secondsAgo = time() - strtotime($adminPresence['last_ping']);
-        if ($secondsAgo <= 15) {
+        $secondsAgo = (int)($adminPresence['seconds_ago'] ?? 0);
+        if ($secondsAgo <= 310) { // 5 minutes + 10s buffer
             $isAdminOnline = true;
             $wasAdminOnline = true;
         } else {
