@@ -2969,20 +2969,27 @@ function syncLive() {
             if (prevRoundActiveState !== roundActiveNow || prevCooldownActiveState !== cooldownActiveNow) {
                 prevRoundActiveState = roundActiveNow;
                 prevCooldownActiveState = cooldownActiveNow;
-                if (!roundActiveNow || cooldownActiveNow) {
-                    setTimeout(() => location.reload(), 600);
-                    return;
+                if (!roundActiveNow) {
+                    const vlb = document.getElementById('votingLiveBlock');
+                    if (vlb) vlb.style.display = 'none';
+                    closeLiveVotingModal();
                 }
             }
 
-              if (hasConsensus && !roundActiveNow) {
+            if (hasConsensus && !roundActiveNow) {
                 closeLiveVotingModal();
-              }
+            }
 
             // Status change
             if (data.case_status && data.case_status !== caseStatus) {
                 caseStatus = data.case_status;
-                location.reload();
+                if (caseStatus === 'CLOSED' || caseStatus === 'RESOLVED') {
+                    // Safe to reload if case is closed/resolved since beforeunload is disabled
+                    location.reload();
+                } else {
+                    const statusEl = document.getElementById('caseStatusBadge');
+                    if (statusEl) statusEl.textContent = caseStatus;
+                }
             }
 
             // Pause state handling
