@@ -30,16 +30,14 @@ try {
 
     if (!empty($case_ids)) {
         $inClause = implode(',', $case_ids);
-        db_exec("DELETE FROM upcc_case_vote WHERE case_id IN ($inClause)");
-        db_exec("DELETE FROM upcc_case_vote_round WHERE case_id IN ($inClause)");
-        db_exec("DELETE FROM upcc_case_panel_member WHERE case_id IN ($inClause)");
-        db_exec("DELETE FROM upcc_case_offense WHERE case_id IN ($inClause)");
-        db_exec("DELETE FROM upcc_case_note WHERE case_id IN ($inClause)");
-        db_exec("DELETE FROM upcc_case_attachment WHERE case_id IN ($inClause)");
-        db_exec("DELETE FROM upcc_hearing_presence WHERE case_id IN ($inClause)");
-        try {
-            db_exec("DELETE FROM upcc_case_panel_acceptance WHERE case_id IN ($inClause)");
-        } catch(Exception $e) {}
+        $tables = [
+            'upcc_case_vote', 'upcc_case_vote_round', 'upcc_case_panel_member',
+            'upcc_case_offense', 'upcc_case_note', 'upcc_case_attachment',
+            'upcc_hearing_presence', 'upcc_case_panel_acceptance'
+        ];
+        foreach ($tables as $t) {
+            try { db_exec("DELETE FROM $t WHERE case_id IN ($inClause)"); } catch (Exception $e) {}
+        }
     }
 
     db_exec("DELETE FROM notification WHERE student_id = :sid", [':sid' => $sid]);
