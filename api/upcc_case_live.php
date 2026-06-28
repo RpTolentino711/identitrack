@@ -407,17 +407,18 @@ if ($action === 'toggle_pause' && $isAdmin && $_SERVER['REQUEST_METHOD'] === 'PO
     $customReason = trim((string)($_POST['pause_reason'] ?? ''));
     $pauseReason = $newPausedState === 1 ? ($customReason !== '' ? $customReason : 'MANUAL') : null;
     
-    db_exec(
-        "UPDATE upcc_case SET hearing_is_paused = :paused, hearing_pause_reason = :reason WHERE case_id = :id",
-        [':paused' => $newPausedState, ':reason' => $pauseReason, ':id' => $caseId]
-    );
-    
-    // Explicitly update last_ping to prevent race conditions where panel members instantly auto-pause a resumed hearing
+    // Explicitly update last_ping FIRST to prevent microsecond race conditions 
+    // where panel members instantly auto-pause a resumed hearing
     if ($newPausedState === 0) {
         db_exec("INSERT INTO upcc_hearing_presence (case_id, user_type, user_id, status, last_ping) 
                  VALUES (:c, 'ADMIN', :u, 'ADMITTED', NOW())
                  ON DUPLICATE KEY UPDATE last_ping = NOW(), status = 'ADMITTED'", [':c' => $caseId, ':u' => $actorId]);
     }
+
+    db_exec(
+        "UPDATE upcc_case SET hearing_is_paused = :paused, hearing_pause_reason = :reason WHERE case_id = :id",
+        [':paused' => $newPausedState, ':reason' => $pauseReason, ':id' => $caseId]
+    );
     
     $actionMsg = $newPausedState === 1 ? 'HEARING_PAUSED_MANUALLY' : 'HEARING_RESUMED_MANUALLY';
     upcc_log_case_activity($caseId, 'ADMIN', $actorId, $actionMsg, ['admin_id' => $actorId]);
