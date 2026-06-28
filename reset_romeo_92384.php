@@ -3,7 +3,7 @@ require_once __DIR__ . '/database/database.php';
 
 $email = 'romeotolentino804@gmail.com';
 
-$student = db_one("SELECT student_id FROM student WHERE " . db_decrypt_col('email') . " = 'romeotolentino804@gmail.com'", [':__enckey' => db_encryption_key()]);
+$student = db_one("SELECT student_id FROM student WHERE email = :email", [':email' => $email]);
 
 if (!$student) {
     echo "Student not found!\n";
