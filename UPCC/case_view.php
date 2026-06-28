@@ -279,11 +279,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cance
 
         if ($roundInfo && (int)$roundInfo['suggested_by'] === $panelId) {
             db_exec("DELETE FROM upcc_suggestion_cooldown WHERE case_id = :c", [':c' => $caseId]);
-            db_exec(
-                "INSERT INTO upcc_suggestion_cooldown (case_id, round_no, upcc_id, cooldown_until, created_at)
-                 VALUES (:c, :r, :u, DATE_ADD(NOW(), INTERVAL 3 MINUTE), NOW())",
-                [':c' => $caseId, ':r' => $roundNo, ':u' => $panelId]
-            );
 
             db_exec("DELETE FROM upcc_case_vote WHERE case_id = :c AND round_no = :r",
                 [':c' => $caseId, ':r' => $roundNo]);
@@ -485,11 +480,6 @@ function _checkAndFinalizeConsensus(int $caseId, int $roundNo, array $assignedPa
     // ── MAJORITY DISAGREES OR IMPOSSIBLE TO REACH MAJORITY ──
     if ($maxPossibleAgrees < $majorityNeeded || $disagreeCount >= $majorityNeeded) {
         db_exec("DELETE FROM upcc_suggestion_cooldown WHERE case_id = :c", [':c' => $caseId]);
-        db_exec(
-            "INSERT INTO upcc_suggestion_cooldown (case_id, round_no, upcc_id, cooldown_until, created_at)
-             VALUES (:c, :r, :u, DATE_ADD(NOW(), INTERVAL 3 MINUTE), NOW())",
-            [':c' => $caseId, ':r' => $roundNo, ':u' => $suggesterId]
-        );
 
         db_exec("DELETE FROM upcc_case_vote WHERE case_id = :c AND round_no = :r",
             [':c' => $caseId, ':r' => $roundNo]);
