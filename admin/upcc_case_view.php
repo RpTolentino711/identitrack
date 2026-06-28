@@ -2308,6 +2308,69 @@ function closeConsensusDecisionModal() {
     document.getElementById('consensusDecisionModal')?.classList.remove('open');
     sessionStorage.setItem(`upccConsensusSeen_${CASE_ID}_${lastRoundNo}`, '1');
 }
+
+function adoptSuggestedPenalty() {
+    const catSelect = document.getElementById('decided_category');
+    if (catSelect && currentConsensus) {
+        catSelect.value = currentConsensus;
+        catSelect.disabled = false;
+        
+        // Try to pre-fill details if available from consensusDetails
+        if (currentConsensus == 1 && consensusDetails && consensusDetails.probation_terms) {
+            const tEl = document.getElementById('cat1_terms');
+            if (tEl) tEl.value = consensusDetails.probation_terms;
+        } else if (currentConsensus == 2 && consensusDetails && Array.isArray(consensusDetails.interventions)) {
+            const intv = consensusDetails.interventions;
+            const cbUni = document.getElementById('cat2_university_service');
+            if (cbUni) cbUni.checked = intv.includes('University Service');
+            
+            const cbCoun = document.querySelector('input[name="cat2_counseling"]');
+            if (cbCoun) cbCoun.checked = intv.includes('Referral for Counseling');
+            
+            const cbLec = document.querySelector('input[name="cat2_lectures"]');
+            if (cbLec) cbLec.checked = intv.includes('Attendance to lectures');
+            
+            const cbEval = document.querySelector('input[name="cat2_evaluation"]');
+            if (cbEval) cbEval.checked = intv.includes('Evaluation');
+            
+            if (consensusDetails.service_hours) {
+                const radios = document.querySelectorAll('input[name="cat2_service_hours"]');
+                let matched = false;
+                radios.forEach(r => {
+                    if (r.value == consensusDetails.service_hours) {
+                        r.checked = true;
+                        matched = true;
+                    }
+                });
+                if (!matched) {
+                    const rOther = document.querySelector('input[name="cat2_service_hours"][value="OTHER"]');
+                    if (rOther) rOther.checked = true;
+                    const cCust = document.getElementById('cat2_service_hours_custom');
+                    if (cCust) {
+                        cCust.value = consensusDetails.service_hours;
+                        cCust.style.display = 'block';
+                    }
+                }
+            }
+        }
+        
+        if (typeof toggleCategoryFields === 'function') toggleCategoryFields();
+        
+        const forceRes = document.getElementById('force_resolve');
+        if (forceRes) {
+            forceRes.checked = true;
+            if (typeof toggleForceResolve === 'function') toggleForceResolve();
+        }
+        
+        const submitBtn = document.getElementById('submit_final_decision');
+        if (submitBtn) submitBtn.disabled = false;
+        
+        const decisionDesc = document.getElementById('final_decision');
+        if (decisionDesc) decisionDesc.disabled = false;
+    }
+    document.getElementById('resolution-panel')?.scrollIntoView({ behavior: 'smooth' });
+}
+
 function applyConsensusFromModal() {
     adoptSuggestedPenalty();
     closeConsensusDecisionModal();
@@ -2864,7 +2927,6 @@ function syncLive() {
                     currentConsensus = data.consensus;
                     sessionStorage.setItem(`upccConsensusOpen_${CASE_ID}`, '1');
                     showToast('✅ Consensus Reached!', `Panel agreed on Category ${data.consensus}. Review and record the final decision.`, 'success');
-                    setTimeout(() => location.reload(), 1200);
                   }
                   openConsensusDecisionModal(data.consensus);
                 }
