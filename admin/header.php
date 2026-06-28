@@ -684,7 +684,7 @@ if (function_exists('db_one')) {
           newNotifs.forEach(n => {
             const id = Number(n.notification_id || 0);
             if (id > highestId) highestId = id;
-            if (lastNotifId > 0 && !isDashboard) {
+            if (lastNotifId > 0 && !isDashboard && n.type !== 'HEARING_ACCEPTED') {
               const title = n.title || 'New Offense Report';
               const message = n.message || 'A new violation report has been filed.';
               createToast(title, message);
