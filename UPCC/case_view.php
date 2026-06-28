@@ -1336,7 +1336,10 @@ hr{border-color:var(--border-glass);margin:16px 0}
                                 <label>⏳ Pending</label><span id="panelPending"><?= $totalVoters - $agreeVotes - $disagreeVotes ?></span>
                             </div>
                         </div>
-                        <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-bottom:12px">Majority of the panel must agree to finalize</div>
+                        <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-bottom:12px">
+                            Majority of the panel must agree to finalize<br>
+                            <button type="button" class="btn btn-secondary" onclick="openVotingModalForRound(<?= $roundNo ?>)" style="margin-top:6px;padding:4px 10px;font-size:11px;">Re-open Voting Window</button>
+                        </div>
 
                         <div class="suggestion-box">
                             <div class="suggestion-category">Category <?= $suggestedDetails['category'] ?></div>
@@ -2474,15 +2477,7 @@ function syncLive() {
             if (modal) {
                 if (roundActive && !cooldownModalOpen) {
                     const roundNo = data.round ? parseInt(data.round.round_no || 0, 10) : 0;
-                    const suggId = data.round ? parseInt(data.round.suggested_by || 0, 10) : 0;
-                    const isCurrentUserSuggesterNow = PANEL_ID === suggId;
-                    const myVote = votes.find(v => parseInt(v.upcc_id, 10) === PANEL_ID) || null;
-                    // Only forcefully open the modal if the user HAS NOT VOTED and is NOT the suggester.
-                    // If they are the suggester, or if they have already voted, we do not force it open 
-                    // (so if they hide it, it stays hidden).
-                    const shouldOpenForAction = !isCurrentUserSuggesterNow && !myVote;
-                    
-                    if (shouldOpenForAction) {
+                    if (votingModalRound !== roundNo) {
                         openVotingModalForRound(roundNo);
                     }
                 } else if (!roundActive && !hasConsensus) {
