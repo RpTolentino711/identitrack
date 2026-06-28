@@ -173,15 +173,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $hearingLoc  = trim((string)($_POST['hearing_link_or_location'] ?? ''));
         if (!in_array($hearingType, ['ONLINE', 'FACE_TO_FACE'])) $hearingType = 'ONLINE';
 
+        if ($hearingDate !== '') {
+            $parsed_date = strtotime(str_replace('/', '-', $hearingDate));
+            if ($parsed_date !== false) {
+                $hearingDate = date('Y-m-d', $parsed_date);
+            }
+        }
+        if ($hearingTime !== '') {
+            $parsed_time = strtotime($hearingTime);
+            if ($parsed_time !== false) {
+                $hearingTime = date('H:i', $parsed_time);
+            }
+        }
+
         $validDate   = preg_match('/^\d{4}-\d{2}-\d{2}$/', $hearingDate) === 1;
         $validTime   = preg_match('/^\d{2}:\d{2}$/', $hearingTime) === 1;
         $dept        = $dept_id ? db_one("SELECT dept_id, dept_name FROM departments WHERE dept_id = :id AND is_active = 1", [':id' => $dept_id]) : null;
-        if (!$dept)                                              $errMsg = 'Please select a valid department.';
+        if ($dept_id > 0 && !$dept)                              $errMsg = 'Please select a valid department.';
         elseif (empty($panelIds))                                $errMsg = 'Please assign at least one panel member.';
         elseif (!$validDate || !$validTime)                      $errMsg = 'Please select both a hearing date and time.';
         elseif (empty($hearingLoc) && $hearingType === 'FACE_TO_FACE') $errMsg = 'Please provide a location/room for Face-to-Face hearing.';
         elseif (empty($hearingLoc) && $hearingType === 'ONLINE') $errMsg = 'Please provide a meeting link for Online hearing.';
-        elseif (is_biased_department($case, (string)$dept['dept_name'])) $errMsg = 'Cannot assign a panel from the same department or program as the respondent student.';
+        elseif ($dept && is_biased_department($case, (string)$dept['dept_name'])) $errMsg = 'Cannot assign a panel from the same department or program as the respondent student.';
         else {
             db_exec("UPDATE upcc_case SET
                 assigned_department_id = :dept, assigned_panel_members = :panel,
@@ -191,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 hearing_opened_at = NULL, hearing_closed_at = NULL, hearing_opened_by_admin = NULL,
                 hearing_vote_consensus_category = NULL, hearing_vote_consensus_at = NULL,
                 updated_at = NOW() WHERE case_id = :id",
-          [':dept' => $dept_id, ':panel' => json_encode($panelIds),
+          [':dept' => $dept_id > 0 ? $dept_id : null, ':panel' => json_encode($panelIds),
                  ':hd' => $hearingDate, ':ht' => $hearingTime . ':00',
                  ':htype' => $hearingType, ':hloc' => $hearingLoc,
                  ':id' => $case_id]);
@@ -472,7 +485,7 @@ $activeCooldown = db_one(
 $cooldownSecs = max(0, (int)($activeCooldown['remaining'] ?? 0));
 
 // ── Other state ───────────────────────────────────────────────────────────
-$hasPanel         = !empty($case['assigned_department_id']);
+$hasPanel         = (!empty($case['assigned_department_id']) || (!empty($case['assigned_panel_members']) && $case['assigned_panel_members'] !== '[]'));
 $isClosed         = in_array($case['status'], ['CLOSED', 'RESOLVED']);
 $isHearingOpen    = (int)($case['hearing_is_open']   ?? 0) === 1;
 $isHearingPaused  = (int)($case['hearing_is_paused'] ?? 0) === 1;

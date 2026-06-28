@@ -80,10 +80,10 @@ $monthLabel = date('F', strtotime($monthStart));
 $upccTotalRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case");
 $upccTotal = (int)($upccTotalRow['cnt'] ?? 0);
 
-$upccUnassignedRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE assigned_department_id IS NULL OR assigned_department_id = 0");
+$upccUnassignedRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE (assigned_department_id IS NULL OR assigned_department_id = 0) AND (assigned_panel_members IS NULL OR assigned_panel_members = '' OR assigned_panel_members = '[]')");
 $upccUnassigned = (int)($upccUnassignedRow['cnt'] ?? 0);
 
-$upccAssignedNoHearingRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE assigned_department_id IS NOT NULL AND assigned_department_id > 0 AND (hearing_date IS NULL OR hearing_date = '')");
+$upccAssignedNoHearingRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE ((assigned_department_id IS NOT NULL AND assigned_department_id > 0) OR (assigned_panel_members IS NOT NULL AND assigned_panel_members <> '' AND assigned_panel_members <> '[]')) AND (hearing_date IS NULL OR hearing_date = '')");
 $upccAssignedNoHearing = (int)($upccAssignedNoHearingRow['cnt'] ?? 0);
 
 $upccSolvedRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE status IN ('CLOSED', 'RESOLVED', 'CANCELLED')");

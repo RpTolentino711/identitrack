@@ -459,6 +459,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $hearing_type = trim($_POST['hearing_type'] ?? 'ONLINE');
         $hearing_link_or_location = trim($_POST['hearing_link_or_location'] ?? '');
 
+        if ($hearing_date !== '') {
+            $parsed_date = strtotime(str_replace('/', '-', $hearing_date));
+            if ($parsed_date !== false) {
+                $hearing_date = date('Y-m-d', $parsed_date);
+            }
+        }
+        if ($hearing_time !== '') {
+            $parsed_time = strtotime($hearing_time);
+            if ($parsed_time !== false) {
+                $hearing_time = date('H:i:s', $parsed_time);
+            }
+        }
+
         if ($case_id) {
             if (empty($panelIds)) {
                 $regError = 'Please assign at least one panel member.';
@@ -1071,7 +1084,7 @@ function fmt_case_id(int $id, string $created): string {
             $cntAll = count($cases);
             $cntReady = 0; $cntAssigned = 0; $cntUnassigned = 0;
             foreach ($cases as $c) {
-                $hasPanel = !empty($c['assigned_department_id']);
+                $hasPanel = (!empty($c['assigned_department_id']) || (!empty($c['assigned_panel_members']) && $c['assigned_panel_members'] !== '[]'));
                 $hearingScheduled = !empty($c['hearing_date']) && !empty($c['hearing_time']);
                 $isHearingActive = ((int)($c['hearing_is_open'] ?? 0) === 1 || (int)($c['hearing_is_paused'] ?? 0) === 1);
                 
@@ -1135,7 +1148,7 @@ function fmt_case_id(int $id, string $created): string {
                             }
 
                             $lvl = strtolower($effectiveLevel);
-                            $hasPanel = !empty($c['assigned_department_id']);
+                            $hasPanel = (!empty($c['assigned_department_id']) || (!empty($c['assigned_panel_members']) && $c['assigned_panel_members'] !== '[]'));
                             $statusRawTemp = (string)($c['status'] ?? 'PENDING');
 
                             $days = 0;
