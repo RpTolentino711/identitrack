@@ -598,11 +598,11 @@ if ($action === 'sync') {
                                 JOIN upcc_user u ON u.upcc_id = p.user_id
                                 WHERE p.case_id = :c AND p.user_type = 'UPCC' AND p.status = 'WAITING'", [':c' => $caseId]);
         
-        $panelPresenceRows = db_all("SELECT user_id, status, last_ping_at 
+        $panelPresenceRows = db_all("SELECT user_id, status, last_ping 
                                      FROM upcc_hearing_presence 
                                      WHERE case_id = :c AND user_type = 'UPCC'", [':c' => $caseId]);
         foreach ($panelPresenceRows as $row) {
-            $isOnline = $row['status'] === 'ADMITTED' && !empty($row['last_ping_at']) && (time() - strtotime((string)$row['last_ping_at'])) <= 15;
+            $isOnline = $row['status'] === 'ADMITTED' && !empty($row['last_ping']) && (time() - strtotime((string)$row['last_ping'])) <= 15;
             $panelPresence[$row['user_id']] = $isOnline;
         }
     }
