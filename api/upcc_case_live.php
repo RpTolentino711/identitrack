@@ -483,18 +483,16 @@ if ($action === 'request_rejoin' && $_SERVER['REQUEST_METHOD'] === 'POST' && $is
         [':c' => $caseId, ':u' => $actorId]
     );
 
-    $canNotify = true;
     if ($latestRequest) {
         $elapsed = max(0, (int)($latestRequest['elapsed_seconds'] ?? 0));
         if ($elapsed < 30) {
-            $canNotify = false;
+            echo json_encode(['ok' => false, 'error' => 'Please wait ' . (30 - $elapsed) . ' seconds before sending another request.']);
+            exit;
         }
     }
 
-    if ($canNotify) {
-        db_exec("INSERT INTO upcc_panel_rejoin_requests (case_id, upcc_id, requested_at) VALUES (:c, :u, NOW())", [':c' => $caseId, ':u' => $actorId]);
-        upcc_log_case_activity($caseId, 'UPCC', $actorId, 'REJOIN_REQUESTED');
-    }
+    db_exec("INSERT INTO upcc_panel_rejoin_requests (case_id, upcc_id, requested_at) VALUES (:c, :u, NOW())", [':c' => $caseId, ':u' => $actorId]);
+    upcc_log_case_activity($caseId, 'UPCC', $actorId, 'REJOIN_REQUESTED');
 
     // Set to WAITING so the Admin sees the request in the waiting room list
     db_exec("UPDATE upcc_hearing_presence SET status = 'WAITING', last_ping = NOW() WHERE case_id = :c AND user_type = 'UPCC' AND user_id = :u", [':c' => $caseId, ':u' => $actorId]);
