@@ -155,7 +155,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         $isNearHearing = (!empty($c['hearing_date']) && $c['hearing_date'] === date('Y-m-d')) ? 1 : 0;
         $adminOff = isset($adminOffline) && $adminOffline ? 1 : 0;
     ?>
-    <tr class="<?php echo $lockedClass; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" data-is-open="<?php echo (int)($c['hearing_is_open'] ?? 0); ?>" data-is-paused="<?php echo (int)($c['hearing_is_paused'] ?? 0); ?>" data-admin-offline="<?php echo $adminOff; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>')">
+    <tr class="<?php echo $lockedClass; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" data-is-open="<?php echo (int)($c['hearing_is_open'] ?? 0); ?>" data-is-paused="<?php echo (int)($c['hearing_is_paused'] ?? 0); ?>" data-admin-offline="<?php echo $adminOff; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>', <?php echo $adminOff; ?>)">
       <td><span class="t-id"><?php echo htmlspecialchars($cid); ?></span></td>
       <td>
         <?php if ($isResolved): ?>
@@ -1140,7 +1140,7 @@ body::before {
                   $isNearHearing = (!empty($c['hearing_date']) && $c['hearing_date'] === date('Y-m-d')) ? 1 : 0;
                   $adminOff = isset($adminOffline) && $adminOffline ? 1 : 0;
                 ?>
-                <tr class="<?php echo $lockedClass . $section4Class; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" data-is-open="<?php echo (int)($c['hearing_is_open'] ?? 0); ?>" data-is-paused="<?php echo (int)($c['hearing_is_paused'] ?? 0); ?>" data-admin-offline="<?php echo $adminOff; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>')">
+                <tr class="<?php echo $lockedClass . $section4Class; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" data-is-open="<?php echo (int)($c['hearing_is_open'] ?? 0); ?>" data-is-paused="<?php echo (int)($c['hearing_is_paused'] ?? 0); ?>" data-admin-offline="<?php echo $adminOff; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>', <?php echo $adminOff; ?>)">
                   <td><span class="t-id"><?php echo htmlspecialchars($cid); ?></span></td>
                   <td>
                     <?php if ($isResolved): ?>
@@ -1369,15 +1369,15 @@ body::before {
 </div>
 
 <script>
-function handleRowClick(href, accepted, caseId, hearingIsOpen, hearingIsPaused, myPresenceStatus) {
+function handleRowClick(href, accepted, caseId, hearingIsOpen, hearingIsPaused, myPresenceStatus, adminOffline) {
   // Check if case is actually open
   if (hearingIsOpen === 0) {
     alert('⚠️ This case is currently locked by the administrator. You cannot access it until it is opened.');
     return;
   }
   
-  if (hearingIsPaused === 1) {
-    alert('⚠️ This case hearing has been paused. You cannot access it until the administrator resumes it.');
+  if (hearingIsPaused === 1 || adminOffline === 1) {
+    alert('⚠️ This case hearing is currently paused or the administrator is offline. You cannot access it until the administrator resumes it.');
     return;
   }
 
