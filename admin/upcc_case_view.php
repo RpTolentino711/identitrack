@@ -2303,36 +2303,36 @@ function showIdleWarningModal() {
     if (!m) {
         m = document.createElement('div');
         m.id = 'idleWarningModal';
-        m.className = 'modal-overlay';
+        // Full screen forced overlay - pure inline style, no CSS dependency
+        m.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
         m.innerHTML = `
-          <div class="modal-content" style="text-align:center; padding: 40px 30px">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
-            <h3 style="font-family: var(--font); font-size: 1.5rem; font-weight: 800; color: #333; margin-bottom: 1rem;">Are you still there?</h3>
-            <p style="color: #666; margin-bottom: 0.5rem;">The system has detected no activity for 4 minutes.</p>
-            <p style="color: #eab308; font-weight: 600; margin-bottom: 2rem;">If you do not respond, the hearing will be auto-paused in <span id="idleTimerCount">60</span> seconds.</p>
-            <button type="button" class="btn btn-primary" onclick="imHereClick()" style="width: 100%; justify-content: center; padding: 12px">Yes, I'm here</button>
+          <div style="background:#fff;border-radius:16px;padding:40px 36px;max-width:420px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.4);">
+            <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+            <h3 style="font-size:1.4rem;font-weight:800;color:#1e293b;margin:0 0 0.75rem;">Are you still there?</h3>
+            <p style="color:#64748b;margin:0 0 0.5rem;font-size:0.95rem;">No activity detected for 4 minutes.</p>
+            <p style="font-size:1rem;font-weight:700;color:#ef4444;margin:0 0 2rem;">Hearing will auto-pause in <span id="idleTimerCount" style="font-size:1.3rem;background:#fef2f2;padding:2px 10px;border-radius:8px;">60</span> seconds</p>
+            <button onclick="imHereClick()" style="background:#2563eb;color:#fff;border:none;border-radius:10px;padding:14px 32px;font-size:1rem;font-weight:700;cursor:pointer;width:100%;transition:background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">✅ Yes, I'm still here!</button>
           </div>
         `;
         document.body.appendChild(m);
     }
-    
-    // Reset and start countdown
+    m.style.display = 'flex';
+
+    // Live countdown
     const countSpan = document.getElementById('idleTimerCount');
-    if (countSpan) countSpan.textContent = '60';
     if (idleTimerInterval) clearInterval(idleTimerInterval);
     idleTimerInterval = setInterval(() => {
         const elapsed = Date.now() - lastActivityTime;
-        const remaining = Math.max(0, 300 - Math.floor(elapsed / 1000));
+        const remaining = Math.max(0, Math.ceil((300000 - elapsed) / 1000));
         if (countSpan) countSpan.textContent = remaining;
-    }, 1000);
-    
-    m.classList.add('open');
+        if (remaining <= 0) clearInterval(idleTimerInterval);
+    }, 500);
 }
 
 function hideIdleWarningModal() {
     if (idleTimerInterval) clearInterval(idleTimerInterval);
     const m = document.getElementById('idleWarningModal');
-    if (m) m.classList.remove('open');
+    if (m) m.style.display = 'none';
 }
 
 function imHereClick() {
@@ -2867,19 +2867,43 @@ function closeRejoinModal() {
 // ── PRESENCE PING & IDLE TRACKING ─────────────────────────────────────────
 let lastActivityTime = Date.now();
 const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
-function resetActivity() { lastActivityTime = Date.now(); }
+function resetActivity() {
+    lastActivityTime = Date.now();
+    // If user comes back, hide the modal and reset flag
+    if (warningModalShown) {
+        hideIdleWarningModal();
+        warningModalShown = false;
+    }
+}
 activityEvents.forEach(evt => window.addEventListener(evt, resetActivity, true));
 let warningModalShown = false;
+let autoPauseFired = false;
 function pingPresence() {
     const elapsed = Date.now() - lastActivityTime;
-    
-    // If idle for 5 minutes (300000 ms), stop pinging
-    if (elapsed > 300000) {
-        return; 
+
+    // ── AUTO-PAUSE at 5 minutes of idle ──────────────────────────────────
+    if (elapsed >= 300000 && !autoPauseFired) {
+        autoPauseFired = true;
+        hideIdleWarningModal();
+        // Trigger auto-pause
+        const fd2 = new FormData();
+        fd2.append('action', 'set_pause');
+        fd2.append('set_pause', '1');
+        fd2.append('pause_reason', 'AUTO_PAUSE_IDLE');
+        fd2.append('actor', 'admin');
+        fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method: 'POST', body: fd2 })
+            .then(() => {
+                showToast('⏸️ Hearing Auto-Paused', 'Hearing paused due to 5 minutes of admin inactivity.', 'warning');
+                updatePauseUI(true, 'AUTO_PAUSE_IDLE');
+            }).catch(() => {});
+        return;
     }
-    
-    // If idle for 4 minutes (240000 ms), show warning
-    if (elapsed > 240000) {
+
+    // Reset autoPauseFired if admin becomes active again
+    if (elapsed < 300000) autoPauseFired = false;
+
+    // ── SHOW WARNING at 4 minutes ─────────────────────────────────────────
+    if (elapsed >= 240000) {
         if (!warningModalShown) {
             showIdleWarningModal();
             warningModalShown = true;
