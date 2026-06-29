@@ -1,3 +1,4 @@
 <?php
-require_once "database/database.php";
-print_r(db_all("SELECT case_id, hearing_is_open, hearing_is_paused FROM upcc_case;"));
+require 'database/database.php';
+$rows = db_all("SELECT * FROM upcc_panel_rejoin_requests ORDER BY request_id DESC LIMIT 5");
+print_r($rows);
