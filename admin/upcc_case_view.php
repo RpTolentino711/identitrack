@@ -1634,56 +1634,7 @@ body {
                   }
               }
               document.addEventListener('DOMContentLoaded', toggleForceResolve);
-              
-// Floating Idle Timer
-let idleDisplayInterval = null;
-function initFloatingIdleTimer() {
-    let t = document.getElementById('floatingIdleTimer');
-    if (!t) {
-        t = document.createElement('div');
-        t.id = 'floatingIdleTimer';
-        t.style.position = 'fixed';
-        t.style.bottom = '20px';
-        t.style.right = '20px';
-        t.style.background = '#1e293b';
-        t.style.color = '#f8fafc';
-        t.style.padding = '8px 16px';
-        t.style.borderRadius = '9999px';
-        t.style.zIndex = '9999';
-        t.style.fontFamily = 'var(--font), sans-serif';
-        t.style.fontSize = '13px';
-        t.style.fontWeight = '600';
-        t.style.pointerEvents = 'none';
-        t.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
-        t.style.border = '1px solid #334155';
-        t.style.display = 'flex';
-        t.style.alignItems = 'center';
-        t.style.gap = '8px';
-        document.body.appendChild(t);
-    }
-    
-    if (idleDisplayInterval) clearInterval(idleDisplayInterval);
-    idleDisplayInterval = setInterval(() => {
-        const elapsed = Date.now() - lastActivityTime;
-        const totalIdleAllowed = 300;
-        let remaining = Math.max(0, totalIdleAllowed - Math.floor(elapsed / 1000));
-        
-        let min = Math.floor(remaining / 60);
-        let sec = remaining % 60;
-        
-        let color = '#10b981'; // Green
-        if (remaining <= 120) color = '#f59e0b'; // Yellow
-        if (remaining <= 60) color = '#ef4444'; // Red
-        
-        t.innerHTML = `
-            <div style="width:8px;height:8px;border-radius:50%;background:${color};box-shadow: 0 0 8px ${color}"></div>
-            Auto-Pause In: ${min}:${sec.toString().padStart(2, '0')}
-        `;
-    }, 1000);
-}
-initFloatingIdleTimer();
-</script>
-
+              </script>
 
               <?php else: ?>
               <!-- Case is CLOSED -->
@@ -2297,42 +2248,34 @@ function adoptSuggestedPenalty() {
 }
 
 // ── IDLE WARNING MODAL ──────────────────────────────────────────────────────
-let idleTimerInterval = null;
 function showIdleWarningModal() {
     let m = document.getElementById('idleWarningModal');
     if (!m) {
         m = document.createElement('div');
         m.id = 'idleWarningModal';
-        // Full screen forced overlay - pure inline style, no CSS dependency
-        m.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
+        m.className = 'modal-overlay';
         m.innerHTML = `
-          <div style="background:#fff;border-radius:16px;padding:40px 36px;max-width:420px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.4);">
-            <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
-            <h3 style="font-size:1.4rem;font-weight:800;color:#1e293b;margin:0 0 0.75rem;">Are you still there?</h3>
-            <p style="color:#64748b;margin:0 0 0.5rem;font-size:0.95rem;">No activity detected for 4 minutes.</p>
-            <p style="font-size:1rem;font-weight:700;color:#ef4444;margin:0 0 2rem;">Hearing will auto-pause in <span id="idleTimerCount" style="font-size:1.3rem;background:#fef2f2;padding:2px 10px;border-radius:8px;">60</span> seconds</p>
-            <button onclick="imHereClick()" style="background:#2563eb;color:#fff;border:none;border-radius:10px;padding:14px 32px;font-size:1rem;font-weight:700;cursor:pointer;width:100%;transition:background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">✅ Yes, I'm still here!</button>
+          <div class="modal-box">
+            <div class="modal-header">
+              <h3 class="modal-title">⚠️ Are you still there?</h3>
+            </div>
+            <div class="modal-body" style="text-align:center">
+              <p>The system has detected no activity for 4 minutes.</p>
+              <p>If you do not respond, the hearing will be <strong>auto-paused</strong> in 1 minute to secure the session.</p>
+            </div>
+            <div class="modal-footer" style="justify-content:center">
+              <button type="button" class="btn btn-primary" onclick="imHereClick()">Yes, I'm here</button>
+            </div>
           </div>
         `;
         document.body.appendChild(m);
     }
-    m.style.display = 'flex';
-
-    // Live countdown
-    const countSpan = document.getElementById('idleTimerCount');
-    if (idleTimerInterval) clearInterval(idleTimerInterval);
-    idleTimerInterval = setInterval(() => {
-        const elapsed = Date.now() - lastActivityTime;
-        const remaining = Math.max(0, Math.ceil((300000 - elapsed) / 1000));
-        if (countSpan) countSpan.textContent = remaining;
-        if (remaining <= 0) clearInterval(idleTimerInterval);
-    }, 500);
+    m.classList.add('open');
 }
 
 function hideIdleWarningModal() {
-    if (idleTimerInterval) clearInterval(idleTimerInterval);
     const m = document.getElementById('idleWarningModal');
-    if (m) m.style.display = 'none';
+    if (m) m.classList.remove('open');
 }
 
 function imHereClick() {
@@ -2867,55 +2810,19 @@ function closeRejoinModal() {
 // ── PRESENCE PING & IDLE TRACKING ─────────────────────────────────────────
 let lastActivityTime = Date.now();
 const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
-function resetActivity() {
-    lastActivityTime = Date.now();
-    // If user comes back, hide the modal and reset flag
-    if (warningModalShown) {
-        hideIdleWarningModal();
-        warningModalShown = false;
-    }
-}
+function resetActivity() { lastActivityTime = Date.now(); }
 activityEvents.forEach(evt => window.addEventListener(evt, resetActivity, true));
 let warningModalShown = false;
-let autoPauseFired = false;
 function pingPresence() {
     const elapsed = Date.now() - lastActivityTime;
-
-    // ── Only run idle tracking when hearing is LIVE (not paused) ─────────────
-    if (_currentPauseState || !IS_HEARING_OPEN) {
-        if (warningModalShown) { hideIdleWarningModal(); warningModalShown = false; }
-        autoPauseFired = false;
-        const fdp = new FormData();
-        fdp.append('action', 'ping_presence');
-        fdp.append('status', 'ADMITTED');
-        fdp.append('actor', 'admin');
-        fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fdp }).catch(() => {});
-        return;
+    
+    // If idle for 5 minutes (300000 ms), stop pinging
+    if (elapsed > 300000) {
+        return; 
     }
-
-    // ── AUTO-PAUSE at 5 minutes of idle ──────────────────────────────────
-    if (elapsed >= 300000 && !autoPauseFired) {
-        autoPauseFired = true;
-        hideIdleWarningModal();
-        // Trigger auto-pause
-        const fd2 = new FormData();
-        fd2.append('action', 'set_pause');
-        fd2.append('set_pause', '1');
-        fd2.append('pause_reason', 'AUTO_PAUSE_IDLE');
-        fd2.append('actor', 'admin');
-        fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method: 'POST', body: fd2 })
-            .then(() => {
-                showToast('⏸️ Hearing Auto-Paused', 'Hearing paused due to 5 minutes of admin inactivity.', 'warning');
-                updatePauseUI(true, 'AUTO_PAUSE_IDLE');
-            }).catch(() => {});
-        return;
-    }
-
-    // Reset autoPauseFired if admin becomes active again
-    if (elapsed < 300000) autoPauseFired = false;
-
-    // ── SHOW WARNING at 4 minutes ─────────────────────────────────────────
-    if (elapsed >= 240000) {
+    
+    // If idle for 4 minutes (240000 ms), show warning
+    if (elapsed > 240000) {
         if (!warningModalShown) {
             showIdleWarningModal();
             warningModalShown = true;
@@ -3195,32 +3102,6 @@ if ('Notification' in window && Notification.permission === 'default') Notificat
 setInterval(syncLive,    3000);
 setInterval(pingPresence, 5000);
 syncLive();
-
-// Floating Idle Timer
-let idleDisplayInterval = null;
-function initFloatingIdleTimer() {
-    let t = document.getElementById('floatingIdleTimer');
-    if (!t) {
-        t = document.createElement('div');
-        t.id = 'floatingIdleTimer';
-        t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#1e293b;color:#f8fafc;padding:8px 16px;border-radius:9999px;z-index:9999;font-size:13px;font-weight:600;pointer-events:none;box-shadow:0 4px 6px rgba(0,0,0,0.1);border:1px solid #334155;display:flex;align-items:center;gap:8px;';
-        document.body.appendChild(t);
-    }
-    if (idleDisplayInterval) clearInterval(idleDisplayInterval);
-    idleDisplayInterval = setInterval(() => {
-        const elapsed = Date.now() - lastActivityTime;
-        let remaining = Math.max(0, 300 - Math.floor(elapsed / 1000));
-        let min = Math.floor(remaining / 60);
-        let sec = remaining % 60;
-        let color = remaining <= 60 ? '#ef4444' : remaining <= 120 ? '#f59e0b' : '#10b981';
-        t.innerHTML = `<div style="width:8px;height:8px;border-radius:50%;background:${color};box-shadow:0 0 8px ${color}"></div> Auto-Pause In: ${min}:${sec.toString().padStart(2,'0')}`;
-    }, 1000);
-}
-initFloatingIdleTimer();
 </script>
-
-</body>
-</html>
-
 </body>
 </html>
