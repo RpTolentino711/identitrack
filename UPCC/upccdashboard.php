@@ -1340,15 +1340,36 @@ body::before {
 <!-- Modal Rejoin Request -->
 <div id="rejoinModal" class="modal-overlay">
   <div class="modal-content">
-    <div class="modal-icon">🚪</div>
-    <div class="modal-title">Request Rejoin</div>
-    <div class="modal-desc" style="color:var(--text-muted); font-size:14px; line-height:1.6; margin-bottom:30px;">
-      You have exited this hearing or your connection timed out. You need the administrator's permission to rejoin the live hearing. Would you like to send a rejoin request now?
+    <!-- Step 1: Confirm screen -->
+    <div id="rejoinStep1">
+      <div class="modal-icon">🚪</div>
+      <div class="modal-title">Request Rejoin</div>
+      <div class="modal-desc" style="color:var(--text-muted); font-size:14px; line-height:1.6; margin-bottom:30px;">
+        You have exited this hearing or your connection timed out. You need the administrator's permission to rejoin the live hearing. Would you like to send a rejoin request now?
+      </div>
+      <input type="hidden" id="rejoinCaseId" value="">
+      <div class="modal-actions" style="display:flex; gap:15px; justify-content:center;">
+        <button type="button" class="action-btn" style="background:var(--bg-glass); border:1px solid var(--border-glass);" onclick="closeRejoinModal()">Cancel</button>
+        <button type="button" id="btnSendRejoin" class="action-btn" style="background:var(--accent-primary);" onclick="sendRejoinRequest()">Send Rejoin Request</button>
+      </div>
     </div>
-    <input type="hidden" id="rejoinCaseId" value="">
-    <div class="modal-actions" style="display:flex; gap:15px; justify-content:center;">
-      <button type="button" class="action-btn" style="background:var(--bg-glass); border:1px solid var(--border-glass);" onclick="closeRejoinModal()">Cancel</button>
-      <button type="button" id="btnSendRejoin" class="action-btn" style="background:var(--accent-primary);" onclick="sendRejoinRequest()">Send Rejoin Request</button>
+    <!-- Step 2: Waiting/loading screen -->
+    <div id="rejoinStep2" style="display:none; text-align:center;">
+      <div style="font-size:3rem; margin-bottom:1rem;">⏳</div>
+      <div class="modal-title" style="margin-bottom:0.5rem;">Waiting for Admin...</div>
+      <p style="color:var(--text-muted); font-size:14px; margin-bottom:1.5rem;">Your request has been sent. Please wait for the administrator to let you in.</p>
+      <div style="width:80px; height:80px; border-radius:50%; background:rgba(99,102,241,0.1); border:4px solid rgba(99,102,241,0.3); display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem; position:relative;">
+        <span id="rejoinCountdown" style="font-size:2rem; font-weight:800; color:#a5b4fc;">30</span>
+        <svg style="position:absolute;top:-4px;left:-4px;width:88px;height:88px;" viewBox="0 0 88 88">
+          <circle id="rejoinProgressCircle" cx="44" cy="44" r="40" fill="none" stroke="#6366f1" stroke-width="4" stroke-dasharray="251" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 1s linear;"/>
+        </svg>
+      </div>
+      <p style="color:var(--text-muted); font-size:12px; margin-bottom:1.5rem;">You will be automatically redirected when admitted.</p>
+      <div id="rejoinRetryArea" style="display:none;">
+        <p style="color:#f59e0b; font-size:13px; font-weight:600; margin-bottom:1rem;">Admin did not respond. You may send another request.</p>
+        <button type="button" class="action-btn" style="background:var(--accent-primary);" onclick="resendRejoinRequest()">🔄 Request Again</button>
+      </div>
+      <button type="button" class="action-btn" style="background:var(--bg-glass); border:1px solid var(--border-glass); margin-top:8px;" onclick="closeRejoinModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -1417,17 +1438,31 @@ function triggerRejoin(caseId) {
 }
 
 function closeRejoinModal() {
+  clearRejoinTimers();
   document.getElementById('rejoinModal').classList.remove('show');
+  // Reset back to step 1 for next time
+  document.getElementById('rejoinStep1').style.display = 'block';
+  document.getElementById('rejoinStep2').style.display = 'none';
+  document.getElementById('rejoinRetryArea').style.display = 'none';
+  const btn = document.getElementById('btnSendRejoin');
+  if (btn) { btn.textContent = 'Send Rejoin Request'; btn.disabled = false; }
 }
+
+let _rejoinPollInterval = null;
+let _rejoinCountdownInterval = null;
+let _rejoinHref = '';
 
 function sendRejoinRequest() {
   const caseId = document.getElementById('rejoinCaseId').value;
   if (!caseId) return;
-  
+
+  // Find the href for this case from the table row
+  _rejoinHref = 'case_view.php?id=' + caseId;
+
   const fd = new FormData();
   fd.append('actor', 'upcc');
   fd.append('case_id', caseId);
-  
+
   const btn = document.getElementById('btnSendRejoin');
   btn.textContent = 'Sending...';
   btn.disabled = true;
@@ -1435,21 +1470,74 @@ function sendRejoinRequest() {
   fetch('../api/upcc_case_live.php?action=request_rejoin', { method: 'POST', body: fd })
     .then(r => r.json())
     .then(res => {
-        if (res.ok) {
-            alert('✅ ' + (res.message || 'Request sent! Please wait for the admin to admit you.'));
-            closeRejoinModal();
-        } else {
-            alert('⚠️ ' + (res.message || res.error || 'Failed to send request.'));
-        }
-    })
-    .catch(err => {
-        console.error(err);
-        alert('⚠️ An error occurred while sending the request.');
-    })
-    .finally(() => {
+      if (res.ok) {
+        // Switch to waiting screen
+        document.getElementById('rejoinStep1').style.display = 'none';
+        document.getElementById('rejoinStep2').style.display = 'block';
+        document.getElementById('rejoinRetryArea').style.display = 'none';
+        startRejoinWaiting(caseId);
+      } else {
+        alert('⚠️ ' + (res.message || res.error || 'Failed to send request.'));
         btn.textContent = 'Send Rejoin Request';
         btn.disabled = false;
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('⚠️ An error occurred while sending the request.');
+      btn.textContent = 'Send Rejoin Request';
+      btn.disabled = false;
     });
+}
+
+function resendRejoinRequest() {
+  document.getElementById('rejoinStep2').style.display = 'none';
+  document.getElementById('rejoinStep1').style.display = 'block';
+  const btn = document.getElementById('btnSendRejoin');
+  btn.textContent = 'Send Rejoin Request';
+  btn.disabled = false;
+  clearRejoinTimers();
+}
+
+function clearRejoinTimers() {
+  if (_rejoinPollInterval) { clearInterval(_rejoinPollInterval); _rejoinPollInterval = null; }
+  if (_rejoinCountdownInterval) { clearInterval(_rejoinCountdownInterval); _rejoinCountdownInterval = null; }
+}
+
+function startRejoinWaiting(caseId) {
+  clearRejoinTimers();
+  let seconds = 30;
+  const countEl = document.getElementById('rejoinCountdown');
+  const circle = document.getElementById('rejoinProgressCircle');
+  const circumference = 251;
+  if (countEl) countEl.textContent = seconds;
+  if (circle) circle.style.strokeDashoffset = '0';
+
+  // Countdown
+  _rejoinCountdownInterval = setInterval(() => {
+    seconds--;
+    if (countEl) countEl.textContent = Math.max(0, seconds);
+    if (circle) circle.style.strokeDashoffset = ((30 - seconds) / 30 * circumference);
+    if (seconds <= 0) {
+      clearInterval(_rejoinCountdownInterval);
+      clearInterval(_rejoinPollInterval);
+      document.getElementById('rejoinRetryArea').style.display = 'block';
+    }
+  }, 1000);
+
+  // Poll every 2s to check if admin admitted us
+  _rejoinPollInterval = setInterval(() => {
+    fetch('../api/upcc_case_live.php?case_id=' + caseId + '&actor=upcc&t=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        // my_status is returned when actor=upcc polls the sync endpoint
+        if (data.my_status === 'ADMITTED' && data.is_paused === false) {
+          clearRejoinTimers();
+          window.location.href = _rejoinHref;
+        }
+      })
+      .catch(() => {});
+  }, 2000);
 }
 
 // ─── LIVE POLLING FOR CASE STATUS UPDATES ──────
