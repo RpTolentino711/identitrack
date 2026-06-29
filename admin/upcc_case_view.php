@@ -2881,6 +2881,18 @@ let autoPauseFired = false;
 function pingPresence() {
     const elapsed = Date.now() - lastActivityTime;
 
+    // ── Only run idle tracking when hearing is LIVE (not paused) ─────────────
+    if (_currentPauseState || !IS_HEARING_OPEN) {
+        if (warningModalShown) { hideIdleWarningModal(); warningModalShown = false; }
+        autoPauseFired = false;
+        const fdp = new FormData();
+        fdp.append('action', 'ping_presence');
+        fdp.append('status', 'ADMITTED');
+        fdp.append('actor', 'admin');
+        fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fdp }).catch(() => {});
+        return;
+    }
+
     // ── AUTO-PAUSE at 5 minutes of idle ──────────────────────────────────
     if (elapsed >= 300000 && !autoPauseFired) {
         autoPauseFired = true;
