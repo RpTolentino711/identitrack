@@ -2625,7 +2625,7 @@ function pingPresence() {
 function requestJoinHearing() {
     const now  = Math.floor(Date.now() / 1000);
     const diff = now - lastRejoinTs;
-    if (diff < 300) { alert('Please wait ' + Math.floor((300 - diff) / 60) + 'm before requesting again.'); return; }
+    if (diff < 30) { alert('Please wait ' + Math.floor(30 - diff) + 's before requesting again.'); return; }
     const fd = new FormData();
     fd.append('action',  'request_rejoin');
     fd.append('case_id', CASE_ID);

@@ -1727,12 +1727,45 @@ function fmt_case_id(int $id, string $created): string {
 
 <?php if (isset($_GET['msg']) && $_GET['msg'] === 'assigned'): ?>
 <div class="modal-overlay open" id="modal-assign-success" style="z-index: 2000;">
-    <div class="modal">
-        <div class="modal-title">Saved Successfully</div>
-        <div class="modal-sub">
-            The UPCC Panel members and hearing schedule have been successfully saved for this case.
+    <div class="modal" style="text-align: center; padding: 40px; border-radius: 20px; max-width: 420px; box-shadow: 0 20px 50px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.8); background: #ffffff; position: relative; overflow: hidden; animation: modalPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;">
+        
+        <!-- Decorative Background Elements -->
+        <div style="position: absolute; top: -60px; right: -60px; width: 180px; height: 180px; background: radial-gradient(circle, rgba(79,70,229,0.1) 0%, rgba(79,70,229,0) 70%); border-radius: 50%; pointer-events: none;"></div>
+        <div style="position: absolute; bottom: -40px; left: -40px; width: 140px; height: 140px; background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0) 70%); border-radius: 50%; pointer-events: none;"></div>
+        
+        <!-- Logo Header -->
+        <div style="display: flex; justify-content: center; margin-bottom: 24px; position: relative; z-index: 2;">
+            <div style="background: #F8FAFC; padding: 15px; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #E2E8F0;">
+                <img src="../assets/logo.png" alt="IdentiTrack Logo" style="width: 50px; height: auto; display: block;">
+            </div>
         </div>
-        <button class="btn-primary" onclick="closeModal('modal-assign-success')" style="margin-top:16px;width:100%;">Continue</button>
+        
+        <h2 style="font-size: 24px; color: #1E293B; margin: 0 0 12px 0; font-weight: 700; font-family: 'Inter', -apple-system, sans-serif; position: relative; z-index: 2; letter-spacing: -0.5px;">Saved Successfully!</h2>
+        
+        <p style="font-size: 15px; color: #64748B; margin: 0 0 32px 0; line-height: 1.6; font-family: 'Inter', -apple-system, sans-serif; position: relative; z-index: 2;">
+            The UPCC Panel members and hearing schedule have been successfully saved for this case.
+        </p>
+        
+        <button class="btn-primary" onclick="closeModal('modal-assign-success')" style="width:100%; padding: 14px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%); color: white; border: none; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); transition: all 0.2s ease; position: relative; z-index: 2; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span>Continue to Dashboard</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </button>
+
+        <style>
+          @keyframes modalPop {
+              0% { transform: scale(0.9) translateY(10px); opacity: 0; }
+              100% { transform: scale(1) translateY(0); opacity: 1; }
+          }
+          #modal-assign-success .btn-primary:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4) !important;
+              background: linear-gradient(135deg, #4338CA 0%, #2563EB 100%) !important;
+          }
+          #modal-assign-success .btn-primary:active {
+              transform: translateY(0);
+              box-shadow: 0 2px 10px rgba(79, 70, 229, 0.3) !important;
+          }
+        </style>
     </div>
 </div>
 <?php endif; ?>

@@ -2712,8 +2712,8 @@ function confirmLeavePage() {
   fd.append('set_pause', '1');
   fd.append('pause_reason', 'AUTO_PAUSE_ADMIN_LEFT');
   
-  fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
-    .then(() => {
+  fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method: 'POST', body: fd })
+      .then(() => {
        skipUnloadWarn = true;
        window.location.href = href;
     })
@@ -3035,7 +3035,12 @@ function syncLive() {
             const badge  = document.getElementById('rejoinBadge');
             if (wuCont && wuList && Array.isArray(data.waiting_users)) {
                 const sig = data.latest_rejoin_request_at || '';
-                if (!rejoinSigInit) { lastRejoinSig = sig; rejoinSigInit = true; }
+                if (!rejoinSigInit) {
+                    lastRejoinSig = sig; rejoinSigInit = true;
+                    if (data.waiting_users && data.waiting_users.length > 0) {
+                      try { showRejoinModal(data.waiting_users); } catch(e) {}
+                    }
+                  }
                 else if (sig && sig !== lastRejoinSig) {
                   lastRejoinSig = sig;
                   if (data.waiting_users.length > 0) {

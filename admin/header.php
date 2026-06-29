@@ -612,6 +612,9 @@ if (function_exists('db_one')) {
       } catch (e) {
         notifList.innerHTML = '<div class="notif-empty">Error loading reports</div>';
       }
+      
+      // Update badge instantly since backend just marked notifications as read
+      setTimeout(poll, 100);
     }
 
     function renderReports(reports) {

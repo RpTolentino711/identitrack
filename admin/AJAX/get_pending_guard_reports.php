@@ -34,6 +34,17 @@ $notifs = db_all(
 
 $combined = array_merge($reports, $notifs);
 
+// Mark the fetched notifications as read so the badge disappears
+if (!empty($notifs)) {
+    db_exec(
+        "UPDATE notification 
+         SET is_read = 1 
+         WHERE is_deleted = 0 AND is_read = 0 
+         AND (admin_id IS NULL OR admin_id = ?)",
+        [$adminId]
+    );
+}
+
 echo json_encode([
     'ok' => true,
     'reports' => $combined
