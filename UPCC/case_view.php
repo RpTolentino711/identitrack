@@ -2146,7 +2146,15 @@ function partialReload() {
             ['voting-section', 'votingModal'].forEach(id => {
                 const n = doc.getElementById(id);
                 const o = document.getElementById(id);
-                if (n && o) o.innerHTML = n.innerHTML;
+                if (n && o) {
+                    o.innerHTML = n.innerHTML;
+                    o.className = n.className;
+                    if (n.getAttribute('style')) {
+                        o.setAttribute('style', n.getAttribute('style'));
+                    } else {
+                        o.removeAttribute('style');
+                    }
+                }
             });
             // Re-init form toggles
             initFormToggles();
