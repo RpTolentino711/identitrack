@@ -2764,7 +2764,6 @@ document.addEventListener('submit', e => {
                     return;
                 }
                 
-                e.preventDefault();
                 isSubmitting = true;
                 
                 const overlay = document.getElementById('globalLoadingOverlay');
@@ -2782,31 +2781,6 @@ document.addEventListener('submit', e => {
                     }
                     overlay.style.display = 'flex';
                 }
-                
-                const startTime = Date.now();
-                const formData = new FormData(form);
-                const targetUrl = (form.action || location.href).split('#')[0];
-                
-                fetch(targetUrl, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(r => r.text())
-                .then(() => {
-                    const elapsed = Date.now() - startTime;
-                    const delay = Math.max(0, 800 - elapsed);
-                    setTimeout(() => {
-                        const url = new URL(location.href);
-                        url.searchParams.set('_t', String(Date.now()));
-                        location.replace(url.toString());
-                    }, delay);
-                })
-                .catch(err => {
-                    console.error(err);
-                    isSubmitting = false;
-                    if (overlay) overlay.style.display = 'none';
-                    alert('An error occurred. Please try again.');
-                });
             }
         }
     }
