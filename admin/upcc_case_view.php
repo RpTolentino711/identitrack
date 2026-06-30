@@ -296,9 +296,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         $details['interventions'][] = 'University Service';
                         $hrs = trim((string)($_POST['cat2_service_hours'] ?? ''));
                         if ($hrs === 'OTHER' || !in_array($hrs, ['100','200','300','400','500'], true)) {
-                          $hrs = trim((string)($_POST['cat2_service_hours_custom'] ?? $hrs));
+                            $hVal = trim((string)($_POST['cat2_service_hours_custom_h'] ?? ''));
+                            $mVal = trim((string)($_POST['cat2_service_hours_custom_m'] ?? ''));
+                            $h = is_numeric($hVal) ? (float)$hVal : 0.0;
+                            $m = is_numeric($mVal) ? (float)$mVal : 0.0;
+                            $hrs = (string)($h + ($m / 60.0));
                         }
-                        $details['service_hours'] = is_numeric($hrs) ? (int)$hrs : 0;
+                        $details['service_hours'] = is_numeric($hrs) ? (float)$hrs : 0.0;
                     }
                     if (isset($_POST['cat2_counseling']))   $details['interventions'][] = 'Referral for Counseling';
                     if (isset($_POST['cat2_lectures']))     $details['interventions'][] = 'Attendance to lectures';
@@ -1344,7 +1348,23 @@ body {
                             <span class="vlb-tag"><?= htmlspecialchars($iv) ?></span>
                           <?php endforeach; ?>
                           <?php if (!empty($sugDetails['service_hours'])): ?>
-                            <span class="vlb-tag"><?= (int)$sugDetails['service_hours'] ?> hrs</span>
+                            <span class="vlb-tag"><?php 
+                              $shVal = (float)$sugDetails['service_hours'];
+                              $hPart = floor($shVal);
+                              $mPart = round(($shVal - $hPart) * 60);
+                              if ($mPart >= 60) {
+                                  $hPart += 1;
+                                  $mPart = 0;
+                              }
+                              $parts = [];
+                              if ($hPart > 0) {
+                                  $parts[] = $hPart . ' hr' . ($hPart > 1 ? 's' : '');
+                              }
+                              if ($mPart > 0) {
+                                  $parts[] = $mPart . ' min' . ($mPart > 1 ? 's' : '');
+                              }
+                              echo !empty($parts) ? implode(' ', $parts) : '0 hrs';
+                            ?></span>
                           <?php endif; ?>
                         <?php elseif ($suggestedCatInRound >= 3): ?>
                           <?= ['', '', '', 'Non-Readmission — student account will be frozen', 'Exclusion — student account will be frozen', 'Expulsion — account permanently frozen'][$suggestedCatInRound] ?>
@@ -1453,7 +1473,10 @@ body {
                               <span style="display:inline-flex;align-items:center;gap:4px;background:var(--blue-100);color:var(--blue-700);padding:2px 8px;border-radius:4px;font-size:.75rem;margin:2px 2px 2px 0">
                                 <?= htmlspecialchars($iv) ?>
                                 <?php if ($iv === 'University Service' && !empty($prefillCat2Hours)): ?>
-                                  — <?= htmlspecialchars($prefillCat2Hours) ?> hrs
+                                  — <?php 
+                                    $shVal = (float)$prefillCat2Hours;
+                                    echo ($shVal < 1.0 && $shVal > 0) ? round($shVal * 60) . ' mins' : $shVal . ' hrs';
+                                  ?>
                                 <?php endif; ?>
                               </span>
                             <?php endforeach; ?>
@@ -1529,6 +1552,21 @@ body {
 
                   <!-- Cat 2: Formative Intervention -->
                   <div id="cat2Fields" style="display:none">
+                    <?php
+                    $prefillH = '';
+                    $prefillM = '';
+                    if (!empty($prefillCat2Hours) && !in_array($prefillCat2Hours, ['100','150','200','250','300','350','400','450','500'])) {
+                        $fVal = (float)$prefillCat2Hours;
+                        $hPart = floor($fVal);
+                        $mPart = round(($fVal - $hPart) * 60);
+                        if ($mPart >= 60) {
+                            $hPart += 1;
+                            $mPart = 0;
+                        }
+                        $prefillH = $hPart > 0 ? (int)$hPart : '0';
+                        $prefillM = $mPart > 0 ? (int)$mPart : '0';
+                    }
+                    ?>
                     <label class="form-label">Formative Interventions</label>
                     <p style="font-size:.75rem;color:var(--ink-500);margin-bottom:.5rem">Select one or more.</p>
                     <label class="cb-item" style="margin-bottom:.35rem">
@@ -1549,9 +1587,16 @@ body {
                           <span>Other</span>
                         </label>
                       </div>
-                      <input type="number" min="1" name="cat2_service_hours_custom" id="cat2_service_hours_custom" class="form-control"
-                             placeholder="Custom hours" style="display:<?= !empty($prefillCat2Hours) && !in_array($prefillCat2Hours, ['100','150','200','250','300','350','400','450','500']) ? 'block' : 'none' ?>;margin-top:.4rem"
-                             value="<?= htmlspecialchars(!empty($prefillCat2Hours) && !in_array($prefillCat2Hours, ['100','150','200','250','300','350','400','450','500']) ? $prefillCat2Hours : '') ?>">
+                      <div id="cat2_custom_wrap" style="display:<?= !empty($prefillCat2Hours) && !in_array($prefillCat2Hours, ['100','150','200','250','300','350','400','450','500']) ? 'flex' : 'none' ?>;align-items:center;gap:.5rem;margin-top:.4rem">
+                        <input type="number" min="0" step="1" name="cat2_service_hours_custom_h" id="cat2_service_hours_custom_h" class="form-control" style="flex:1"
+                               placeholder="Hours"
+                               value="<?= htmlspecialchars($prefillH) ?>">
+                        <span style="font-size:.75rem;color:var(--ink-500)">hrs</span>
+                        <input type="number" min="0" max="59" step="1" name="cat2_service_hours_custom_m" id="cat2_service_hours_custom_m" class="form-control" style="flex:1"
+                               placeholder="Minutes"
+                               value="<?= htmlspecialchars($prefillM) ?>">
+                        <span style="font-size:.75rem;color:var(--ink-500)">mins</span>
+                      </div>
                       <p style="font-size:.7rem;color:var(--ink-500);margin:.35rem 0 0">Use this only if the required hours are not in the list above.</p>
                     </div>
                     <label class="cb-item" style="margin-bottom:.35rem">
@@ -2193,14 +2238,16 @@ function toggleCommunityHours() {
     toggleCommunityHoursCustom();
 }
 function toggleCommunityHoursCustom() {
-  const cus = document.getElementById('cat2_service_hours_custom');
+  const wrap = document.getElementById('cat2_custom_wrap');
+  const cusH  = document.getElementById('cat2_service_hours_custom_h');
+  const cusM  = document.getElementById('cat2_service_hours_custom_m');
   const other = document.querySelector('input[name="cat2_service_hours"][value="OTHER"]');
   const selected = document.querySelector('input[name="cat2_service_hours"]:checked');
-  if (!cus) return;
+  if (!wrap || !cusH || !cusM) return;
   const isCustom = !!selected && selected.value === 'OTHER';
-  cus.style.display = isCustom ? 'block' : 'none';
-  cus.required = isCustom;
-  if (isCustom) setTimeout(() => cus.focus(), 0);
+  wrap.style.display = isCustom ? 'flex' : 'none';
+  cusH.required = isCustom;
+  if (isCustom) setTimeout(() => cusH.focus(), 0);
   if (other) other.closest('.cat2-hour-pill')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
 }
 
@@ -2227,16 +2274,32 @@ function adoptSuggestedPenalty() {
         if (svc) { svc.checked = intervs.includes('University Service'); toggleCommunityHours(); }
         if (svc?.checked && consensusDetails.service_hours) {
             const hrs    = String(consensusDetails.service_hours);
-            const hCus   = document.getElementById('cat2_service_hours_custom');
+            const hCusH  = document.getElementById('cat2_service_hours_custom_h');
+            const hCusM  = document.getElementById('cat2_service_hours_custom_m');
+            const wrap   = document.getElementById('cat2_custom_wrap');
             const known  = ['100','200','300','400','500'];
-        const radio  = document.querySelector(`input[name="cat2_service_hours"][value="${hrs}"]`);
-        if (radio && known.includes(hrs)) { radio.checked = true; }
-        else {
-          const other = document.querySelector('input[name="cat2_service_hours"][value="OTHER"]');
-          if (other) other.checked = true;
-          if (hCus) { hCus.style.display = 'block'; hCus.value = hrs; }
+            const radio  = document.querySelector(`input[name="cat2_service_hours"][value="${hrs}"]`);
+            if (radio && known.includes(hrs)) { 
+                radio.checked = true; 
+                if (wrap) wrap.style.display = 'none';
+            } else {
+                const other = document.querySelector('input[name="cat2_service_hours"][value="OTHER"]');
+                if (other) other.checked = true;
+                if (wrap) wrap.style.display = 'flex';
+                if (hCusH && hCusM) {
+                    const fVal = parseFloat(hrs) || 0;
+                    const hPart = Math.floor(fVal);
+                    let mPart = Math.round((fVal - hPart) * 60);
+                    let finalH = hPart;
+                    if (mPart >= 60) {
+                        finalH += 1;
+                        mPart = 0;
+                    }
+                    hCusH.value = finalH > 0 ? finalH : '0';
+                    hCusM.value = mPart > 0 ? mPart : '0';
+                }
             }
-        toggleCommunityHoursCustom();
+            toggleCommunityHoursCustom();
         }
         const coun = document.getElementById('cat2_counseling');       if (coun) coun.checked = intervs.includes('Referral for Counseling');
         const lec  = document.getElementById('cat2_lectures');          if (lec)  lec.checked  = intervs.includes('Attendance to lectures');
@@ -2313,10 +2376,21 @@ function adoptSuggestedPenalty() {
                 if (!matched) {
                     const rOther = document.querySelector('input[name="cat2_service_hours"][value="OTHER"]');
                     if (rOther) rOther.checked = true;
-                    const cCust = document.getElementById('cat2_service_hours_custom');
-                    if (cCust) {
-                        cCust.value = consensusDetails.service_hours;
-                        cCust.style.display = 'block';
+                    const wrap = document.getElementById('cat2_custom_wrap');
+                    if (wrap) wrap.style.display = 'flex';
+                    const hCusH = document.getElementById('cat2_service_hours_custom_h');
+                    const hCusM = document.getElementById('cat2_service_hours_custom_m');
+                    if (hCusH && hCusM) {
+                        const fVal = parseFloat(consensusDetails.service_hours) || 0;
+                        const hPart = Math.floor(fVal);
+                        let mPart = Math.round((fVal - hPart) * 60);
+                        let finalH = hPart;
+                        if (mPart >= 60) {
+                            finalH += 1;
+                            mPart = 0;
+                        }
+                        hCusH.value = finalH > 0 ? finalH : '0';
+                        hCusM.value = mPart > 0 ? mPart : '0';
                     }
                 }
             }
@@ -2406,9 +2480,15 @@ function updateLiveVotingModal(data) {
       punishmentLabel = terms > 0 ? `Recommended Penalty: Probation for ${terms} term${terms > 1 ? 's' : ''}` : 'Recommended Penalty: Probation';
     } else if (cat === 2) {
       const interventions = Array.isArray(details.interventions) ? details.interventions : [];
-      const serviceHours = parseInt(details.service_hours || 0, 10);
+      const serviceHours = parseFloat(details.service_hours || 0);
       const bits = [];
-      if (interventions.includes('University Service')) bits.push(serviceHours > 0 ? `Community Service (${serviceHours} hrs)` : 'Community Service');
+      if (interventions.includes('University Service')) {
+        let hrsStr = '';
+        if (serviceHours > 0) {
+          hrsStr = (serviceHours < 1.0) ? ` (${Math.round(serviceHours * 60)} mins)` : ` (${serviceHours} hrs)`;
+        }
+        bits.push('Community Service' + hrsStr);
+      }
       if (interventions.includes('Referral for Counseling')) bits.push('Counseling');
       if (interventions.includes('Attendance to lectures')) bits.push('Lectures');
       if (interventions.includes('Evaluation')) bits.push('Evaluation');

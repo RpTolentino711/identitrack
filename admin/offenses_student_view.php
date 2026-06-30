@@ -1600,7 +1600,10 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                             <?php endif; ?>
                             <?php if (!empty($punish['community_service_hours'])): ?>
                               <div style="background:#fff; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px;">
-                                <strong style="color:#0369a1;">Community Service:</strong> <?php echo (int)$punish['community_service_hours']; ?> hrs
+                                <strong style="color:#0369a1;">Community Service:</strong> <?php 
+                                  $cshVal = (float)$punish['community_service_hours'];
+                                  echo ($cshVal < 1.0 && $cshVal > 0) ? round($cshVal * 60) . ' mins' : $cshVal . ' hrs';
+                                ?>
                               </div>
                             <?php endif; ?>
                             <?php if (!empty($punish['counseling_sessions'])): ?>
@@ -1706,7 +1709,10 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                             <?php endif; ?>
                             <?php if (!empty($punish['community_service_hours'])): ?>
                               <div style="background:#fff; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px;">
-                                <strong style="color:#0369a1;">Community Service:</strong> <?php echo (int)$punish['community_service_hours']; ?> hrs
+                                <strong style="color:#0369a1;">Community Service:</strong> <?php 
+                                  $cshVal = (float)$punish['community_service_hours'];
+                                  echo ($cshVal < 1.0 && $cshVal > 0) ? round($cshVal * 60) . ' mins' : $cshVal . ' hrs';
+                                ?>
                               </div>
                             <?php endif; ?>
                             <?php if (!empty($punish['counseling_sessions'])): ?>

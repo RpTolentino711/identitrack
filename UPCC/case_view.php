@@ -193,8 +193,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sugge
             if (!empty($_POST['suggest_cat2_university_service'])) {
                 $voteDetails['interventions'][] = 'University Service';
                 $hrs = trim((string)($_POST['suggest_cat2_service_hours'] ?? ''));
-                if ($hrs === 'OTHER') $hrs = trim((string)($_POST['suggest_cat2_service_hours_custom'] ?? ''));
-                $voteDetails['service_hours'] = is_numeric($hrs) ? (int)$hrs : 0;
+                if ($hrs === 'OTHER') {
+                    $hVal = trim((string)($_POST['suggest_cat2_service_hours_custom_h'] ?? ''));
+                    $mVal = trim((string)($_POST['suggest_cat2_service_hours_custom_m'] ?? ''));
+                    $h = is_numeric($hVal) ? (float)$hVal : 0.0;
+                    $m = is_numeric($mVal) ? (float)$mVal : 0.0;
+                    $hrs = (string)($h + ($m / 60.0));
+                }
+                $voteDetails['service_hours'] = is_numeric($hrs) ? (float)$hrs : 0.0;
             }
             if (!empty($_POST['suggest_cat2_counseling']))  $voteDetails['interventions'][] = 'Referral for Counseling';
             if (!empty($_POST['suggest_cat2_lectures']))    $voteDetails['interventions'][] = 'Attendance to lectures';
@@ -1029,9 +1035,31 @@ hr{border-color:var(--border-glass);margin:16px 0}
 #finalDecisionForm input[type=text]:focus,
 #finalDecisionForm input[type=number]:focus{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px rgba(99,102,241,.2)}
 #finalDecisionForm textarea{min-height:90px;resize:vertical}
+
+/* Spinner animation */
+.spinner-loader {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255,255,255,.14);
+    border-top: 4px solid var(--accent-primary);
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    animation: spin-loader 0.8s linear infinite;
+}
+@keyframes spin-loader {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 </style>
 </head>
 <body>
+<div id="globalLoadingOverlay" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.92);backdrop-filter:blur(8px)">
+    <div style="text-align:center;color:#fff;padding:24px">
+        <div class="spinner-loader"></div>
+        <div id="loadingOverlayText" style="font-family:var(--font-h);font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:6px">Submitting suggestion...</div>
+        <div style="font-size:12px;color:var(--text-muted)">Please wait, do not close or refresh this page.</div>
+    </div>
+</div>
 <div class="app-container">
 
 <!-- ── SIDEBAR ──────────────────────────────────────────────────────────── -->
@@ -1303,7 +1331,10 @@ hr{border-color:var(--border-glass);margin:16px 0}
                             <?php if ($consensusCategory === 2 && !empty($cda['interventions'])): ?>
                                 <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">
                                     Interventions: <?= htmlspecialchars(implode(', ', $cda['interventions'])) ?>
-                                    <?php if (!empty($cda['service_hours'])): ?>(<?= $cda['service_hours'] ?> hrs)<?php endif; ?>
+                                    <?php if (!empty($cda['service_hours'])): ?>(<?php 
+                                      $shVal = (float)$cda['service_hours'];
+                                      echo ($shVal < 1.0 && $shVal > 0) ? round($shVal * 60) . ' mins' : $shVal . ' hrs';
+                                    ?>)<?php endif; ?>
                                 </div>
                             <?php endif; ?>
                             <?php if (!empty($cda['description'])): ?>
@@ -1435,7 +1466,12 @@ hr{border-color:var(--border-glass);margin:16px 0}
                                                         Other
                                                     </button>
                                             </div>
-                                            <input type="number" id="sug_cat2_service_hours_custom" name="suggest_cat2_service_hours_custom" min="1" placeholder="Custom hours" style="display:none;width:100%;margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                                            <div id="sug_cat2_custom_wrap" style="display:none;align-items:center;gap:8px;margin-top:8px">
+                                                <input type="number" id="sug_cat2_service_hours_custom_h" name="suggest_cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                                                <span style="color:var(--text-muted);font-size:12px">hrs</span>
+                                                <input type="number" id="sug_cat2_service_hours_custom_m" name="suggest_cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Minutes" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                                                <span style="color:var(--text-muted);font-size:12px">mins</span>
+                                            </div>
                                             <input type="hidden" id="sug_cat2_service_hours" name="suggest_cat2_service_hours" value="">
                                         </div>
                                         <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
@@ -1491,7 +1527,22 @@ function _renderSugDetails(array $sd): void {
             echo '<span class="sug-tag">' . htmlspecialchars($iv) . '</span>';
         }
         if (!empty($details['service_hours'])) {
-            echo '<span class="sug-tag">' . (int)$details['service_hours'] . ' hrs</span>';
+            $shVal = (float)$details['service_hours'];
+            $hPart = floor($shVal);
+            $mPart = round(($shVal - $hPart) * 60);
+            if ($mPart >= 60) {
+                $hPart += 1;
+                $mPart = 0;
+            }
+            $parts = [];
+            if ($hPart > 0) {
+                $parts[] = $hPart . ' hr' . ($hPart > 1 ? 's' : '');
+            }
+            if ($mPart > 0) {
+                $parts[] = $mPart . ' min' . ($mPart > 1 ? 's' : '');
+            }
+            $shText = !empty($parts) ? implode(' ', $parts) : '0 hrs';
+            echo '<span class="sug-tag">' . htmlspecialchars($shText) . '</span>';
         }
         echo '</div>';
     endif;
@@ -1955,9 +2006,12 @@ let selectedSugHours = '';
 function selectSugHours(h, btn) {
     selectedSugHours = h;
     document.getElementById('sug_cat2_service_hours').value = h;
-    const cus = document.getElementById('sug_cat2_service_hours_custom');
-    if (cus) cus.style.display = h === 'OTHER' ? 'block' : 'none';
-    if (h !== 'OTHER' && cus) cus.value = '';
+    const wrap = document.getElementById('sug_cat2_custom_wrap');
+    if (wrap) wrap.style.display = h === 'OTHER' ? 'flex' : 'none';
+    if (h !== 'OTHER') {
+        const cus = document.getElementById('sug_cat2_service_hours_custom');
+        if (cus) cus.value = '';
+    }
 
     document.querySelectorAll('.sug-hrs-btn').forEach(b => {
         const active = b.dataset.h == h;
@@ -2025,13 +2079,18 @@ function toggleFinalCatFields() {
             </label>
             <div id="finalHoursBox" style="display:none;margin-left:22px;margin-bottom:10px">
                 <label style="font-size:11px;color:var(--text-muted)">Required Hours</label>
-                <select name="cat2_service_hours" style="width:100%;margin-top:4px;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px" onchange="this.nextElementSibling.style.display = this.value === 'OTHER' ? 'block' : 'none'">
+                <select name="cat2_service_hours" style="width:100%;margin-top:4px;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px" onchange="this.parentElement.querySelector('.cat2-custom-wrap').style.display = this.value === 'OTHER' ? 'flex' : 'none'">
                     <?php foreach ([100,150,200,250,300,350,400,450,500] as $h): ?>
                         <option value="<?= $h ?>"><?= $h ?> hours</option>
                     <?php endforeach; ?>
                     <option value="OTHER">Other</option>
                 </select>
-                <input type="number" name="cat2_service_hours_custom" min="1" placeholder="Custom hours" style="display:none;width:100%;margin-top:6px;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                <div class="cat2-custom-wrap" style="display:none;align-items:center;gap:8px;margin-top:6px">
+                    <input type="number" name="cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                    <span style="color:var(--text-muted);font-size:12px">hrs</span>
+                    <input type="number" name="cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Minutes" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                    <span style="color:var(--text-muted);font-size:12px">mins</span>
+                </div>
             </div>
             <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
                 <input type="checkbox" name="cat2_counseling" value="1"> Referral for Counseling
@@ -2685,7 +2744,61 @@ function proceedExitHearing() {
 //  BACK BUTTON / UNLOAD GUARD
 // ─────────────────────────────────────────────────────────────────────────
 let isSubmitting = false;
-document.addEventListener('submit', e => { if (e.target.id !== 'chat-form') isSubmitting = true; });
+document.addEventListener('submit', e => {
+    if (e.target.id !== 'chat-form') {
+        const form = e.target;
+        const actionInput = form.querySelector('input[name="action"]');
+        if (actionInput) {
+            const action = actionInput.value;
+            if (action === 'vote_on_suggestion' || action === 'suggest_penalty' || action === 'cancel_suggestion') {
+                if (action === 'suggest_penalty' && !form.checkValidity()) {
+                    return;
+                }
+                
+                e.preventDefault();
+                isSubmitting = true;
+                
+                const overlay = document.getElementById('globalLoadingOverlay');
+                const text = document.getElementById('loadingOverlayText');
+                
+                if (overlay && text) {
+                    if (action === 'vote_on_suggestion') {
+                        const voteAgreeInput = form.querySelector('input[name="vote_agree"]');
+                        const isAgree = voteAgreeInput && voteAgreeInput.value === '1';
+                        text.textContent = isAgree ? 'Submitting your AGREE vote...' : 'Submitting your DISAGREE vote...';
+                    } else if (action === 'suggest_penalty') {
+                        text.textContent = 'Submitting your penalty suggestion...';
+                    } else if (action === 'cancel_suggestion') {
+                        text.textContent = 'Cancelling suggestion...';
+                    }
+                    overlay.style.display = 'flex';
+                }
+                
+                const startTime = Date.now();
+                const formData = new FormData(form);
+                
+                fetch(form.action || location.href, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => r.text())
+                .then(() => {
+                    const elapsed = Date.now() - startTime;
+                    const delay = Math.max(0, 800 - elapsed);
+                    setTimeout(() => {
+                        location.reload();
+                    }, delay);
+                })
+                .catch(err => {
+                    console.error(err);
+                    isSubmitting = false;
+                    if (overlay) overlay.style.display = 'none';
+                    alert('An error occurred. Please try again.');
+                });
+            }
+        }
+    }
+});
 document.getElementById('backToDashboardBtn')?.addEventListener('click', function(e) {
     if (typeof roundActiveNow !== 'undefined' && roundActiveNow) {
         e.preventDefault();

@@ -183,9 +183,13 @@ if ($action === 'cast_vote' && $_SERVER['REQUEST_METHOD'] === 'POST' && $isUpcc)
             $interventions[] = 'University Service';
             $cat2Hours = trim((string)($_POST['vote_cat2_service_hours'] ?? ''));
             if ($cat2Hours === 'OTHER') {
-                $cat2Hours = trim((string)($_POST['vote_cat2_service_hours_custom'] ?? ''));
+                $hVal = trim((string)($_POST['vote_cat2_service_hours_custom_h'] ?? ''));
+                $mVal = trim((string)($_POST['vote_cat2_service_hours_custom_m'] ?? ''));
+                $h = is_numeric($hVal) ? (float)$hVal : 0.0;
+                $m = is_numeric($mVal) ? (float)$mVal : 0.0;
+                $cat2Hours = (string)($h + ($m / 60.0));
             }
-            $voteDetails['service_hours'] = $cat2Hours !== '' ? (int)$cat2Hours : 0;
+            $voteDetails['service_hours'] = $cat2Hours !== '' ? (float)$cat2Hours : 0.0;
         }
         if (isset($_POST['vote_cat2_counseling'])) $interventions[] = 'Referral for Counseling';
         if (isset($_POST['vote_cat2_lectures'])) $interventions[] = 'Attendance to lectures';
