@@ -3010,7 +3010,7 @@ function syncLive() {
                 // If consensus state changes, reload page to render the consensus UI elements from PHP
                 const currentHasConsensus = currentConsensus > 0;
                 const newHasConsensus = hasConsensus;
-                if (currentHasConsensus !== newHasConsensus) {
+                if (!isCaseClosed && currentHasConsensus !== newHasConsensus) {
                     if (newHasConsensus) {
                         sessionStorage.setItem(`upccConsensusOpen_${CASE_ID}`, '1');
                     }
@@ -3073,13 +3073,15 @@ function syncLive() {
                 closeLiveVotingModal();
             }
 
-            // Status change
+            // Status change — only reload once when transitioning TO closed, not on every poll after
             if (data.case_status && data.case_status !== caseStatus) {
+                const prevStatus = caseStatus;
                 caseStatus = data.case_status;
-                if (caseStatus === 'CLOSED' || caseStatus === 'RESOLVED') {
-                    // Safe to reload if case is closed/resolved since beforeunload is disabled
+                const isNowClosed = caseStatus === 'CLOSED' || caseStatus === 'RESOLVED';
+                const wasAlreadyClosed = prevStatus === 'CLOSED' || prevStatus === 'RESOLVED';
+                if (isNowClosed && !wasAlreadyClosed) {
                     location.reload();
-                } else {
+                } else if (!isNowClosed) {
                     const statusEl = document.getElementById('caseStatusBadge');
                     if (statusEl) statusEl.textContent = caseStatus;
                 }
