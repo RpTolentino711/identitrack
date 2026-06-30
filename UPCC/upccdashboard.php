@@ -1359,7 +1359,7 @@ body::before {
       <div class="modal-title" style="margin-bottom:0.5rem;">Waiting for Admin...</div>
       <p style="color:var(--text-muted); font-size:14px; margin-bottom:1.5rem;">Your request has been sent. Please wait for the administrator to let you in.</p>
       <div style="width:80px; height:80px; border-radius:50%; background:rgba(99,102,241,0.1); border:4px solid rgba(99,102,241,0.3); display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem; position:relative;">
-        <span id="rejoinCountdown" style="font-size:2rem; font-weight:800; color:#a5b4fc;">30</span>
+        <span id="rejoinCountdown" style="font-size:1.6rem; font-weight:800; color:#a5b4fc;">5:00</span>
         <svg style="position:absolute;top:-4px;left:-4px;width:88px;height:88px;" viewBox="0 0 88 88">
           <circle id="rejoinProgressCircle" cx="44" cy="44" r="40" fill="none" stroke="#6366f1" stroke-width="4" stroke-dasharray="251" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 1s linear;"/>
         </svg>
@@ -1506,18 +1506,25 @@ function clearRejoinTimers() {
 
 function startRejoinWaiting(caseId) {
   clearRejoinTimers();
-  let seconds = 30;
+  let seconds = 300;
   const countEl = document.getElementById('rejoinCountdown');
   const circle = document.getElementById('rejoinProgressCircle');
   const circumference = 251;
-  if (countEl) countEl.textContent = seconds;
+
+  function formatTime(sec) {
+    let m = Math.floor(sec / 60);
+    let s = sec % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  if (countEl) countEl.textContent = formatTime(seconds);
   if (circle) circle.style.strokeDashoffset = '0';
 
   // Countdown
   _rejoinCountdownInterval = setInterval(() => {
     seconds--;
-    if (countEl) countEl.textContent = Math.max(0, seconds);
-    if (circle) circle.style.strokeDashoffset = ((30 - seconds) / 30 * circumference);
+    if (countEl) countEl.textContent = formatTime(Math.max(0, seconds));
+    if (circle) circle.style.strokeDashoffset = ((300 - seconds) / 300 * circumference);
     if (seconds <= 0) {
       clearInterval(_rejoinCountdownInterval);
       clearInterval(_rejoinPollInterval);
