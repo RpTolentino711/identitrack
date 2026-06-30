@@ -936,9 +936,39 @@ body {
 
 @media(max-width: 900px){ .case-grid { grid-template-columns: 1fr; } }
 
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.spinner {
+  border: 4px solid rgba(255,255,255,.1);
+  border-top-color: var(--primary-color,#6366f1);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+.global-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15,23,42,.92);
+  backdrop-filter: blur(8px);
+}
 </style>
 </head>
 <body style="padding-top: 0px;">
+<!-- Global Loading Overlay -->
+<div id="globalLoadingOverlay" class="global-loading-overlay">
+  <div style="text-align:center">
+    <div class="spinner"></div>
+    <p style="color:#fff;font-size:1rem;font-weight:600;margin:0" id="globalLoadingMsg">Processing, please wait…</p>
+  </div>
+</div>
 <?php require_once __DIR__ . '/header.php'; ?>
 <div class="admin-shell">
   <?php require_once __DIR__ . '/sidebar.php'; ?>
@@ -3128,6 +3158,18 @@ function toggleEditPanel() {
 
 
 
+// ── GLOBAL LOADING OVERLAY ────────────────────────────────────────────────
+function showGlobalLoading(msg) {
+    const overlay = document.getElementById('globalLoadingOverlay');
+    const msgEl   = document.getElementById('globalLoadingMsg');
+    if (msgEl && msg) msgEl.textContent = msg;
+    if (overlay) { overlay.style.display = 'flex'; }
+}
+function hideGlobalLoading() {
+    const overlay = document.getElementById('globalLoadingOverlay');
+    if (overlay) { overlay.style.display = 'none'; }
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     toggleCategoryFields();
@@ -3142,6 +3184,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('msg') === 'resolved') {
         document.getElementById('successRecordModal')?.classList.add('open');
+    }
+
+    // Show loading overlay on final decision form submit
+    const finalForm = document.getElementById('finalDecisionForm');
+    if (finalForm) {
+        finalForm.addEventListener('submit', function () {
+            showGlobalLoading('Recording decision & closing case…');
+        });
     }
 });
 
