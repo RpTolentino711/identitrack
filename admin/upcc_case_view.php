@@ -2247,42 +2247,6 @@ function adoptSuggestedPenalty() {
     showToast('Form Auto-filled', 'Suggested penalty has been loaded. Review and submit.', 'success');
 }
 
-// ── IDLE WARNING MODAL ──────────────────────────────────────────────────────
-function showIdleWarningModal() {
-    let m = document.getElementById('idleWarningModal');
-    if (!m) {
-        m = document.createElement('div');
-        m.id = 'idleWarningModal';
-        m.className = 'modal-overlay';
-        m.innerHTML = `
-          <div class="modal-box">
-            <div class="modal-header">
-              <h3 class="modal-title">⚠️ Are you still there?</h3>
-            </div>
-            <div class="modal-body" style="text-align:center">
-              <p>The system has detected no activity for 4 minutes.</p>
-              <p>If you do not respond, the hearing will be <strong>auto-paused</strong> in 1 minute to secure the session.</p>
-            </div>
-            <div class="modal-footer" style="justify-content:center">
-              <button type="button" class="btn btn-primary" onclick="imHereClick()">Yes, I'm here</button>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(m);
-    }
-    m.classList.add('open');
-}
-
-function hideIdleWarningModal() {
-    const m = document.getElementById('idleWarningModal');
-    if (m) m.classList.remove('open');
-}
-
-function imHereClick() {
-    resetActivity();
-    hideIdleWarningModal();
-}
-
 // ── CANCEL CONSENSUS MODAL ────────────────────────────────────────────────
 function showCancelConsensusModal() { document.getElementById('cancelConsensusModal').classList.add('open'); }
 function closeCancelModal()         { document.getElementById('cancelConsensusModal').classList.remove('open'); document.getElementById('cancelReason').value = ''; }
@@ -2807,33 +2771,8 @@ function closeRejoinModal() {
   modal.classList.remove('open');
 }
 
-// ── PRESENCE PING & IDLE TRACKING ─────────────────────────────────────────
-let lastActivityTime = Date.now();
-const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
-function resetActivity() { lastActivityTime = Date.now(); }
-activityEvents.forEach(evt => window.addEventListener(evt, resetActivity, true));
-let warningModalShown = false;
+// ── PRESENCE PING ─────────────────────────────────────────────────────────
 function pingPresence() {
-    const elapsed = Date.now() - lastActivityTime;
-    
-    // If idle for 5 minutes (300000 ms), stop pinging
-    if (elapsed > 300000) {
-        return; 
-    }
-    
-    // If idle for 4 minutes (240000 ms), show warning
-    if (elapsed > 240000) {
-        if (!warningModalShown) {
-            showIdleWarningModal();
-            warningModalShown = true;
-        }
-    } else {
-        if (warningModalShown) {
-            hideIdleWarningModal();
-            warningModalShown = false;
-        }
-    }
-
     const fd = new FormData();
     fd.append('action', 'ping_presence');
     fd.append('status', 'ADMITTED');
