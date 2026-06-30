@@ -1136,7 +1136,7 @@ body {
                       <button type="submit" id="btnEndHearing" class="btn btn-danger btn-sm">⬛ End Hearing</button>
                     </form>
                   <?php endif; ?>
-                  <?php if (!$isHearingOpen): ?>
+                  <?php if (!$isHearingOpen && !$isClosed): ?>
                     <button class="btn btn-ghost btn-sm" onclick="toggleEditPanel()">✎ Edit Config</button>
                   <?php endif; ?>
                 </div>
@@ -1173,7 +1173,7 @@ body {
               </div>
 
               <!-- Hearing info -->
-              <?php if (!$isHearingOpen): ?>
+              <?php if (!$isHearingOpen && !$isClosed): ?>
               <div onclick="toggleEditPanel()" style="cursor:pointer; padding:12px; margin:-12px; border-radius:16px; transition:all 0.2s ease; border: 1px solid transparent;" onmouseover="this.style.background='var(--blue-50)'; this.style.borderColor='var(--blue-200)'; this.style.transform='scale(1.01)';" onmouseout="this.style.background=''; this.style.borderColor='transparent'; this.style.transform='';">
                 <div style="float:right; font-size:11px; font-weight:700; color:var(--blue-600); background:var(--blue-100); padding:4px 8px; border-radius:8px;">✎ Click to Edit Config</div>
               <?php endif; ?>
@@ -1233,7 +1233,7 @@ body {
                 </div>
               <?php endif; ?>
               
-              <?php if (!$isHearingOpen): ?>
+              <?php if (!$isHearingOpen && !$isClosed): ?>
               </div> <!-- End clickable config wrap -->
               
               <div id="editPanel" style="display:none; margin-top:1rem; padding:16px; background:#fff; border:1px solid #e2e8f0; border-radius:12px;">
