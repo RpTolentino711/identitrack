@@ -2753,6 +2753,7 @@ function proceedExitHearing() {
 // ─────────────────────────────────────────────────────────────────────────
 let isSubmitting = false;
 document.addEventListener('submit', e => {
+    if (e.defaultPrevented) return;
     if (e.target.id !== 'chat-form') {
         const form = e.target;
         const actionInput = form.querySelector('input[name="action"]');
@@ -2784,8 +2785,9 @@ document.addEventListener('submit', e => {
                 
                 const startTime = Date.now();
                 const formData = new FormData(form);
+                const targetUrl = (form.action || location.href).split('#')[0];
                 
-                fetch(form.action || location.href, {
+                fetch(targetUrl, {
                     method: 'POST',
                     body: formData
                 })
@@ -2794,7 +2796,9 @@ document.addEventListener('submit', e => {
                     const elapsed = Date.now() - startTime;
                     const delay = Math.max(0, 800 - elapsed);
                     setTimeout(() => {
-                        location.reload();
+                        const url = new URL(location.href);
+                        url.searchParams.set('_t', String(Date.now()));
+                        location.replace(url.toString());
                     }, delay);
                 })
                 .catch(err => {
