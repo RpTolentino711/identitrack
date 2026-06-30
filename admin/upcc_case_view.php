@@ -1955,8 +1955,19 @@ body {
           <button class="btn btn-success" id="confirmResumeBtn" onclick="confirmResumeFromModal()">Yes — Resume Hearing</button>
         </div>
       </div>
+    <!-- Success Record Modal -->
+    <div id="successRecordModal" class="modal-overlay" role="dialog" aria-modal="true">
+      <div class="modal-content" style="max-width: 480px; text-align: center; padding: 2rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+        <h3 style="margin-bottom: 0.5rem;">Decision Recorded Successfully</h3>
+        <p style="font-size: 0.9rem; color: var(--ink-600); line-height: 1.6; margin-bottom: 1.5rem;">
+          The final decision and penalty have been successfully logged. The case has been marked as <strong>CLOSED</strong> and the student's record has been updated.
+        </p>
+        <div class="modal-buttons" style="justify-content: center; margin-top: 1.5rem;">
+          <button class="btn btn-success" onclick="closeSuccessRecordModal()" style="min-width: 120px;">Done</button>
+        </div>
+      </div>
     </div>
-
 
 <script>
 // ── CONSTANTS ─────────────────────────────────────────────────────────────
@@ -3126,7 +3137,20 @@ document.addEventListener('DOMContentLoaded', () => {
         openConsensusDecisionModal(currentConsensus);
         sessionStorage.removeItem(`upccConsensusOpen_${CASE_ID}`);
     }
+
+    // Check if case was successfully recorded
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('msg') === 'resolved') {
+        document.getElementById('successRecordModal')?.classList.add('open');
+    }
 });
+
+function closeSuccessRecordModal() {
+    document.getElementById('successRecordModal')?.classList.remove('open');
+    const url = new URL(window.location);
+    url.searchParams.delete('msg');
+    window.history.replaceState({}, document.title, url.pathname + url.search);
+}
 
 startVotingTimer();
 if (INITIAL_COOLDOWN > 0) startCooldownDisplay(INITIAL_COOLDOWN);
