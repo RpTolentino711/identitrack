@@ -971,6 +971,14 @@ body::before {
 .need-action-label {
   font-size: 10px; color: var(--amber-400); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
 }
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.spinner-icon {
+  display: inline-block;
+  animation: spin 1.5s linear infinite;
+}
 </style>
 </head>
 <body>
@@ -1371,6 +1379,15 @@ body::before {
       </div>
       <button type="button" class="action-btn" style="background:var(--bg-glass); border:1px solid var(--border-glass); margin-top:8px;" onclick="closeRejoinModal()">Cancel</button>
     </div>
+    <!-- Step 3: Joining hearing loading screen -->
+    <div id="rejoinStep3" style="display:none; text-align:center;">
+      <div style="font-size:3rem; margin-bottom:1rem;" class="spinner-icon">🔄</div>
+      <div class="modal-title" style="margin-bottom:0.5rem;">Joining Hearing...</div>
+      <p style="color:var(--text-muted); font-size:14px; margin-bottom:1.5rem;">Admin admitted you! Preparing secure connection...</p>
+      <div style="width: 80%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; margin: 0 auto 2rem; overflow: hidden; position: relative;">
+        <div id="rejoinStep3Progress" style="width: 0%; height: 100%; background: var(--accent-primary); border-radius: 3px; transition: width 2s ease-in-out;"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1443,6 +1460,9 @@ function closeRejoinModal() {
   // Reset back to step 1 for next time
   document.getElementById('rejoinStep1').style.display = 'block';
   document.getElementById('rejoinStep2').style.display = 'none';
+  document.getElementById('rejoinStep3').style.display = 'none';
+  const progressFill = document.getElementById('rejoinStep3Progress');
+  if (progressFill) progressFill.style.width = '0%';
   document.getElementById('rejoinRetryArea').style.display = 'none';
   const btn = document.getElementById('btnSendRejoin');
   if (btn) { btn.textContent = 'Send Rejoin Request'; btn.disabled = false; }
@@ -1540,7 +1560,21 @@ function startRejoinWaiting(caseId) {
         // my_status is returned when actor=upcc polls the sync endpoint
         if (data.my_status === 'ADMITTED' && data.is_paused === false) {
           clearRejoinTimers();
-          window.location.href = _rejoinHref;
+          
+          // Switch to Step 3: Joining hearing
+          document.getElementById('rejoinStep2').style.display = 'none';
+          document.getElementById('rejoinStep3').style.display = 'block';
+          
+          // Animate progress bar fill over 2 seconds
+          setTimeout(() => {
+            const bar = document.getElementById('rejoinStep3Progress');
+            if (bar) bar.style.width = '100%';
+          }, 50);
+
+          // Redirect to hearing after 2 seconds
+          setTimeout(() => {
+            window.location.href = _rejoinHref;
+          }, 2000);
         }
       })
       .catch(() => {});
