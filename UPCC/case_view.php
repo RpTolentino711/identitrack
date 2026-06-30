@@ -558,7 +558,8 @@ if ($voteRoundHasSuggestedBy) {
                     (SELECT v.upcc_id FROM upcc_case_vote v
                      WHERE v.case_id = r.case_id AND v.round_no = r.round_no AND v.vote_category > 0
                      ORDER BY v.created_at ASC LIMIT 1)) AS suggested_by,
-                u.full_name AS suggester_name
+                u.full_name AS suggester_name,
+                TIMESTAMPDIFF(SECOND, NOW(), r.ends_at) AS remaining_seconds
          FROM upcc_case_vote_round r
          LEFT JOIN upcc_case uc ON uc.case_id = r.case_id
          LEFT JOIN upcc_user u ON u.upcc_id = COALESCE(r.suggested_by, uc.hearing_vote_suggester_id,
@@ -573,7 +574,8 @@ if ($voteRoundHasSuggestedBy) {
     $activeRound = db_one(
         "SELECT r.round_no, r.started_at, r.ends_at, r.is_active,
                 (SELECT v.upcc_id FROM upcc_case_vote v WHERE v.case_id = r.case_id AND v.round_no = r.round_no AND v.vote_category > 0 ORDER BY v.created_at ASC LIMIT 1) AS suggested_by,
-                (SELECT u2.full_name FROM upcc_case_vote v2 JOIN upcc_user u2 ON u2.upcc_id = v2.upcc_id WHERE v2.case_id = r.case_id AND v2.round_no = r.round_no AND v2.vote_category > 0 ORDER BY v2.created_at ASC LIMIT 1) AS suggester_name
+                (SELECT u2.full_name FROM upcc_case_vote v2 JOIN upcc_user u2 ON u2.upcc_id = v2.upcc_id WHERE v2.case_id = r.case_id AND v2.round_no = r.round_no AND v2.vote_category > 0 ORDER BY v2.created_at ASC LIMIT 1) AS suggester_name,
+                TIMESTAMPDIFF(SECOND, NOW(), r.ends_at) AS remaining_seconds
          FROM upcc_case_vote_round r
          WHERE r.case_id = :c AND r.is_active = 1
          ORDER BY r.round_no DESC LIMIT 1",
@@ -581,7 +583,7 @@ if ($voteRoundHasSuggestedBy) {
     );
 }
 
-if ($activeRound && !empty($activeRound['ends_at']) && strtotime((string)$activeRound['ends_at']) <= time()) {
+if ($activeRound && isset($activeRound['remaining_seconds']) && (int)$activeRound['remaining_seconds'] <= 0) {
     $expiredRoundNo = (int)($activeRound['round_no'] ?? 0);
     if ($expiredRoundNo > 0) {
         _closeRound($caseId, $expiredRoundNo);
@@ -609,7 +611,7 @@ if ($suggesterId <= 0 && $sessionSuggesterCaseId === $caseId && $sessionSuggeste
 $suggesterName            = $activeRound['suggester_name'] ?? '';
 $isCurrentUserSuggester   = ($suggesterId === $panelId);
 $roundEndsAt              = $activeRound['ends_at'] ?? null;
-$roundSecondsRemaining    = $roundEndsAt ? max(0, strtotime($roundEndsAt) - time()) : 0;
+$roundSecondsRemaining    = $activeRound ? max(0, (int)($activeRound['remaining_seconds'] ?? 0)) : 0;
 
 $votesThisRound  = [];
 $votesByMember   = [];
@@ -1827,7 +1829,7 @@ const IS_SUGGESTER     = <?= $isCurrentUserSuggester ? 'true' : 'false' ?>;
 const TOTAL_VOTERS     = <?= $totalVoters ?>;
 const IS_ROUND_ACTIVE  = <?= $isRoundActive ? 'true' : 'false' ?>;
 const ROUND_NO         = <?= $roundNo ?>;
-const ROUND_ENDS_EPOCH = <?= $roundEndsAt ? strtotime($roundEndsAt) : 0 ?>;
+const ROUND_ENDS_EPOCH = Math.floor(Date.now() / 1000) + <?= $roundSecondsRemaining ?>;
 const COOLDOWN_SECS    = <?= $cooldownRemainingSecs ?>;
 
 // ─────────────────────────────────────────────────────────────────────────
