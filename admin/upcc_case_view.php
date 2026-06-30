@@ -1714,16 +1714,106 @@ body {
               <?php else: ?>
               <!-- Case is CLOSED -->
               <hr class="divider">
-              <div class="consensus-box">
-                <span>🏁</span>
-                Case closed — Final decision: <strong>Category <?= (int)$case['decided_category'] ?></strong>
+              <?php
+                $decidedCat      = (int)($case['decided_category'] ?? 0);
+                $punishDetails   = [];
+                try { $punishDetails = json_decode((string)($case['punishment_details'] ?? ''), true) ?: []; } catch (Throwable $e) {}
+                $catLabels = [
+                    1 => 'Category 1 — Probation',
+                    2 => 'Category 2 — Intervention',
+                    3 => 'Category 3 — Suspension',
+                    4 => 'Category 4 — Expulsion (Dismissal)',
+                    5 => 'Category 5 — Expulsion (Exclusion)',
+                ];
+                $catLabel = $catLabels[$decidedCat] ?? "Category {$decidedCat}";
+              ?>
+              <!-- Closed banner — clickable to expand details -->
+              <div class="consensus-box" id="closedCaseBanner" onclick="toggleClosedDetails()"
+                   style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;">
+                <span>
+                  🏁 Case closed — Final decision: <strong><?= $catLabel ?></strong>
+                </span>
+                <span id="closedCaseChevron" style="font-size:1rem;transition:transform .25s">▼</span>
               </div>
-              <?php if (!empty($case['final_decision'])): ?>
-                <div class="summary-box"><?= nl2br(htmlspecialchars($case['final_decision'])) ?></div>
-              <?php endif; ?>
-              <?php if (!empty($case['resolution_date'])): ?>
-                <p style="font-size:.75rem;color:var(--ink-400)">Resolved on <?= fmt($case['resolution_date']) ?></p>
-              <?php endif; ?>
+
+              <!-- Expandable punishment details -->
+              <div id="closedCaseDetails" style="display:none;margin-top:.75rem;border:1px solid #d1fae5;border-radius:10px;overflow:hidden;">
+                <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+                  <thead>
+                    <tr style="background:#ecfdf5;">
+                      <th colspan="2" style="padding:.6rem 1rem;text-align:left;color:var(--green-700);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;">
+                        Punishment Details
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500);width:40%">Category</td>
+                      <td style="padding:.55rem 1rem;color:var(--ink-800)"><?= htmlspecialchars($catLabel) ?></td>
+                    </tr>
+
+                    <?php if (!empty($case['final_decision'])): ?>
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500)">Narrative</td>
+                      <td style="padding:.55rem 1rem;color:var(--ink-800)"><?= nl2br(htmlspecialchars($case['final_decision'])) ?></td>
+                    </tr>
+                    <?php endif; ?>
+
+                    <?php if ($decidedCat === 1 && !empty($punishDetails['probation_terms'])): ?>
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500)">Probation Terms</td>
+                      <td style="padding:.55rem 1rem;color:var(--ink-800)"><?= (int)$punishDetails['probation_terms'] ?> semester(s)
+                        <?php if (!empty($case['probation_until'])): ?>
+                          <span style="color:var(--ink-500);font-size:.78rem"> (until <?= fmt($case['probation_until']) ?>)</span>
+                        <?php endif; ?>
+                      </td>
+                    </tr>
+                    <?php endif; ?>
+
+                    <?php if ($decidedCat === 2 && !empty($punishDetails['interventions']) && is_array($punishDetails['interventions'])): ?>
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500)">Interventions</td>
+                      <td style="padding:.55rem 1rem;color:var(--ink-800)">
+                        <ul style="margin:0;padding-left:1.2rem;">
+                          <?php foreach ($punishDetails['interventions'] as $iv): ?>
+                            <li><?= htmlspecialchars($iv) ?></li>
+                          <?php endforeach; ?>
+                        </ul>
+                        <?php if (!empty($punishDetails['service_hours'])): ?>
+                          <span style="font-size:.78rem;color:var(--ink-500)">Required Hours: <?= htmlspecialchars((string)$punishDetails['service_hours']) ?> hrs</span>
+                        <?php endif; ?>
+                      </td>
+                    </tr>
+                    <?php endif; ?>
+
+                    <?php if ($decidedCat >= 3): ?>
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500)">Restriction</td>
+                      <td style="padding:.55rem 1rem;color:#b91c1c;font-weight:600">
+                        <?= $decidedCat === 3 ? 'Suspension' : 'Expulsion' ?> — account access restricted
+                      </td>
+                    </tr>
+                    <?php endif; ?>
+
+                    <?php if (!empty($case['resolution_date'])): ?>
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500)">Resolved On</td>
+                      <td style="padding:.55rem 1rem;color:var(--ink-400);font-size:.82rem"><?= fmt($case['resolution_date']) ?></td>
+                    </tr>
+                    <?php endif; ?>
+
+                  </tbody>
+                </table>
+              </div>
+              <script>
+              function toggleClosedDetails() {
+                const box = document.getElementById('closedCaseDetails');
+                const chev = document.getElementById('closedCaseChevron');
+                const open = box.style.display === 'block';
+                box.style.display = open ? 'none' : 'block';
+                if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+              }
+              </script>
               <?php endif; ?>
 
             <?php endif; /* end $hasPanel */ ?>
