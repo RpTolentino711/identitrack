@@ -1466,10 +1466,10 @@ hr{border-color:var(--border-glass);margin:16px 0}
                                                         Other
                                                     </button>
                                             </div>
-                                            <div id="sug_cat2_custom_wrap" style="display:none;align-items:center;gap:8px;margin-top:8px">
-                                                <input type="number" id="sug_cat2_service_hours_custom_h" name="suggest_cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                                            <div id="sug_cat2_custom_wrap" style="display:none;align-items:center;gap:6px;margin-top:8px">
+                                                <input type="number" id="sug_cat2_service_hours_custom_h" name="suggest_cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="width:80px;padding:8px 6px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
                                                 <span style="color:var(--text-muted);font-size:12px">hrs</span>
-                                                <input type="number" id="sug_cat2_service_hours_custom_m" name="suggest_cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Minutes" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                                                <input type="number" id="sug_cat2_service_hours_custom_m" name="suggest_cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Minutes" style="width:90px;padding:8px 6px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
                                                 <span style="color:var(--text-muted);font-size:12px">mins</span>
                                             </div>
                                             <input type="hidden" id="sug_cat2_service_hours" name="suggest_cat2_service_hours" value="">

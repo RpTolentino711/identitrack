@@ -1587,12 +1587,12 @@ body {
                           <span>Other</span>
                         </label>
                       </div>
-                      <div id="cat2_custom_wrap" style="display:<?= !empty($prefillCat2Hours) && !in_array($prefillCat2Hours, ['100','150','200','250','300','350','400','450','500']) ? 'flex' : 'none' ?>;align-items:center;gap:.5rem;margin-top:.4rem">
-                        <input type="number" min="0" step="1" name="cat2_service_hours_custom_h" id="cat2_service_hours_custom_h" class="form-control" style="flex:1"
+                      <div id="cat2_custom_wrap" style="display:<?= !empty($prefillCat2Hours) && !in_array($prefillCat2Hours, ['100','150','200','250','300','350','400','450','500']) ? 'flex' : 'none' ?>;align-items:center;gap:.4rem;margin-top:.4rem">
+                        <input type="number" min="0" step="1" name="cat2_service_hours_custom_h" id="cat2_service_hours_custom_h" class="form-control" style="width:80px;padding:6px;"
                                placeholder="Hours"
                                value="<?= htmlspecialchars($prefillH) ?>">
                         <span style="font-size:.75rem;color:var(--ink-500)">hrs</span>
-                        <input type="number" min="0" max="59" step="1" name="cat2_service_hours_custom_m" id="cat2_service_hours_custom_m" class="form-control" style="flex:1"
+                        <input type="number" min="0" max="59" step="1" name="cat2_service_hours_custom_m" id="cat2_service_hours_custom_m" class="form-control" style="width:90px;padding:6px;"
                                placeholder="Minutes"
                                value="<?= htmlspecialchars($prefillM) ?>">
                         <span style="font-size:.75rem;color:var(--ink-500)">mins</span>
