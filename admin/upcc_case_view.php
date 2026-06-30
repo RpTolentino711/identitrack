@@ -2962,6 +2962,18 @@ function syncLive() {
                 // Consensus should surface immediately, even if the round is already closing.
                 const isCaseClosed = (data.case_status === 'CLOSED' || data.case_status === 'RESOLVED') || (caseStatus === 'CLOSED' || caseStatus === 'RESOLVED') || data.is_closed;
                 const hasConsensus = parseInt(data.consensus || 0, 10) > 0 && !isCaseClosed;
+
+                // If consensus state changes, reload page to render the consensus UI elements from PHP
+                const currentHasConsensus = currentConsensus > 0;
+                const newHasConsensus = hasConsensus;
+                if (currentHasConsensus !== newHasConsensus) {
+                    if (newHasConsensus) {
+                        sessionStorage.setItem(`upccConsensusOpen_${CASE_ID}`, '1');
+                    }
+                    location.reload();
+                    return;
+                }
+
                 if (hasConsensus) {
                   if (!isAwaitingAdmin) {
                     isAwaitingAdmin  = true;
