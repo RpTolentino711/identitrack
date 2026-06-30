@@ -2717,6 +2717,9 @@ function confirmResumeFromModal() {
 
 // If the admin attempts to close or navigate away while hearing is live, warn and try to pause via sendBeacon
 let skipUnloadWarn = false;
+window.addEventListener('submit', function () {
+  skipUnloadWarn = true;
+});
 window.addEventListener('beforeunload', function (e) {
   if (!_currentPauseState && IS_HEARING_OPEN && !skipUnloadWarn) {
     const msg = 'The hearing is live. Leaving will pause the hearing. Are you sure you want to leave?';
