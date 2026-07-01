@@ -609,6 +609,15 @@ function ensure_hearing_workflow_schema(): void
     }
   }
 
+  $statusCol = db_one(
+    "SELECT COLUMN_TYPE
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'upcc_case'
+       AND COLUMN_NAME = 'status'
+     LIMIT 1"
+  );
+
   if ($statusCol && strpos((string)$statusCol['COLUMN_TYPE'], 'AWAITING_ADMIN_FINALIZATION') === false) {
     db_exec("ALTER TABLE upcc_case MODIFY status ENUM('PENDING','UNDER_INVESTIGATION','RESOLVED','CLOSED','UNDER_APPEAL','CANCELLED','AWAITING_ADMIN_FINALIZATION') NOT NULL DEFAULT 'PENDING'");
   }
