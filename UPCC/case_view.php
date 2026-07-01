@@ -1760,7 +1760,8 @@ function closePauseModal() {
      CASE RESOLVED MODAL
 ══════════════════════════════════════════════════════════════════════ -->
 <div id="caseResolvedModal" style="position:fixed;inset:0;z-index:9300;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.95);backdrop-filter:blur(12px);padding:24px">
-    <div style="background:var(--bg-card);border:2px solid #3b82f6;border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:420px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(59,130,246,.2)">
+    <div style="background:var(--bg-card);border:2px solid #3b82f6;border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:420px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(59,130,246,.2);position:relative">
+        <button onclick="dismissResolvedModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1" title="Dismiss">✕</button>
         <div style="font-size:48px;margin-bottom:16px">🎓</div>
         <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#93c5fd;margin-bottom:12px">Case Resolved</div>
         <div style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:24px">
@@ -2402,7 +2403,9 @@ function showToast(title, message, type = 'info') {
 }
 
 let redirectTimer = null;
+let resolvedModalDismissed = false;
 function showCaseResolvedModal() {
+    if (resolvedModalDismissed) return;
     if (document.getElementById('caseResolvedModal').style.display === 'flex') return;
     
     // Hide other modals to ensure clean UI
@@ -2421,6 +2424,12 @@ function showCaseResolvedModal() {
             window.location.href = 'upccdashboard.php?hearing_msg=' + encodeURIComponent('The case was resolved and closed.');
         }
     }, 1000);
+}
+
+function dismissResolvedModal() {
+    resolvedModalDismissed = true;
+    if (redirectTimer) { clearInterval(redirectTimer); redirectTimer = null; }
+    document.getElementById('caseResolvedModal').style.display = 'none';
 }
 
 function syncLive() {
