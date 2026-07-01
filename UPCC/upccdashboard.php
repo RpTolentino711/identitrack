@@ -1632,7 +1632,7 @@ function dismissResolvedCase(caseId) {
             .then(r => r.json())
             .then(res => {
                 if (res.ok) {
-                    refreshCaseStatus();
+                    window.location.reload();
                 }
             })
             .catch(err => console.error(err));
