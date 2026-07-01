@@ -423,6 +423,9 @@ if ($action === 'toggle_pause' && $isAdmin && $_SERVER['REQUEST_METHOD'] === 'PO
         "UPDATE upcc_case SET hearing_is_paused = :paused, hearing_pause_reason = :reason WHERE case_id = :id",
         [':paused' => $newPausedState, ':reason' => $pauseReason, ':id' => $caseId]
     );
+    if ($newPausedState === 1) {
+        db_exec("UPDATE upcc_hearing_presence SET status = 'WAITING' WHERE case_id = :c AND user_type = 'UPCC'", [':c' => $caseId]);
+    }
     
     $actionMsg = $newPausedState === 1 ? 'HEARING_PAUSED_MANUALLY' : 'HEARING_RESUMED_MANUALLY';
     upcc_log_case_activity($caseId, 'ADMIN', $actorId, $actionMsg, ['admin_id' => $actorId]);
@@ -573,6 +576,7 @@ if ($action === 'sync') {
             "UPDATE upcc_case SET hearing_is_paused = 1, hearing_pause_reason = 'AUTO_PAUSE_ADMIN_LEFT' WHERE case_id = :c",
             [':c' => $caseId]
         );
+        db_exec("UPDATE upcc_hearing_presence SET status = 'WAITING' WHERE case_id = :c AND user_type = 'UPCC'", [':c' => $caseId]);
         upcc_log_case_activity($caseId, 'SYSTEM', 0, 'HEARING_AUTO_PAUSED_ADMIN_LEFT');
         
         // Notify in chat
