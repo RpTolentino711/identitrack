@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/offense_api.dart';
 import 'offense_detail_screen.dart';
 import 'dashboard_screen.dart';
@@ -40,6 +41,7 @@ class _OffenseScreenState extends State<OffenseScreen> {
 
   List<OffenseItem> _items = [];
   String _filter = 'ALL'; // ALL, MINOR, MAJOR
+  bool _hasSeenTrash = false;
 
   static const blue = Color(0xFF193B8C);
   static const blueDark = Color(0xFF102B6B);
@@ -48,6 +50,13 @@ class _OffenseScreenState extends State<OffenseScreen> {
   void initState() {
     super.initState();
     _studentName = widget.studentName.trim();
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted) {
+        setState(() {
+          _hasSeenTrash = prefs.getBool('has_seen_trash') ?? false;
+        });
+      }
+    });
     _load();
   }
 
@@ -365,6 +374,7 @@ class _OffenseScreenState extends State<OffenseScreen> {
     return Scaffold(
       backgroundColor: blue,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: blue,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -373,6 +383,46 @@ class _OffenseScreenState extends State<OffenseScreen> {
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         actions: [
+          // Trash Icon Button
+          IconButton(
+            tooltip: 'Trash',
+            onPressed: () async {
+              setState(() {
+                _hasSeenTrash = true;
+              });
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('has_seen_trash', true);
+
+              final deletedOffenses = _items.where((o) => o.isDeletedByStudent).toList();
+              if (deletedOffenses.isEmpty) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Trash is empty.')),
+                  );
+                }
+                return;
+              }
+              if (mounted) {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => OffenseHistoryScreen(
+                      studentName: _studentName,
+                      studentId: widget.studentId,
+                      program: _program,
+                      yearLevel: _yearLevel,
+                      allOffenses: deletedOffenses,
+                    ),
+                  ),
+                );
+                _load();
+              }
+            },
+            icon: Badge(
+              isLabelVisible: _items.any((o) => o.isDeletedByStudent) && !_hasSeenTrash,
+              backgroundColor: Colors.red,
+              child: const Icon(Icons.delete_outline_rounded),
+            ),
+          ),
           IconButton(
             tooltip: 'History',
             onPressed: () async {
