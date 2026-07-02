@@ -13,9 +13,11 @@ function run_cmd($cmd) {
     echo "Exit code: $retval\n\n";
 }
 
-run_cmd('git fetch --all');
+run_cmd('git remote -v');
+run_cmd('git fetch origin main');
+run_cmd('git pull origin main');
 run_cmd('git reset --hard origin/main');
-run_cmd('git log -1 --oneline');
+run_cmd('git log -5 --oneline');
 
 if (file_exists('IdentiTrack.apk')) {
     echo "IdentiTrack.apk size: " . filesize('IdentiTrack.apk') . " bytes\n";
