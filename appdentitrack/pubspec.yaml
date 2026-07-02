@@ -2,7 +2,7 @@ name: identitrack_app
 description: "IdentiTrack Student App (Email + OTP login)."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.10.0
