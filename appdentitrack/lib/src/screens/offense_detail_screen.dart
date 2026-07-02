@@ -98,7 +98,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Offense acknowledged.')),
           );
-          Navigator.of(context).pop();
+          Navigator.of(context).pop(true);
         }
       } catch (e) {
         if (context.mounted) {
@@ -250,6 +250,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
                                   ),
                                 ),
                               );
+                            Navigator.of(context).pop(true);
                           }
                         } catch (e) {
                           setStateDialog(() {
@@ -327,7 +328,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Explanation submitted successfully.')),
         );
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
@@ -493,10 +494,10 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove from view?'),
+        title: const Text('Delete Offense?'),
         content: Text(widget.offense.isBundle
-            ? 'This will hide this Major decision card and its 3 minor offenses from your active list.'
-            : 'This will hide the offense from your active list, but it will remain in your history.'),
+            ? 'This will delete this Major decision card and its 3 minor offenses from your active list.'
+            : 'Are you sure you want to delete this offense from your active list?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -505,7 +506,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Hide'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -525,13 +526,13 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
       );
       if (!context.mounted) return;
       Navigator.of(context).pop(); // pop dialog
-      Navigator.of(context).pop(); // pop screen
+      Navigator.of(context).pop(true); // pop screen
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop(); // pop dialog
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to hide offense: $e')));
+      ).showSnackBar(SnackBar(content: Text('Failed to delete offense: $e')));
     }
   }
 
@@ -558,14 +559,15 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         actions: [
-          IconButton(
-            tooltip: 'Hide Offense',
-            icon: const Icon(
-              Icons.delete_outline_rounded,
-              color: Colors.redAccent,
+          if (!widget.offense.isDeletedByStudent)
+            IconButton(
+              tooltip: 'Delete Offense',
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: Colors.redAccent,
+              ),
+              onPressed: () => _hideOffense(context),
             ),
-            onPressed: () => _hideOffense(context),
-          ),
         ],
       ),
       body: SafeArea(

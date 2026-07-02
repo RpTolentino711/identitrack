@@ -251,8 +251,8 @@ class _OffenseScreenState extends State<OffenseScreen> {
         isBundle ? const Color(0xFFEF9A9A) : Colors.grey.shade200;
 
     return InkWell(
-      onTap: () {
-        Navigator.of(context).push(
+      onTap: () async {
+        final result = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
             builder: (_) => OffenseDetailScreen(
               studentId: widget.studentId,
@@ -263,6 +263,9 @@ class _OffenseScreenState extends State<OffenseScreen> {
             ),
           ),
         );
+        if (result == true) {
+          _load();
+        }
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -372,8 +375,8 @@ class _OffenseScreenState extends State<OffenseScreen> {
         actions: [
           IconButton(
             tooltip: 'History',
-            onPressed: () {
-              Navigator.of(context).push(
+            onPressed: () async {
+              await Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => OffenseHistoryScreen(
                     studentName: _studentName,
@@ -384,6 +387,7 @@ class _OffenseScreenState extends State<OffenseScreen> {
                   ),
                 ),
               );
+              _load();
             },
             icon: const Icon(Icons.history_rounded),
           ),
