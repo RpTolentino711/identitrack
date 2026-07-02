@@ -16,6 +16,7 @@ class StudentApiAuth {
     final token = await StudentApiAuth.token();
     if (token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
+      headers['X-Student-Token'] = token;
     }
 
     return headers;
@@ -27,6 +28,7 @@ class StudentApiAuth {
     final token = await StudentApiAuth.token();
     if (token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
+      headers['X-Student-Token'] = token;
     }
 
     return headers;
