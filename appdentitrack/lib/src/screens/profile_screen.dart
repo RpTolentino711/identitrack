@@ -266,7 +266,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'IdentiTrack v1.0',
+                      'IdentiTrack v1.0.1',
                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: blueDark),
                     ),
                     const SizedBox(height: 4),
