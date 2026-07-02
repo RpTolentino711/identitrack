@@ -72,11 +72,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _lastMinorOffenseCount = prefs.getInt('last_minor_offense_count') ?? 0;
         final accepted = prefs.getStringList('locally_accepted_case_ids') ?? [];
         final dismissedId = prefs.getString('dismissed_punishment_card');
+        final dismissedMsg = prefs.getString('dismissed_account_message');
         setState(() {
           _locallyAcceptedCaseIds.addAll(
             accepted.map((e) => int.tryParse(e) ?? -1).where((e) => e > 0),
           );
           if (dismissedId != null) _dismissedPunishmentId = dismissedId;
+          if (dismissedMsg != null) _dismissedMessageText = dismissedMsg;
         });
       }
     });
@@ -267,8 +269,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await prefs.setInt('total_alerts_count', summary.totalAlertsCount);
       await prefs.setInt('last_minor_offense_count', summary.minorOffense);
 
-      _dismissedMessageText = prefs.getString('dismissed_account_message');
-      _dismissedPunishmentId = prefs.getString('dismissed_punishment_card');
+      final dismissedMsg = prefs.getString('dismissed_account_message');
+      final dismissedCard = prefs.getString('dismissed_punishment_card');
+      if (mounted) {
+        setState(() {
+          _dismissedMessageText = dismissedMsg;
+          _dismissedPunishmentId = dismissedCard;
+        });
+      }
 
       if (_accountMode == 'AUTO_LOGOUT_FREEZE') {
         if (!mounted) return;
