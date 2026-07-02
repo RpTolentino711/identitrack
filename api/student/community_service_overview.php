@@ -52,7 +52,7 @@ $policy = student_account_mode($studentId);
 // Informational overview is allowed even if account has restrictions
 
 // Get assigned requirements & hours with decryption
-$decrypted_cols = db_decrypt_cols(['task_name', 'location', 'contact_person', 'contact_number', 'reason']);
+$decrypted_cols = db_decrypt_cols(['task_name', 'location', 'reason']);
 $params = [':sid' => $studentId];
 
 $reqs = db_all("

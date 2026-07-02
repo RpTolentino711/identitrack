@@ -36,7 +36,7 @@ try {
 
     $alerts = [];
 
-    $decrypted_offense = db_decrypt_cols(['description', 'location', 'reason']);
+    $decrypted_offense = db_decrypt_cols(['description']);
     $params = [':sid' => $studentId];
     
     $offenses = db_all(
