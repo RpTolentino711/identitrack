@@ -38,7 +38,6 @@ try {
 
     $decrypted_offense = db_decrypt_cols(['description', 'location', 'reason']);
     $params = [':sid' => $studentId];
-    db_add_encryption_key($params);
     
     $offenses = db_all(
         "SELECT level, status, date_committed AS recorded_at, guardian_notified_at, $decrypted_offense
@@ -99,7 +98,7 @@ try {
            AND decided_category IS NOT NULL
          ORDER BY resolution_date DESC, case_id DESC
          LIMIT 1",
-        [':sid' => $studentId, ':__enckey' => db_encryption_key()]
+        [':sid' => $studentId]
     );
 
     if ($latestCase) {
@@ -140,7 +139,7 @@ try {
          WHERE student_id = :sid
          ORDER BY created_at DESC, appeal_id DESC
          LIMIT 1",
-        [':sid' => $studentId, ':__enckey' => db_encryption_key()]
+        [':sid' => $studentId]
     );
 
     if ($latestAppeal) {

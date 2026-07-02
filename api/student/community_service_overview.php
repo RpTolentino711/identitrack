@@ -54,7 +54,6 @@ $policy = student_account_mode($studentId);
 // Get assigned requirements & hours with decryption
 $decrypted_cols = db_decrypt_cols(['task_name', 'location', 'contact_person', 'contact_number', 'reason']);
 $params = [':sid' => $studentId];
-db_add_encryption_key($params);
 
 $reqs = db_all("
   SELECT 
@@ -92,7 +91,7 @@ $activeSession = db_one(
      AND css.time_out IS NULL
    ORDER BY css.time_in DESC
    LIMIT 1",
-  array_merge($params, [':sid' => $studentId])
+  [':sid' => $studentId]
 );
 
 $pendingManual = db_one(

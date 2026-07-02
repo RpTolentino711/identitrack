@@ -37,7 +37,7 @@ class AlertsApi {
     if (dataRaw is! List) throw Exception('Missing data from server.');
 
     return dataRaw
-        .map((e) => StudentAlert.fromJson((e as Map<String, dynamic>)))
+        .map((e) => StudentAlert.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
 }
