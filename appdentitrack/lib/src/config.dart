@@ -4,13 +4,16 @@ class AppConfig {
   static String get baseUrl {
     if (kIsWeb) return 'http://127.0.0.1/identitrack';
 
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        // Local Device / Emulator testing
-        return 'http://192.168.1.10/identitrack';
-      default:
-        return 'http://192.168.1.10/identitrack';
-    }
+    // Production Server (Live site)
+    return 'https://identitrack.site';
+
+    // Local Device / Emulator testing (Change to your computer's local IP if testing locally)
+    // switch (defaultTargetPlatform) {
+    //   case TargetPlatform.android:
+    //     return 'http://192.168.1.10/identitrack';
+    //   default:
+    //     return 'http://192.168.1.10/identitrack';
+    // }
   }
 
   static String get requestOtpUrl => '$baseUrl/api/student/request_otp.php';
