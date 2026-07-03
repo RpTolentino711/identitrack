@@ -40,7 +40,7 @@ try {
     $params = [':sid' => $studentId];
     
     $offenses = db_all(
-        "SELECT level, status, date_committed AS recorded_at, guardian_notified_at, $decrypted_offense
+        "SELECT offense_id, level, status, date_committed AS recorded_at, guardian_notified_at, $decrypted_offense
          FROM offense
          WHERE student_id = :sid
          ORDER BY date_committed DESC",
@@ -54,7 +54,10 @@ try {
                 'title' => 'Guardian Alert Sent',
                 'message' => 'Your guardian has been officially notified about your recent offense record.',
                 'created_at' => (string)$offense['guardian_notified_at'],
-                'metadata' => ['level' => (string)($offense['level'] ?? '')],
+                'metadata' => [
+                    'level' => (string)($offense['level'] ?? ''),
+                    'offense_id' => (int)($offense['offense_id'] ?? 0),
+                ],
             ];
         }
     }
@@ -67,7 +70,10 @@ try {
             'title' => $levelLabel . ' Offense Recorded',
             'message' => 'An offense has been recorded on your account.',
             'created_at' => (string)($offense['recorded_at'] ?? date('Y-m-d H:i:s')),
-            'metadata' => ['level' => (string)($offense['level'] ?? '')],
+            'metadata' => [
+                'level' => (string)($offense['level'] ?? ''),
+                'offense_id' => (int)($offense['offense_id'] ?? 0),
+            ],
         ];
     }
 

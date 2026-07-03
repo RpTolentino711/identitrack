@@ -116,11 +116,13 @@ class _SharedBottomNavState extends State<SharedBottomNav> {
         return;
     }
 
-    if (i == 0) {
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => screen));
-    } else {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
-    }
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation1, animation2) => screen,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
+    );
   }
 
   @override

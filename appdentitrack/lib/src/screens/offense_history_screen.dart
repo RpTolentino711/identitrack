@@ -29,7 +29,27 @@ class OffenseHistoryScreen extends StatelessWidget {
     return lvl == 'MAJOR' ? Icons.warning_amber_rounded : Icons.info_outline_rounded;
   }
 
-  Widget _offenseTile(BuildContext context, OffenseItem o) {
+  String _getOrdinal(int number) {
+    if (number <= 0) return '$number';
+    switch (number % 100) {
+      case 11:
+      case 12:
+      case 13:
+        return '${number}th';
+    }
+    switch (number % 10) {
+      case 1:
+        return '${number}st';
+      case 2:
+        return '${number}nd';
+      case 3:
+        return '${number}rd';
+      default:
+        return '${number}th';
+    }
+  }
+
+  Widget _offenseTile(BuildContext context, OffenseItem o, String sequenceLabel) {
     final level = o.level.toUpperCase();
     final isBundle = o.isBundle;
     
@@ -85,7 +105,7 @@ class OffenseHistoryScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '$level • ${o.dateCommitted} • ${o.status}',
+                    '$sequenceLabel • ${o.dateCommitted} • ${o.status}',
                     style: TextStyle(
                       color: Colors.grey.shade700,
                       fontWeight: FontWeight.w600,
@@ -117,6 +137,22 @@ class OffenseHistoryScreen extends StatelessWidget {
     // Sort chronological: oldest to newest
     final sortedOffenses = List<OffenseItem>.from(allOffenses)
       ..sort((a, b) => a.dateCommitted.compareTo(b.dateCommitted));
+
+    int minorCount = 0;
+    int majorCount = 0;
+    final Map<int, String> offenseLabels = {};
+    for (final o in sortedOffenses) {
+      final lvl = o.level.toUpperCase();
+      if (lvl == 'MINOR') {
+        minorCount++;
+        offenseLabels[o.offenseId] = '${_getOrdinal(minorCount)} Minor Offense';
+      } else if (lvl == 'MAJOR') {
+        majorCount++;
+        offenseLabels[o.offenseId] = '${_getOrdinal(majorCount)} Major Offense';
+      } else {
+        offenseLabels[o.offenseId] = o.level;
+      }
+    }
 
     return Scaffold(
       backgroundColor: blue,
@@ -161,7 +197,9 @@ class OffenseHistoryScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(18),
                   itemCount: sortedOffenses.length,
                   itemBuilder: (context, index) {
-                    return _offenseTile(context, sortedOffenses[index]);
+                    final o = sortedOffenses[index];
+                    final label = offenseLabels[o.offenseId] ?? o.level;
+                    return _offenseTile(context, o, label);
                   },
                 ),
         ),

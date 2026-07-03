@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'services/alerts_api.dart';
+import 'services/offense_api.dart';
+import 'offense_detail_screen.dart';
 import 'shared_bottom_nav.dart';
 
 const Color blue = Color(0xFF1A73E8); // adjust to your actual color
@@ -69,6 +71,122 @@ class _AlertsScreenState extends State<AlertsScreen> {
   }
 
   Widget _alertCard(StudentAlert alert) {
+    final metadata = alert.metadata;
+    final int? offenseId = metadata != null && metadata['offense_id'] != null
+        ? int.tryParse(metadata['offense_id'].toString())
+        : null;
+
+    final cardContent = Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: alert.badgeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  alert.badgeIcon,
+                  color: alert.badgeColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      alert.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        color: blueDark,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      _formatDate(alert.createdAt),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              InkWell(
+                onTap: () async {
+                  final id = '${alert.alertType}_${alert.createdAt}';
+                  final prefs = await SharedPreferences.getInstance();
+                  final current =
+                      prefs.getStringList('dismissed_alerts') ?? [];
+                  if (!current.contains(id)) {
+                    current.add(id);
+                    await prefs.setStringList('dismissed_alerts', current);
+                  }
+                  setState(() {
+                    _dismissedAlerts.add(id);
+                    _alerts.remove(alert);
+                  });
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            alert.message,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: Colors.grey.shade800,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (alert.alertType == 'HEARING_SCHEDULE' || alert.alertType == 'HEARING_REMINDER')
+            _buildHearingActions(alert),
+          if (offenseId != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  'Tap to view offense details',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: alert.badgeColor,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 14,
+                  color: alert.badgeColor,
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -87,94 +205,49 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: alert.badgeColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    alert.badgeIcon,
-                    color: alert.badgeColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        alert.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          color: blueDark,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        _formatDate(alert.createdAt),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                InkWell(
-                  onTap: () async {
-                    final id = '${alert.alertType}_${alert.createdAt}';
-                    final prefs = await SharedPreferences.getInstance();
-                    final current =
-                        prefs.getStringList('dismissed_alerts') ?? [];
-                    if (!current.contains(id)) {
-                      current.add(id);
-                      await prefs.setStringList('dismissed_alerts', current);
-                    }
-                    setState(() {
-                      _dismissedAlerts.add(id);
-                      _alerts.remove(alert);
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 20,
-                      color: Colors.grey.shade400,
+      child: offenseId != null
+          ? Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () async {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(),
                     ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              alert.message,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.4,
-                color: Colors.grey.shade800,
+                  );
+                  try {
+                    final res = await OffenseApi().getOffenses(studentId: widget.studentId);
+                    if (!mounted) return;
+                    Navigator.of(context).pop(); // dismiss loading dialog
+                    final offense = res.items.firstWhere(
+                      (o) => o.offenseId == offenseId,
+                    );
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => OffenseDetailScreen(
+                          offense: offense,
+                          studentId: widget.studentId,
+                          studentName: widget.studentName,
+                          program: res.program,
+                          yearLevel: res.yearLevel,
+                        ),
+                      ),
+                    );
+                  } catch (e) {
+                    if (mounted) {
+                      Navigator.of(context).pop(); // dismiss loading dialog
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Offense details not found or deleted.')),
+                      );
+                    }
+                  }
+                },
+                child: cardContent,
               ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (alert.alertType == 'HEARING_SCHEDULE' || alert.alertType == 'HEARING_REMINDER')
-              _buildHearingActions(alert),
-          ],
-        ),
-      ),
+            )
+          : cardContent,
     );
   }
 

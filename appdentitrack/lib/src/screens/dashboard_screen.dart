@@ -1373,6 +1373,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Widget _minorOffenseWarningBanner() {
+    final int count = _minorOffense;
+    final isEscalated = count >= 3;
+    final title = isEscalated ? 'Section 4 Escalation' : 'Conduct Warning';
+    final message = isEscalated
+        ? 'You have reached $count minor offenses. Your case is escalated to a Section 4 Major Case under UPCC panel investigation.'
+        : 'You have $count minor offense${count > 1 ? "s" : ""}. ${3 - count} more minor offense${3 - count > 1 ? "s" : ""} will escalate your account to a Section 4 Major Case.';
+
+    final cardColor = isEscalated ? const Color(0xFFFFEBEE) : const Color(0xFFFFF3E0);
+    final borderColor = isEscalated ? const Color(0xFFEF9A9A) : const Color(0xFFFFCC80);
+    final iconColor = isEscalated ? const Color(0xFFC62828) : const Color(0xFFE65100);
+    final textColor = isEscalated ? const Color(0xFFB71C1C) : const Color(0xFF5D4037);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        border: Border.all(color: borderColor, width: 1.5),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isEscalated ? Icons.report_problem_rounded : Icons.warning_amber_rounded,
+            color: iconColor,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: iconColor,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── BUILD ────────────────────────────────────────────────────────────────────
 
   @override
@@ -1458,6 +1518,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                             ),
                             const SizedBox(height: 18),
+
+                            if (_minorOffense > 0) ...[
+                              _minorOffenseWarningBanner(),
+                              const SizedBox(height: 18),
+                            ],
 
                             if (_accountMessage != _dismissedMessageText &&
                                 _accountMode != 'PROBATION_FREEZE' &&
