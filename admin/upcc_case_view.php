@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/../database/database.php';
 require_admin();
+
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 ensure_hearing_workflow_schema();
 
 $admin        = admin_current();
@@ -2852,7 +2857,7 @@ window.addEventListener('submit', function () {
   skipUnloadWarn = true;
 });
 window.addEventListener('beforeunload', function (e) {
-  if (!_currentPauseState && IS_HEARING_OPEN && !skipUnloadWarn) {
+  if (!_currentPauseState && IS_HEARING_OPEN && !skipUnloadWarn && (!currentConsensus || currentConsensus === 0)) {
     const msg = 'The hearing is live. Leaving will pause the hearing. Are you sure you want to leave?';
     (e || window.event).returnValue = msg; // Gecko + IE
     return msg; // Webkit, Safari, Chrome
@@ -2863,7 +2868,7 @@ window.addEventListener('beforeunload', function (e) {
 document.addEventListener('click', function(e) {
   const link = e.target.closest('a');
   if (link && link.href && !link.target && !link.href.startsWith('javascript:') && !link.href.includes('#')) {
-    if (!_currentPauseState && IS_HEARING_OPEN) {
+    if (!_currentPauseState && IS_HEARING_OPEN && (!currentConsensus || currentConsensus === 0)) {
       e.preventDefault();
       const modal = document.getElementById('leaveModal');
       if (modal) {
