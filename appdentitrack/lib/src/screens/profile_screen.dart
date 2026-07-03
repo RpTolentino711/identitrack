@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'login_screen.dart';
 import 'dashboard_screen.dart';
 import 'offense_screen.dart';
@@ -57,6 +58,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await prefs.remove('student_id');
       await prefs.remove('student_name');
       await prefs.remove('otp_token');
+
+      const secureStorage = FlutterSecureStorage();
+      await secureStorage.delete(key: 'otp_token');
 
       // Small delay for UX
       await Future.delayed(const Duration(milliseconds: 600));

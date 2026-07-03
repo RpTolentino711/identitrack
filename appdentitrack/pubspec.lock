@@ -725,6 +725,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.15.0"
+  win_plugin_link_repair:
+    dependency: "direct dev"
+    description:
+      name: win_plugin_link_repair
+      sha256: ab0a9a69a37b9c28dbe8ee201325d323838956163ed6502776f25e203c44c205
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.1"
   xdg_directories:
     dependency: transitive
     description:

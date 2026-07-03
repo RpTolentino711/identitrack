@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'login_screen.dart';
+import 'dashboard_screen.dart';
+
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -58,9 +62,35 @@ class _SplashScreenState extends State<SplashScreen>
     // Start the animation sequence
     _ctrl.forward();
 
-    // Navigate to login screen after animation completes
-    _ctrl.addStatusListener((status) {
+    // Navigate to dashboard if logged in, otherwise login screen after animation completes
+    _ctrl.addStatusListener((status) async {
       if (status == AnimationStatus.completed) {
+        if (!mounted) return;
+
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final studentId = prefs.getString('student_id') ?? '';
+          final studentName = prefs.getString('student_name') ?? '';
+
+          const secureStorage = FlutterSecureStorage();
+          final token = await secureStorage.read(key: 'otp_token') ?? '';
+
+          if (studentId.isNotEmpty && token.isNotEmpty) {
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => DashboardScreen(
+                  studentId: studentId,
+                  studentName: studentName,
+                ),
+              ),
+            );
+            return;
+          }
+        } catch (e) {
+          debugPrint('Error checking login session: $e');
+        }
+
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(

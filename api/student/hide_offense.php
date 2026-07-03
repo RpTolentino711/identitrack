@@ -61,6 +61,24 @@ if ($offenseId < -1000) {
   
   $toHide = array_slice($minors, $bundleIndex * 3, 3);
   if (count($toHide) > 0) {
+    $oids = array_map(fn($m) => (int)$m['offense_id'], $toHide);
+    $inClause = implode(',', $oids);
+    $caseCheck = db_one("
+      SELECT c.case_id, c.status 
+      FROM upcc_case c
+      JOIN upcc_case_offense co ON co.case_id = c.case_id
+      WHERE co.offense_id IN ($inClause) AND c.status <> 'VOID'
+      LIMIT 1
+    ");
+    
+    if ($caseCheck) {
+      $cStatus = strtoupper($caseCheck['status']);
+      $isResolved = in_array($cStatus, ['RESOLVED', 'CLOSED', 'CANCELLED'], true);
+      if (!$isResolved) {
+        json_out(false, 'You cannot delete this Section 4 Major Case/bundle until it has been resolved.', null, 400);
+      }
+    }
+
     foreach ($toHide as $m) {
       db_exec("UPDATE offense SET is_deleted_by_student = 1 WHERE offense_id = :oid", [':oid' => $m['offense_id']]);
     }
@@ -69,6 +87,38 @@ if ($offenseId < -1000) {
     json_out(false, 'Bundle not found or already hidden.', null, 404);
   }
 } else {
+  $offenseCheck = db_one("
+    SELECT level, status 
+    FROM offense 
+    WHERE offense_id = :oid AND student_id = :sid
+    LIMIT 1
+  ", [':oid' => $offenseId, ':sid' => $studentId]);
+  
+  if ($offenseCheck) {
+    $level = strtoupper($offenseCheck['level']);
+    $oStatus = strtoupper($offenseCheck['status']);
+    
+    // Check if linked to a case
+    $caseCheck = db_one("
+      SELECT c.case_id, c.status 
+      FROM upcc_case c
+      JOIN upcc_case_offense co ON co.case_id = c.case_id
+      WHERE co.offense_id = :oid AND c.status <> 'VOID'
+      LIMIT 1
+    ", [':oid' => $offenseId]);
+    
+    $isMajor = ($level === 'MAJOR');
+    $hasCase = ($caseCheck !== false);
+    
+    if ($isMajor || $hasCase) {
+      $cStatus = $caseCheck ? strtoupper($caseCheck['status']) : $oStatus;
+      $isResolved = in_array($cStatus, ['RESOLVED', 'CLOSED', 'CANCELLED'], true);
+      if (!$isResolved) {
+        json_out(false, 'You cannot delete a Major Case or Major Offense until it has been resolved.', null, 400);
+      }
+    }
+  }
+
   db_exec(
     "UPDATE offense SET is_deleted_by_student = 1 WHERE offense_id = :oid",
     [':oid' => $offenseId]

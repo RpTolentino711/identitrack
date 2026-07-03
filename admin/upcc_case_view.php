@@ -3104,6 +3104,7 @@ function syncLive() {
                     if (newHasConsensus) {
                         sessionStorage.setItem(`upccConsensusOpen_${CASE_ID}`, '1');
                     }
+                    skipUnloadWarn = true; // Prevent unload confirmation modal on programmatic reload
                     location.reload();
                     return;
                 }
@@ -3170,6 +3171,7 @@ function syncLive() {
                 const isNowClosed = caseStatus === 'CLOSED' || caseStatus === 'RESOLVED';
                 const wasAlreadyClosed = prevStatus === 'CLOSED' || prevStatus === 'RESOLVED';
                 if (isNowClosed && !wasAlreadyClosed) {
+                    skipUnloadWarn = true; // Prevent unload confirmation modal on programmatic reload
                     location.reload();
                 } else if (!isNowClosed) {
                     const statusEl = document.getElementById('caseStatusBadge');

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'services/dashboard_api.dart';
 import 'offense_screen.dart';
 import 'community_service_screen.dart';
@@ -148,6 +149,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await prefs.remove('student_id');
     await prefs.remove('student_name');
     await prefs.remove('otp_token');
+
+    const secureStorage = FlutterSecureStorage();
+    await secureStorage.delete(key: 'otp_token');
 
     await Future.delayed(const Duration(milliseconds: 600));
 

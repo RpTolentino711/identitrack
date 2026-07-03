@@ -63,6 +63,21 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
     return level == 'MAJOR';
   }
 
+  bool _canDelete() {
+    if (widget.offense.isDeletedByStudent) return false;
+
+    final level = widget.offense.level.toUpperCase();
+    final isMajorOrSection4 = level == 'MAJOR' || widget.offense.isBundle;
+    final hasCase = widget.offense.upccCaseId != null;
+
+    if (isMajorOrSection4 || hasCase) {
+      final status = widget.offense.status.toUpperCase();
+      return status == 'RESOLVED' || status == 'CLOSED' || status == 'CANCELLED';
+    }
+
+    return true;
+  }
+
   bool _isAcknowledged() {
     return widget.offense.acknowledgedAt != null;
   }
@@ -559,7 +574,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         actions: [
-          if (!widget.offense.isDeletedByStudent)
+          if (_canDelete())
             IconButton(
               tooltip: 'Delete Offense',
               icon: const Icon(
