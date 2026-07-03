@@ -54,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isSubmitting = false;
   bool _activeServiceSession = false;
   bool _dismissedProbationBanner = false;
+  bool _dismissedConductWarning = false;
   final Set<int> _locallyAcceptedCaseIds = {};
 
   static const blue = Color(0xFF193B8C);
@@ -73,12 +74,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final accepted = prefs.getStringList('locally_accepted_case_ids') ?? [];
         final dismissedId = prefs.getString('dismissed_punishment_card');
         final dismissedMsg = prefs.getString('dismissed_account_message');
+        final dismissedWarnCount = prefs.getInt('dismissed_conduct_warning_count') ?? -1;
         setState(() {
           _locallyAcceptedCaseIds.addAll(
             accepted.map((e) => int.tryParse(e) ?? -1).where((e) => e > 0),
           );
           if (dismissedId != null) _dismissedPunishmentId = dismissedId;
           if (dismissedMsg != null) _dismissedMessageText = dismissedMsg;
+          if (dismissedWarnCount == _minorOffense) {
+            _dismissedConductWarning = true;
+          }
         });
       }
     });
@@ -271,10 +276,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       final dismissedMsg = prefs.getString('dismissed_account_message');
       final dismissedCard = prefs.getString('dismissed_punishment_card');
+      final dismissedWarnCount = prefs.getInt('dismissed_conduct_warning_count') ?? -1;
       if (mounted) {
         setState(() {
           _dismissedMessageText = dismissedMsg;
           _dismissedPunishmentId = dismissedCard;
+          if (dismissedWarnCount == summary.minorOffense) {
+            _dismissedConductWarning = true;
+          } else {
+            _dismissedConductWarning = false;
+          }
         });
       }
 
@@ -1428,6 +1439,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () async {
+              setState(() {
+                _dismissedConductWarning = true;
+              });
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setInt('dismissed_conduct_warning_count', count);
+            },
+            child: Icon(
+              Icons.close_rounded,
+              color: iconColor.withValues(alpha: 0.6),
+              size: 20,
+            ),
+          ),
         ],
       ),
     );
@@ -1519,7 +1545,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 18),
 
-                            if (_minorOffense > 0) ...[
+                            if (_minorOffense > 0 && !_dismissedConductWarning) ...[
                               _minorOffenseWarningBanner(),
                               const SizedBox(height: 18),
                             ],

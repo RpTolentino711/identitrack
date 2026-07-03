@@ -383,9 +383,8 @@ class _OffenseScreenState extends State<OffenseScreen> {
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         actions: [
-          // Trash Icon Button
           IconButton(
-            tooltip: 'Trash',
+            tooltip: 'History',
             onPressed: () async {
               setState(() {
                 _hasSeenTrash = true;
@@ -393,15 +392,6 @@ class _OffenseScreenState extends State<OffenseScreen> {
               final prefs = await SharedPreferences.getInstance();
               await prefs.setBool('has_seen_trash', true);
 
-              final deletedOffenses = _items.where((o) => o.isDeletedByStudent).toList();
-              if (deletedOffenses.isEmpty) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Trash is empty.')),
-                  );
-                }
-                return;
-              }
               if (mounted) {
                 await Navigator.of(context).push(
                   MaterialPageRoute(
@@ -410,7 +400,7 @@ class _OffenseScreenState extends State<OffenseScreen> {
                       studentId: widget.studentId,
                       program: _program,
                       yearLevel: _yearLevel,
-                      allOffenses: deletedOffenses,
+                      allOffenses: _items,
                     ),
                   ),
                 );
@@ -420,26 +410,8 @@ class _OffenseScreenState extends State<OffenseScreen> {
             icon: Badge(
               isLabelVisible: _items.any((o) => o.isDeletedByStudent) && !_hasSeenTrash,
               backgroundColor: Colors.red,
-              child: const Icon(Icons.delete_outline_rounded),
+              child: const Icon(Icons.history_rounded),
             ),
-          ),
-          IconButton(
-            tooltip: 'History',
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => OffenseHistoryScreen(
-                    studentName: _studentName,
-                    studentId: widget.studentId,
-                    program: _program,
-                    yearLevel: _yearLevel,
-                    allOffenses: _items,
-                  ),
-                ),
-              );
-              _load();
-            },
-            icon: const Icon(Icons.history_rounded),
           ),
         ],
       ),
