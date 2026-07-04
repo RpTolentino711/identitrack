@@ -59,9 +59,37 @@ $reqs = db_all("
   SELECT 
     requirement_id, $decrypted_cols, hours_required, status, assigned_at, completed_at
   FROM community_service_requirement
-  WHERE student_id = :sid AND status = 'ACTIVE'
+  WHERE student_id = :sid AND status IN ('ACTIVE', 'COMPLETED', 'PENDING_ACCEPTANCE')
   ORDER BY assigned_at DESC
 ", $params);
+
+// Check if student has a Category 2 case in upcc_case
+$c2_case = db_one(
+  "SELECT case_id, punishment_details FROM upcc_case
+   WHERE student_id = :sid AND decided_category = 2 AND status IN ('CLOSED', 'RESOLVED', 'UNDER_APPEAL')
+   ORDER BY case_id DESC LIMIT 1",
+  [':sid' => $studentId]
+);
+
+$c2_hours = 0.0;
+if ($c2_case) {
+  $c2_details = json_decode((string)$c2_case['punishment_details'], true) ?: [];
+  $c2_hours = (float)($c2_details['service_hours'] ?? 0);
+}
+
+// If no requirements exist yet in community_service_requirement, but a Category 2 case exists with hours, inject a virtual requirement
+if (empty($reqs) && $c2_case && $c2_hours > 0) {
+  $reqs[] = [
+    'requirement_id' => 0,
+    'task_name' => 'Community Service Assignment',
+    'location' => 'To be assigned by SDO/Admin',
+    'reason' => 'UPCC Decision — Case #' . $c2_case['case_id'],
+    'hours_required' => $c2_hours,
+    'status' => 'PENDING_ACCEPTANCE',
+    'assigned_at' => date('Y-m-d H:i:s'),
+    'completed_at' => null
+  ];
+}
 
 // Sessions (clock-ins with hours)
 $sessions = db_all("
@@ -122,8 +150,14 @@ foreach ($reqs as $r) $assigned += (float)($r['hours_required']);
 $completed = 0.0;
 foreach ($sessions as $s) $completed += (float)($s['hours_done']);
 
-// If the student already has ACTIVE community service, they've accepted — not under investigation
-$isUnderInvestigation = ((string)$policy['mode'] === 'APPEAL_GRACE_PERIOD') && count($reqs) === 0;
+// If the student already has ACTIVE or COMPLETED community service, they've accepted — not under investigation
+$activeOrCompletedCount = 0;
+foreach ($reqs as $r) {
+  if (in_array($r['status'], ['ACTIVE', 'COMPLETED'], true)) {
+    $activeOrCompletedCount++;
+  }
+}
+$isUnderInvestigation = ((string)$policy['mode'] === 'APPEAL_GRACE_PERIOD') && ($activeOrCompletedCount === 0);
 $hasActiveAdmin = ($activeAdmin !== null && $activeAdmin !== false);
 
 echo json_encode([

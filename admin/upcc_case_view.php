@@ -377,7 +377,7 @@ $consensusCategory     = (int)($case['hearing_vote_consensus_category'] ?? 0);
 $isAwaitingAdmin       = $consensusCategory > 0 && (string)($case['status'] ?? '') === 'AWAITING_ADMIN_FINALIZATION';
 $postedDecidedCategory = isset($_POST['decided_category']) ? (int)$_POST['decided_category'] : 0;
 $postedFinalDecision   = trim($_POST['final_decision'] ?? '');
-
+file_put_contents(__DIR__ . '/../debug_admin_load.txt', date('Y-m-d H:i:s') . " - case_id: $case_id, db_consensus: " . ($case['hearing_vote_consensus_category'] ?? 'null') . ", consensusCategory: $consensusCategory, status: " . ($case['status'] ?? 'null') . "\n", FILE_APPEND);
 try {
     $suggestedVoteDetails = json_decode((string)($case['hearing_vote_suggested_details'] ?? ''), true) ?: [];
 } catch (Throwable $e) { $suggestedVoteDetails = []; }
@@ -2111,6 +2111,10 @@ let lastVoteSig       = '';
 let _currentPauseState= <?= (!empty($isHearingPaused) ? 'true' : 'false') ?>;
 let isAwaitingAdmin   = <?= json_encode($isAwaitingAdmin ?? false) ?>;
 let currentConsensus  = <?= isset($consensusCategory) ? (int)$consensusCategory : 0 ?>;
+const storedConsensus = parseInt(sessionStorage.getItem(`upccConsensusCategory_${CASE_ID}`), 10);
+if (storedConsensus > 0 && currentConsensus === 0) {
+    currentConsensus = storedConsensus;
+}
 let lastRoundNo       = <?= isset($roundNo) ? (int)$roundNo : 0 ?>;
 let caseStatus        = <?= json_encode($case['status'] ?? '') ?>;
 let timerInterval     = null;
@@ -3105,12 +3109,18 @@ function syncLive() {
                 // If consensus state changes, reload page to render the consensus UI elements from PHP
                 const currentHasConsensus = currentConsensus > 0;
                 const newHasConsensus = hasConsensus;
+                console.log('[UPCC debug] isCaseClosed:', isCaseClosed, 'currentHasConsensus:', currentHasConsensus, 'newHasConsensus:', newHasConsensus, 'currentConsensus:', currentConsensus, 'data.consensus:', data.consensus, 'data.case_status:', data.case_status, 'caseStatus:', caseStatus);
                 if (!isCaseClosed && currentHasConsensus !== newHasConsensus) {
                     if (newHasConsensus) {
                         sessionStorage.setItem(`upccConsensusOpen_${CASE_ID}`, '1');
+                        sessionStorage.setItem(`upccConsensusCategory_${CASE_ID}`, data.consensus);
+                    } else {
+                        sessionStorage.removeItem(`upccConsensusCategory_${CASE_ID}`);
                     }
-                    skipUnloadWarn = true; // Prevent unload confirmation modal on programmatic reload
-                    location.reload();
+                    skipUnloadWarn = true;
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('t', Date.now().toString());
+                    window.location.replace(url.toString());
                     return;
                 }
 
@@ -3176,8 +3186,10 @@ function syncLive() {
                 const isNowClosed = caseStatus === 'CLOSED' || caseStatus === 'RESOLVED';
                 const wasAlreadyClosed = prevStatus === 'CLOSED' || prevStatus === 'RESOLVED';
                 if (isNowClosed && !wasAlreadyClosed) {
-                    skipUnloadWarn = true; // Prevent unload confirmation modal on programmatic reload
-                    location.reload();
+                    skipUnloadWarn = true;
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('t', Date.now().toString());
+                    window.location.replace(url.toString());
                 } else if (!isNowClosed) {
                     const statusEl = document.getElementById('caseStatusBadge');
                     if (statusEl) statusEl.textContent = caseStatus;
@@ -3271,6 +3283,10 @@ function hideGlobalLoading() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    if (currentConsensus === 0 || CASE_STATUS !== 'AWAITING_ADMIN_FINALIZATION') {
+        sessionStorage.removeItem(`upccConsensusCategory_${CASE_ID}`);
+        sessionStorage.removeItem(`upccConsensusOpen_${CASE_ID}`);
+    }
     toggleCategoryFields();
     const shouldOpenAfterRefresh = sessionStorage.getItem(`upccConsensusOpen_${CASE_ID}`) === '1';
     const roundSeen = sessionStorage.getItem(`upccConsensusSeen_${CASE_ID}_${lastRoundNo}`) === '1';

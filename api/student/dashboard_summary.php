@@ -121,12 +121,12 @@ $major += (int)($section4Count['c'] ?? 0);
 
 // Note: total reflects all individual offense records; we don't add the case count here to avoid double-counting.
 
-// Community service hours (ACTIVE requirements minus completed hours)
+// Community service hours (ACTIVE or PENDING_ACCEPTANCE requirements minus completed hours)
 $csr = db_one(
   "SELECT COALESCE(SUM(hours_required), 0) AS hours_required
    FROM community_service_requirement
    WHERE student_id = :sid
-     AND status = 'ACTIVE'",
+     AND status IN ('ACTIVE', 'PENDING_ACCEPTANCE')",
   [':sid' => $studentId]
 );
 
@@ -135,13 +135,27 @@ $done = db_one(
    FROM community_service_session
    WHERE requirement_id IN (
        SELECT requirement_id FROM community_service_requirement 
-       WHERE student_id = :sid AND status = 'ACTIVE'
+       WHERE student_id = :sid AND status IN ('ACTIVE', 'PENDING_ACCEPTANCE')
    )
    AND time_out IS NOT NULL",
   [':sid' => $studentId]
 );
 
 $communityHours = max(0, (float)($csr['hours_required'] ?? 0) - (float)($done['hours_done'] ?? 0));
+
+// Fallback to Category 2 case service hours if no requirement exists in database yet
+if ($communityHours <= 0) {
+  $c2_case = db_one(
+    "SELECT punishment_details FROM upcc_case
+     WHERE student_id = :sid AND decided_category = 2 AND status IN ('CLOSED', 'RESOLVED', 'UNDER_APPEAL')
+     ORDER BY case_id DESC LIMIT 1",
+    [':sid' => $studentId]
+  );
+  if ($c2_case) {
+    $c2_details = json_decode((string)$c2_case['punishment_details'], true) ?: [];
+    $communityHours = (float)($c2_details['service_hours'] ?? 0);
+  }
+}
 
 // (Account policy already calculated at top)
 
@@ -269,9 +283,9 @@ if ($closedCase) {
   // linked to this case, they have already accepted the Category 2 decision.
   $hasAcceptedViaService = false;
   if ((int)$closedCase['decided_category'] === 2) {
-    $csrRow = db_row(
+    $csrRow = db_one(
       "SELECT requirement_id FROM community_service_requirement
-       WHERE student_id = :sid AND case_id = :cid
+       WHERE student_id = :sid AND related_case_id = :cid
          AND status IN ('ACTIVE', 'COMPLETED')
        LIMIT 1",
       [':sid' => $studentId, ':cid' => (int)$closedCase['case_id']]

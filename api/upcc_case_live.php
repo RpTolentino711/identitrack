@@ -534,6 +534,7 @@ if ($action === 'sync') {
                            student_explanation_text, student_explanation_image, student_explanation_pdf, student_explanation_at,
                            case_kind
                     FROM upcc_case WHERE case_id = :id", [':id' => $caseId]);
+    file_put_contents(__DIR__ . '/../debug_live_sync.txt', date('Y-m-d H:i:s') . " - case_id: $caseId, db_consensus: " . ($case['hearing_vote_consensus_category'] ?? 'null') . ", status: " . ($case['status'] ?? 'null') . "\n", FILE_APPEND);
     
     $isHearingPaused = (int)($case['hearing_is_paused'] ?? 0) === 1;
     $pauseReason = $case['hearing_pause_reason'] ?? null;
