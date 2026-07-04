@@ -643,6 +643,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final probationTerms =
         (details['probation_terms'] ?? '').toString().trim();
     final serviceHours = (details['service_hours'] ?? '').toString().trim();
+    String formattedServiceHours = serviceHours;
+    final double? parsedHours = double.tryParse(serviceHours);
+    if (parsedHours != null) {
+      if (parsedHours <= 0) {
+        formattedServiceHours = '0';
+      } else {
+        final totalSeconds = (parsedHours * 3600).round();
+        final h = totalSeconds ~/ 3600;
+        final m = (totalSeconds % 3600) ~/ 60;
+        final s = (totalSeconds % 60) ~/ 60; // wait, (totalSeconds % 60) is seconds! So:
+        final secs = totalSeconds % 60;
+        
+        final List<String> parts = [];
+        if (h > 0) parts.add('${h}h');
+        if (m > 0) parts.add('${m}m');
+        if (secs > 0) parts.add('${secs}s');
+        if (parts.isEmpty) {
+          formattedServiceHours = '0';
+        } else {
+          formattedServiceHours = parts.join(' ');
+        }
+      }
+    }
     final suspendIfViolated = details['suspend_if_violated'] == true;
     final appealStatus = punishment.appealStatus.trim().toUpperCase();
 
@@ -660,8 +683,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (interventions.isNotEmpty) {
         parts.add('Interventions: ${interventions.join(', ')}');
       }
-      if (serviceHours.isNotEmpty) {
-        parts.add('Service hours: $serviceHours');
+      if (formattedServiceHours.isNotEmpty) {
+        parts.add('Service hours: $formattedServiceHours');
       }
       if (parts.isNotEmpty) {
         detailText = '$detailText\n${parts.join('\n')}';
@@ -681,11 +704,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ? const Color(0xFFB71C1C)
                     : const Color(0xFF4A148C);
 
-    return InkWell(
-      onTap: effectiveCanAppeal
-          ? () => setState(() => _isPunishmentExpanded = !_isPunishmentExpanded)
-          : null,
-      borderRadius: BorderRadius.circular(16),
+    return JumpingCardWrapper(
+      active: effectiveCanAppeal,
+      child: InkWell(
+        onTap: effectiveCanAppeal
+            ? () => setState(() => _isPunishmentExpanded = !_isPunishmentExpanded)
+            : null,
+        borderRadius: BorderRadius.circular(16),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
@@ -883,8 +908,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _approvedAppealBanner(UnseenAppeal ua) {
     final recordName = ua.appealKind == 'UPCC_CASE'
@@ -1785,6 +1811,99 @@ class _DashboardScreenState extends State<DashboardScreen> {
         studentId: widget.studentId,
         studentName: _studentName,
       ),
+    );
+  }
+}
+
+class JumpingCardWrapper extends StatefulWidget {
+  final Widget child;
+  final bool active;
+
+  const JumpingCardWrapper({Key? key, required this.child, this.active = true}) : super(key: key);
+
+  @override
+  State<JumpingCardWrapper> createState() => _JumpingCardWrapperState();
+}
+
+class _JumpingCardWrapperState extends State<JumpingCardWrapper> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+
+    _animation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: ConstantTween<double>(0.0),
+        weight: 40,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: -6.0)
+            .chain(CurveTween(curve: Curves.easeOutQuad)),
+        weight: 15,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -6.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeInQuad)),
+        weight: 15,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: -2.0)
+            .chain(CurveTween(curve: Curves.easeOutQuad)),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -2.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeInQuad)),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: ConstantTween<double>(0.0),
+        weight: 10,
+      ),
+    ]).animate(_controller);
+
+    if (widget.active) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(JumpingCardWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active != oldWidget.active) {
+      if (widget.active) {
+        _controller.repeat();
+      } else {
+        _controller.stop();
+        _controller.reset();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active) return widget.child;
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _animation.value),
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
 }
