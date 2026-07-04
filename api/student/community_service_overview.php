@@ -59,14 +59,14 @@ $reqs = db_all("
   SELECT 
     requirement_id, $decrypted_cols, hours_required, status, assigned_at, completed_at
   FROM community_service_requirement
-  WHERE student_id = :sid AND status IN ('ACTIVE', 'COMPLETED', 'PENDING_ACCEPTANCE')
+  WHERE student_id = :sid AND status IN ('ACTIVE', 'COMPLETED')
   ORDER BY assigned_at DESC
 ", $params);
 
 // Check if student has a Category 2 case in upcc_case
 $c2_case = db_one(
   "SELECT case_id, punishment_details FROM upcc_case
-   WHERE student_id = :sid AND decided_category = 2 AND status IN ('CLOSED', 'RESOLVED', 'UNDER_APPEAL')
+   WHERE student_id = :sid AND decided_category = 2 AND status = 'RESOLVED'
    ORDER BY case_id DESC LIMIT 1",
   [':sid' => $studentId]
 );

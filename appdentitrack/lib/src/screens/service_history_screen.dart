@@ -498,154 +498,160 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                         ),
                       ),
                     )
-                  : !_data!.hasAssignment
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.lock_outline_rounded, size: 72, color: Colors.grey.shade400),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Service Locked',
-                                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.grey.shade800),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'You do not have any community service requirements assigned to you.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 15, fontWeight: FontWeight.w500, height: 1.4),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView(
-                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                  : Column(
                       children: [
-                        Text(
-                          'Track your service hours',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.grey.shade700),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // Only show grace-period banner if student hasn't accepted yet
-                        // (no sessions = no service = not yet accepted).
-                        // If they have sessions, they already accepted — hide the banner.
                         if (_data!.isUnderInvestigation &&
                             _data!.sessions.isEmpty &&
                             _data!.activeSession == null)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 14),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF3E0),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFFFCC80)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.gavel_rounded, color: Color(0xFFE65100)),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    _data!.investigationMessage.isNotEmpty
-                                        ? _data!.investigationMessage
-                                        : 'Account restrictions are paused until the appeal is resolved.',
-                                    style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.w700),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF3E0),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFFFCC80)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.gavel_rounded, color: Color(0xFFE65100)),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _data!.investigationMessage.isNotEmpty
+                                          ? _data!.investigationMessage
+                                          : 'Account restrictions are paused until the appeal is resolved.',
+                                      style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.w700),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           )
-
                         else if (!_data!.hasActiveAdmin)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 14),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFEBEE),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFEF9A9A)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.sensors_off_rounded, color: Color(0xFFC62828)),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Scanner Offline: There is no active Admin online right now. You cannot log in at the scanner.',
-                                    style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.w700),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFEBEE),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFEF9A9A)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.sensors_off_rounded, color: Color(0xFFC62828)),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Scanner Offline: There is no active Admin online right now. You cannot log in at the scanner.',
+                                      style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.w700),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           )
-                        else if (_data!.activeSession == null)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 14),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F5E9),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFA5D6A7)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.sensors_rounded, color: Color(0xFF2E7D32)),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Scanner Online: Admin is active. You can now login in the web.',
-                                    style: TextStyle(color: Colors.green.shade900, fontWeight: FontWeight.w700),
+                        else if (_data!.hasAssignment && _data!.activeSession == null)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F5E9),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFA5D6A7)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.sensors_rounded, color: Color(0xFF2E7D32)),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Scanner Online: Admin is active. You can now login in the web.',
+                                      style: TextStyle(color: Colors.green.shade900, fontWeight: FontWeight.w700),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-
-                        _circularProgressCard(),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Session History',
-                          style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w900),
-                        ),
-                        const SizedBox(height: 10),
-                        if (_data!.sessions.isEmpty && _data!.activeSession == null)
-                          Padding(
-                            padding: const EdgeInsets.all(28),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.history_rounded, size: 48, color: Colors.grey.shade300),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'No sessions recorded yet',
-                                  style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                        Expanded(
+                          child: !_data!.hasAssignment
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(32),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.lock_outline_rounded, size: 72, color: Colors.grey.shade400),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'Service Locked',
+                                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.grey.shade800),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'You do not have any active community service requirements assigned to you.',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(color: Colors.grey.shade600, fontSize: 15, fontWeight: FontWeight.w500, height: 1.4),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : ListView(
+                                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                                  children: [
+                                    Text(
+                                      'Track your service hours',
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.grey.shade700),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _circularProgressCard(),
+                                    const SizedBox(height: 24),
+                                    Text(
+                                      'Session History',
+                                      style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w900),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    if (_data!.sessions.isEmpty && _data!.activeSession == null)
+                                      Padding(
+                                        padding: const EdgeInsets.all(28),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.history_rounded, size: 48, color: Colors.grey.shade300),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              'No sessions recorded yet',
+                                              style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    else
+                                      ...[
+                                        if (_data!.activeSession != null)
+                                          _sessionCard(ServiceSession(
+                                            sessionId: _data!.activeSession!.sessionId,
+                                            requirementId: _data!.activeSession!.requirementId,
+                                            timeIn: _data!.activeSession!.timeIn,
+                                            timeOut: '',
+                                            loginMethod: _data!.activeSession!.loginMethod,
+                                            validatedBy: 0,
+                                            sdoNotes: '',
+                                            hoursDone: 0.0,
+                                          )),
+                                        ..._data!.sessions.map((s) => _sessionCard(s)),
+                                      ],
+                                  ],
                                 ),
-                              ],
-                            ),
-                          )
-                        else
-                          ...[
-                            if (_data!.activeSession != null)
-                              _sessionCard(ServiceSession(
-                                sessionId: _data!.activeSession!.sessionId,
-                                requirementId: _data!.activeSession!.requirementId,
-                                timeIn: _data!.activeSession!.timeIn,
-                                timeOut: '',
-                                loginMethod: _data!.activeSession!.loginMethod,
-                                validatedBy: 0,
-                                sdoNotes: '',
-                                hoursDone: 0.0,
-                              )),
-                            ..._data!.sessions.map((s) => _sessionCard(s)),
-                          ],
+                        ),
                       ],
                     ),
+          ),
         ),
-      ),
       bottomNavigationBar: SharedBottomNav(
         currentIndex: 2,
         studentId: widget.studentId,

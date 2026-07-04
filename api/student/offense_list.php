@@ -151,7 +151,7 @@ $resCases = db_all("
   FROM upcc_case c
   JOIN upcc_case_offense co ON co.case_id = c.case_id
   WHERE c.student_id = :sid 
-    AND (c.status = 'RESOLVED' OR (c.status = 'CANCELLED' AND (SELECT status FROM student_appeal_request sar WHERE sar.case_id = c.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) = 'APPROVED'))
+    AND (c.status IN ('CLOSED', 'RESOLVED', 'UNDER_APPEAL') OR (c.status = 'CANCELLED' AND (SELECT status FROM student_appeal_request sar WHERE sar.case_id = c.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) = 'APPROVED'))
 ", [':sid' => $studentId, ':__enckey' => db_encryption_key()]);
 foreach ($resCases as $rc) {
   $resolvedCasesMap[(int)$rc['offense_id']] = $rc;
@@ -196,6 +196,9 @@ for ($i = 0; $i < count($minorList); $i++) {
       if (isset($resolvedCasesMap[$oid])) {
         $rc = $resolvedCasesMap[$oid];
         $status = (string)$rc['status'];
+        if ((int)$rc['decided_category'] > 0) {
+          $status .= ' (Category ' . $rc['decided_category'] . ')';
+        }
         $appealStatus = (string)($rc['appeal_status'] ?? '');
         $descAddition = "\n\n--- UPCC FINAL DECISION ---\nCategory " . $rc['decided_category'] . "\n" . $rc['final_decision'] . "\nResolved on: " . date('M d, Y', strtotime($rc['resolution_date']));
         break;
@@ -285,6 +288,9 @@ foreach ($majorList as $r) {
   if (isset($resolvedCasesMap[$oid])) {
     $rc = $resolvedCasesMap[$oid];
     $status = (string)$rc['status'];
+    if ((int)$rc['decided_category'] > 0) {
+      $status .= ' (Category ' . $rc['decided_category'] . ')';
+    }
     $appealStatus = (string)($rc['appeal_status'] ?? '');
     $desc .= "\n\n--- UPCC FINAL DECISION ---\nCategory " . $rc['decided_category'] . "\n" . $rc['final_decision'] . "\nResolved on: " . date('M d, Y', strtotime($rc['resolution_date']));
   }

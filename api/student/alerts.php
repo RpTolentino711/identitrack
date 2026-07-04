@@ -77,6 +77,17 @@ try {
         ];
     }
 
+    $latestCase = db_one(
+        "SELECT case_id, decided_category, " . db_decrypt_cols(['final_decision', 'punishment_details']) . ", resolution_date, status
+         FROM upcc_case
+         WHERE student_id = :sid
+           AND status IN ('CLOSED','RESOLVED','UNDER_APPEAL')
+           AND decided_category IS NOT NULL
+         ORDER BY resolution_date DESC, case_id DESC
+         LIMIT 1",
+        [':sid' => $studentId]
+    );
+
     $csRecord = db_one(
         "SELECT assigned_at
          FROM community_service_requirement
@@ -87,25 +98,28 @@ try {
     );
 
     if ($csRecord) {
+        $csTitle = 'UPCC Decision Made';
+        $csMessage = 'Community service requirement has been assigned to your account.';
+        if ($latestCase) {
+            if ($latestCase['status'] === 'RESOLVED') {
+                $csTitle = 'UPCC Decision: Accepted';
+                $csMessage = 'Community service requirement has been accepted and activated.';
+            } elseif ($latestCase['status'] === 'UNDER_APPEAL') {
+                $csTitle = 'UPCC Decision: Under Appeal';
+                $csMessage = 'Community service requirement is suspended pending appeal resolution.';
+            } elseif ($latestCase['status'] === 'CLOSED') {
+                $csTitle = 'UPCC Decision: Pending Acceptance';
+                $csMessage = 'Community service requirement has been assigned to your account (Awaiting acceptance/appeal).';
+            }
+        }
         $alerts[] = [
             'alert_type' => 'UPCC_DECISION',
-            'title' => 'UPCC Decision Made',
-            'message' => 'Community service requirement has been assigned to your account.',
+            'title' => $csTitle,
+            'message' => $csMessage,
             'created_at' => (string)$csRecord['assigned_at'],
             'metadata' => [],
         ];
     }
-
-    $latestCase = db_one(
-        "SELECT case_id, decided_category, " . db_decrypt_cols(['final_decision', 'punishment_details']) . ", resolution_date
-         FROM upcc_case
-         WHERE student_id = :sid
-           AND status IN ('CLOSED','RESOLVED')
-           AND decided_category IS NOT NULL
-         ORDER BY resolution_date DESC, case_id DESC
-         LIMIT 1",
-        [':sid' => $studentId]
-    );
 
     if ($latestCase) {
         $details = json_decode((string)($latestCase['punishment_details'] ?? ''), true);
@@ -114,7 +128,16 @@ try {
         }
 
         $category = (int)($latestCase['decided_category'] ?? 0);
-        $title = 'UPCC Case Decision: Category ' . $category;
+        $titleStatus = '';
+        if ($latestCase['status'] === 'RESOLVED') {
+            $titleStatus = ' (Accepted)';
+        } elseif ($latestCase['status'] === 'UNDER_APPEAL') {
+            $titleStatus = ' (Under Appeal)';
+        } elseif ($latestCase['status'] === 'CLOSED') {
+            $titleStatus = ' (Pending Decision)';
+        }
+
+        $title = 'UPCC Case Decision: Category ' . $category . $titleStatus;
         $summary = trim((string)($latestCase['final_decision'] ?? ''));
         if ($summary === '') {
             $summary = 'Your UPCC case has been finalized.';
@@ -135,6 +158,7 @@ try {
                 'case_id' => (int)$latestCase['case_id'],
                 'category' => $category,
                 'details' => $details,
+                'status' => $latestCase['status'],
             ],
         ];
     }

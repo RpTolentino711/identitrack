@@ -632,11 +632,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final punishment = _latestPunishment;
     if (punishment == null) return const SizedBox.shrink();
 
-    final bool studentHasAcceptedViaService =
-        punishment.category == 2 && _communityHours > 0;
     final bool effectiveCanAppeal = punishment.canAppeal &&
-        !_locallyAcceptedCaseIds.contains(punishment.caseId) &&
-        !studentHasAcceptedViaService;
+        !_locallyAcceptedCaseIds.contains(punishment.caseId);
 
     final details = punishment.details;
     final interventions = details['interventions'] is List
@@ -1549,7 +1546,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 18),
 
-                            if (_minorOffense > 0 && !_dismissedConductWarning) ...[
+                            if (_minorOffense > 0 &&
+                                !_dismissedConductWarning &&
+                                _latestPunishment == null) ...[
                               _minorOffenseWarningBanner(),
                               const SizedBox(height: 18),
                             ],

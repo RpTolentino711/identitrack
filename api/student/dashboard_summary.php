@@ -121,12 +121,12 @@ $major += (int)($section4Count['c'] ?? 0);
 
 // Note: total reflects all individual offense records; we don't add the case count here to avoid double-counting.
 
-// Community service hours (ACTIVE or PENDING_ACCEPTANCE requirements minus completed hours)
+// Community service hours (ACTIVE requirements minus completed hours)
 $csr = db_one(
   "SELECT COALESCE(SUM(hours_required), 0) AS hours_required
    FROM community_service_requirement
    WHERE student_id = :sid
-     AND status IN ('ACTIVE', 'PENDING_ACCEPTANCE')",
+     AND status = 'ACTIVE'",
   [':sid' => $studentId]
 );
 
@@ -135,7 +135,7 @@ $done = db_one(
    FROM community_service_session
    WHERE requirement_id IN (
        SELECT requirement_id FROM community_service_requirement 
-       WHERE student_id = :sid AND status IN ('ACTIVE', 'PENDING_ACCEPTANCE')
+       WHERE student_id = :sid AND status = 'ACTIVE'
    )
    AND time_out IS NOT NULL",
   [':sid' => $studentId]
@@ -147,7 +147,7 @@ $communityHours = max(0, (float)($csr['hours_required'] ?? 0) - (float)($done['h
 if ($communityHours <= 0) {
   $c2_case = db_one(
     "SELECT punishment_details FROM upcc_case
-     WHERE student_id = :sid AND decided_category = 2 AND status IN ('CLOSED', 'RESOLVED', 'UNDER_APPEAL')
+     WHERE student_id = :sid AND decided_category = 2 AND status = 'RESOLVED'
      ORDER BY case_id DESC LIMIT 1",
     [':sid' => $studentId]
   );
