@@ -290,33 +290,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $probationUntil = null;
                 $details        = ['description' => $decision];
 
-                if ($category === 1) {
-                    $terms = (int)($_POST['cat1_terms'] ?? 3);
-                    $details['probation_terms'] = max(1, min(3, $terms));
-                    $probationUntil = date('Y-m-d H:i:s', strtotime('+' . ($details['probation_terms'] * 6) . ' months'));
-
-                } elseif ($category === 2) {
-                    $details['interventions'] = [];
-                    if (isset($_POST['cat2_university_service'])) {
-                        $details['interventions'][] = 'University Service';
-                        $hrs = trim((string)($_POST['cat2_service_hours'] ?? ''));
-                        if ($hrs === 'OTHER' || !in_array($hrs, ['100','200','300','400','500'], true)) {
-                            $hVal = trim((string)($_POST['cat2_service_hours_custom_h'] ?? ''));
-                            $mVal = trim((string)($_POST['cat2_service_hours_custom_m'] ?? ''));
-                            $h = is_numeric($hVal) ? (float)$hVal : 0.0;
-                            $m = is_numeric($mVal) ? (float)$mVal : 0.0;
-                            $hrs = (string)($h + ($m / 60.0));
-                        }
-                        $details['service_hours'] = is_numeric($hrs) ? (float)$hrs : 0.0;
+                if ($useSuggested && $consensusCat > 0) {
+                    $details = $sd;
+                    $details['description'] = $decision; // keep the finalized description text
+                    if ($category === 1 && !empty($details['probation_terms'])) {
+                        $probationUntil = date('Y-m-d H:i:s', strtotime('+' . ((int)$details['probation_terms'] * 6) . ' months'));
                     }
-                    if (isset($_POST['cat2_counseling']))   $details['interventions'][] = 'Referral for Counseling';
-                    if (isset($_POST['cat2_lectures']))     $details['interventions'][] = 'Attendance to lectures';
-                    if (isset($_POST['cat2_evaluation']))   $details['interventions'][] = 'Evaluation';
-
                 } else {
-                    // Cat 3/4/5 — punishment details will trigger restrictions in student_account_mode
-                    $details['freeze'] = true;
-                    // We no longer freeze immediately here so student can login to Accept or Appeal
+                    if ($category === 1) {
+                        $terms = (int)($_POST['cat1_terms'] ?? 3);
+                        $details['probation_terms'] = max(1, min(3, $terms));
+                        $probationUntil = date('Y-m-d H:i:s', strtotime('+' . ($details['probation_terms'] * 6) . ' months'));
+
+                    } elseif ($category === 2) {
+                        $details['interventions'] = [];
+                        if (isset($_POST['cat2_university_service'])) {
+                            $details['interventions'][] = 'University Service';
+                            $hrs = trim((string)($_POST['cat2_service_hours'] ?? ''));
+                            if ($hrs === 'OTHER' || !in_array($hrs, ['100','150','200','250','300','350','400','450','500'], true)) {
+                                $hVal = trim((string)($_POST['cat2_service_hours_custom_h'] ?? ''));
+                                $mVal = trim((string)($_POST['cat2_service_hours_custom_m'] ?? ''));
+                                $h = is_numeric($hVal) ? (float)$hVal : 0.0;
+                                $m = is_numeric($mVal) ? (float)$mVal : 0.0;
+                                $hrs = (string)($h + ($m / 60.0));
+                            }
+                            $details['service_hours'] = is_numeric($hrs) ? (float)$hrs : 0.0;
+                        }
+                        if (isset($_POST['cat2_counseling']))   $details['interventions'][] = 'Referral for Counseling';
+                        if (isset($_POST['cat2_lectures']))     $details['interventions'][] = 'Attendance to lectures';
+                        if (isset($_POST['cat2_evaluation']))   $details['interventions'][] = 'Evaluation';
+
+                    } else {
+                        // Cat 3/4/5 — punishment details will trigger restrictions in student_account_mode
+                        $details['freeze'] = true;
+                        // We no longer freeze immediately here so student can login to Accept or Appeal
+                    }
                 }
 
                 $jsonDetails = json_encode($details);
@@ -332,11 +340,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if ($category === 2 && !empty($details['service_hours'])) {
                     db_exec("INSERT INTO community_service_requirement (student_id, related_case_id, task_name, hours_required, assigned_by, assigned_at, status)
                              VALUES (:sid, :cid, :tn, :hrs, :aid, NOW(), 'PENDING_ACCEPTANCE')",
-                        [':sid' => $case['student_id'],
-                         ':cid' => $case_id,
-                         ':tn'  => 'UPCC Decision — Case #' . $case_id,
-                         ':hrs' => $details['service_hours'],
-                         ':aid' => (int)$admin['admin_id']]);
+                         [':sid' => $case['student_id'],
+                          ':cid' => $case_id,
+                          ':tn'  => 'UPCC Decision — Case #' . $case_id,
+                          ':hrs' => $details['service_hours'],
+                          ':aid' => (int)$admin['admin_id']]);
                 }
 
                 upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'FINAL_DECISION_RECORDED', [
@@ -387,6 +395,20 @@ $prefillCat1Terms         = (int)($suggestedVoteDetails['probation_terms'] ?? 3)
 $prefillCat2Interventions = (isset($suggestedVoteDetails['interventions']) && is_array($suggestedVoteDetails['interventions']))
                             ? $suggestedVoteDetails['interventions'] : [];
 $prefillCat2Hours         = trim((string)($suggestedVoteDetails['service_hours'] ?? ''));
+
+$prefillH = '';
+$prefillM = '';
+if (is_numeric($prefillCat2Hours) && (float)$prefillCat2Hours > 0) {
+    $hoursVal = (float)$prefillCat2Hours;
+    $h = floor($hoursVal);
+    $m = round(($hoursVal - $h) * 60);
+    if ($m >= 60) {
+        $h += 1;
+        $m -= 60;
+    }
+    $prefillH = (string)$h;
+    $prefillM = (string)$m;
+}
 
 // ── Schema check ──────────────────────────────────────────────────────────
 $hasSuggestedByCol = db_one(
