@@ -26,6 +26,7 @@ if ($_POST) {
   $method = strtoupper(trim((string)($_POST['login_method'] ?? 'NFC')));
   $actionType = strtoupper(trim((string)($_POST['action_type'] ?? 'LOGIN')));
   $reason = trim($_POST['reason'] ?? '');
+  $scanId = trim($_POST['scan_id'] ?? '');
   $jsonMode = response_wants_json();
 
   if (!in_array($method, ['NFC', 'RFID', 'MANUAL'], true)) {
@@ -45,6 +46,21 @@ if ($_POST) {
       send_json_response(['ok' => false, 'message' => $msg]);
     }
   } else {
+    // Verify RFID Card if NFC was selected
+    $student = db_one(
+      "SELECT scanner_id_hash FROM student WHERE student_id = :sid LIMIT 1",
+      [':sid' => $studentId]
+    );
+    
+    $fallbackToManual = false;
+    if ($method === 'NFC') {
+      $expectedHash = $student ? $student['scanner_id_hash'] : '';
+      if ($scanId === '' || $expectedHash === '' || scanner_hash_value($scanId) !== $expectedHash) {
+        $fallbackToManual = true;
+        $method = 'MANUAL';
+        $reason = "RFID verification failed or skipped. Fallback to manual approval. " . ($reason !== '' ? "Reason: $reason" : "");
+      }
+    }
     // Check for any pending request (Login or Logout)
     $anyPending = db_one(
       "SELECT request_type FROM manual_login_request 
@@ -95,7 +111,11 @@ if ($_POST) {
                VALUES (:rid, :sid, 'LOGOUT', 'MANUAL', NOW(), " . db_encrypt_col('reason', ':reason') . ", 'PENDING')",
               $params
             );
-            $msg = "Manual logout request sent. Your timer has stopped exactly at this time, pending admin validation.";
+            if ($fallbackToManual) {
+              $msg = "RFID verification failed. A manual logout request has been sent, pending admin approval.";
+            } else {
+              $msg = "Manual logout request sent. Your timer has stopped exactly at this time, pending admin validation.";
+            }
             $msgType = 'success';
           }
         }
@@ -112,7 +132,11 @@ if ($_POST) {
              VALUES (NULL, :sid, 'LOGIN', :method, NOW(), " . db_encrypt_col('reason', ':reason') . ", 'PENDING')",
             $params
           );
-          $msg = "Login request sent. The admin will assign your task and start your timer.";
+          if ($fallbackToManual) {
+            $msg = "RFID verification failed. A manual login request has been sent, pending admin approval.";
+          } else {
+            $msg = "Login request sent. The admin will assign your task and start your timer.";
+          }
           $msgType = 'success';
         }
       }

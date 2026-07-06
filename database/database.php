@@ -1342,8 +1342,15 @@ function check_requirement_completion(int $requirementId): bool {
         // Usually, one case = one requirement.
         
         return true;
-    }
     return false;
 }
 
+if (!function_exists('scanner_hash_value')) {
+  function scanner_hash_value(string $rawValue): string
+  {
+    $pepper = 'IDENTITRACK_SCANNER_PEPPER_V1_CHANGE_ME';
+    $normalized = strtoupper(trim($rawValue));
+    return hash('sha256', $pepper . ':' . $normalized);
+  }
+}
 ?>

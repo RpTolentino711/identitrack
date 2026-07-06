@@ -54,6 +54,7 @@ function find_student_by_input(string $input): ?array
     return null;
   }
 
+  $hash = scanner_hash_value($input);
   $hashParams = [':scanner_hash' => $hash];
   db_add_encryption_key($hashParams);
   return db_one(
@@ -456,6 +457,7 @@ if ($_POST) {
           <div class="avatar"><?= strtoupper(substr($student['student_fn'], 0, 1)) ?></div>
           <div class="wtext">
             <strong><?= htmlspecialchars($student['student_fn'].' '.$student['student_ln']) ?></strong>
+            <span style="display:block; color:var(--muted); font-size:12px; margin-top:2px;">Student ID: <?= htmlspecialchars($student['student_id']) ?></span>
             <span>✔ Identity verified</span>
           </div>
         </div>
@@ -476,10 +478,15 @@ if ($_POST) {
           <div class="field">
             <label for="login_method"><?= $isTimingOut ? 'Logout Method' : 'Login Method' ?></label>
             <select id="login_method" name="login_method" required
-              onchange="document.getElementById('manual_box').classList.toggle('open', this.value==='MANUAL')">
+              onchange="toggleMethod(this.value)">
               <option value="NFC">Scan ID (Instant <?= $isTimingOut ? 'Logout' : 'Verification' ?>)</option>
               <option value="MANUAL">Manual <?= $isTimingOut ? 'Logout' : 'Login' ?> (Admin Approval Required)</option>
             </select>
+          </div>
+
+          <div id="scan_box" class="field">
+            <label for="scan_id">Scan your ID Card</label>
+            <input type="text" id="scan_id" name="scan_id" placeholder="Tap your ID card on the scanner..." autofocus autocomplete="off">
           </div>
 
           <div id="manual_box" class="manual-box field">
@@ -496,6 +503,32 @@ if ($_POST) {
             <?php endif; ?>
           </p>
         </form>
+
+        <script>
+        function toggleMethod(val) {
+          const scanBox = document.getElementById('scan_box');
+          const manualBox = document.getElementById('manual_box');
+          const scanInput = document.getElementById('scan_id');
+          const reasonInput = document.getElementById('reason');
+
+          if (val === 'NFC') {
+            scanBox.style.display = 'block';
+            manualBox.classList.remove('open');
+            scanInput.focus();
+          } else {
+            scanBox.style.display = 'none';
+            manualBox.classList.add('open');
+            reasonInput.focus();
+          }
+        }
+        // Run initially
+        document.addEventListener('DOMContentLoaded', () => {
+          const methodSelect = document.getElementById('login_method');
+          if (methodSelect) {
+            toggleMethod(methodSelect.value);
+          }
+        });
+        </script>
       <?php endif; ?>
 
     </div>
