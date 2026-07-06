@@ -141,6 +141,7 @@ $activeAdmin = db_one("
   SELECT admin_id
   FROM admin_user
   WHERE is_active = 1
+    AND last_active >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
   LIMIT 1
 ");
 

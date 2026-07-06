@@ -348,6 +348,10 @@ function admin_login(string $username, string $password): array
 
 function admin_logout(): void
 {
+  $admin = admin_current();
+  if ($admin) {
+    db_exec("UPDATE admin_user SET last_active = NULL WHERE admin_id = :id", [':id' => (int)$admin['admin_id']]);
+  }
   unset($_SESSION['admin']);
 }
 
@@ -360,8 +364,15 @@ function admin_current(): ?array
 
 function require_admin(): void
 {
-  if (!admin_current()) {
+  $admin = admin_current();
+  if (!$admin) {
     redirect('login.php');
+  }
+
+  static $updatedActive = false;
+  if (!$updatedActive) {
+    db_exec("UPDATE admin_user SET last_active = NOW() WHERE admin_id = :id", [':id' => (int)$admin['admin_id']]);
+    $updatedActive = true;
   }
 }
 
@@ -758,6 +769,11 @@ function ensure_hearing_workflow_schema(): void
       KEY idx_student_appeal_created (created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
+  $hasLastActiveCol = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admin_user' AND COLUMN_NAME = 'last_active'");
+  if (!$hasLastActiveCol) {
+      db_exec("ALTER TABLE admin_user ADD COLUMN last_active DATETIME DEFAULT NULL");
+  }
+
   $ready = true;
 }
 
@@ -1055,7 +1071,7 @@ function student_account_mode(string $studentId): array
   }
 
   $row = db_one(
-    "SELECT decided_category, probation_until, punishment_details, resolution_date, status
+    "SELECT case_id, decided_category, probation_until, punishment_details, resolution_date, status
      FROM upcc_case
      WHERE student_id = :sid
        AND status IN ('CLOSED','RESOLVED','UNDER_APPEAL')
@@ -1121,12 +1137,79 @@ function student_account_mode(string $studentId): array
   if ((int)($row['decided_category'] ?? 0) === 2) {
     $csrCheck = db_one(
       "SELECT requirement_id FROM community_service_requirement
-       WHERE student_id = :sid
+       WHERE student_id = :sid AND related_case_id = :cid
          AND status IN ('ACTIVE', 'COMPLETED')
        LIMIT 1",
-      [':sid' => $studentId]
+      [':sid' => $studentId, ':cid' => (int)($row['case_id'] ?? 0)]
     );
     $hasAcceptedViaService = !empty($csrCheck);
+  }
+
+  // AUTO-RESOLVE IF GRACE PERIOD EXPIRED WITHOUT ACTION
+  if ($row['status'] === 'CLOSED' && !$isInGracePeriod && !$hasHadAppeal && !$hasAcceptedViaService) {
+      $caseId = (int)$row['case_id'];
+
+      // 1. Update case status to RESOLVED
+      db_exec("UPDATE upcc_case SET status = 'RESOLVED', updated_at = NOW() WHERE case_id = :cid", [':cid' => $caseId]);
+
+      // 2. If Category 2, activate the pending community service requirement
+      if ($category === 2) {
+          db_exec(
+              "UPDATE community_service_requirement 
+               SET status = 'ACTIVE' 
+               WHERE student_id = :sid AND related_case_id = :cid AND status = 'PENDING_ACCEPTANCE'",
+              [':sid' => $studentId, ':cid' => $caseId]
+          );
+      }
+
+      // 3. If Category 4 or 5, freeze/deactivate the student
+      if ($category === 4 || $category === 5) {
+          db_exec("UPDATE student SET is_active = 0, updated_at = NOW() WHERE student_id = :sid", [':sid' => $studentId]);
+      }
+
+      // 4. Log case activity
+      upcc_log_case_activity($caseId, 'SYSTEM', 0, 'AUTO_RESOLVED_WINDOW_EXPIRED', [
+          'student_id' => $studentId,
+          'notes' => 'Student failed to accept or appeal within the grace period. Punishment automatically applied.'
+      ]);
+
+      // 5. Notify the admin about the student's lack of action/responsibility
+      $studentName = 'Student';
+      try {
+          $decrypted_student = db_decrypt_cols(['student_fn', 'student_ln']);
+          $params = [':sid' => $studentId];
+          db_add_encryption_key($params);
+          $sInfo = db_one("SELECT $decrypted_student FROM student WHERE student_id = :sid LIMIT 1", $params);
+          if ($sInfo) {
+              $studentName = trim(((string)$sInfo['student_fn'] . ' ' . (string)$sInfo['student_ln']));
+          }
+      } catch (Throwable $e) {}
+
+      db_exec(
+          "INSERT INTO notification (type, title, message, student_id, admin_id, related_table, related_id, is_read, is_deleted, created_at)
+           VALUES ('UPCC_AUTO_RESOLVE', 'Case Auto-Resolved (No Action)', :msg, :sid, NULL, 'upcc_case', :cid, 0, 0, NOW())",
+          [
+              ':msg' => "Student {$studentName} ({$studentId}) failed to accept or appeal Case #{$caseId} within the grace period. The punishment was automatically applied.",
+              ':sid' => $studentId,
+              ':cid' => (string)$caseId
+          ]
+      );
+
+      // Reload the row to reflect the new RESOLVED status
+      $row = db_one(
+        "SELECT case_id, decided_category, probation_until, punishment_details, resolution_date, status
+         FROM upcc_case
+         WHERE case_id = :cid
+         LIMIT 1",
+        [':cid' => $caseId]
+      );
+
+      if ($row) {
+          $category = (int)($row['decided_category'] ?? 0);
+          $resolutionDate = (string)($row['resolution_date'] ?? date('Y-m-d H:i:s'));
+          $gracePeriodEnds = strtotime($resolutionDate) + (5 * 86400);
+          $isInGracePeriod = time() <= $gracePeriodEnds;
+      }
   }
 
   if ($row['status'] === 'CLOSED' && $isInGracePeriod && !$hasHadAppeal && !$hasAcceptedViaService) {

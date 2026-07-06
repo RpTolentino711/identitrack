@@ -1364,13 +1364,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _onBottomNavTap(int i) async {
+  void _onBottomNavTap(int i, {String filter = 'ALL'}) async {
     if (i == 1) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => OffenseScreen(
             studentId: widget.studentId,
             studentName: _studentName,
+            initialFilter: filter,
           ),
         ),
       );
@@ -1667,14 +1668,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 12),
 
-                            Row(
+                             Row(
                               children: [
                                 Expanded(
                                   child: _statCard(
                                     title: 'Total Offenses',
                                     value: _totalOffense.toString(),
                                     color: blueDark,
-                                    onTap: () => _onBottomNavTap(1),
+                                    onTap: () => _onBottomNavTap(1, filter: 'ALL'),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -1683,7 +1684,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     title: 'Minor Offenses',
                                     value: _minorOffense.toString(),
                                     color: const Color(0xFFE65100),
-                                    onTap: () => _onBottomNavTap(1),
+                                    onTap: () => _onBottomNavTap(1, filter: 'MINOR'),
                                   ),
                                 ),
                               ],
@@ -1698,7 +1699,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     title: 'Major Offenses',
                                     value: _majorOffense.toString(),
                                     color: const Color(0xFFD32F2F),
-                                    onTap: () => _onBottomNavTap(1),
+                                    onTap: () => _onBottomNavTap(1, filter: 'MAJOR'),
                                   ),
                                 ),
                                 const SizedBox(width: 12),

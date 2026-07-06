@@ -14,11 +14,13 @@ import 'shared_bottom_nav.dart';
 class OffenseScreen extends StatefulWidget {
   final String studentId;
   final String studentName;
+  final String initialFilter;
 
   const OffenseScreen({
     super.key,
     required this.studentId,
     required this.studentName,
+    this.initialFilter = 'ALL',
   });
 
   @override
@@ -49,6 +51,7 @@ class _OffenseScreenState extends State<OffenseScreen> {
   @override
   void initState() {
     super.initState();
+    _filter = widget.initialFilter;
     _studentName = widget.studentName.trim();
     SharedPreferences.getInstance().then((prefs) {
       if (mounted) {
