@@ -55,23 +55,27 @@ class LiveSessionTimer extends StatelessWidget {
       return StreamBuilder(
         stream: Stream.periodic(const Duration(seconds: 1)),
         builder: (context, snapshot) {
-          final elapsed = DateTime.now().difference(start).inSeconds;
-          final countdownSeconds = remainingSecondsTotal - elapsed;
-          
-          if (countdownSeconds <= 0) {
-            return const Text(
-              '00:00:00',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2E7D32)),
+          try {
+            final elapsed = DateTime.now().difference(start).inSeconds;
+            final countdownSeconds = remainingSecondsTotal - elapsed;
+            
+            if (countdownSeconds <= 0) {
+              return const Text(
+                '00:00:00',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2E7D32)),
+              );
+            }
+            
+            final h = (countdownSeconds ~/ 3600).toString().padLeft(2, '0');
+            final m = ((countdownSeconds % 3600) ~/ 60).toString().padLeft(2, '0');
+            final s = (countdownSeconds % 60).toString().padLeft(2, '0');
+            return Text(
+              '$h:$m:$s',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFFE65100)),
             );
+          } catch (_) {
+            return const Text('00:00:00');
           }
-          
-          final h = (countdownSeconds ~/ 3600).toString().padLeft(2, '0');
-          final m = ((countdownSeconds % 3600) ~/ 60).toString().padLeft(2, '0');
-          final s = (countdownSeconds % 60).toString().padLeft(2, '0');
-          return Text(
-            '$h:$m:$s',
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFFE65100)),
-          );
         },
       );
     } catch (_) {
@@ -221,156 +225,163 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
     return StreamBuilder(
       stream: Stream.periodic(const Duration(seconds: 1)),
       builder: (context, snapshot) {
-        final double confirmedCompleted = _data!.hoursCompleted;
-        final double assigned = _data!.hoursAssigned;
+        try {
+          if (_data == null) {
+            return const SizedBox.shrink();
+          }
+          final double confirmedCompleted = _data!.hoursCompleted;
+          final double assigned = _data!.hoursAssigned;
 
-        double hoursRemaining = assigned - confirmedCompleted;
-        if (_data!.activeSession != null) {
-          try {
-            final start = _parseManilaDateTime(_data!.activeSession!.timeIn);
-            final elapsedHours = DateTime.now().difference(start).inSeconds / 3600.0;
-            hoursRemaining -= elapsedHours;
-          } catch (_) {}
-        }
-        if (hoursRemaining < 0) hoursRemaining = 0;
+          double hoursRemaining = assigned - confirmedCompleted;
+          if (_data!.activeSession != null) {
+            try {
+              final start = _parseManilaDateTime(_data!.activeSession!.timeIn);
+              final elapsedHours = DateTime.now().difference(start).inSeconds / 3600.0;
+              hoursRemaining -= elapsedHours;
+            } catch (_) {}
+          }
+          if (hoursRemaining < 0) hoursRemaining = 0;
 
-        // Only show 100% ring if the requirement is officially COMPLETED
-        final bool officiallyDone = _data!.requirements.any(
-          (r) => r.status.toUpperCase() == 'COMPLETED',
-        );
-        final double progress = assigned > 0
-            ? (officiallyDone
-                ? 1.0
-                : ((assigned - hoursRemaining) / assigned).clamp(0.0, 0.99))
-            : 0.0;
+          // Only show 100% ring if the requirement is officially COMPLETED
+          final bool officiallyDone = _data!.requirements.any(
+            (r) => r.status.toUpperCase() == 'COMPLETED',
+          );
+          final double progress = assigned > 0
+              ? (officiallyDone
+                  ? 0.0
+                  : (hoursRemaining / assigned).clamp(0.0, 1.0))
+              : 0.0;
 
-        final double liveCompleted = officiallyDone ? assigned : (assigned - hoursRemaining);
+          final double liveCompleted = officiallyDone ? assigned : (assigned - hoursRemaining);
 
-        final totalSecondsRemaining = (hoursRemaining * 3600).floor();
-        final h = (totalSecondsRemaining ~/ 3600).toString().padLeft(2, '0');
-        final m = ((totalSecondsRemaining % 3600) ~/ 60).toString().padLeft(2, '0');
-        final s = (totalSecondsRemaining % 60).toString().padLeft(2, '0');
+          final totalSecondsRemaining = (hoursRemaining * 3600).ceil();
+          final h = (totalSecondsRemaining ~/ 3600).toString().padLeft(2, '0');
+          final m = ((totalSecondsRemaining % 3600) ~/ 60).toString().padLeft(2, '0');
+          final s = (totalSecondsRemaining % 60).toString().padLeft(2, '0');
 
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              )
-            ],
-          ),
-          child: Column(
-            children: [
-              SizedBox(
-                width: 160,
-                height: 160,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.grey.shade100,
-                      ),
-                    ),
-                    SizedBox.expand(
-                      child: CircularProgressIndicator(
-                        value: progress,
-                        strokeWidth: 12,
-                        backgroundColor: Colors.grey.shade300,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          officiallyDone ? const Color(0xFF2E7D32) : const Color(0xFF193B8C),
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                )
+              ],
+            ),
+            child: Column(
+              children: [
+                SizedBox(
+                  width: 160,
+                  height: 160,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey.shade100,
                         ),
                       ),
-                    ),
+                      SizedBox.expand(
+                        child: CircularProgressIndicator(
+                          value: progress,
+                          strokeWidth: 12,
+                          backgroundColor: Colors.grey.shade300,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            officiallyDone ? const Color(0xFF2E7D32) : const Color(0xFF193B8C),
+                          ),
+                        ),
+                      ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            officiallyDone ? '✓' : '$h:$m:$s',
+                            style: TextStyle(
+                              fontSize: officiallyDone ? 40 : 28,
+                              fontWeight: FontWeight.w900,
+                              color: officiallyDone ? const Color(0xFF2E7D32) : const Color(0xFF193B8C),
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          Text(
+                            officiallyDone ? 'Complete!' : 'remaining',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
                     Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          officiallyDone ? '✓' : '$h:$m:$s',
-                          style: TextStyle(
-                            fontSize: officiallyDone ? 40 : 28,
-                            fontWeight: FontWeight.w900,
-                            color: officiallyDone ? const Color(0xFF2E7D32) : const Color(0xFF193B8C),
-                            letterSpacing: -0.5,
-                          ),
+                          _formatHoursPrecise(liveCompleted),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF193B8C)),
                         ),
+                        const SizedBox(height: 4),
                         Text(
-                          officiallyDone ? 'Complete!' : 'remaining',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          'Completed',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                    Container(width: 1, height: 40, color: Colors.grey.shade300),
+                    Column(
+                      children: [
+                        Text(
+                          _formatHoursPrecise(assigned),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF193B8C)),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Required',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                         ),
                       ],
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Column(
-                    children: [
-                      Text(
-                        _formatHoursPrecise(liveCompleted),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF193B8C)),
+                if (!officiallyDone && hoursRemaining <= 0) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8E1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFFE082)),
+                    ),
+                    child: Text(
+                      'Awaiting admin confirmation of your completed hours.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.orange.shade800,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Completed',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                  Container(width: 1, height: 40, color: Colors.grey.shade300),
-                  Column(
-                    children: [
-                      Text(
-                        _formatHoursPrecise(assigned),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF193B8C)),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Required',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              if (!officiallyDone && hoursRemaining <= 0) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8E1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFFE082)),
-                  ),
-                  child: Text(
-                    'Awaiting admin confirmation of your completed hours.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.orange.shade800,
                     ),
                   ),
-                ),
+                ],
               ],
-            ],
-          ),
-        );
+            ),
+          );
+        } catch (_) {
+          return const SizedBox.shrink();
+        }
       },
     );
   }
@@ -588,7 +599,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                               ),
                             ),
                           )
-                        else if (!_data!.hasActiveAdmin)
+                        else if (!_data!.hasActiveAdmin && _data!.activeSession == null)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                             child: Container(

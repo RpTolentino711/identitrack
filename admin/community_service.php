@@ -40,7 +40,7 @@ $activeSessions = db_all(
       csr.hours_required,
       s.student_id,
       CONCAT(s.student_ln, ', ', s.student_fn) AS student_name,
-      TIMESTAMPDIFF(HOUR, css.time_in, NOW()) AS hours_elapsed,
+      TIMESTAMPDIFF(MINUTE, css.time_in, NOW()) AS minutes_elapsed,
       (
         SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, prev.time_in, prev.time_out)/3600.0), 0.0)
         FROM community_service_session prev
@@ -633,7 +633,13 @@ if ($q !== '') {
 
                       <div class="detail-item">
                         <div class="detail-label">Duration</div>
-                        <div class="detail-value"><?php echo $session['hours_elapsed']; ?>h <?php echo ($session['hours_elapsed'] * 60) % 60; ?>m</div>
+                        <div class="detail-value">
+                          <?php
+                            $h = floor($session['minutes_elapsed'] / 60);
+                            $m = $session['minutes_elapsed'] % 60;
+                            echo "{$h}h {$m}m";
+                          ?>
+                        </div>
                       </div>
                       <div class="detail-item">
                         <div class="detail-label">Started</div>

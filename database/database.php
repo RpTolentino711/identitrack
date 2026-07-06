@@ -50,6 +50,7 @@ function db(): PDO
 
     try {
       $pdo = new PDO($dsn, $user, $pass, $options);
+      $pdo->exec("SET time_zone = '+08:00'");
     } catch (PDOException $e) {
       // Don't die with credentials if possible, but the current code does.
       // I'll keep it but make it clear.

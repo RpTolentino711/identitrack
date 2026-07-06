@@ -182,13 +182,13 @@ class ServiceRequirement {
   });
   factory ServiceRequirement.fromJson(Map<String, dynamic> json) =>
       ServiceRequirement(
-        requirementId: json['requirement_id'],
-        taskName: json['task_name'],
-        location: json['location'] ?? '',
-        hoursRequired: double.tryParse(json['hours_required'].toString()) ?? 0,
-        status: json['status'],
-        assignedAt: json['assigned_at'],
-        completedAt: json['completed_at'] ?? '',
+        requirementId: int.tryParse((json['requirement_id'] ?? 0).toString()) ?? 0,
+        taskName: (json['task_name'] ?? '').toString(),
+        location: (json['location'] ?? '').toString(),
+        hoursRequired: double.tryParse((json['hours_required'] ?? 0).toString()) ?? 0.0,
+        status: (json['status'] ?? '').toString(),
+        assignedAt: (json['assigned_at'] ?? '').toString(),
+        completedAt: (json['completed_at'] ?? '').toString(),
       );
 }
 
@@ -212,13 +212,13 @@ class ServiceSession {
     required this.hoursDone,
   });
   factory ServiceSession.fromJson(Map<String, dynamic> json) => ServiceSession(
-    sessionId: json['session_id'],
-    requirementId: json['requirement_id'],
-    timeIn: json['time_in'],
-    timeOut: json['time_out'] ?? '',
-    loginMethod: json['login_method'],
-    validatedBy: int.tryParse(json['validated_by'].toString()) ?? 0,
-    sdoNotes: json['sdo_notes'] ?? '',
-    hoursDone: double.tryParse(json['hours_done'].toString()) ?? 0.0,
+    sessionId: int.tryParse((json['session_id'] ?? 0).toString()) ?? 0,
+    requirementId: int.tryParse((json['requirement_id'] ?? 0).toString()) ?? 0,
+    timeIn: (json['time_in'] ?? '').toString(),
+    timeOut: (json['time_out'] ?? '').toString(),
+    loginMethod: (json['login_method'] ?? '').toString(),
+    validatedBy: int.tryParse((json['validated_by'] ?? 0).toString()) ?? 0,
+    sdoNotes: (json['sdo_notes'] ?? '').toString(),
+    hoursDone: double.tryParse((json['hours_done'] ?? 0.0).toString()) ?? 0.0,
   );
 }

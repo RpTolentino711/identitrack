@@ -54,6 +54,7 @@ $policy = student_account_mode($studentId);
 // Get assigned requirements & hours with decryption
 $decrypted_cols = db_decrypt_cols(['task_name', 'location']) . ", " . db_decrypt_col('notes') . " AS reason";
 $params = [':sid' => $studentId];
+db_add_encryption_key($params);
 
 $reqs = db_all("
   SELECT 
@@ -64,11 +65,13 @@ $reqs = db_all("
 ", $params);
 
 // Check if student has a Category 2 case in upcc_case
+$c2_case_params = [':sid' => $studentId];
+db_add_encryption_key($c2_case_params);
 $c2_case = db_one(
-  "SELECT case_id, punishment_details FROM upcc_case
-   WHERE student_id = :sid AND decided_category = 2 AND status = 'RESOLVED'
+  "SELECT case_id, " . db_decrypt_col('punishment_details') . " FROM upcc_case
+   WHERE student_id = :sid AND decided_category = 2 AND status IN ('CLOSED', 'RESOLVED')
    ORDER BY case_id DESC LIMIT 1",
-  [':sid' => $studentId]
+  $c2_case_params
 );
 
 $c2_hours = 0.0;
@@ -92,6 +95,8 @@ if (empty($reqs) && $c2_case && $c2_hours > 0) {
 }
 
 // Sessions (clock-ins with hours)
+$session_params = [':sid' => $studentId];
+db_add_encryption_key($session_params);
 $sessions = db_all("
   SELECT 
     session_id, requirement_id, time_in, time_out, login_method, logout_method, validated_by, sdo_notes,
@@ -100,8 +105,10 @@ $sessions = db_all("
   WHERE requirement_id IN (SELECT requirement_id FROM community_service_requirement WHERE student_id = :sid)
   AND time_out IS NOT NULL
   ORDER BY time_in DESC
-", [':sid' => $studentId]);
+", $session_params);
 
+$active_params = [':sid' => $studentId];
+db_add_encryption_key($active_params);
 $activeSession = db_one(
   "SELECT
       css.session_id,
@@ -119,7 +126,7 @@ $activeSession = db_one(
      AND css.time_out IS NULL
    ORDER BY css.time_in DESC
    LIMIT 1",
-  [':sid' => $studentId]
+  $active_params
 );
 
 $pendingManual = db_one(
