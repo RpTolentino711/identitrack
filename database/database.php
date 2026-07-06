@@ -1061,6 +1061,105 @@ function upcc_send_explanation_notification(int $caseId): array {
     return ['ok' => true, 'results' => $results];
 }
 
+function send_student_community_service_email(string $studentId, string $taskName, string $timeIn): bool {
+    $params = [':sid' => $studentId];
+    db_add_encryption_key($params);
+    $student = db_one(
+      "SELECT " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email']) . "
+       FROM student
+       WHERE student_id = :sid
+       LIMIT 1",
+      $params
+    );
+
+    if (!$student || empty($student['student_email'])) {
+        return false;
+    }
+
+    $email = trim((string)$student['student_email']);
+    $fullName = trim((string)$student['student_fn'] . ' ' . (string)$student['student_ln']);
+
+    require_once __DIR__ . '/../UPCC/class.phpmailer.php';
+    require_once __DIR__ . '/../UPCC/class.smtp.php';
+
+    try {
+        $mail = new PHPMailer(true);
+        $mail->CharSet   = 'UTF-8';
+        $mail->isSMTP();
+        $mail->Host      = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
+        $mail->Port      = 587;
+        $mail->SMTPAuth  = true;
+        $mail->SMTPSecure = 'tls';
+        $mail->Username  = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+        $mail->Password  = $_ENV['SMTP_PASS'] ?? '';
+        $mail->Timeout   = 30;
+
+        $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack Community Service');
+        $mail->addAddress($email, $fullName);
+        $mail->isHTML(true);
+
+        $mail->Subject = 'Community Service Session Started';
+        
+        $logoPath = realpath(__DIR__ . '/../assets/logo.png');
+        $cid = 'cslologo';
+        if ($logoPath && is_readable($logoPath)) {
+            $mail->addEmbeddedImage($logoPath, $cid, 'logo.png');
+            $logoHtml = "<img src=\"cid:$cid\" width=\"42\" height=\"42\" alt=\"IdentiTrack\" style=\"display:block;border-radius:12px;\" />";
+        } else {
+            $logoHtml = "<div style=\"width:42px;height:42px;border-radius:12px;background:#1e3b8a;color:#fff;font-weight:800;font-size:14px;text-align:center;line-height:42px;\">IT</div>";
+        }
+
+        $formattedTime = date('F j, Y g:i A', strtotime($timeIn));
+
+        $mail->Body = "
+        <!doctype html>
+        <html>
+        <head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'></head>
+        <body style='margin:0;padding:0;background:#f3f4f6;'>
+          <div style='padding:24px 12px;'>
+            <div style='max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(17,24,39,.10);font-family:Segoe UI,Tahoma,Arial,sans-serif;'>
+
+              <div style='background:#0b1630;padding:20px 24px;'>
+                <div style='display:flex;align-items:center;gap:12px;'>
+                  {$logoHtml}
+                  <div>
+                    <div style='font-size:17px;font-weight:900;color:#e8ecf7;line-height:1.1;'>IdentiTrack</div>
+                    <div style='font-size:12px;color:#7a8aac;margin-top:3px;'>Community Service System</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style='padding:28px 24px;'>
+                <p style='margin:0 0 10px;color:#111827;font-size:14px;'>Hi <b>" . htmlspecialchars($fullName) . "</b>,</p>
+                <p style='margin:0 0 20px;color:#374151;font-size:14px;line-height:1.6;'>
+                  Your community service session request has been <b>APPROVED</b> by SDO. The timer is now running.
+                </p>
+
+                <div style='background:#f8fafc;border:1px solid #c7d2fe;border-radius:16px;padding:20px;margin-bottom:20px;'>
+                  <div style='font-size:11px;color:#64748b;letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:8px;'>Session Details</div>
+                  <div style='font-size:14px;color:#1e3a8a;margin-top:6px;'><b>Task Assigned:</b> " . htmlspecialchars($taskName) . "</div>
+                  <div style='font-size:14px;color:#1e3a8a;margin-top:6px;'><b>Time In:</b> {$formattedTime}</div>
+                  <div style='font-size:14px;color:#16a34a;margin-top:6px;'><b>Status:</b> Active (Timer Running)</div>
+                </div>
+
+                <p style='margin:18px 0 0;color:#9ca3af;font-size:12px;'>You can view your remaining community service hours and live countdown in the IdentiTrack mobile app.</p>
+              </div>
+
+              <div style='padding:14px 24px;background:#111827;color:#6b7280;font-size:11px;text-align:center;'>
+                © " . date('Y') . " IdentiTrack &bull; Automated message, do not reply.
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>";
+
+        return (bool)$mail->send();
+    } catch (Exception $e) {
+        error_log("Failed to send community service approval email to student $studentId: " . $e->getMessage());
+        return false;
+    }
+}
+
 function student_account_mode(string $studentId): array
 {
   $mode = 'FULL_ACCESS';

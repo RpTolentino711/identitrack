@@ -40,7 +40,12 @@ $activeSessions = db_all(
       csr.hours_required,
       s.student_id,
       CONCAT(s.student_ln, ', ', s.student_fn) AS student_name,
-      TIMESTAMPDIFF(HOUR, css.time_in, NOW()) AS hours_elapsed
+      TIMESTAMPDIFF(HOUR, css.time_in, NOW()) AS hours_elapsed,
+      (
+        SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, prev.time_in, prev.time_out)/3600.0), 0.0)
+        FROM community_service_session prev
+        WHERE prev.requirement_id = css.requirement_id AND prev.time_out IS NOT NULL
+      ) AS prev_hours_completed
    FROM community_service_session css
    JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
    JOIN student s ON s.student_id = csr.student_id
@@ -634,6 +639,16 @@ if ($q !== '') {
                         <div class="detail-label">Started</div>
                         <div class="detail-value"><?php echo date('g:i A', strtotime($session['time_in'])); ?></div>
                       </div>
+                      <div class="detail-item">
+                        <div class="detail-label" style="color: #dc3545; font-weight: 700;">Remaining Countdown</div>
+                        <div class="detail-value countdown-timer" 
+                             style="color: #dc3545; font-weight: 700; font-family: monospace; font-size: 15px;"
+                             data-time-in="<?php echo date('c', strtotime($session['time_in'])); ?>"
+                             data-prev-completed="<?php echo (float)$session['prev_hours_completed']; ?>"
+                             data-required="<?php echo (float)$session['hours_required']; ?>">
+                          Loading...
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <!-- Action button removed for testing -->
@@ -722,15 +737,50 @@ if ($q !== '') {
     </main>
   </div>
 
-  <?php if ($highlightStudentId !== ''): ?>
-    <script>
+  <script>
+    <?php if ($highlightStudentId !== ''): ?>
       // Auto-scroll to highlighted card
       const el = document.getElementById('focusCard');
       if (el) {
         setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
       }
-    </script>
-  <?php endif; ?>
+    <?php endif; ?>
+
+    function updateCountdownTimers() {
+      const now = new Date();
+      document.querySelectorAll('.countdown-timer').forEach(el => {
+        const timeInStr = el.getAttribute('data-time-in');
+        const prevCompleted = parseFloat(el.getAttribute('data-prev-completed')) || 0;
+        const required = parseFloat(el.getAttribute('data-required')) || 0;
+        
+        if (!timeInStr) return;
+        const timeIn = new Date(timeInStr);
+        
+        // Elapsed seconds in current session
+        const elapsedSeconds = Math.max(0, Math.floor((now - timeIn) / 1000));
+        
+        // Total seconds required
+        const requiredSeconds = required * 3600;
+        
+        // Seconds completed before current session
+        const prevSeconds = prevCompleted * 3600;
+        
+        // Remaining seconds
+        let remainingSeconds = Math.ceil(requiredSeconds - prevSeconds - elapsedSeconds);
+        if (remainingSeconds < 0) remainingSeconds = 0;
+        
+        const h = Math.floor(remainingSeconds / 3600);
+        const m = Math.floor((remainingSeconds % 3600) / 60);
+        const s = remainingSeconds % 60;
+        
+        const pad = n => String(n).padStart(2, '0');
+        el.textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
+      });
+    }
+    
+    updateCountdownTimers();
+    setInterval(updateCountdownTimers, 1000);
+  </script>
 </body>
 </html>
 

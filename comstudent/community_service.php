@@ -3,6 +3,7 @@ require_once __DIR__ . '/../database/database.php';
 
 $msg = '';
 $msgType = 'info';
+$actionType = 'LOGIN';
 
 function response_wants_json(): bool
 {
@@ -163,11 +164,26 @@ if ($_POST) {
 </head>
 <body>
   <section class="main">
-    <h2>Login Result</h2>
+    <h2><?= $actionType === 'LOGOUT' ? 'Logout Result' : 'Login Result' ?></h2>
     <?php if ($msg): ?>
       <div class="msg <?= htmlspecialchars($msgType) ?>"><?= htmlspecialchars($msg) ?></div>
     <?php endif; ?>
-    <a href="land.php">Back to Start</a>
+    <a href="land.php" style="color: #193B8C; font-weight: 600; text-decoration: none; border-bottom: 1px dotted #193B8C;">Back to Start</a>
+    <div id="redirect-timer" style="margin-top: 20px; font-size: 14px; color: #555; border-top: 1px solid #eee; padding-top: 15px;">
+      Redirecting to start page in <span id="countdown-sec" style="font-weight: 800; color: #193B8C; font-size: 16px;">5</span> seconds...
+    </div>
   </section>
+  <script>
+    let seconds = 5;
+    const el = document.getElementById('countdown-sec');
+    const timer = setInterval(() => {
+      seconds--;
+      if (el) el.textContent = seconds;
+      if (seconds <= 0) {
+        clearInterval(timer);
+        window.location.href = 'land.php';
+      }
+    }, 1000);
+  </script>
 </body>
 </html>

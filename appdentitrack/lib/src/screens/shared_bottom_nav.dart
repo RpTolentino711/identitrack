@@ -129,8 +129,8 @@ class _SharedBottomNavState extends State<SharedBottomNav> {
   Widget build(BuildContext context) {
     final bool showGreenBadge = _activeSession && (_activeSessionId != _seenActiveSessionId);
     final bool showRedBadge = _recentLogout && (_recentLogoutId != _seenRecentLogoutId) && !showGreenBadge;
-    final bool showBadge = showGreenBadge || showRedBadge;
-    final Color badgeColor = showGreenBadge ? Colors.green : Colors.red;
+    final bool showBadge = _activeSession || showGreenBadge || showRedBadge;
+    final Color badgeColor = _activeSession ? Colors.red : (showGreenBadge ? Colors.green : Colors.red);
 
     return BottomNavigationBar(
       currentIndex: widget.currentIndex,

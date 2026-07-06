@@ -93,6 +93,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  ':sid' => $r['student_id'], ':aid' => $adminId, ':rid' => (string)$requestId,
                ]
              );
+
+             // Email the student
+             $taskRow = db_one("SELECT " . db_decrypt_col('task_name') . " AS task_name FROM community_service_requirement WHERE requirement_id = :req", [':req' => $selectedReqId]);
+             $taskName = (string)($taskRow['task_name'] ?? 'Community Service');
+             send_student_community_service_email((string)$r['student_id'], $taskName, date('Y-m-d H:i:s'));
+
              redirect('community_service.php?tab=active&success=login_started&student_name=' . urlencode($r['student_name']));
            }
         }

@@ -6,6 +6,24 @@ import 'alert_screen.dart';
 import 'profile_screen.dart';
 import 'shared_bottom_nav.dart';
 
+
+DateTime _parseManilaDateTime(String dateStr) {
+  if (dateStr.isEmpty) return DateTime.now();
+  String cleaned = dateStr.trim();
+  if (!cleaned.endsWith('Z') && !cleaned.contains(RegExp(r'[+-]\d{2}:?\d{2}$'))) {
+    cleaned = '$cleaned+08:00';
+  }
+  try {
+    return DateTime.parse(cleaned);
+  } catch (_) {
+    try {
+      return DateTime.parse(dateStr);
+    } catch (__) {
+      return DateTime.now();
+    }
+  }
+}
+
 class ServiceHistoryScreen extends StatefulWidget {
   final String studentId;
   final String studentName;
@@ -22,28 +40,36 @@ class ServiceHistoryScreen extends StatefulWidget {
 
 class LiveSessionTimer extends StatelessWidget {
   final String timeIn;
-  const LiveSessionTimer({super.key, required this.timeIn});
+  final double remainingHoursBeforeActive;
+  const LiveSessionTimer({
+    super.key,
+    required this.timeIn,
+    required this.remainingHoursBeforeActive,
+  });
 
   @override
   Widget build(BuildContext context) {
     try {
-      final start = DateTime.parse(timeIn);
+      final start = _parseManilaDateTime(timeIn);
+      final remainingSecondsTotal = (remainingHoursBeforeActive * 3600).round();
       return StreamBuilder(
         stream: Stream.periodic(const Duration(seconds: 1)),
         builder: (context, snapshot) {
-          final duration = DateTime.now().difference(start);
-          if (duration.isNegative) {
+          final elapsed = DateTime.now().difference(start).inSeconds;
+          final countdownSeconds = remainingSecondsTotal - elapsed;
+          
+          if (countdownSeconds <= 0) {
             return const Text(
               '00:00:00',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFFE65100)),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2E7D32)),
             );
           }
           
-          final hours = duration.inHours.toString().padLeft(2, '0');
-          final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
-          final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+          final h = (countdownSeconds ~/ 3600).toString().padLeft(2, '0');
+          final m = ((countdownSeconds % 3600) ~/ 60).toString().padLeft(2, '0');
+          final s = (countdownSeconds % 60).toString().padLeft(2, '0');
           return Text(
-            '$hours:$minutes:$seconds',
+            '$h:$m:$s',
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFFE65100)),
           );
         },
@@ -91,19 +117,25 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
       setState(() {
         _data = data;
         _loading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
-        _loading = false;
-      });
+      if (_data == null) {
+        setState(() {
+          _error = e.toString().replaceFirst('Exception: ', '');
+          _loading = false;
+        });
+      } else {
+        // Log background error quietly
+        debugPrint('Silent background refresh error: $e');
+      }
     }
   }
 
   String _formatDate(String dateStr) {
     try {
-      final dt = DateTime.parse(dateStr);
+      final dt = _parseManilaDateTime(dateStr);
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return dateStr;
@@ -127,8 +159,8 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
   String _calculateHoursPrecise(String timeIn, String timeOut) {
     if (timeOut.isEmpty) return '--:--';
     try {
-      final start = DateTime.parse(timeIn);
-      final end = DateTime.parse(timeOut);
+      final start = _parseManilaDateTime(timeIn);
+      final end = _parseManilaDateTime(timeOut);
       final duration = end.difference(start);
       final h = duration.inHours;
       final m = duration.inMinutes % 60;
@@ -141,6 +173,24 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
       return parts.join(' ');
     } catch (_) {
       return '--:--';
+    }
+  }
+
+  double _getRemainingHoursBeforeActiveSession(int requirementId) {
+    if (_data == null) return 0.0;
+    try {
+      final req = _data!.requirements.firstWhere((r) => r.requirementId == requirementId);
+      final double requiredHours = req.hoursRequired;
+      
+      final double completedHours = _data!.sessions
+          .where((s) => s.requirementId == requirementId)
+          .map((s) => s.hoursDone)
+          .fold(0.0, (sum, item) => sum + item);
+          
+      final double remaining = requiredHours - completedHours;
+      return remaining < 0 ? 0.0 : remaining;
+    } catch (_) {
+      return 0.0;
     }
   }
 
@@ -175,6 +225,13 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
         final double assigned = _data!.hoursAssigned;
 
         double hoursRemaining = assigned - confirmedCompleted;
+        if (_data!.activeSession != null) {
+          try {
+            final start = _parseManilaDateTime(_data!.activeSession!.timeIn);
+            final elapsedHours = DateTime.now().difference(start).inSeconds / 3600.0;
+            hoursRemaining -= elapsedHours;
+          } catch (_) {}
+        }
         if (hoursRemaining < 0) hoursRemaining = 0;
 
         // Only show 100% ring if the requirement is officially COMPLETED
@@ -184,10 +241,10 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
         final double progress = assigned > 0
             ? (officiallyDone
                 ? 1.0
-                : (confirmedCompleted / assigned).clamp(0.0, 0.99))
+                : ((assigned - hoursRemaining) / assigned).clamp(0.0, 0.99))
             : 0.0;
 
-        final double liveCompleted = confirmedCompleted;
+        final double liveCompleted = officiallyDone ? assigned : (assigned - hoursRemaining);
 
         final totalSecondsRemaining = (hoursRemaining * 3600).floor();
         final h = (totalSecondsRemaining ~/ 3600).toString().padLeft(2, '0');
@@ -434,7 +491,10 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
                       )
                     else
-                      LiveSessionTimer(timeIn: session.timeIn),
+                      LiveSessionTimer(
+                        timeIn: session.timeIn,
+                        remainingHoursBeforeActive: _getRemainingHoursBeforeActiveSession(session.requirementId),
+                      ),
                   ],
                 ),
               ),
