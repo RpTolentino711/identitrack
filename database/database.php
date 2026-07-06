@@ -1342,6 +1342,7 @@ function check_requirement_completion(int $requirementId): bool {
         // Usually, one case = one requirement.
         
         return true;
+    }
     return false;
 }
 
