@@ -518,23 +518,74 @@ if ($_POST) {
           const scanInput = document.getElementById('scan_id');
           const reasonInput = document.getElementById('reason');
 
-          if (val === 'NFC') {
-            scanBox.style.display = 'block';
-            manualBox.classList.remove('open');
-            scanInput.focus();
-          } else {
-            scanBox.style.display = 'none';
-            manualBox.classList.add('open');
-            reasonInput.focus();
+          if (scanBox && manualBox) {
+            if (val === 'NFC') {
+              scanBox.style.display = 'block';
+              manualBox.classList.remove('open');
+              if (scanInput) scanInput.focus();
+            } else {
+              scanBox.style.display = 'none';
+              manualBox.classList.add('open');
+              if (reasonInput) reasonInput.focus();
+            }
           }
         }
-        // Run initially
+
+        // Unified Focus Keeper for Kiosk Mode
+        function keepFocus() {
+          const studentInput = document.getElementById('student_id');
+          if (studentInput) {
+            // Step 1 active: force focus to student_id
+            if (document.activeElement !== studentInput) {
+              studentInput.focus();
+            }
+          } else {
+            // Step 2 active: force focus to scan_id if NFC method is selected
+            const methodSelect = document.getElementById('login_method');
+            if (methodSelect && methodSelect.value === 'NFC') {
+              const scanInput = document.getElementById('scan_id');
+              if (scanInput && document.activeElement !== scanInput) {
+                scanInput.focus();
+              }
+            }
+          }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
           const methodSelect = document.getElementById('login_method');
           if (methodSelect) {
             toggleMethod(methodSelect.value);
           }
+
+          // Initial focus
+          keepFocus();
+          // Keep focusing every 500ms
+          setInterval(keepFocus, 500);
+
+          // Submit forms explicitly when Enter key is received from card scanner
+          const studentInput = document.getElementById('student_id');
+          if (studentInput) {
+            studentInput.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                studentInput.form.submit();
+              }
+            });
+          }
+
+          const scanInput = document.getElementById('scan_id');
+          if (scanInput) {
+            scanInput.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                scanInput.form.submit();
+              }
+            });
+          }
         });
+
+        // Focus on click anywhere
+        document.addEventListener('click', keepFocus);
 
         // Inactivity timeout: reset to land.php after 20 seconds of no interaction
         let timeout;
