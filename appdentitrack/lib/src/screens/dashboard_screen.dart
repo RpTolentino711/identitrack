@@ -279,6 +279,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await prefs.setInt('total_alerts_count', summary.totalAlertsCount);
       await prefs.setInt('last_minor_offense_count', summary.minorOffense);
 
+      final hasPendingHearing = summary.hearingNotice != null &&
+          summary.hearingNotice!.hearingDate.isNotEmpty &&
+          summary.hearingNotice!.studentHearingResponse == 'PENDING';
+      await prefs.setBool('has_pending_hearing', hasPendingHearing);
+
       final dismissedMsg = prefs.getString('dismissed_account_message');
       final dismissedCard = prefs.getString('dismissed_punishment_card');
       final dismissedWarnCount = prefs.getInt('dismissed_conduct_warning_count') ?? -1;

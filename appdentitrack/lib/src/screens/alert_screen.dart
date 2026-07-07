@@ -48,6 +48,18 @@ class _AlertsScreenState extends State<AlertsScreen> {
       _dismissedAlerts = dismissed.toSet();
 
       final alerts = await _api.getAlerts(widget.studentId);
+      
+      bool hasPending = false;
+      for (final a in alerts) {
+        if ((a.alertType == 'HEARING_SCHEDULE' || a.alertType == 'HEARING_REMINDER') &&
+            a.metadata != null &&
+            a.metadata!['student_hearing_response'] == 'PENDING') {
+          hasPending = true;
+          break;
+        }
+      }
+      await prefs.setBool('has_pending_hearing', hasPending);
+
       setState(() {
         _alerts = alerts
             .where(

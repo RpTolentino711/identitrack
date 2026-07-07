@@ -53,6 +53,7 @@ class DashboardApi {
         popup: h['popup'] == true,
         adminOpened: h['admin_opened'] == true,
         hasExplanation: h['has_explanation'] == true,
+        studentHearingResponse: (h['student_hearing_response'] ?? 'PENDING').toString(),
       );
     }
 
@@ -277,6 +278,7 @@ class HearingNotice {
   final bool popup;
   final bool adminOpened;
   final bool hasExplanation;
+  final String studentHearingResponse;
 
   HearingNotice({
     required this.caseId,
@@ -288,6 +290,7 @@ class HearingNotice {
     required this.popup,
     required this.adminOpened,
     required this.hasExplanation,
+    required this.studentHearingResponse,
   });
 }
 

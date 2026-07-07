@@ -162,7 +162,7 @@ if ($communityHours <= 0) {
 $activeCaseRow = db_one(
   "SELECT case_id, hearing_date, hearing_time, hearing_type, hearing_is_open, status,
           hearing_vote_consensus_category, hearing_vote_suggested_details,
-          student_explanation_at, case_kind
+          student_explanation_at, case_kind, student_hearing_response
    FROM upcc_case
    WHERE student_id = :sid
      AND status IN ('PENDING','UNDER_INVESTIGATION','AWAITING_ADMIN_FINALIZATION')
@@ -181,6 +181,7 @@ if ($activeCaseRow) {
   
   $status = (string)$activeCaseRow['status'];
   $consensusCat = (int)($activeCaseRow['hearing_vote_consensus_category'] ?? 0);
+  $studentResponse = (string)($activeCaseRow['student_hearing_response'] ?? 'PENDING');
   
   if ($consensusCat > 0 && $status === 'AWAITING_ADMIN_FINALIZATION') {
     $hearingNotice = [
@@ -205,18 +206,33 @@ if ($activeCaseRow) {
       'admin_opened' => true,
     ];
   } else if ($hDate !== '') {
-    $hearingNotice = [
-      'case_id' => (int)$activeCaseRow['case_id'],
-      'hearing_date' => $hDate,
-      'hearing_time' => $hTime,
-      'hearing_type' => $hType,
-      'title' => $hDate === $today ? 'Hearing Reminder' : 'Upcoming Hearing',
-      'message' => $hDate === $today
-        ? 'Be ready for your ' . $typeLabel . ' hearing today at ' . date('g:i A', strtotime($hTime)) . '.'
-        : 'Your hearing is scheduled on ' . date('M d, Y', strtotime($hDate)) . ' at ' . date('g:i A', strtotime($hTime)) . ' (' . $typeLabel . ').',
-      'popup' => false,
-      'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
-    ];
+    if ($studentResponse === 'DECLINED') {
+      $hearingNotice = [
+        'case_id' => (int)$activeCaseRow['case_id'],
+        'hearing_date' => $hDate,
+        'hearing_time' => $hTime,
+        'hearing_type' => $hType,
+        'title' => 'Hearing Declined',
+        'message' => 'You declined this hearing. Awaiting final punishment.',
+        'popup' => false,
+        'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
+      ];
+    } else {
+      $hearingNotice = [
+        'case_id' => (int)$activeCaseRow['case_id'],
+        'hearing_date' => $hDate,
+        'hearing_time' => $hTime,
+        'hearing_type' => $hType,
+        'title' => $hDate === $today ? 'Hearing Reminder' : 'Upcoming Hearing',
+        'message' => $hDate === $today
+          ? ($studentResponse === 'ACCEPTED'
+              ? 'You accepted the hearing. Be ready for your ' . $typeLabel . ' hearing today at ' . date('g:i A', strtotime($hTime)) . '.'
+              : 'Be ready for your ' . $typeLabel . ' hearing today at ' . date('g:i A', strtotime($hTime)) . '.')
+          : 'Your hearing is scheduled on ' . date('M d, Y', strtotime($hDate)) . ' at ' . date('g:i A', strtotime($hTime)) . ' (' . $typeLabel . ').',
+        'popup' => false,
+        'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
+      ];
+    }
   } else {
     // Active case but no hearing date yet
     $needsExplanation = in_array($activeCaseRow['case_kind'], ['MAJOR_OFFENSE', 'SECTION4_MINOR_ESCALATION']);
@@ -239,9 +255,10 @@ if ($activeCaseRow) {
     }
   }
   
-  // Attach has_explanation flag to the notice if it exists
+  // Attach has_explanation and response flags to the notice if it exists
   if ($hearingNotice) {
       $hearingNotice['has_explanation'] = !empty($activeCaseRow['student_explanation_at']);
+      $hearingNotice['student_hearing_response'] = $studentResponse;
   }
 }
 

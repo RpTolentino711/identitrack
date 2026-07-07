@@ -34,6 +34,7 @@ class _SharedBottomNavState extends State<SharedBottomNav> {
   int _unseenOffensesCount = 0;
   int _totalAlertsCount = 0;
   int _seenAlertsCount = 0;
+  bool _hasPendingHearing = false;
   Timer? _prefsTimer;
 
   @override
@@ -66,6 +67,7 @@ class _SharedBottomNavState extends State<SharedBottomNav> {
         _unseenOffensesCount = prefs.getInt('unseen_offenses_count') ?? 0;
         _totalAlertsCount = prefs.getInt('total_alerts_count') ?? 0;
         _seenAlertsCount = prefs.getInt('seen_alerts_count') ?? 0;
+        _hasPendingHearing = prefs.getBool('has_pending_hearing') ?? false;
       });
     }
   }
@@ -177,13 +179,13 @@ class _SharedBottomNavState extends State<SharedBottomNav> {
         ),
         BottomNavigationBarItem(
           icon: Badge(
-            isLabelVisible: _totalAlertsCount > _seenAlertsCount,
+            isLabelVisible: (_totalAlertsCount > _seenAlertsCount) || _hasPendingHearing,
             backgroundColor: Colors.red,
             smallSize: 10,
             child: const Icon(Icons.notifications_none_rounded),
           ),
           activeIcon: Badge(
-            isLabelVisible: _totalAlertsCount > _seenAlertsCount,
+            isLabelVisible: (_totalAlertsCount > _seenAlertsCount) || _hasPendingHearing,
             backgroundColor: Colors.red,
             smallSize: 10,
             child: const Icon(Icons.notifications_rounded),
