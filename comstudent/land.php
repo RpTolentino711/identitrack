@@ -439,13 +439,13 @@ if ($_POST) {
 
       <?php if (!$student): ?>
         <div class="step-label"><span class="step-dot"></span>Step 1 of 2 — Identify</div>
-        <form method="post">
+        <form method="post" autocomplete="off">
           <div class="field">
             <label for="student_id">Student ID</label>
             <input type="text" id="student_id" name="student_id"
                    placeholder="e.g. 2024-00001"
                    required maxlength="50" autofocus
-                   value="<?= htmlspecialchars($studentId) ?>">
+                   autocomplete="off">
           </div>
           <button class="btn" type="submit">Continue →</button>
           <p class="hint">Enter your institutional student ID to look up your assigned service tasks.</p>
@@ -497,6 +497,11 @@ if ($_POST) {
           </div>
 
           <button class="btn" type="submit"><?= $isTimingOut ? 'Time Out →' : 'Time In →' ?></button>
+
+          <div style="text-align: center; margin-top: 18px; margin-bottom: 8px;">
+            <a href="land.php" style="color: var(--muted); font-size: 13.5px; font-weight: 700; text-decoration: none; border-bottom: 1.5px dotted var(--muted); padding-bottom: 2px;">← Cancel & Start Over</a>
+          </div>
+
           <p class="hint">
             <?php if ($isTimingOut): ?>
               Please tap your ID again to request to logout. Manual logout requires admin approval to stop the timer.
@@ -530,6 +535,19 @@ if ($_POST) {
             toggleMethod(methodSelect.value);
           }
         });
+
+        // Inactivity timeout: reset to land.php after 20 seconds of no interaction
+        let timeout;
+        function resetTimer() {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => {
+            window.location.href = 'land.php';
+          }, 20000);
+        }
+        window.onload = resetTimer;
+        document.onmousemove = resetTimer;
+        document.onkeypress = resetTimer;
+        document.ontouchstart = resetTimer;
         </script>
       <?php endif; ?>
 
