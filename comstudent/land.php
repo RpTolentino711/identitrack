@@ -487,8 +487,8 @@ if ($_POST) {
           </div>
 
           <div id="scan_box" class="field">
-            <label for="scan_id">Scan your ID Card</label>
-            <input type="text" id="scan_id" name="scan_id" placeholder="Tap your ID card on the scanner..." autofocus autocomplete="off">
+            <label for="scan_id"><?= $isTimingOut ? 'Please tap your ID card again to request to logout' : 'Please tap your ID card again to request to login' ?></label>
+            <input type="text" id="scan_id" name="scan_id" placeholder="<?= $isTimingOut ? 'Please tap again to request to logout...' : 'Please tap again to request to login...' ?>" autofocus autocomplete="off">
           </div>
 
           <div id="manual_box" class="manual-box field">
@@ -499,9 +499,9 @@ if ($_POST) {
           <button class="btn" type="submit"><?= $isTimingOut ? 'Time Out →' : 'Time In →' ?></button>
           <p class="hint">
             <?php if ($isTimingOut): ?>
-              Scan ID to instantly time out. Manual logout requires admin approval to stop the timer.
+              Please tap your ID again to request to logout. Manual logout requires admin approval to stop the timer.
             <?php else: ?>
-              Scan ID or use Manual Login to send a request. Your timer starts once the admin assigns your task and approves.
+              Please tap your ID again to request to login. Your timer starts once the admin assigns your task and approves.
             <?php endif; ?>
           </p>
         </form>
