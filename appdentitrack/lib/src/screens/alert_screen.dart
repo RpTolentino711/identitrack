@@ -75,6 +75,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
     final int? offenseId = metadata != null && metadata['offense_id'] != null
         ? int.tryParse(metadata['offense_id'].toString())
         : null;
+    final int? caseId = metadata != null && metadata['case_id'] != null
+        ? int.tryParse(metadata['case_id'].toString())
+        : null;
 
     final cardContent = Padding(
       padding: const EdgeInsets.all(14),
@@ -183,6 +186,27 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 ),
               ],
             ),
+          ] else if (caseId != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  'Tap to view details and submit explanation',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: alert.badgeColor,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 14,
+                  color: alert.badgeColor,
+                ),
+              ],
+            ),
           ],
         ],
       ),
@@ -206,7 +230,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ),
         ],
       ),
-      child: offenseId != null
+      child: (offenseId != null || caseId != null)
           ? Material(
               color: Colors.transparent,
               child: InkWell(
@@ -222,25 +246,52 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     final res = await OffenseApi().getOffenses(studentId: widget.studentId);
                     if (!mounted) return;
                     Navigator.of(context).pop(); // dismiss loading dialog
-                    final offense = res.items.firstWhere(
-                      (o) => o.offenseId == offenseId,
-                    );
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => OffenseDetailScreen(
-                          offense: offense,
-                          studentId: widget.studentId,
-                          studentName: widget.studentName,
-                          program: res.program,
-                          yearLevel: res.yearLevel,
+                    
+                    OffenseItem? targetOffense;
+                    if (offenseId != null) {
+                      targetOffense = res.items.firstWhere(
+                        (o) => o.offenseId == offenseId,
+                      );
+                    } else if (caseId != null) {
+                      for (final item in res.items) {
+                        if (item.upccCaseId == caseId) {
+                          targetOffense = item;
+                          break;
+                        }
+                      }
+                      if (targetOffense == null) {
+                        for (final item in res.items) {
+                          if (item.level.toUpperCase() == 'MAJOR' || item.isBundle) {
+                            targetOffense = item;
+                            break;
+                          }
+                        }
+                      }
+                    }
+
+                    if (targetOffense != null) {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => OffenseDetailScreen(
+                            offense: targetOffense!,
+                            studentId: widget.studentId,
+                            studentName: widget.studentName,
+                            program: res.program,
+                            yearLevel: res.yearLevel,
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                      _load();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Details not found.')),
+                      );
+                    }
                   } catch (e) {
                     if (mounted) {
                       Navigator.of(context).pop(); // dismiss loading dialog
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Offense details not found or deleted.')),
+                        const SnackBar(content: Text('Details not found or deleted.')),
                       );
                     }
                   }

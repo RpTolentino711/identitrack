@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'services/dashboard_api.dart';
 import 'offense_screen.dart';
+import 'offense_detail_screen.dart';
 import 'community_service_screen.dart';
 import 'service_history_screen.dart';
 import 'alert_screen.dart';
@@ -1154,9 +1155,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  void _onActiveCaseCardTap(HearingNotice notice) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final resp = await OffenseApi().getOffenses(studentId: widget.studentId);
+      if (!mounted) return;
+      Navigator.of(context).pop(); // pop loading indicator
+
+      OffenseItem? targetOffense;
+      for (final item in resp.items) {
+        if (item.upccCaseId == notice.caseId) {
+          targetOffense = item;
+          break;
+        }
+      }
+
+      // Fallback: search for any Major offense or bundle
+      if (targetOffense == null) {
+        for (final item in resp.items) {
+          if (item.level.toUpperCase() == 'MAJOR' || item.isBundle) {
+            targetOffense = item;
+            break;
+          }
+        }
+      }
+
+      if (targetOffense != null) {
+        final updated = await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => OffenseDetailScreen(
+              studentName: resp.studentName,
+              studentId: resp.studentId,
+              program: resp.program,
+              yearLevel: resp.yearLevel,
+              offense: targetOffense!,
+            ),
+          ),
+        );
+        if (updated == true) {
+          _load();
+        }
+      } else {
+        _onBottomNavTap(1);
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // pop loading
+        _onBottomNavTap(1);
+      }
+    }
+  }
+
   Widget _activeCaseCard(HearingNotice notice) {
     return InkWell(
-      onTap: () => _onBottomNavTap(1),
+      onTap: () => _onActiveCaseCardTap(notice),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: double.infinity,
