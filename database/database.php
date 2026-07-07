@@ -604,6 +604,7 @@ function ensure_hearing_workflow_schema(): void
     'student_explanation_image' => "ALTER TABLE upcc_case ADD COLUMN student_explanation_image VARCHAR(255) DEFAULT NULL",
     'student_explanation_pdf' => "ALTER TABLE upcc_case ADD COLUMN student_explanation_pdf VARCHAR(255) DEFAULT NULL",
     'student_explanation_at' => "ALTER TABLE upcc_case ADD COLUMN student_explanation_at DATETIME DEFAULT NULL",
+    'student_hearing_response' => "ALTER TABLE upcc_case ADD COLUMN student_hearing_response ENUM('PENDING','ACCEPTED','DECLINED') NOT NULL DEFAULT 'PENDING'",
   ];
 
   foreach ($columns as $column => $sql) {

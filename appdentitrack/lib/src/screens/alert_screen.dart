@@ -121,31 +121,32 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   ],
                 ),
               ),
-              InkWell(
-                onTap: () async {
-                  final id = '${alert.alertType}_${alert.createdAt}';
-                  final prefs = await SharedPreferences.getInstance();
-                  final current =
-                      prefs.getStringList('dismissed_alerts') ?? [];
-                  if (!current.contains(id)) {
-                    current.add(id);
-                    await prefs.setStringList('dismissed_alerts', current);
-                  }
-                  setState(() {
-                    _dismissedAlerts.add(id);
-                    _alerts.remove(alert);
-                  });
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 20,
-                    color: Colors.grey.shade400,
+              if (alert.alertType != 'HEARING_SCHEDULE' && alert.alertType != 'HEARING_REMINDER')
+                InkWell(
+                  onTap: () async {
+                    final id = '${alert.alertType}_${alert.createdAt}';
+                    final prefs = await SharedPreferences.getInstance();
+                    final current =
+                        prefs.getStringList('dismissed_alerts') ?? [];
+                    if (!current.contains(id)) {
+                      current.add(id);
+                      await prefs.setStringList('dismissed_alerts', current);
+                    }
+                    setState(() {
+                      _dismissedAlerts.add(id);
+                      _alerts.remove(alert);
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: Colors.grey.shade400,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -251,53 +252,167 @@ class _AlertsScreenState extends State<AlertsScreen> {
     );
   }
 
+  Future<void> _submitHearingResponse(int caseId, String response) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      await _api.respondToHearing(widget.studentId, caseId, response);
+      if (!mounted) return;
+      Navigator.of(context).pop(); // pop loading dialog
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response == 'ACCEPTED' 
+              ? 'Hearing schedule accepted successfully.' 
+              : 'Hearing schedule declined.'),
+          backgroundColor: response == 'ACCEPTED' ? Colors.green.shade800 : Colors.red.shade800,
+        ),
+      );
+      _load(); // reload the list
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // pop loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
   Widget _buildHearingActions(StudentAlert alert) {
     final meta = alert.metadata;
     if (meta == null) return const SizedBox.shrink();
 
+    final int? caseId = meta['case_id'] != null
+        ? int.tryParse(meta['case_id'].toString())
+        : null;
+    if (caseId == null) return const SizedBox.shrink();
+
     final isOnline = meta['hearing_type'] == 'ONLINE';
     final locationOrLink = meta['hearing_link_or_location']?.toString() ?? '';
+    final studentResponse = meta['student_hearing_response']?.toString() ?? 'PENDING';
 
+    if (studentResponse == 'ACCEPTED') {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.green.shade700, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  'You accepted this hearing schedule.',
+                  style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  if (isOnline && locationOrLink.isNotEmpty) {
+                    final uri = Uri.tryParse(locationOrLink);
+                    if (uri != null && await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    } else {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Invalid or empty meeting link.')),
+                        );
+                      }
+                    }
+                  } else {
+                    if (mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('Hearing Location'),
+                          content: Text(locationOrLink.isNotEmpty ? locationOrLink : 'Wait for instructions from Admin.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: Icon(isOnline ? Icons.video_camera_front_rounded : Icons.location_on_rounded, size: 18),
+                label: Text(isOnline ? 'Join Online' : 'View Location'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isOnline ? blueDark : Colors.amber.shade800,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (studentResponse == 'DECLINED') {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Row(
+          children: [
+            Icon(Icons.cancel_rounded, color: Colors.red.shade700, size: 16),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'You declined this hearing. Awaiting final punishment.',
+                style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // PENDING
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Row(
         children: [
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: () async {
-                if (isOnline && locationOrLink.isNotEmpty) {
-                  final uri = Uri.tryParse(locationOrLink);
-                  if (uri != null && await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Invalid or empty meeting link.')),
-                      );
-                    }
-                  }
-                } else {
-                  if (mounted) {
-                    showDialog(
-                      context: context,
-                      builder: (c) => AlertDialog(
-                        title: const Text('Hearing Location'),
-                        content: Text(locationOrLink.isNotEmpty ? locationOrLink : 'Wait for instructions from Admin.'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(c),
-                            child: const Text('OK'),
-                          ),
-                        ],
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (c) => AlertDialog(
+                    title: const Text('Accept Hearing'),
+                    content: const Text('Are you sure you want to accept this hearing schedule? This confirms your attendance.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(c),
+                        child: const Text('Cancel'),
                       ),
-                    );
-                  }
-                }
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(c);
+                          _submitHearingResponse(caseId, 'ACCEPTED');
+                        },
+                        child: const Text('Accept', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                );
               },
-              icon: Icon(isOnline ? Icons.video_camera_front_rounded : Icons.location_on_rounded, size: 18),
-              label: Text(isOnline ? 'Join Online' : 'View Location'),
+              icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+              label: const Text('Accept'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isOnline ? blueDark : Colors.amber.shade800,
+                backgroundColor: Colors.green.shade700,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -312,11 +427,22 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   context: context,
                   builder: (c) => AlertDialog(
                     title: const Text('Decline Hearing'),
-                    content: const Text('To decline this hearing or request a reschedule, please contact the UPCC Administrator directly.'),
+                    content: const Text(
+                      'Warning: By declining this hearing, you will lose the opportunity to present your side. '
+                      'Your case will be decided, and you will just wait for the final disciplinary action/punishment.\n\n'
+                      'Are you sure you want to decline?'
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(c),
-                        child: const Text('OK'),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(c);
+                          _submitHearingResponse(caseId, 'DECLINED');
+                        },
+                        child: Text('Decline', style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),

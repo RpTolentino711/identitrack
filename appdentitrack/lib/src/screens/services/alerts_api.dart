@@ -40,6 +40,38 @@ class AlertsApi {
         .map((e) => StudentAlert.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
+
+  Future<void> respondToHearing(String studentId, int caseId, String response) async {
+    final headers = await StudentApiAuth.jsonHeaders();
+    final res = await http.post(
+      Uri.parse(AppConfig.respondHearingUrl),
+      headers: headers,
+      body: jsonEncode({
+        'student_id': studentId,
+        'case_id': caseId,
+        'response': response,
+      }),
+    );
+
+    final body = res.body.trim();
+    if (body.isEmpty) throw Exception('Server returned empty response.');
+
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(body);
+    } catch (_) {
+      throw Exception('Server returned non-JSON:\n$body');
+    }
+
+    if (decoded is! Map) throw Exception('Invalid server response format.');
+
+    final ok = decoded['ok'] == true;
+    final msg = (decoded['message'] ?? 'Failed to submit response.').toString();
+
+    if (!ok || res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(msg);
+    }
+  }
 }
 
 class StudentAlert {
