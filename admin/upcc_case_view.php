@@ -268,6 +268,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $category     = (int)($_POST['decided_category'] ?? 0);
         $decision     = trim($_POST['final_decision']    ?? '');
         $forceResolve = isset($_POST['force_resolve']) && $_POST['force_resolve'] === '1';
+        // DEBUG LOG
+        file_put_contents(__DIR__ . '/../debug_resolve.txt',
+            date('Y-m-d H:i:s') . " | case_id=$case_id | cat=$category | force=" . ($forceResolve?'1':'0') .
+            " | use_suggested=" . ($_POST['use_suggested'] ?? 'NOT_SET') .
+            " | decision_len=" . strlen($decision) . "\n", FILE_APPEND);
         $useSuggested = isset($_POST['use_suggested'])  && $_POST['use_suggested'] === '1';
 
         $freshRow     = db_one("SELECT hearing_vote_consensus_category, hearing_vote_suggested_details FROM upcc_case WHERE case_id = :id LIMIT 1", [':id' => $case_id]);
@@ -1565,6 +1570,10 @@ body {
               <hr class="divider">
               <div class="section-label">Record Final Decision</div>
 
+              <?php if ($errMsg): ?>
+              <div class="alert alert-error" style="margin-bottom:.75rem"><?= htmlspecialchars($errMsg) ?></div>
+              <?php endif; ?>
+
               <div class="alert alert-warning" id="noConsensusAlert" style="<?= $consensusCategory ? 'display:none;' : '' ?>">
                 No consensus yet. Wait for the panel or enable "Force final decision" below.
               </div>
@@ -1700,29 +1709,31 @@ body {
               function toggleForceResolve() {
                   const cb = document.getElementById('force_resolve');
                   const isChecked = cb ? cb.checked : false;
-                  document.getElementById('final_decision').disabled = !isChecked;
-                  document.getElementById('submit_final_decision').disabled = !isChecked;
+                  const isEnabled = isChecked || (typeof currentConsensus !== 'undefined' && currentConsensus > 0);
+                  
+                  document.getElementById('final_decision').disabled = !isEnabled;
+                  document.getElementById('submit_final_decision').disabled = !isEnabled;
                   
                   // Hide/Show the category dropdown group
                   const catGroup = document.getElementById('decided_category_group');
                   if (catGroup) {
-                      catGroup.style.display = isChecked ? 'block' : 'none';
+                      catGroup.style.display = isEnabled ? 'block' : 'none';
                       const decCat = document.getElementById('decided_category');
                       if (decCat) {
-                          decCat.disabled = !isChecked;
-                          decCat.required = isChecked;
+                          decCat.disabled = !isEnabled;
+                          decCat.required = isEnabled;
                       }
                   }
                   
                   // Disable or enable category dynamic fields based on selection
                   const terms = document.getElementById('cat1_terms');
-                  if (terms) terms.disabled = !isChecked;
+                  if (terms) terms.disabled = !isEnabled;
                   
                   document.querySelectorAll('input[name^="cat2_"]').forEach(el => {
-                      el.disabled = !isChecked;
+                      el.disabled = !isEnabled;
                   });
 
-                  if (!isChecked) {
+                  if (!isEnabled) {
                       const dfc = document.getElementById('dynamicFieldsContainer');
                       if (dfc) dfc.style.display = 'none';
                   } else {
@@ -2374,7 +2385,8 @@ function toggleCategoryFields() {
     [c1, c2, c345].forEach(el => { if (el) el.style.display = 'none'; });
     
     const cb = document.getElementById('force_resolve');
-    if (cb && !cb.checked && cat) {
+    const needsForce = (!currentConsensus || currentConsensus === 0) || (parseInt(cat, 10) !== parseInt(currentConsensus, 10));
+    if (cb && !cb.checked && cat && needsForce) {
         cb.checked = true;
         toggleForceResolve();
     }

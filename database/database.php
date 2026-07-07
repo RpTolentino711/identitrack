@@ -52,9 +52,14 @@ function db(): PDO
       $pdo = new PDO($dsn, $user, $pass, $options);
       $pdo->exec("SET time_zone = '+08:00'");
     } catch (PDOException $e) {
-      // Don't die with credentials if possible, but the current code does.
-      // I'll keep it but make it clear.
-      die("DB Connection failed: " . $e->getMessage());
+      // Fallback for local development
+      try {
+        $dsnLocal = "mysql:host=localhost;dbname=identitrack;charset=utf8mb4";
+        $pdo = new PDO($dsnLocal, 'root', '', $options);
+        $pdo->exec("SET time_zone = '+08:00'");
+      } catch (PDOException $e2) {
+        die("DB Connection failed: " . $e->getMessage() . " (Fallback to local 'identitrack' database also failed: " . $e2->getMessage() . ")");
+      }
     }
   }
   return $pdo;

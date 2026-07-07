@@ -235,12 +235,12 @@ try {
         $typeLabel = $hearingType === 'ONLINE' ? 'online' : 'face-to-face';
         $studentResponse = (string)($hearing['student_hearing_response'] ?? 'PENDING');
 
-        if ($hearingDate === $today) {
+        if ($studentResponse === 'DECLINED') {
             $alerts[] = [
-                'alert_type' => 'HEARING_REMINDER',
-                'title' => 'Hearing Reminder',
-                'message' => 'Be ready for your ' . $typeLabel . ' hearing today. Wait for panel instructions.',
-                'created_at' => date('Y-m-d H:i:s'),
+                'alert_type' => $hearingDate === $today ? 'HEARING_REMINDER' : 'HEARING_SCHEDULE',
+                'title' => 'Hearing Declined',
+                'message' => 'You declined this hearing. Awaiting final punishment.',
+                'created_at' => $hearingAt,
                 'metadata' => [
                     'case_id' => (int)$hearing['case_id'],
                     'hearing_type' => $hearingType,
@@ -249,25 +249,44 @@ try {
                     'hearing_time' => $hearingTime,
                     'admin_opened' => (int)($hearing['hearing_is_open'] ?? 0) === 1,
                     'student_hearing_response' => $studentResponse,
-                    'popup' => true,
+                    'popup' => false,
                 ],
             ];
         } else {
-            $alerts[] = [
-                'alert_type' => 'HEARING_SCHEDULE',
-                'title' => 'Hearing Scheduled',
-                'message' => 'Your hearing is scheduled on ' . date('M d, Y', strtotime($hearingDate)) . ' at ' . date('g:i A', strtotime($hearingTime)) . ' (' . $typeLabel . ').',
-                'created_at' => $hearingAt,
-                'metadata' => [
-                    'case_id' => (int)$hearing['case_id'],
-                    'hearing_type' => $hearingType,
-                    'hearing_link_or_location' => $hearingLoc,
-                    'hearing_date' => $hearingDate,
-                    'hearing_time' => $hearingTime,
-                    'student_hearing_response' => $studentResponse,
-                    'popup' => true,
-                ],
-            ];
+            if ($hearingDate === $today) {
+                $alerts[] = [
+                    'alert_type' => 'HEARING_REMINDER',
+                    'title' => 'Hearing Reminder',
+                    'message' => 'Be ready for your ' . $typeLabel . ' hearing today. Wait for panel instructions.',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'metadata' => [
+                        'case_id' => (int)$hearing['case_id'],
+                        'hearing_type' => $hearingType,
+                        'hearing_link_or_location' => $hearingLoc,
+                        'hearing_date' => $hearingDate,
+                        'hearing_time' => $hearingTime,
+                        'admin_opened' => (int)($hearing['hearing_is_open'] ?? 0) === 1,
+                        'student_hearing_response' => $studentResponse,
+                        'popup' => true,
+                    ],
+                ];
+            } else {
+                $alerts[] = [
+                    'alert_type' => 'HEARING_SCHEDULE',
+                    'title' => 'Hearing Scheduled',
+                    'message' => 'Your hearing is scheduled on ' . date('M d, Y', strtotime($hearingDate)) . ' at ' . date('g:i A', strtotime($hearingTime)) . ' (' . $typeLabel . ').',
+                    'created_at' => $hearingAt,
+                    'metadata' => [
+                        'case_id' => (int)$hearing['case_id'],
+                        'hearing_type' => $hearingType,
+                        'hearing_link_or_location' => $hearingLoc,
+                        'hearing_date' => $hearingDate,
+                        'hearing_time' => $hearingTime,
+                        'student_hearing_response' => $studentResponse,
+                        'popup' => true,
+                    ],
+                ];
+            }
         }
     }
 
