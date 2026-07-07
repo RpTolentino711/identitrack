@@ -1491,8 +1491,7 @@ body {
               <!-- ═══════════════════════════════════════════════════
                    CONSENSUS REACHED — Finalization block
               ══════════════════════════════════════════════════════ -->
-              <?php if ($isAwaitingAdmin || $consensusCategory > 0): ?>
-                <div class="consensus-finalize-block" id="consensusBlock">
+                <div class="consensus-finalize-block" id="consensusBlock" style="<?= (!$isAwaitingAdmin && $consensusCategory === 0) ? 'display:none;' : '' ?>">
                   <div class="cf-header">
                     <div class="cf-header-left">
                       <span class="cf-icon">✅</span>
@@ -1508,46 +1507,48 @@ body {
                     </button>
                   </div>
                   <div class="cf-body">
-                    <div class="cat-badge">🏷️ Category <?= $consensusCategory ?> Penalty</div>
+                    <div class="cat-badge" id="consensusBlockCatBadge">🏷️ Category <?= $consensusCategory ?> Penalty</div>
                     <div class="cat-desc-box">
                       <div class="cat-desc-label">Official Category Definition</div>
-                      <div class="cat-desc-text"><?= nl2br(htmlspecialchars($categoryDescriptions[$consensusCategory] ?? '')) ?></div>
+                      <div class="cat-desc-text" id="consensusBlockCatDesc"><?= nl2br(htmlspecialchars($categoryDescriptions[$consensusCategory] ?? '')) ?></div>
                     </div>
 
-                    <?php if ($consensusCategory === 1 && !empty($suggestedVoteDetails['probation_terms'])): ?>
-                      <div class="cat-detail-grid">
-                        <div class="cat-detail-row">
-                          <span class="cat-detail-key">📋 Probation terms:</span>
-                          <span class="cat-detail-val"><?= (int)$suggestedVoteDetails['probation_terms'] ?> term(s)</span>
+                    <div id="consensusBlockDetails">
+                      <?php if ($consensusCategory === 1 && !empty($suggestedVoteDetails['probation_terms'])): ?>
+                        <div class="cat-detail-grid">
+                          <div class="cat-detail-row">
+                            <span class="cat-detail-key">📋 Probation terms:</span>
+                            <span class="cat-detail-val"><?= (int)$suggestedVoteDetails['probation_terms'] ?> term(s)</span>
+                          </div>
                         </div>
-                      </div>
-                    <?php elseif ($consensusCategory === 2 && !empty($prefillCat2Interventions)): ?>
-                      <div class="cat-detail-grid">
-                        <div class="cat-detail-row">
-                          <span class="cat-detail-key">🔧 Interventions:</span>
-                          <span class="cat-detail-val">
-                            <?php foreach ($prefillCat2Interventions as $iv): ?>
-                              <span style="display:inline-flex;align-items:center;gap:4px;background:var(--blue-100);color:var(--blue-700);padding:2px 8px;border-radius:4px;font-size:.75rem;margin:2px 2px 2px 0">
-                                <?= htmlspecialchars($iv) ?>
-                                <?php if ($iv === 'University Service' && !empty($prefillCat2Hours)): ?>
-                                  — <?php 
-                                    $shVal = (float)$prefillCat2Hours;
-                                    echo ($shVal < 1.0 && $shVal > 0) ? round($shVal * 60) . ' mins' : $shVal . ' hrs';
-                                  ?>
-                                <?php endif; ?>
-                              </span>
-                            <?php endforeach; ?>
-                          </span>
+                      <?php elseif ($consensusCategory === 2 && !empty($prefillCat2Interventions)): ?>
+                        <div class="cat-detail-grid">
+                          <div class="cat-detail-row">
+                            <span class="cat-detail-key">🔧 Interventions:</span>
+                            <span class="cat-detail-val">
+                              <?php foreach ($prefillCat2Interventions as $iv): ?>
+                                <span style="display:inline-flex;align-items:center;gap:4px;background:var(--blue-100);color:var(--blue-700);padding:2px 8px;border-radius:4px;font-size:.75rem;margin:2px 2px 2px 0">
+                                  <?= htmlspecialchars($iv) ?>
+                                  <?php if ($iv === 'University Service' && !empty($prefillCat2Hours)): ?>
+                                    — <?php 
+                                      $shVal = (float)$prefillCat2Hours;
+                                      echo ($shVal < 1.0 && $shVal > 0) ? round($shVal * 60) . ' mins' : $shVal . ' hrs';
+                                    ?>
+                                  <?php endif; ?>
+                                </span>
+                              <?php endforeach; ?>
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    <?php elseif ($consensusCategory >= 3): ?>
-                      <div class="alert alert-warning" style="margin-bottom:.85rem">
-                        ⚠️ This penalty will <strong>freeze</strong> the student account upon confirmation.
-                      </div>
-                    <?php endif; ?>
+                      <?php elseif ($consensusCategory >= 3): ?>
+                        <div class="alert alert-warning" style="margin-bottom:.85rem">
+                          ⚠️ This penalty will <strong>freeze</strong> the student account upon confirmation.
+                        </div>
+                      <?php endif; ?>
+                    </div>
 
                     <?php if ($case['hearing_vote_consensus_at']): ?>
-                      <div style="font-size:.72rem;color:var(--ink-500);margin-bottom:.85rem">
+                      <div style="font-size:.72rem;color:var(--ink-500);margin-bottom:.85rem" id="consensusBlockTime">
                         ⏱️ Consensus reached <?= fmt($case['hearing_vote_consensus_at']) ?>
                       </div>
                     <?php endif; ?>
@@ -1557,7 +1558,6 @@ body {
                     </button>
                   </div>
                 </div>
-              <?php endif; ?>
 
               <!-- ═══════════════════════════════════════════════════
                    FINAL DECISION FORM
@@ -1565,11 +1565,9 @@ body {
               <hr class="divider">
               <div class="section-label">Record Final Decision</div>
 
-              <?php if (!$consensusCategory): ?>
-                <div class="alert alert-warning">
-                  No consensus yet. Wait for the panel or enable "Force final decision" below.
-                </div>
-              <?php endif; ?>
+              <div class="alert alert-warning" id="noConsensusAlert" style="<?= $consensusCategory ? 'display:none;' : '' ?>">
+                No consensus yet. Wait for the panel or enable "Force final decision" below.
+              </div>
 
               <form method="post" id="finalDecisionForm">
                 <input type="hidden" name="action" value="resolve_case">
@@ -1578,9 +1576,9 @@ body {
                 <div class="form-group" id="decided_category_group" style="<?= !$consensusCategory ? 'display:none;' : '' ?>">
                   <label class="form-label">
                     Category
-                    <?php if ($consensusCategory): ?>
-                      <span style="color:var(--green-700);font-weight:600">(Panel consensus: Category <?= $consensusCategory ?>)</span>
-                    <?php endif; ?>
+                    <span id="consensusSpan" style="<?= !$consensusCategory ? 'display:none;' : '' ?>;color:var(--green-700);font-weight:600">
+                      (Panel consensus: Category <span id="consensusSpanVal"><?= $consensusCategory ?></span>)
+                    </span>
                   </label>
                   <select name="decided_category" id="decided_category" class="form-control" <?= $consensusCategory ? 'required' : 'disabled' ?> onchange="toggleCategoryFields()">
                     <option value="">Select category…</option>
@@ -1680,14 +1678,14 @@ body {
                 </div>
               </div>
 
-                <?php if (!$consensusCategory): ?>
+                <div id="forceResolveGroup" style="<?= $consensusCategory ? 'display:none;' : '' ?>">
                   <div class="form-group">
                     <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;font-size:.82rem;font-weight:600">
                       <input type="checkbox" name="force_resolve" id="force_resolve" value="1" style="width:auto" onchange="toggleForceResolve()">
                       Force final decision without panel consensus
                     </label>
                   </div>
-                <?php endif; ?>
+                </div>
 
                 <div class="form-group">
                   <label class="form-label">Final Decision Narrative (Optional if panel provided no details)</label>
@@ -1701,9 +1699,7 @@ body {
               <script>
               function toggleForceResolve() {
                   const cb = document.getElementById('force_resolve');
-                  if (!cb) return; // If there is a consensus, the checkbox doesn't exist, so don't run this logic!
-                  
-                  const isChecked = cb.checked;
+                  const isChecked = cb ? cb.checked : false;
                   document.getElementById('final_decision').disabled = !isChecked;
                   document.getElementById('submit_final_decision').disabled = !isChecked;
                   
@@ -2149,7 +2145,7 @@ let liveVotingModalRound = 0;
 let prevRoundActiveState = <?= !empty($isRoundActive) ? 'true' : 'false' ?>;
 let prevCooldownActiveState = <?= (isset($cooldownSecs) && (int)$cooldownSecs > 0) ? 'true' : 'false' ?>;
 
-const consensusDetails = <?= json_encode($suggestedVoteDetails) ?>;
+let consensusDetails = <?= json_encode($suggestedVoteDetails) ?>;
 const CASE_STATUS = <?= json_encode((string)$case['status']) ?>;
 const PAGE_FOCUS = <?= json_encode((string)($_GET['focus'] ?? '')) ?>;
 const committeeMembers = <?= json_encode($allActiveMembers) ?>;
@@ -2411,6 +2407,195 @@ function toggleCommunityHoursCustom() {
   cusH.required = isCustom;
   if (isCustom) setTimeout(() => cusH.focus(), 0);
   if (other) other.closest('.cat2-hour-pill')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+}
+
+// ── DYNAMIC CONSENSUS UI UPDATES ──────────────────────────────────────────
+function updateConsensusBlockUI(category, details, consensusAt) {
+    currentConsensus = category;
+    consensusDetails = details || {};
+    isAwaitingAdmin = true;
+    
+    sessionStorage.setItem(`upccConsensusOpen_${CASE_ID}`, '1');
+    sessionStorage.setItem(`upccConsensusCategory_${CASE_ID}`, category);
+
+    // Show consensus block
+    const block = document.getElementById('consensusBlock');
+    if (block) block.style.display = 'block';
+
+    // Set badge text
+    const badge = document.getElementById('consensusBlockCatBadge');
+    if (badge) badge.textContent = '🏷️ Category ' + category + ' Penalty';
+
+    // Set description
+    const descEl = document.getElementById('consensusBlockCatDesc');
+    const descriptions = {
+        1: 'Probation for the selected number of academic terms with referral for counseling. Any subsequent major offense during probation triggers Suspension or Non-Readmission.',
+        2: 'Formative Intervention — any or all of the following:\n• University service\n• Referral for counseling\n• Attendance to lectures in Discipline Education Program\n• Evaluation',
+        3: 'Non-Readmission. The student is not allowed to enroll next term but may finish the current one. Student account will be frozen.',
+        4: 'Exclusion. The student is dropped from the roll immediately upon promulgation. Student account will be frozen.',
+        5: 'Expulsion. The student is permanently disqualified from admission to any higher education institution. Student account will be permanently frozen.'
+    };
+    if (descEl) descEl.innerHTML = (descriptions[category] || '').replace(/\n/g, '<br>');
+
+    // Set details HTML
+    const detailsEl = document.getElementById('consensusBlockDetails');
+    if (detailsEl) {
+        let html = '';
+        if (category === 1 && details && details.probation_terms) {
+            html = `<div class="cat-detail-grid">
+                <div class="cat-detail-row">
+                  <span class="cat-detail-key">📋 Probation terms:</span>
+                  <span class="cat-detail-val">${details.probation_terms} term(s)</span>
+                </div>
+              </div>`;
+        } else if (category === 2 && details && Array.isArray(details.interventions)) {
+            let listHtml = '';
+            details.interventions.forEach(iv => {
+                let hrsStr = '';
+                if (iv === 'University Service' && details.service_hours) {
+                    const shVal = parseFloat(details.service_hours);
+                    hrsStr = (shVal < 1.0 && shVal > 0) ? ` — ${Math.round(shVal * 60)} mins` : ` — ${shVal} hrs`;
+                }
+                listHtml += `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--blue-100);color:var(--blue-700);padding:2px 8px;border-radius:4px;font-size:.75rem;margin:2px 2px 2px 0">
+                    ${escapeHtml(iv)}${hrsStr}
+                </span>`;
+            });
+            html = `<div class="cat-detail-grid">
+                <div class="cat-detail-row">
+                  <span class="cat-detail-key">🔧 Interventions:</span>
+                  <span class="cat-detail-val">${listHtml}</span>
+                </div>
+              </div>`;
+        } else if (category >= 3) {
+            html = `<div class="alert alert-warning" style="margin-bottom:.85rem">
+                ⚠️ This penalty will <strong>freeze</strong> the student account upon confirmation.
+              </div>`;
+        }
+        detailsEl.innerHTML = html;
+    }
+
+    // Set consensus time
+    const timeEl = document.getElementById('consensusBlockTime');
+    if (timeEl) {
+        if (consensusAt) {
+            timeEl.textContent = '⏱️ Consensus reached ' + consensusAt;
+            timeEl.style.display = 'block';
+        } else {
+            timeEl.style.display = 'none';
+        }
+    } else if (consensusAt && block) {
+        const timeDiv = document.createElement('div');
+        timeDiv.id = 'consensusBlockTime';
+        timeDiv.style.fontSize = '.72rem';
+        timeDiv.style.color = 'var(--ink-500)';
+        timeDiv.style.marginBottom = '.85rem';
+        timeDiv.textContent = '⏱️ Consensus reached ' + consensusAt;
+        const bodyEl = block.querySelector('.cf-body');
+        if (bodyEl) {
+            const btn = bodyEl.querySelector('button');
+            if (btn) bodyEl.insertBefore(timeDiv, btn);
+        }
+    }
+
+    // Hide no consensus warning alert
+    const noCons = document.getElementById('noConsensusAlert');
+    if (noCons) noCons.style.display = 'none';
+
+    // Show/update consensus span
+    const span = document.getElementById('consensusSpan');
+    if (span) span.style.display = 'inline';
+    const spanVal = document.getElementById('consensusSpanVal');
+    if (spanVal) spanVal.textContent = category;
+
+    // Enable and update select field
+    const selectEl = document.getElementById('decided_category');
+    if (selectEl) {
+        selectEl.disabled = false;
+        selectEl.required = true;
+        for (let i = 1; i <= 5; i++) {
+            const opt = selectEl.querySelector(`option[value="${i}"]`);
+            if (opt) {
+                opt.textContent = 'Category ' + i + (i === category ? ' ← Consensus' : '');
+            }
+        }
+    }
+
+    // Show decided category group
+    const group = document.getElementById('decided_category_group');
+    if (group) group.style.display = 'block';
+
+    // Hide force resolve block
+    const forceGroup = document.getElementById('forceResolveGroup');
+    if (forceGroup) forceGroup.style.display = 'none';
+
+    // Uncheck force_resolve check if it was checked
+    const forceCb = document.getElementById('force_resolve');
+    if (forceCb && forceCb.checked) {
+        forceCb.checked = false;
+        toggleForceResolve();
+    }
+
+    // Enable Narrative & Submit button
+    const fd = document.getElementById('final_decision');
+    if (fd) fd.disabled = false;
+    const sub = document.getElementById('submit_final_decision');
+    if (sub) sub.disabled = false;
+}
+
+function hideConsensusBlockUI() {
+    currentConsensus = 0;
+    consensusDetails = {};
+    isAwaitingAdmin = false;
+
+    sessionStorage.removeItem(`upccConsensusCategory_${CASE_ID}`);
+    sessionStorage.removeItem(`upccConsensusOpen_${CASE_ID}`);
+
+    // Hide consensus block
+    const block = document.getElementById('consensusBlock');
+    if (block) block.style.display = 'none';
+
+    // Check force resolve status
+    const cb = document.getElementById('force_resolve');
+    const isForceChecked = cb && cb.checked;
+
+    // Show/hide alerts
+    const noCons = document.getElementById('noConsensusAlert');
+    if (noCons) noCons.style.display = isForceChecked ? 'none' : 'block';
+
+    // Hide consensus span
+    const span = document.getElementById('consensusSpan');
+    if (span) span.style.display = 'none';
+
+    // Update select field
+    const selectEl = document.getElementById('decided_category');
+    if (selectEl) {
+        selectEl.disabled = !isForceChecked;
+        selectEl.required = isForceChecked;
+        if (!isForceChecked) selectEl.value = '';
+        for (let i = 1; i <= 5; i++) {
+            const opt = selectEl.querySelector(`option[value="${i}"]`);
+            if (opt) opt.textContent = 'Category ' + i;
+        }
+    }
+
+    // Show/hide decided category group
+    const group = document.getElementById('decided_category_group');
+    if (group) group.style.display = isForceChecked ? 'block' : 'none';
+
+    // Show force resolve checkbox group
+    const forceGroup = document.getElementById('forceResolveGroup');
+    if (forceGroup) forceGroup.style.display = 'block';
+
+    // Enable/disable narrative & submit
+    const fd = document.getElementById('final_decision');
+    if (fd) fd.disabled = !isForceChecked;
+    const sub = document.getElementById('submit_final_decision');
+    if (sub) sub.disabled = !isForceChecked;
+
+    if (!isForceChecked) {
+        const dfc = document.getElementById('dynamicFieldsContainer');
+        if (dfc) dfc.style.display = 'none';
+    }
 }
 
 // ── AUTO-FILL FORM FROM CONSENSUS ─────────────────────────────────────────
@@ -3128,34 +3313,22 @@ function syncLive() {
                 const isCaseClosed = (data.case_status === 'CLOSED' || data.case_status === 'RESOLVED') || (caseStatus === 'CLOSED' || caseStatus === 'RESOLVED') || data.is_closed;
                 const hasConsensus = parseInt(data.consensus || 0, 10) > 0 && !isCaseClosed;
 
-                // If consensus state changes, reload page to render the consensus UI elements from PHP
+                // Update UI dynamically when consensus status changes
                 const currentHasConsensus = currentConsensus > 0;
                 const newHasConsensus = hasConsensus;
                 console.log('[UPCC debug] isCaseClosed:', isCaseClosed, 'currentHasConsensus:', currentHasConsensus, 'newHasConsensus:', newHasConsensus, 'currentConsensus:', currentConsensus, 'data.consensus:', data.consensus, 'data.case_status:', data.case_status, 'caseStatus:', caseStatus);
                 if (!isCaseClosed && currentHasConsensus !== newHasConsensus) {
                     if (newHasConsensus) {
-                        sessionStorage.setItem(`upccConsensusOpen_${CASE_ID}`, '1');
-                        sessionStorage.setItem(`upccConsensusCategory_${CASE_ID}`, data.consensus);
+                        updateConsensusBlockUI(parseInt(data.consensus, 10), data.suggestion_details, data.consensus_reached_at);
+                        openConsensusDecisionModal(data.consensus);
+                        showToast('✅ Consensus Reached!', `Panel agreed on Category ${data.consensus}. Review and record the final decision.`, 'success');
                     } else {
-                        sessionStorage.removeItem(`upccConsensusCategory_${CASE_ID}`);
+                        hideConsensusBlockUI();
+                        currentRoundConsensusDismissed = false;
                     }
-                    skipUnloadWarn = true;
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('t', Date.now().toString());
-                    window.location.replace(url.toString());
-                    return;
-                }
-
-                if (hasConsensus) {
-                  if (!isAwaitingAdmin) {
-                    isAwaitingAdmin  = true;
-                    currentConsensus = data.consensus;
-                    showToast('✅ Consensus Reached!', `Panel agreed on Category ${data.consensus}. Review and record the final decision.`, 'success');
-                  }
-                  openConsensusDecisionModal(data.consensus);
-                } else {
-                  isAwaitingAdmin = false;
-                  currentRoundConsensusDismissed = false;
+                } else if (hasConsensus && !isCaseClosed) {
+                    // Make sure details and category block stay in sync
+                    updateConsensusBlockUI(parseInt(data.consensus, 10), data.suggestion_details, data.consensus_reached_at);
                 }
 
             // Live voting modal for active rounds

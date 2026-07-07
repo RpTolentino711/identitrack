@@ -768,6 +768,7 @@ if ($action === 'sync') {
         'ok' => true,
         'round' => $voteRound,
         'consensus' => $consensusCategory,
+        'consensus_reached_at' => $case['hearing_vote_consensus_at'] ? date('M j, Y g:i A', strtotime($case['hearing_vote_consensus_at'])) : null,
         'suggestion_details' => $suggestionDetails,
         'total_members' => $totalMembers,
         'votes' => $votes,
