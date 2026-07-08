@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'services/alerts_api.dart';
@@ -407,16 +408,87 @@ class _AlertsScreenState extends State<AlertsScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  if (isOnline && locationOrLink.isNotEmpty) {
-                    final uri = Uri.tryParse(locationOrLink);
-                    if (uri != null && await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    } else {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Invalid or empty meeting link.')),
-                        );
-                      }
+                  if (isOnline) {
+                    if (mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('Online Hearing Link'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                locationOrLink.isNotEmpty
+                                    ? 'Here is your online hearing link. You can copy it to your clipboard or open it directly.'
+                                    : 'The admin has not provided the meeting link yet. Please wait for panel instructions or check back later.',
+                                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                              ),
+                              if (locationOrLink.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: SelectableText(
+                                    locationOrLink,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      fontFamily: 'monospace',
+                                      color: blueDark,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c),
+                              child: Text(locationOrLink.isNotEmpty ? 'Cancel' : 'OK'),
+                            ),
+                            if (locationOrLink.isNotEmpty) ...[
+                              TextButton(
+                                onPressed: () async {
+                                  await Clipboard.setData(ClipboardData(text: locationOrLink));
+                                  if (context.mounted) {
+                                    Navigator.pop(c);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Link copied to clipboard!')),
+                                    );
+                                  }
+                                },
+                                child: const Text('Copy Link'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  Navigator.pop(c);
+                                  final uri = Uri.tryParse(locationOrLink);
+                                  if (uri != null && await canLaunchUrl(uri)) {
+                                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Could not open the link. Please copy it instead.')),
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: blueDark,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('Open Link'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
                     }
                   } else {
                     if (mounted) {
