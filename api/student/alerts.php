@@ -235,6 +235,12 @@ try {
         $typeLabel = $hearingType === 'ONLINE' ? 'online' : 'face-to-face';
         $studentResponse = (string)($hearing['student_hearing_response'] ?? 'PENDING');
 
+        // Securing the online hearing link: only expose it if the student accepted the schedule
+        $exposedLoc = $hearingLoc;
+        if ($hearingType === 'ONLINE' && $studentResponse !== 'ACCEPTED') {
+            $exposedLoc = '';
+        }
+
         if ($studentResponse === 'DECLINED') {
             $alerts[] = [
                 'alert_type' => $hearingDate === $today ? 'HEARING_REMINDER' : 'HEARING_SCHEDULE',
@@ -244,7 +250,7 @@ try {
                 'metadata' => [
                     'case_id' => (int)$hearing['case_id'],
                     'hearing_type' => $hearingType,
-                    'hearing_link_or_location' => $hearingLoc,
+                    'hearing_link_or_location' => $exposedLoc,
                     'hearing_date' => $hearingDate,
                     'hearing_time' => $hearingTime,
                     'admin_opened' => (int)($hearing['hearing_is_open'] ?? 0) === 1,
@@ -262,7 +268,7 @@ try {
                     'metadata' => [
                         'case_id' => (int)$hearing['case_id'],
                         'hearing_type' => $hearingType,
-                        'hearing_link_or_location' => $hearingLoc,
+                        'hearing_link_or_location' => $exposedLoc,
                         'hearing_date' => $hearingDate,
                         'hearing_time' => $hearingTime,
                         'admin_opened' => (int)($hearing['hearing_is_open'] ?? 0) === 1,
@@ -279,7 +285,7 @@ try {
                     'metadata' => [
                         'case_id' => (int)$hearing['case_id'],
                         'hearing_type' => $hearingType,
-                        'hearing_link_or_location' => $hearingLoc,
+                        'hearing_link_or_location' => $exposedLoc,
                         'hearing_date' => $hearingDate,
                         'hearing_time' => $hearingTime,
                         'student_hearing_response' => $studentResponse,
