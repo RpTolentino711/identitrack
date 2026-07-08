@@ -599,7 +599,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                               ),
                             ),
                           )
-                        else if (!_data!.hasActiveAdmin && _data!.activeSession == null)
+                        else if (_data!.hasAssignment && !_data!.hasActiveAdmin && _data!.activeSession == null)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                             child: Container(
