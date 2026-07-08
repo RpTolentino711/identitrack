@@ -1775,38 +1775,45 @@ $nfcMappings = db_all(
 
             <?php else: ?>
 
-              <!-- Post-registration NFC link ───────────────────────────── -->
-              <div class="alert alert-success" style="margin-bottom:20px;">
-                <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-                <div>Student record created for <strong><?php echo htmlspecialchars($registeredStudentId); ?></strong>. Now link their NFC card.</div>
+              <!-- Success Notification & Cooldown ───────────────────────────── -->
+              <div class="card" style="border: 1px solid var(--green-200); background: var(--green-50); border-radius: var(--radius-xl);">
+                <div class="card-body" style="text-align: center; padding: 40px 24px;">
+                  <div style="width: 64px; height: 64px; background: var(--green-600); color: #fff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 32px; margin-bottom: 20px; box-shadow: 0 10px 20px rgba(22,163,74,.2);">
+                    ✓
+                  </div>
+                  <h2 style="color: var(--green-700); font-weight: 700; font-size: 22px; margin-bottom: 12px;">Registration Successful!</h2>
+                  <p style="color: var(--slate-600); font-size: 14px; max-width: 480px; margin: 0 auto 28px; line-height: 1.6;">
+                    Student <strong><?php echo htmlspecialchars($registeredStudentId); ?></strong> has been successfully recorded and linked to their NFC/RFID card.
+                  </p>
+                  
+                  <div style="margin-bottom: 20px;">
+                    <a href="settings.php" class="btn btn-primary" style="padding: 10px 24px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+                      <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                      Register Another
+                    </a>
+                  </div>
+
+                  <div id="cooldown-timer-text" style="font-size: 13px; color: var(--slate-500); font-weight: 500;">
+                    Returning to settings page in <span id="cooldown-seconds" style="font-weight: 700; color: var(--slate-800);">5</span> seconds...
+                  </div>
+                </div>
               </div>
 
-              <div class="scanner-box">
-                <div class="scanner-box-title">
-                  <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2" ry="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="11" y1="2" x2="11" y2="22"/><line x1="15" y1="2" x2="15" y2="22"/><line x1="19" y1="2" x2="19" y2="22"/></svg>
-                  Link NFC Card
-                </div>
-                <input type="hidden" id="nfc_student_id" value="<?php echo htmlspecialchars($registeredStudentId); ?>"/>
-
-                <div class="field-group">
-                  <label for="nfc_scan_value">Scanner Input</label>
-                  <input id="nfc_scan_value" placeholder="Tap NFC card/tag — value auto-fills" autocomplete="off"/>
-                  <div id="nfc_scan_status" class="field-status"></div>
-                  <div class="field-hint">The scanner types the value then sends Enter. You can also paste and click Link NFC.</div>
-                </div>
-
-                <div class="btn-row">
-                  <button id="linkBtn" class="btn btn-primary" type="button">
-                    <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-                    Link NFC
-                  </button>
-                  <a href="settings.php" class="btn btn-secondary">Register Another</a>
-                </div>
-
-                <div id="nfcStatus" class="status-block hidden" style="margin-top:14px;"></div>
-              </div>
+              <!-- Inline countdown script -->
+              <script>
+                (function() {
+                  var secondsLeft = 5;
+                  var display = document.getElementById('cooldown-seconds');
+                  var interval = setInterval(function() {
+                    secondsLeft--;
+                    if (display) display.textContent = secondsLeft;
+                    if (secondsLeft <= 0) {
+                      clearInterval(interval);
+                      window.location.href = 'settings.php';
+                    }
+                  }, 1000);
+                })();
+              </script>
 
             <?php endif; ?>
 
