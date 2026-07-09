@@ -30,4 +30,5 @@ class AppConfig {
   static String get acknowledgeAppealUrl => '$baseUrl/api/student/acknowledge_appeal.php';
   static String get deleteOffenseUrl => '$baseUrl/api/student/delete_offense.php';
   static String get respondHearingUrl => '$baseUrl/api/student/respond_hearing.php';
+  static String get profileUrl => '$baseUrl/api/student/profile.php';
 }

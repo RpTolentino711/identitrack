@@ -1548,6 +1548,313 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _showHandbookGlimpseDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          elevation: 16,
+          backgroundColor: Colors.white,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Beautiful Dialog Header
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                    decoration: const BoxDecoration(
+                      color: blue,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.menu_book_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'Student Handbook',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'A quick glimpse at IdentiTrack\'s disciplinary policies & code of conduct.',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Dialog Content
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Section 1: Minor Offenses
+                        Row(
+                          children: [
+                            const Icon(Icons.circle, size: 8, color: Colors.orange),
+                            const SizedBox(width: 8),
+                            Text(
+                              'MINOR OFFENSE POLICY',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.orange,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _handbookItem(
+                                step: '1st Strike',
+                                title: 'Warning Only',
+                                desc: 'Verbal or written warning recorded on your student profile.',
+                                isCritical: false,
+                              ),
+                              const Divider(height: 16),
+                              _handbookItem(
+                                step: '2nd Strike',
+                                title: 'Guardian Notification',
+                                desc: 'A formal notice is dispatched to your guardian\'s email address.',
+                                isCritical: false,
+                              ),
+                              const Divider(height: 16),
+                              _handbookItem(
+                                step: '3rd Strike',
+                                title: 'Section 4 Escalation',
+                                desc: 'Case forwarded to the UPCC for formal investigation (escalated to Major status).',
+                                isCritical: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Section 2: Major Offenses
+                        Row(
+                          children: [
+                            const Icon(Icons.circle, size: 8, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Text(
+                              'MAJOR OFFENSE SANCTIONS',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.red,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Direct violations bypass strikes and are referred to the University Panel on Community Conduct (UPCC). Consensus sanctions include:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black87,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _majorSanctionItem('1', 'Probation & Counseling', 'Probation for three (3) academic terms with mandatory counseling.'),
+                        _majorSanctionItem('2', 'Formative Intervention', 'Community service hours, counseling, or educational programs.'),
+                        _majorSanctionItem('3', 'Non-Readmission', 'Student is barred from enrolling for the subsequent academic term.'),
+                        _majorSanctionItem('4', 'Exclusion', 'Immediate removal/dismissal of student from the university rolls.'),
+                        _majorSanctionItem('5', 'Expulsion', 'Permanent disqualification from all Higher Education Institutions (HEIs) in the Philippines.'),
+                      ],
+                    ),
+                  ),
+
+                  // Close button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Understood',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _handbookItem({
+    required String step,
+    required String title,
+    required String desc,
+    bool isCritical = false,
+  }) {
+    final titleColor = isCritical ? Colors.red : Colors.black87;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isCritical ? Colors.red.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            step,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: isCritical ? Colors.red : Colors.orange,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: titleColor,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade700,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _majorSanctionItem(String category, String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+            ),
+            child: Text(
+              category,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: Colors.red,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade700,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── BUILD ────────────────────────────────────────────────────────────────────
 
   @override
@@ -1616,21 +1923,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             const EdgeInsets.fromLTRB(18, 22, 18, 100),
                         sliver: SliverList(
                           delegate: SliverChildListDelegate([
-                            Text(
-                              '${_greeting()}, $_studentName',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                color: blueDark,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Student ID: ${widget.studentId}',
-                              style: TextStyle(
-                                color: Colors.grey.shade700,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${_greeting()}, $_studentName',
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w900,
+                                          color: blueDark,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Student ID: ${widget.studentId}',
+                                        style: TextStyle(
+                                          color: Colors.grey.shade700,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: () => _showHandbookGlimpseDialog(context),
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: blue.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.help_outline_rounded,
+                                      color: blueDark,
+                                      size: 22,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 18),
 
