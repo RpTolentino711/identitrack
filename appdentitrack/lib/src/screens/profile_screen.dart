@@ -25,6 +25,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isSaving = false;
   String? _errorMessage;
 
+  String _initPhone = '';
+  String _initGfn = '';
+  String _initGln = '';
+  String _initGemail = '';
+  String _initGphone = '';
+
   final _formKey = GlobalKey<FormState>();
 
   final _phoneController = TextEditingController();
@@ -66,6 +72,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _glnController.text = profile.guardianLn;
       _gemailController.text = profile.guardianEmail;
       _gphoneController.text = profile.guardianNumber;
+
+      _initPhone = profile.phoneNumber;
+      _initGfn = profile.guardianFn;
+      _initGln = profile.guardianLn;
+      _initGemail = profile.guardianEmail;
+      _initGphone = profile.guardianNumber;
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
@@ -75,6 +87,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     }
+  }
+
+  bool _hasChanges() {
+    return _phoneController.text.trim() != _initPhone.trim() ||
+        _gfnController.text.trim() != _initGfn.trim() ||
+        _glnController.text.trim() != _initGln.trim() ||
+        _gemailController.text.trim() != _initGemail.trim() ||
+        _gphoneController.text.trim() != _initGphone.trim();
   }
 
   Future<void> _saveProfile() async {
@@ -516,27 +536,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 24),
 
                           // Action Buttons
-                          SizedBox(
-                            height: 50,
-                            child: ElevatedButton.icon(
-                              onPressed: _isSaving ? null : _saveProfile,
-                              icon: _isSaving
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : const Icon(Icons.save_rounded),
-                              label: Text(_isSaving ? 'Saving changes...' : 'Save Changes'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2E7D32),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          if (_hasChanges()) ...[
+                            SizedBox(
+                              height: 50,
+                              child: ElevatedButton.icon(
+                                onPressed: _isSaving ? null : _saveProfile,
+                                icon: _isSaving
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : const Icon(Icons.save_rounded),
+                                label: Text(_isSaving ? 'Saving changes...' : 'Save Changes'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2E7D32),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
                               ),
                             ),
-                          ),
-
-                          const SizedBox(height: 12),
+                            const SizedBox(height: 12),
+                          ],
 
                           // Logout Button
                           SizedBox(
