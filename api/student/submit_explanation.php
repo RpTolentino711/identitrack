@@ -92,8 +92,8 @@ if (isset($_FILES['explanation_pdf']) && $_FILES['explanation_pdf']['error'] ===
     }
 }
 
-if ($explanation === '' && !$imagePath && !$pdfPath) {
-    json_out(false, 'Please provide an explanation (text, image, or PDF).', null, 400);
+if ($explanation === '') {
+    json_out(false, 'Please enter your explanation text.', null, 400);
 }
 
 // Update the case with encryption

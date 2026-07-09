@@ -318,9 +318,9 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
 
   Future<void> _submitExplanation() async {
     final text = _explanationCtrl.text.trim();
-    if (text.isEmpty && _selectedExpFile == null) {
+    if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please provide an explanation or attach a file.')),
+        const SnackBar(content: Text('Please enter your explanation text.')),
       );
       return;
     }
