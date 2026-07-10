@@ -422,6 +422,17 @@ if (function_exists('db_one')) {
       </a>
     </li>
 
+    <li>
+      <a class="admin-sidebar-link <?php echo $activeSidebar === 'sanctions' ? 'active' : ''; ?>" href="sanctions.php">
+        <span class="admin-sidebar-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+        </span>
+        <span>Sanctions</span>
+      </a>
+    </li>
+
     <div class="sidebar-divider"></div>
 
     <li>
