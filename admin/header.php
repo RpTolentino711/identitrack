@@ -461,6 +461,185 @@ if (function_exists('db_one')) {
       width: calc(100vw - 32px);
     }
   }
+
+  /* ── COMMUNITY SERVICE COMPLETION MODAL ── */
+  .cs-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(8, 16, 48, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: csFadeIn 0.3s ease-out forwards;
+    pointer-events: auto;
+  }
+
+  .cs-modal-card {
+    background: #ffffff;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 20px 60px rgba(8, 16, 48, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    overflow: hidden;
+    position: relative;
+    animation: csSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes csFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes csSlideUp {
+    from { transform: translateY(30px) scale(0.95); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  .cs-modal-overlay.hide {
+    animation: csFadeOut 0.3s ease-in forwards;
+  }
+  .cs-modal-overlay.hide .cs-modal-card {
+    animation: csSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes csFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes csSlideDown {
+    from { transform: translateY(0) scale(1); opacity: 1; }
+    to { transform: translateY(30px) scale(0.95); opacity: 0; }
+  }
+
+  .cs-modal-header {
+    padding: 20px 24px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    background: #f8fafc;
+  }
+
+  .cs-modal-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cs-modal-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 6px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+
+  .cs-modal-close-btn:hover {
+    background: #e2e8f0;
+    color: #475569;
+  }
+
+  .cs-modal-close-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .cs-modal-body {
+    padding: 24px;
+    text-align: center;
+  }
+
+  .cs-modal-badge-container {
+    width: 72px;
+    height: 72px;
+    background: #ecfdf5;
+    color: #10b981;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+  }
+
+  .cs-modal-badge-container svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .cs-modal-student-name {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 4px 0;
+  }
+
+  .cs-modal-student-id {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    margin: 0 0 16px 0;
+  }
+
+  .cs-modal-details-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: left;
+    margin-bottom: 24px;
+  }
+
+  .cs-modal-detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+
+  .cs-modal-detail-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .cs-modal-detail-label {
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .cs-modal-detail-value {
+    color: #1e293b;
+    font-weight: 700;
+  }
+
+  .cs-modal-ack-btn {
+    width: 100%;
+    padding: 12px 24px;
+    background: #10b981;
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  }
+
+  .cs-modal-ack-btn:hover {
+    background: #059669;
+  }
 </style>
 
 <header class="admin-header">
@@ -659,6 +838,109 @@ if (function_exists('db_one')) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
+    function checkCompletedServices(completedServices) {
+      if (!completedServices || completedServices.length === 0) return;
+
+      let dismissed = [];
+      try {
+        dismissed = JSON.parse(localStorage.getItem('dismissed_completed_services') || '[]');
+      } catch (e) {
+        dismissed = [];
+      }
+
+      const activeItem = completedServices.find(item => !dismissed.includes(item.requirement_id));
+
+      if (!activeItem) {
+        const existingOverlay = document.getElementById('csModalOverlay');
+        if (existingOverlay) existingOverlay.remove();
+        return;
+      }
+
+      const existingOverlay = document.getElementById('csModalOverlay');
+      if (existingOverlay) {
+        const shownId = existingOverlay.getAttribute('data-requirement-id');
+        if (shownId === String(activeItem.requirement_id)) {
+          return;
+        } else {
+          existingOverlay.remove();
+        }
+      }
+
+      const overlay = document.createElement('div');
+      overlay.id = 'csModalOverlay';
+      overlay.className = 'cs-modal-overlay';
+      overlay.setAttribute('data-requirement-id', activeItem.requirement_id);
+
+      const studentName = esc(activeItem.student_fn + ' ' + activeItem.student_ln);
+      const studentId = esc(activeItem.student_id);
+      const taskName = esc(activeItem.task_name);
+      const hours = esc(activeItem.hours_required);
+      const dateStr = formatDate(activeItem.completed_at);
+
+      overlay.innerHTML = `
+        <div class="cs-modal-card">
+          <div class="cs-modal-header">
+            <h3 class="cs-modal-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M8 12.5l3 3 5-6"></path>
+              </svg>
+              Service Completed
+            </h3>
+            <button class="cs-modal-close-btn" id="csModalCloseBtn" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <div class="cs-modal-body">
+            <div class="cs-modal-badge-container">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+              </svg>
+            </div>
+            <h4 class="cs-modal-student-name">${studentName}</h4>
+            <p class="cs-modal-student-id">Student ID: ${studentId}</p>
+            
+            <div class="cs-modal-details-card">
+              <div class="cs-modal-detail-row">
+                <span class="cs-modal-detail-label">Task</span>
+                <span class="cs-modal-detail-value">${taskName}</span>
+              </div>
+              <div class="cs-modal-detail-row">
+                <span class="cs-modal-detail-label">Hours Required</span>
+                <span class="cs-modal-detail-value">${hours} hrs</span>
+              </div>
+              <div class="cs-modal-detail-row">
+                <span class="cs-modal-detail-label">Completed At</span>
+                <span class="cs-modal-detail-value">${dateStr}</span>
+              </div>
+            </div>
+            
+            <button class="cs-modal-ack-btn" id="csModalAckBtn">Acknowledge</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      const dismiss = () => {
+        dismissed.push(activeItem.requirement_id);
+        if (dismissed.length > 50) dismissed.shift();
+        localStorage.setItem('dismissed_completed_services', JSON.stringify(dismissed));
+        
+        overlay.classList.add('hide');
+        setTimeout(() => {
+          overlay.remove();
+          checkCompletedServices(completedServices);
+        }, 300);
+      };
+
+      document.getElementById('csModalCloseBtn').addEventListener('click', dismiss);
+      document.getElementById('csModalAckBtn').addEventListener('click', dismiss);
+    }
+
     let lastPendingGuardCount = 0;
 
     async function poll(){
@@ -720,6 +1002,9 @@ if (function_exists('db_one')) {
           badge.classList.remove('blink');
           if (bell) bell.classList.remove('has-unread', 'red');
         }
+
+        // Check for completed community service requirements
+        checkCompletedServices(json.completed_services || []);
       } catch(e){ }
     }
 

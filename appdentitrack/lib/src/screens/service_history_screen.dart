@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'services/community_service_api.dart';
 import 'dashboard_screen.dart';
@@ -544,7 +545,9 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
         title: const Text('Service History', style: TextStyle(fontWeight: FontWeight.w900)),
       ),
       body: SafeArea(
-        child: Container(
+        child: Stack(
+          children: [
+            Container(
           width: double.infinity,
           decoration: const BoxDecoration(
             color: Color(0xFFF5F6FB),
@@ -722,12 +725,173 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                       ],
                     ),
           ),
+          if (_data != null && _data!.requirements.any((r) => r.status.toUpperCase() == 'COMPLETED'))
+            const IgnorePointer(
+              child: ConfettiCelebration(isPlaying: true),
+            ),
+          ],
         ),
+      ),
       bottomNavigationBar: SharedBottomNav(
         currentIndex: 2,
         studentId: widget.studentId,
         studentName: widget.studentName,
       ),
+    );
+  }
+}
+
+// ── CUSTOM LIGHTWEIGHT CONFETTI CELEBRATION ──
+class ConfettiParticle {
+  late double x;
+  late double y;
+  late double vx;
+  late double vy;
+  late double size;
+  late Color color;
+  late double rotation;
+  late double rotationSpeed;
+
+  ConfettiParticle(double width, double height, math.Random random) {
+    x = random.nextDouble() * width;
+    y = -random.nextDouble() * 200 - 20;
+    vx = random.nextDouble() * 4 - 2;
+    vy = random.nextDouble() * 4 + 3;
+    size = random.nextDouble() * 8 + 6;
+    rotation = random.nextDouble() * 2 * math.pi;
+    rotationSpeed = random.nextDouble() * 0.08 - 0.04;
+    
+    const colors = [
+      Color(0xFFFFC107), // Yellow
+      Color(0xFFFF5722), // Orange/Red
+      Color(0xFF4CAF50), // Green
+      Color(0xFF2196F3), // Blue
+      Color(0xFFE91E63), // Pink
+      Color(0xFF9C27B0), // Purple
+    ];
+    color = colors[random.nextInt(colors.length)];
+  }
+
+  void update() {
+    x += vx;
+    y += vy;
+    rotation += rotationSpeed;
+  }
+}
+
+class ConfettiPainter extends CustomPainter {
+  final List<ConfettiParticle> particles;
+
+  ConfettiPainter({required this.particles});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (final p in particles) {
+      if (p.y > size.height) continue;
+      
+      paint.color = p.color;
+      canvas.save();
+      canvas.translate(p.x, p.y);
+      canvas.rotate(p.rotation);
+      
+      canvas.drawRect(
+        Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 0.6),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class ConfettiCelebration extends StatefulWidget {
+  final bool isPlaying;
+  const ConfettiCelebration({super.key, required this.isPlaying});
+
+  @override
+  State<ConfettiCelebration> createState() => _ConfettiCelebrationState();
+}
+
+class _ConfettiCelebrationState extends State<ConfettiCelebration>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<ConfettiParticle> _particles = [];
+  final _random = math.Random();
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    );
+    
+    if (widget.isPlaying) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ConfettiCelebration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (!widget.isPlaying && _controller.isAnimating) {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _initParticles(double width, double height) {
+    if (_initialized) return;
+    _initialized = true;
+    for (int i = 0; i < 80; i++) {
+      _particles.add(ConfettiParticle(width, height, _random));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isPlaying) return const SizedBox.shrink();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        
+        if (width > 0 && height > 0) {
+          _initParticles(width, height);
+        }
+
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            for (final p in _particles) {
+              p.update();
+              if (p.y > height) {
+                p.y = -_random.nextDouble() * 100 - 10;
+                p.x = _random.nextDouble() * width;
+                p.vy = _random.nextDouble() * 4 + 3;
+              }
+            }
+
+            return CustomPaint(
+              size: Size(width, height),
+              painter: ConfettiPainter(particles: _particles),
+            );
+          },
+        );
+      },
     );
   }
 }

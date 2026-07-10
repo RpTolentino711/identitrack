@@ -61,10 +61,31 @@ $lastId = (int)($_GET['last_id'] ?? 0);
   $newNotifications = $latest ? [$latest] : [];
 }
 
+$decrypted_student = db_decrypt_cols(['student_fn', 'student_ln']);
+$pollParams = [];
+db_add_encryption_key($pollParams);
+
+$completedServices = db_all(
+  "SELECT 
+      csr.requirement_id,
+      csr.student_id,
+      csr.task_name,
+      csr.hours_required,
+      csr.completed_at,
+      $decrypted_student
+   FROM community_service_requirement csr
+   JOIN student s ON s.student_id = csr.student_id
+   WHERE csr.status = 'COMPLETED'
+     AND csr.completed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+   ORDER BY csr.completed_at DESC",
+  $pollParams
+);
+
 echo json_encode([
   'ok' => true,
   'unread' => $totalUnread,
   'pending_guard_count' => $pendingGuardCount,
   'new_notifications' => $newNotifications,
+  'completed_services' => $completedServices,
 ]);
 exit;
