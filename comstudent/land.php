@@ -488,7 +488,7 @@ if ($_POST) {
 
           <div id="scan_box" class="field">
             <label for="scan_id"><?= $isTimingOut ? 'Please tap your ID card again to request to logout' : 'Please tap your ID card again to request to login' ?></label>
-            <input type="text" id="scan_id" name="scan_id" placeholder="<?= $isTimingOut ? 'Please tap again to request to logout...' : 'Please tap again to request to login...' ?>" autofocus autocomplete="off">
+            <input type="password" id="scan_id" name="scan_id" placeholder="<?= $isTimingOut ? 'Please tap again to request to logout...' : 'Please tap again to request to login...' ?>" autofocus autocomplete="new-password">
           </div>
 
           <div id="manual_box" class="manual-box field">
@@ -533,6 +533,38 @@ if ($_POST) {
           const methodSelect = document.getElementById('login_method');
           if (methodSelect) {
             toggleMethod(methodSelect.value);
+          }
+
+          // Dynamic RFID scanner detection on Step 1 input to mask RFID value from being shown
+          const studentIdInput = document.getElementById('student_id');
+          if (studentIdInput) {
+            let keystrokes = [];
+            let isScanner = false;
+            
+            studentIdInput.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === 'Process' || e.key === 'Unidentified') return;
+              
+              const now = performance.now();
+              keystrokes.push(now);
+              
+              if (keystrokes.length >= 3) {
+                const intervals = [];
+                for (let i = 1; i < keystrokes.length; i++) {
+                  intervals.push(keystrokes[i] - keystrokes[i - 1]);
+                }
+                const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                if (avg < 45) {
+                  isScanner = true;
+                }
+              }
+            });
+            
+            studentIdInput.addEventListener('input', () => {
+              if (isScanner) {
+                studentIdInput.type = 'password';
+                studentIdInput.setAttribute('autocomplete', 'new-password');
+              }
+            });
           }
         });
 

@@ -143,8 +143,17 @@ $done = db_one(
 
 $communityHours = max(0, (float)($csr['hours_required'] ?? 0) - (float)($done['hours_done'] ?? 0));
 
-// Fallback to Category 2 case service hours if no requirement exists in database yet
-if ($communityHours <= 0) {
+// Check if any requirements exist for this student (active or completed)
+$reqExistsRow = db_one(
+  "SELECT COUNT(*) AS cnt 
+   FROM community_service_requirement 
+   WHERE student_id = :sid",
+  [':sid' => $studentId]
+);
+$reqExists = (int)($reqExistsRow['cnt'] ?? 0) > 0;
+
+// Fallback to Category 2 case service hours only if no requirement exists in database yet
+if (!$reqExists) {
   $c2_case = db_one(
     "SELECT punishment_details FROM upcc_case
      WHERE student_id = :sid AND decided_category = 2 AND status = 'RESOLVED'

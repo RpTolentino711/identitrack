@@ -1738,9 +1738,10 @@ foreach ($cases as $c) {
 
         if (ev.key === 'Enter') {
           if (scanBuffer.trim().length >= 6) {
-            rfidInput.value = scanBuffer.trim();
+            const scanVal = scanBuffer.trim();
+            rfidInput.value = 'Scanning...';
             scanBuffer = '';
-            performRFIDSearch();
+            performRFIDSearch(scanVal);
             ev.preventDefault();
           } else if (tgt === rfidInput && rfidInput.value.trim().length > 0) {
             performRFIDSearch();
@@ -1762,12 +1763,12 @@ foreach ($cases as $c) {
       });
     })();
 
-    function performRFIDSearch() {
-      const inputVal = document.getElementById('rfidSearchInput').value.trim();
+    function performRFIDSearch(overrideVal) {
+      let inputVal = (overrideVal !== undefined) ? overrideVal.trim() : document.getElementById('rfidSearchInput').value.trim();
       const resultContainer = document.getElementById('rfidSearchResult');
       const resetBtn = document.getElementById('btnResetRFIDSearch');
 
-      if (!inputVal) {
+      if (!inputVal || inputVal === 'Scanning...') {
         alert('Please enter or scan a Student ID / RFID card.');
         return;
       }
@@ -1786,6 +1787,10 @@ foreach ($cases as $c) {
         .then(res => res.json())
         .then(data => {
           if (!data.ok) {
+            const inputEl = document.getElementById('rfidSearchInput');
+            if (overrideVal !== undefined || /^\d{6,}$/.test(inputEl.value.trim())) {
+              inputEl.value = '';
+            }
             resultContainer.innerHTML = `
               <div style="padding:24px;text-align:center;background:#fff5f5;border:1px solid #fee2e2;border-radius:14px;color:#c53030;font-weight:600;font-size:14px;">
                 ${data.message || 'No matching student record found.'}
@@ -1796,6 +1801,10 @@ foreach ($cases as $c) {
 
           // Build student profile section
           const student = data.student;
+          
+          // Show student ID in input field instead of raw/scanned RFID value
+          document.getElementById('rfidSearchInput').value = student.student_id;
+
           const statusBadge = student.is_active 
             ? '<span class="status-badge completed">Account Active</span>' 
             : '<span class="status-badge frozen">Account Frozen</span>';
