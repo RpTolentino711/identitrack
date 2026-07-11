@@ -343,9 +343,11 @@ if ($postStudentId !== '') {
   }
   
   $liveOffenses = db_all(
-    "SELECT o.offense_id, o.date_committed, o.level, ot.code, ot.name
+    "SELECT o.offense_id, o.date_committed, o.level, ot.code, ot.name, uc.decided_category
      FROM offense o
      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+     LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+     LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id AND uc.status <> 'VOID'
      WHERE o.student_id = :sid
      ORDER BY o.date_committed DESC",
     [':sid' => $postStudentId]
@@ -613,7 +615,13 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       if ($isSection4Label) {
           $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">SECTION 4</div><br>';
       } else if ($o['level'] === 'MAJOR') {
-          $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">MAJOR</div><br>';
+          $cat = isset($o['decided_category']) ? (int)$o['decided_category'] : 0;
+          $catLabel = '';
+          if ($cat >= 1 && $cat <= 5) {
+              $categoryNames = [1 => 'Probation', 2 => 'Formative Intervention', 3 => 'Non-Readmission', 4 => 'Exclusion', 5 => 'Expulsion'];
+              $catLabel = ' - CATEGORY ' . $cat . ' (' . strtoupper($categoryNames[$cat]) . ')';
+          }
+          $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">MAJOR' . $catLabel . '</div><br>';
       }
 
       $historyHtml .= '
@@ -717,7 +725,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           $lvlColor = $off['level'] === 'MAJOR' ? 'color:var(--red);' : 'color:var(--amber);';
           $offensesHtml .= '<div style="font-size:12px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #e2e8f0;">';
           $offensesHtml .= '<div style="display:flex; justify-content:space-between; margin-bottom:4px;">';
-          $offensesHtml .= '<strong style="' . $lvlColor . '">' . htmlspecialchars($off['level']) . ' - ' . htmlspecialchars($off['code']) . '</strong>';
+          $catLabel = '';
+          if ($off['level'] === 'MAJOR') {
+              $cat = isset($off['decided_category']) ? (int)$off['decided_category'] : 0;
+              if ($cat >= 1 && $cat <= 5) {
+                  $categoryNames = [1 => 'Probation', 2 => 'Formative Intervention', 3 => 'Non-Readmission', 4 => 'Exclusion', 5 => 'Expulsion'];
+                  $catLabel = ' (Category ' . $cat . ' - ' . $categoryNames[$cat] . ')';
+              }
+          }
+          $offensesHtml .= '<strong style="' . $lvlColor . '">' . htmlspecialchars($off['level']) . $catLabel . ' - ' . htmlspecialchars($off['code']) . '</strong>';
           $offensesHtml .= '<span style="color:#94a3b8; font-size:11px;">' . $dt . '</span>';
           $offensesHtml .= '</div>';
           $offensesHtml .= '<div style="color:#64748b; line-height:1.4;">' . htmlspecialchars($off['name']) . '</div>';
