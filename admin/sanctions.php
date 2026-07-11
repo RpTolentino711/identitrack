@@ -806,7 +806,9 @@ foreach ($cases as $c) {
                       $student_name = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
                       if ($student_name === '') $student_name = $c['student_id'];
                       
-                      $is_ongoing = empty($c['probation_until']) || (strtotime($c['probation_until']) > time());
+                      $p_details = json_decode($c['punishment_details'] ?? '', true) ?: [];
+                      $is_completed = !empty($p_details['completed']);
+                      $is_ongoing = !$is_completed && (empty($c['probation_until']) || (strtotime($c['probation_until']) > time()));
                     ?>
                     <div class="sanction-card cat-1">
                       <div class="sanction-card-left">
@@ -855,7 +857,8 @@ foreach ($cases as $c) {
                           'student_name' => $student_name,
                           'category' => 1,
                           'probation_until' => !empty($c['probation_until']) ? date('Y-m-d', strtotime($c['probation_until'])) : '',
-                          'hours' => 0
+                          'hours' => 0,
+                          'completed' => $is_completed
                         ])); ?>)">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -888,7 +891,9 @@ foreach ($cases as $c) {
                       $student_name = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
                       if ($student_name === '') $student_name = $c['student_id'];
                       
-                      $is_ongoing = $c['req_status'] !== 'COMPLETED';
+                      $p_details = json_decode($c['punishment_details'] ?? '', true) ?: [];
+                      $is_completed = !empty($p_details['completed']) || ($c['req_status'] === 'COMPLETED');
+                      $is_ongoing = !$is_completed;
                       $hours_comp = (float)$c['hours_completed'];
                       $hours_req = (float)$c['hours_required'];
                       $hours_rem = max(0.0, $hours_req - $hours_comp);
@@ -944,7 +949,8 @@ foreach ($cases as $c) {
                           'student_name' => $student_name,
                           'category' => 2,
                           'probation_until' => '',
-                          'hours' => $hours_req
+                          'hours' => $hours_req,
+                          'completed' => $is_completed
                         ])); ?>)">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -976,6 +982,9 @@ foreach ($cases as $c) {
                     <?php 
                       $student_name = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
                       if ($student_name === '') $student_name = $c['student_id'];
+                      
+                      $p_details = json_decode($c['punishment_details'] ?? '', true) ?: [];
+                      $is_completed = !empty($p_details['completed']);
                     ?>
                     <div class="sanction-card cat-3">
                       <div class="sanction-card-left">
@@ -997,7 +1006,11 @@ foreach ($cases as $c) {
 
                       <div class="sanction-card-middle">
                         <div class="status-badge-container">
-                          <span class="status-badge frozen">Active Warning</span>
+                          <?php if ($is_completed): ?>
+                            <span class="status-badge completed">Resolved Warning</span>
+                          <?php else: ?>
+                            <span class="status-badge frozen">Active Warning</span>
+                          <?php endif; ?>
                         </div>
                         <div class="details-grid">
                           <div class="detail-item" style="grid-column: span 2;">
@@ -1014,7 +1027,8 @@ foreach ($cases as $c) {
                           'student_name' => $student_name,
                           'category' => 3,
                           'probation_until' => '',
-                          'hours' => 0
+                          'hours' => 0,
+                          'completed' => $is_completed
                         ])); ?>)">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -1048,6 +1062,9 @@ foreach ($cases as $c) {
                       if ($student_name === '') $student_name = $c['student_id'];
                       $is_expulsion = ((int)$c['decided_category'] === 5);
                       $is_active = (bool)$c['student_active'];
+                      
+                      $p_details = json_decode($c['punishment_details'] ?? '', true) ?: [];
+                      $is_completed = !empty($p_details['completed']);
                     ?>
                     <div class="sanction-card cat-4">
                       <div class="sanction-card-left">
@@ -1069,10 +1086,14 @@ foreach ($cases as $c) {
 
                       <div class="sanction-card-middle">
                         <div class="status-badge-container">
-                          <?php if ($is_expulsion): ?>
-                            <span class="status-badge frozen">Expulsion (Category 5)</span>
+                          <?php if ($is_completed): ?>
+                            <span class="status-badge completed">Resolved / Un-expelled</span>
                           <?php else: ?>
-                            <span class="status-badge frozen">Exclusion (Category 4)</span>
+                            <?php if ($is_expulsion): ?>
+                              <span class="status-badge frozen">Expulsion (Category 5)</span>
+                            <?php else: ?>
+                              <span class="status-badge frozen">Exclusion (Category 4)</span>
+                            <?php endif; ?>
                           <?php endif; ?>
                           
                           <?php if (!$is_active): ?>
@@ -1098,7 +1119,8 @@ foreach ($cases as $c) {
                           'student_name' => $student_name,
                           'category' => (int)$c['decided_category'],
                           'probation_until' => '',
-                          'hours' => 0
+                          'hours' => 0,
+                          'completed' => $is_completed
                         ])); ?>)">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -1167,6 +1189,17 @@ foreach ($cases as $c) {
                   <label for="editMinutes" style="font-size: 11px; color: #64748b; margin-bottom: 4px; display: block;">Minutes</label>
                   <input type="number" min="0" max="59" id="editMinutes" placeholder="e.g. 0" style="width: 100%;" />
                 </div>
+              </div>
+            </div>
+
+            <!-- Complete/Resolve Sanction Checkbox -->
+            <div class="form-group" id="groupComplete" style="margin-top: 24px; margin-bottom: 24px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px;">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; color: #0f172a; margin-bottom: 0;">
+                <input type="checkbox" id="editComplete" style="width: auto; margin: 0; transform: scale(1.15);" onchange="toggleCompleteChecked()" />
+                <span id="completeLabel">Mark Sanction as Completed</span>
+              </label>
+              <div id="completeHelp" style="font-size: 12px; color: #64748b; margin-top: 6px; line-height: 1.4; padding-left: 26px;">
+                This will resolve the student's sanction and restore full access.
               </div>
             </div>
 
@@ -1255,6 +1288,8 @@ foreach ($cases as $c) {
       document.getElementById('editHours').value = hrs || '';
       document.getElementById('editMinutes').value = mins || '';
 
+      document.getElementById('editComplete').checked = !!data.completed;
+
       toggleCategoryFields();
 
       // Reset steps
@@ -1274,29 +1309,74 @@ foreach ($cases as $c) {
       }
     }
 
+    function toggleCompleteChecked() {
+      const isChecked = document.getElementById('editComplete').checked;
+      const editProbationUntil = document.getElementById('editProbationUntil');
+      const editHours = document.getElementById('editHours');
+      const editMinutes = document.getElementById('editMinutes');
+      
+      if (isChecked) {
+        editProbationUntil.disabled = true;
+        editProbationUntil.style.opacity = '0.5';
+        editHours.disabled = true;
+        editHours.style.opacity = '0.5';
+        editMinutes.disabled = true;
+        editMinutes.style.opacity = '0.5';
+      } else {
+        editProbationUntil.disabled = false;
+        editProbationUntil.style.opacity = '1';
+        editHours.disabled = false;
+        editHours.style.opacity = '1';
+        editMinutes.disabled = false;
+        editMinutes.style.opacity = '1';
+      }
+    }
+
     function toggleCategoryFields() {
       const cat = parseInt(document.getElementById('editCategory').value);
       const groupProbation = document.getElementById('groupProbation');
       const groupHours = document.getElementById('groupHours');
+      const completeLabel = document.getElementById('completeLabel');
+      const completeHelp = document.getElementById('completeHelp');
 
       groupProbation.style.display = (cat === 1) ? 'block' : 'none';
       groupHours.style.display = (cat === 2) ? 'block' : 'none';
+
+      if (cat === 1) {
+        completeLabel.textContent = "Mark Probation as Completed";
+        completeHelp.textContent = "This will end the suspension/probation period immediately and restore full access.";
+      } else if (cat === 2) {
+        completeLabel.textContent = "Mark Service as Completed";
+        completeHelp.textContent = "This will mark the community service requirement as completed, closing the active service.";
+      } else if (cat === 3) {
+        completeLabel.textContent = "Clear Readmission Warning";
+        completeHelp.textContent = "This will resolve the warning and allow the student to register/readmit normally next semester.";
+      } else if (cat === 4 || cat === 5) {
+        completeLabel.textContent = "Un-expel Student (Reactivate Account)";
+        completeHelp.textContent = "This will un-freeze the student's account, allowing them to log in and use the app normally.";
+      }
+
+      toggleCompleteChecked();
     }
 
     function goToVerification() {
       const cat = parseInt(document.getElementById('editCategory').value);
-      if (cat === 1) {
-        const prob = document.getElementById('editProbationUntil').value;
-        if (!prob) {
-          alert('Please select a probation end date.');
-          return;
-        }
-      } else if (cat === 2) {
-        const hours = parseFloat(document.getElementById('editHours').value) || 0;
-        const minutes = parseFloat(document.getElementById('editMinutes').value) || 0;
-        if (hours <= 0 && minutes <= 0) {
-          alert('Please enter a valid number of service hours and/or minutes.');
-          return;
+      const isCompleted = document.getElementById('editComplete').checked;
+
+      if (!isCompleted) {
+        if (cat === 1) {
+          const prob = document.getElementById('editProbationUntil').value;
+          if (!prob) {
+            alert('Please select a probation end date.');
+            return;
+          }
+        } else if (cat === 2) {
+          const hours = parseFloat(document.getElementById('editHours').value) || 0;
+          const minutes = parseFloat(document.getElementById('editMinutes').value) || 0;
+          if (hours <= 0 && minutes <= 0) {
+            alert('Please enter a valid number of service hours and/or minutes.');
+            return;
+          }
         }
       }
 
@@ -1376,6 +1456,8 @@ foreach ($cases as $c) {
       const minutesVal = parseFloat(document.getElementById('editMinutes').value) || 0;
       const combinedHours = hoursVal + (minutesVal / 60.0);
       
+      const completedVal = document.getElementById('editComplete').checked ? 1 : 0;
+      
       const password = document.getElementById('verifyPassword').value;
       const otp = document.getElementById('verifyOTP').value;
 
@@ -1385,6 +1467,7 @@ foreach ($cases as $c) {
       params.append('category', category);
       params.append('probation_until', probation_until);
       params.append('hours', combinedHours);
+      params.append('completed', completedVal);
       params.append('password', password);
       params.append('otp', otp);
 

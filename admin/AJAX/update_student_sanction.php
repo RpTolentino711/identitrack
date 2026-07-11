@@ -20,6 +20,7 @@ $password = (string)($_POST['password'] ?? '');
 $otp = trim((string)($_POST['otp'] ?? ''));
 $hours = (float)($_POST['hours'] ?? 0);
 $probation_until = trim((string)($_POST['probation_until'] ?? ''));
+$completed = (int)($_POST['completed'] ?? 0);
 
 if ($caseId <= 0 || $studentId === '' || $category < 1 || $category > 5) {
   echo json_encode(['success' => false, 'message' => 'Invalid parameters.']);
@@ -91,16 +92,29 @@ try {
 
   if ($category === 1) {
     $probationUntil = !empty($probation_until) ? date('Y-m-d 23:59:59', strtotime($probation_until)) : date('Y-m-d 23:59:59', strtotime('+1 semester'));
-    $punishDetails = json_encode(['semester' => 'Active Probation']);
+    if ($completed === 1) {
+      $probationUntil = date('Y-m-d H:i:s', time() - 10);
+    }
+    $punishDetails = json_encode([
+      'semester' => 'Active Probation',
+      'completed' => ($completed === 1)
+    ]);
   } elseif ($category === 2) {
     $punishDetails = json_encode([
       'service_hours' => $hours,
-      'interventions' => ['University Service']
+      'interventions' => ['University Service'],
+      'completed' => ($completed === 1)
     ]);
   } elseif ($category === 3) {
-    $punishDetails = json_encode(['notes' => 'Non-Readmission next semester']);
+    $punishDetails = json_encode([
+      'notes' => 'Non-Readmission next semester',
+      'completed' => ($completed === 1)
+    ]);
   } elseif ($category === 4 || $category === 5) {
-    $punishDetails = json_encode(['notes' => 'Frozen/Expelled']);
+    $punishDetails = json_encode([
+      'notes' => 'Frozen/Expelled',
+      'completed' => ($completed === 1)
+    ]);
   }
 
   // Update upcc_case
@@ -126,23 +140,28 @@ try {
       db_exec(
         "UPDATE community_service_requirement 
          SET hours_required = :hours, 
-             status = 'ACTIVE', 
+             status = :status, 
+             completed_at = :completed_at,
              updated_at = NOW() 
          WHERE related_case_id = :cid",
         [
           ':hours' => $hours,
+          ':status' => ($completed === 1) ? 'COMPLETED' : 'ACTIVE',
+          ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null,
           ':cid' => $caseId
         ]
       );
     } else {
       db_exec(
-        "INSERT INTO community_service_requirement (student_id, assigned_by, related_case_id, task_name, location, hours_required, status, assigned_at, created_at)
-         VALUES (:sid, :admin_id, :cid, 'University Service', 'SDO Office', :hours, 'ACTIVE', NOW(), NOW())",
+        "INSERT INTO community_service_requirement (student_id, assigned_by, related_case_id, task_name, location, hours_required, status, assigned_at, completed_at, created_at)
+         VALUES (:sid, :admin_id, :cid, 'University Service', 'SDO Office', :hours, :status, NOW(), :completed_at, NOW())",
         [
           ':sid' => $studentId,
           ':admin_id' => $adminId,
           ':cid' => $caseId,
-          ':hours' => $hours
+          ':hours' => $hours,
+          ':status' => ($completed === 1) ? 'COMPLETED' : 'ACTIVE',
+          ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null
         ]
       );
     }
@@ -157,7 +176,7 @@ try {
   }
 
   // Manage Student Account Status
-  if ($category === 4 || $category === 5) {
+  if (($category === 4 || $category === 5) && $completed !== 1) {
     db_exec("UPDATE student SET is_active = 0, updated_at = NOW() WHERE student_id = :sid", [':sid' => $studentId]);
   } else {
     db_exec("UPDATE student SET is_active = 1, updated_at = NOW() WHERE student_id = :sid", [':sid' => $studentId]);

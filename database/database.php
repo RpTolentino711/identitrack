@@ -1237,6 +1237,13 @@ function student_account_mode(string $studentId): array
     $details = [];
   }
 
+  if (!empty($details['completed'])) {
+    return [
+      'mode' => 'FULL_ACCESS',
+      'message' => 'Sanction has been completed. Access restored.'
+    ];
+  }
+
   // For Category 2: if student already has ACTIVE/COMPLETED community service,
   // they accepted the decision — skip the grace period banner.
   $hasAcceptedViaService = false;
