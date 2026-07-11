@@ -720,9 +720,198 @@ foreach ($cases as $c) {
         padding: 10px 16px;
       }
     }
+
+    /* RFID Search / Finder Box Styling */
+    .scanner-search-box {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+      border: 1px solid #e2e8f0;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .scanner-search-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .scanner-search-title svg {
+      width: 20px;
+      height: 20px;
+      stroke: #3b4aa6;
+    }
+
+    .scanner-search-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .scanner-search-row input {
+      width: 100%;
+      height: 48px;
+      padding: 0 16px 0 44px;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+      font-family: inherit;
+      font-size: 14px;
+      color: #0f172a;
+      background: #f8fafc;
+      transition: all 0.2s ease;
+    }
+
+    .scanner-search-row input:focus {
+      outline: none;
+      border-color: #3b4aa6;
+      background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(59, 74, 166, 0.1);
+    }
+
+    .scanner-icon-indicator {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scanner-icon-indicator svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .btn-search {
+      height: 48px;
+      padding: 0 24px;
+      border-radius: 12px;
+      background: #3b4aa6;
+      color: #ffffff;
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(59, 74, 166, 0.15);
+    }
+
+    .btn-search:hover {
+      background: #2f3c8a;
+      box-shadow: 0 4px 16px rgba(59, 74, 166, 0.25);
+    }
+
+    .btn-clear-search {
+      height: 48px;
+      padding: 0 16px;
+      border-radius: 12px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .btn-clear-search:hover {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+
+    .rfid-search-result-container {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .rfid-student-profile {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 16px 20px;
+      border-radius: 14px;
+      margin-bottom: 20px;
+    }
+
+    .rfid-student-profile-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .rfid-student-profile-left .avatar {
+      width: 44px;
+      height: 44px;
+      background: #eff6ff;
+      color: #2563eb;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .rfid-student-profile-left .avatar svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .rfid-student-details h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .rfid-student-badges {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+
+    .rfid-results-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+      margin: 0 0 12px;
+    }
+
+    .rfid-no-sanctions {
+      padding: 24px;
+      text-align: center;
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 14px;
+      color: #64748b;
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
+  <script>window.__identitrackDisableGlobalScanner = true;</script>
   <?php require_once __DIR__ . '/header.php'; ?>
 
   <div class="admin-shell">
@@ -767,6 +956,38 @@ foreach ($cases as $c) {
 
         <?php else: ?>
           <!-- Verified Panel Content -->
+
+          <!-- RFID & ID Scan Finder -->
+          <div class="scanner-search-box">
+            <div class="scanner-search-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                <path d="M12 8v8"></path>
+                <path d="M8 12h8"></path>
+              </svg>
+              <span>RFID & Student ID Sanction Finder</span>
+            </div>
+            <div class="scanner-search-row">
+              <div style="position: relative; flex: 1;">
+                <input type="text" id="rfidSearchInput" placeholder="Tap RFID card or type Student ID..." autocomplete="off" />
+                <span class="scanner-icon-indicator">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="22" y1="12" x2="18" y2="12"></line>
+                    <line x1="6" y1="12" x2="2" y2="12"></line>
+                    <line x1="12" y1="6" x2="12" y2="2"></line>
+                    <line x1="12" y1="22" x2="12" y2="18"></line>
+                  </svg>
+                </span>
+              </div>
+              <button type="button" class="btn-search" onclick="performRFIDSearch()">Search</button>
+              <button type="button" class="btn-clear-search" id="btnResetRFIDSearch" style="display: none;" onclick="resetRFIDSearch()">Clear</button>
+            </div>
+            <div id="rfidSearchResult" class="rfid-search-result-container" style="display: none;">
+              <!-- Result content populated dynamically -->
+            </div>
+          </div>
+
           <!-- Tabs -->
           <div class="tabs-container">
             <a href="?tab=cat1" class="tab-pill <?php echo $tab === 'cat1' ? 'active' : ''; ?>">
@@ -1492,6 +1713,262 @@ foreach ($cases as $c) {
         errBanner.style.display = 'block';
       });
     });
+
+    // ── Local Scanner Capture ──────────────────────────────────────────
+    (function() {
+      let scanBuffer = '';
+      let scanTimer = null;
+
+      document.addEventListener('keydown', function(ev) {
+        // If not verified or if typing in another input field, skip capturing
+        const rfidInput = document.getElementById('rfidSearchInput');
+        if (!rfidInput) return;
+
+        const tgt = ev.target;
+        const isTypingTarget = tgt && (
+          tgt.tagName === 'INPUT' ||
+          tgt.tagName === 'TEXTAREA' ||
+          tgt.tagName === 'SELECT' ||
+          tgt.isContentEditable
+        );
+
+        // If the user is typing in another input field, do not capture keys.
+        // But if they are typing/focusing in the rfidSearchInput itself, let them type normally.
+        if (isTypingTarget && tgt !== rfidInput) return;
+
+        if (ev.key === 'Enter') {
+          if (scanBuffer.trim().length >= 6) {
+            rfidInput.value = scanBuffer.trim();
+            scanBuffer = '';
+            performRFIDSearch();
+            ev.preventDefault();
+          } else if (tgt === rfidInput && rfidInput.value.trim().length > 0) {
+            performRFIDSearch();
+            ev.preventDefault();
+          }
+          return;
+        }
+
+        // Buffer standard character keys
+        if (ev.key.length === 1 && !ev.ctrlKey && !ev.altKey && !ev.metaKey) {
+          if (tgt !== rfidInput) {
+            scanBuffer += ev.key;
+            if (scanTimer) clearTimeout(scanTimer);
+            scanTimer = setTimeout(() => {
+              scanBuffer = '';
+            }, 200);
+          }
+        }
+      });
+    })();
+
+    function performRFIDSearch() {
+      const inputVal = document.getElementById('rfidSearchInput').value.trim();
+      const resultContainer = document.getElementById('rfidSearchResult');
+      const resetBtn = document.getElementById('btnResetRFIDSearch');
+
+      if (!inputVal) {
+        alert('Please enter or scan a Student ID / RFID card.');
+        return;
+      }
+
+      // Show searching state
+      resultContainer.style.display = 'block';
+      resultContainer.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:32px;color:#64748b;">
+          <div style="width:24px;height:24px;border:3px solid #cbd5e1;border-top-color:#3b4aa6;border-radius:50%;animation:globalScanSpin .8s linear infinite;"></div>
+          <span style="font-weight:600;font-size:14px;">Searching student database...</span>
+        </div>
+      `;
+      resetBtn.style.display = 'inline-flex';
+
+      fetch('AJAX/student_sanctions_lookup.php?scan=' + encodeURIComponent(inputVal))
+        .then(res => res.json())
+        .then(data => {
+          if (!data.ok) {
+            resultContainer.innerHTML = `
+              <div style="padding:24px;text-align:center;background:#fff5f5;border:1px solid #fee2e2;border-radius:14px;color:#c53030;font-weight:600;font-size:14px;">
+                ${data.message || 'No matching student record found.'}
+              </div>
+            `;
+            return;
+          }
+
+          // Build student profile section
+          const student = data.student;
+          const statusBadge = student.is_active 
+            ? '<span class="status-badge completed">Account Active</span>' 
+            : '<span class="status-badge frozen">Account Frozen</span>';
+
+          let html = `
+            <div class="rfid-student-profile">
+              <div class="rfid-student-profile-left">
+                <div class="avatar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                </div>
+                <div class="rfid-student-details">
+                  <h3>${escapeHTML(student.student_name)}</h3>
+                  <div class="rfid-student-badges">
+                    <span class="meta-pill id-pill">ID: ${escapeHTML(student.student_id)}</span>
+                    <span class="meta-pill">${escapeHTML(student.program)} • Sec. ${escapeHTML(student.section)}</span>
+                    <span class="meta-pill">${escapeHTML(student.year_level)} Year</span>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;">
+                ${statusBadge}
+              </div>
+            </div>
+            <h4 class="rfid-results-title">Student Sanctions History</h4>
+          `;
+
+          if (data.sanctions.length === 0) {
+            html += `<div class="rfid-no-sanctions">No active or resolved sanctions found for this student.</div>`;
+          } else {
+            html += `<div class="sanctions-list">`;
+            data.sanctions.forEach(s => {
+              let categoryLabel = '';
+              let categoryClass = '';
+              let badgeHTML = '';
+              let detailsHTML = '';
+
+              if (s.category === 1) {
+                categoryLabel = 'Category 1 (Suspension / Probation)';
+                categoryClass = 'cat-1';
+                badgeHTML = s.completed 
+                  ? '<span class="status-badge completed">Completed</span>' 
+                  : (s.is_ongoing ? '<span class="status-badge ongoing">Active Probation</span>' : '<span class="status-badge completed">Expired</span>');
+                detailsHTML = `
+                  <div class="detail-item" style="grid-column: span 2;">
+                    <div class="detail-label">Probation Period</div>
+                    <div class="detail-value">Until ${s.probation_until || 'End of Semester'}</div>
+                  </div>
+                `;
+              } else if (s.category === 2) {
+                categoryLabel = 'Category 2 (Community Service)';
+                categoryClass = 'cat-2';
+                badgeHTML = s.completed 
+                  ? '<span class="status-badge completed">Completed</span>' 
+                  : '<span class="status-badge ongoing">Active Service</span>';
+                
+                const hrsRem = Math.max(0, s.hours_required - s.hours_completed);
+                detailsHTML = `
+                  <div class="detail-item">
+                    <div class="detail-label">Service Hours</div>
+                    <div class="detail-value">${s.hours_completed.toFixed(1)} / ${s.hours_required.toFixed(1)} hrs</div>
+                  </div>
+                  <div class="detail-item">
+                    <div class="detail-label">Remaining Time</div>
+                    <div class="detail-value">${hrsRem.toFixed(1)} hrs</div>
+                  </div>
+                `;
+              } else if (s.category === 3) {
+                categoryLabel = 'Category 3 (Readmission Warning)';
+                categoryClass = 'cat-3';
+                badgeHTML = s.completed 
+                  ? '<span class="status-badge completed">Resolved Warning</span>' 
+                  : '<span class="status-badge frozen">Active Warning</span>';
+                detailsHTML = `
+                  <div class="detail-item" style="grid-column: span 2;">
+                    <div class="detail-label">Warning Status</div>
+                    <div class="detail-value">${s.completed ? 'Resolved warning. Registration allowed.' : 'Active warning. Non-Readmission next semester.'}</div>
+                  </div>
+                `;
+              } else if (s.category === 4 || s.category === 5) {
+                const labelText = s.category === 5 ? 'Category 5 (Expulsion)' : 'Category 4 (Exclusion)';
+                categoryLabel = labelText;
+                categoryClass = 'cat-4';
+                badgeHTML = s.completed 
+                  ? '<span class="status-badge completed">Resolved / Reactivated</span>' 
+                  : '<span class="status-badge frozen">Active Lockout</span>';
+                detailsHTML = `
+                  <div class="detail-item" style="grid-column: span 2;">
+                    <div class="detail-label">Lockout Status</div>
+                    <div class="detail-value">${s.completed ? 'Sanction resolved. Account reactivated.' : 'Account frozen. Student locked out.'}</div>
+                  </div>
+                `;
+              }
+
+              // Prep the JSON data payload for openEditModal
+              const modalData = {
+                case_id: s.case_id,
+                student_id: student.student_id,
+                student_name: student.student_name,
+                category: s.category,
+                probation_until: s.probation_until,
+                hours: s.hours_required,
+                completed: s.completed
+              };
+
+              html += `
+                <div class="sanction-card ${categoryClass}">
+                  <div class="sanction-card-left">
+                    <div class="sanction-avatar-wrap">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                      </svg>
+                    </div>
+                    <div class="student-info-section">
+                      <h3 class="student-name">${categoryLabel}</h3>
+                      <div class="student-badges">
+                        <span class="meta-pill">Case ID: #${s.case_id}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="sanction-card-middle">
+                    <div class="status-badge-container">
+                      ${badgeHTML}
+                    </div>
+                    <div class="details-grid">
+                      ${detailsHTML}
+                    </div>
+                  </div>
+                  <div class="sanction-card-right">
+                    <button class="btn-edit" onclick='openEditModal(${JSON.stringify(modalData).replace(/'/g, "&apos;")})'>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                      Edit Sanction
+                    </button>
+                  </div>
+                </div>
+              `;
+            });
+            html += `</div>`;
+          }
+
+          resultContainer.innerHTML = html;
+        })
+        .catch(err => {
+          console.error(err);
+          resultContainer.innerHTML = `
+            <div style="padding:24px;text-align:center;background:#fff5f5;border:1px solid #fee2e2;border-radius:14px;color:#c53030;font-weight:600;font-size:14px;">
+              A connection error occurred. Please try again.
+            </div>
+          `;
+        });
+    }
+
+    function resetRFIDSearch() {
+      document.getElementById('rfidSearchInput').value = '';
+      document.getElementById('rfidSearchResult').style.display = 'none';
+      document.getElementById('rfidSearchResult').innerHTML = '';
+      document.getElementById('btnResetRFIDSearch').style.display = 'none';
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
   </script>
 </body>
 </html>
