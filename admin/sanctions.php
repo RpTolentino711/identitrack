@@ -3,6 +3,23 @@
 require_once __DIR__ . '/../database/database.php';
 require_admin();
 
+function formatHoursMinutes(float $decimalHours): string {
+    $hours = (int)floor($decimalHours);
+    $minutes = (int)round(($decimalHours - $hours) * 60);
+    if ($minutes >= 60) {
+        $hours += 1;
+        $minutes -= 60;
+    }
+    $parts = [];
+    if ($hours > 0) {
+        $parts[] = "{$hours} hr" . ($hours > 1 ? 's' : '');
+    }
+    if ($minutes > 0 || empty($parts)) {
+        $parts[] = "{$minutes} min" . ($minutes > 1 ? 's' : '');
+    }
+    return implode(' ', $parts);
+}
+
 $activeSidebar = 'sanctions';
 $admin = admin_current();
 $fullName = trim((string)($admin['full_name'] ?? ''));
@@ -899,7 +916,7 @@ foreach ($cases as $c) {
                           <?php if (!$is_ongoing): ?>
                             <span class="status-badge completed">Completed</span>
                           <?php else: ?>
-                            <span class="status-badge ongoing">Ongoing (<?php echo number_format($hours_rem, 1); ?> hrs remaining)</span>
+                            <span class="status-badge ongoing">Ongoing (<?php echo formatHoursMinutes($hours_rem); ?> remaining)</span>
                           <?php endif; ?>
                         </div>
                         <div class="details-grid">
@@ -909,7 +926,7 @@ foreach ($cases as $c) {
                           </div>
                           <div class="detail-item">
                             <div class="detail-label">Completed Hours</div>
-                            <div class="detail-value"><?php echo number_format($hours_comp, 1); ?> / <?php echo number_format($hours_req, 1); ?> hrs</div>
+                            <div class="detail-value"><?php echo formatHoursMinutes($hours_comp); ?> / <?php echo formatHoursMinutes($hours_req); ?></div>
                           </div>
                           <div class="detail-item">
                             <div class="detail-label">Completed Date</div>
@@ -1140,8 +1157,17 @@ foreach ($cases as $c) {
 
             <!-- Category 2 Field -->
             <div class="form-group" id="groupHours" style="display:none;">
-              <label for="editHours">Required Service Hours</label>
-              <input type="number" step="0.5" min="0.5" id="editHours" placeholder="e.g. 40" />
+              <label style="margin-bottom: 12px; display: block;">Required Service Time</label>
+              <div style="display: flex; gap: 12px;">
+                <div style="flex: 1;">
+                  <label for="editHours" style="font-size: 11px; color: #64748b; margin-bottom: 4px; display: block;">Hours</label>
+                  <input type="number" min="0" id="editHours" placeholder="e.g. 40" style="width: 100%;" />
+                </div>
+                <div style="flex: 1;">
+                  <label for="editMinutes" style="font-size: 11px; color: #64748b; margin-bottom: 4px; display: block;">Minutes</label>
+                  <input type="number" min="0" max="59" id="editMinutes" placeholder="e.g. 0" style="width: 100%;" />
+                </div>
+              </div>
             </div>
 
             <button type="button" class="btn-submit" onclick="goToVerification()">Continue to Verification</button>
@@ -1222,7 +1248,12 @@ foreach ($cases as $c) {
       document.getElementById('editStudentName').value = data.student_name;
       document.getElementById('editCategory').value = data.category;
       document.getElementById('editProbationUntil').value = data.probation_until;
-      document.getElementById('editHours').value = data.hours || '';
+      
+      const totalHours = parseFloat(data.hours) || 0;
+      const hrs = Math.floor(totalHours);
+      const mins = Math.round((totalHours - hrs) * 60);
+      document.getElementById('editHours').value = hrs || '';
+      document.getElementById('editMinutes').value = mins || '';
 
       toggleCategoryFields();
 
@@ -1261,9 +1292,10 @@ foreach ($cases as $c) {
           return;
         }
       } else if (cat === 2) {
-        const hours = parseFloat(document.getElementById('editHours').value);
-        if (isNaN(hours) || hours <= 0) {
-          alert('Please enter a valid number of service hours.');
+        const hours = parseFloat(document.getElementById('editHours').value) || 0;
+        const minutes = parseFloat(document.getElementById('editMinutes').value) || 0;
+        if (hours <= 0 && minutes <= 0) {
+          alert('Please enter a valid number of service hours and/or minutes.');
           return;
         }
       }
@@ -1339,7 +1371,11 @@ foreach ($cases as $c) {
       const studentId = document.getElementById('editStudentId').value;
       const category = document.getElementById('editCategory').value;
       const probation_until = document.getElementById('editProbationUntil').value;
-      const hours = document.getElementById('editHours').value;
+      
+      const hoursVal = parseFloat(document.getElementById('editHours').value) || 0;
+      const minutesVal = parseFloat(document.getElementById('editMinutes').value) || 0;
+      const combinedHours = hoursVal + (minutesVal / 60.0);
+      
       const password = document.getElementById('verifyPassword').value;
       const otp = document.getElementById('verifyOTP').value;
 
@@ -1348,7 +1384,7 @@ foreach ($cases as $c) {
       params.append('student_id', studentId);
       params.append('category', category);
       params.append('probation_until', probation_until);
-      params.append('hours', hours);
+      params.append('hours', combinedHours);
       params.append('password', password);
       params.append('otp', otp);
 
