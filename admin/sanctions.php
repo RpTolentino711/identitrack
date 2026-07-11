@@ -1457,6 +1457,32 @@ foreach ($cases as $c) {
     </div>
   </div>
 
+  <!-- Complete Warning Modal -->
+  <div class="modal-overlay" id="warningModalOverlay">
+    <div class="modal-container" style="max-width: 440px;">
+      <div class="modal-header" style="background: #fff5f5; border-bottom: 1px solid #fee2e2;">
+        <h3 id="warningModalTitle" style="color: #c53030; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          Are you sure?
+        </h3>
+        <button class="modal-close" onclick="closeWarningModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <p id="warningModalMessage" style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 24px;">
+          Are you sure you want to mark this sanction as completed? This action will immediately resolve the student's active status.
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button type="button" class="btn-edit" onclick="closeWarningModal()" style="border-radius: 8px; padding: 10px 16px;">Cancel</button>
+          <button type="button" class="btn-submit" onclick="confirmWarningAndProceed()" style="width: auto; background: #c53030; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(197, 48, 48, 0.2);">Yes, Complete Sanction</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // 1. Password Verification gate handling
     const pagePasswordForm = document.getElementById('pagePasswordForm');
@@ -1601,6 +1627,43 @@ foreach ($cases as $c) {
         }
       }
 
+      if (isCompleted) {
+        openWarningModal();
+        return;
+      }
+
+      proceedToVerification();
+    }
+
+    function openWarningModal() {
+      const cat = parseInt(document.getElementById('editCategory').value);
+      const warningMsg = document.getElementById('warningModalMessage');
+      
+      if (cat === 1) {
+        warningMsg.textContent = "Are you sure you want to mark this Suspension/Probation as completed? This will end the probation period immediately and restore the student's full access.";
+      } else if (cat === 2) {
+        warningMsg.textContent = "Are you sure you want to mark this Community Service requirement as completed? This will close the active service requirement for the student.";
+      } else if (cat === 3) {
+        warningMsg.textContent = "Are you sure you want to clear this Non-Readmission Warning? This will resolve the warning and allow the student to readmit next semester.";
+      } else if (cat === 4 || cat === 5) {
+        warningMsg.textContent = "Are you sure you want to un-expel/un-exclude this student? This will reactivate their account, allowing them to use the app and login normally.";
+      } else {
+        warningMsg.textContent = "Are you sure you want to mark this sanction as completed?";
+      }
+      
+      document.getElementById('warningModalOverlay').classList.add('active');
+    }
+
+    function closeWarningModal() {
+      document.getElementById('warningModalOverlay').classList.remove('active');
+    }
+
+    function confirmWarningAndProceed() {
+      closeWarningModal();
+      proceedToVerification();
+    }
+
+    function proceedToVerification() {
       // Switch views
       stepForm.classList.remove('active');
       stepVerify.classList.add('active');
