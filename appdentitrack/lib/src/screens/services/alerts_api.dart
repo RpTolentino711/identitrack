@@ -122,6 +122,8 @@ class StudentAlert {
         return 'Timer Running';
       case 'SERVICE_LOGGED_OUT':
         return 'Logged Out';
+      case 'SERVICE_COMPLETED':
+        return 'Service Completed';
       default:
         return 'Notification';
     }
@@ -149,6 +151,8 @@ class StudentAlert {
         return const Color(0xFF2E7D32); // Green
       case 'SERVICE_LOGGED_OUT':
         return const Color(0xFFC62828); // Red
+      case 'SERVICE_COMPLETED':
+        return const Color(0xFF2E7D32); // Green
       default:
         return const Color(0xFF757575); // Gray
     }
@@ -176,6 +180,8 @@ class StudentAlert {
         return Icons.timer_rounded;
       case 'SERVICE_LOGGED_OUT':
         return Icons.logout_rounded;
+      case 'SERVICE_COMPLETED':
+        return Icons.check_circle_rounded;
       default:
         return Icons.notifications_rounded;
     }
