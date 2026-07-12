@@ -1493,10 +1493,8 @@ function auto_complete_all_active_sessions(): void {
             continue;
         }
 
-        // Calculate elapsed seconds in active session
-        $elapsedSeconds = (int)(db_one("
-            SELECT TIMESTAMPDIFF(SECOND, :time_in, NOW()) as elapsed
-        ", [':time_in' => $timeIn])['elapsed'] ?? 0);
+        // Calculate elapsed seconds in active session using PHP time (timezone-safe)
+        $elapsedSeconds = time() - strtotime($timeIn);
         $elapsedHours = $elapsedSeconds / 3600.0;
 
         if ($elapsedHours >= $remainingHours) {
