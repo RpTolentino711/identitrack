@@ -37,6 +37,7 @@ $studentId = trim((string)($body['student_id'] ?? ''));
 if ($studentId === '') json_out(false, 'student_id is required.', null, 400);
 
 require_student_api_auth($studentId);
+auto_complete_all_active_sessions();
 
 // Confirm student exists
 $decrypted_student = db_decrypt_cols(['student_fn', 'student_ln']);

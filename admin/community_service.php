@@ -25,6 +25,9 @@ $q = trim((string)($_GET['q'] ?? ''));
 // Get current tab (default active)
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'active';
 
+// Auto-complete any active sessions that have finished their required hours
+auto_complete_all_active_sessions();
+
 // Count pending requests
 $pendingRow = db_one("SELECT COUNT(*) AS cnt FROM manual_login_request WHERE status='PENDING'");
 $pendingCount = (int)($pendingRow['cnt'] ?? 0);

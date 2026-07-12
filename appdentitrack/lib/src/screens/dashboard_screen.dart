@@ -267,6 +267,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       await _checkServiceSessionTransitions(summary);
 
+      final prefs = await SharedPreferences.getInstance();
       final hasPendingHearing = summary.hearingNotice != null &&
           summary.hearingNotice!.hearingDate.isNotEmpty &&
           summary.hearingNotice!.studentHearingResponse == 'PENDING';

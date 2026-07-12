@@ -27,6 +27,7 @@ if ($studentId === '') {
 }
 
 require_student_api_auth($studentId);
+auto_complete_all_active_sessions();
 
 $student = db_one(
   "SELECT student_id, is_active

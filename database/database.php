@@ -1459,6 +1459,60 @@ function check_requirement_completion(int $requirementId): bool {
     return false;
 }
 
+function auto_complete_all_active_sessions(): void {
+    // Get all active sessions
+    $activeSessions = db_all("
+        SELECT css.session_id, css.requirement_id, css.time_in, csr.hours_required, csr.student_id
+        FROM community_service_session css
+        JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
+        WHERE css.time_out IS NULL
+    ");
+
+    foreach ($activeSessions as $session) {
+        $requirementId = (int)$session['requirement_id'];
+        $hoursRequired = (float)$session['hours_required'];
+        $timeIn = $session['time_in'];
+        $studentId = $session['student_id'];
+        
+        // Sum completed hours from previous sessions
+        $prevMinutes = (int)(db_one("
+            SELECT SUM(TIMESTAMPDIFF(MINUTE, time_in, time_out)) as total 
+            FROM community_service_session 
+            WHERE requirement_id = :id AND time_out IS NOT NULL
+        ", [':id' => $requirementId])['total'] ?? 0);
+        $prevHours = $prevMinutes / 60.0;
+        
+        $remainingHours = $hoursRequired - $prevHours;
+        if ($remainingHours <= 0) {
+            db_exec("
+                UPDATE community_service_session 
+                SET time_out = :time_in, logout_method = 'AUTO_COMPLETE'
+                WHERE session_id = :sid
+            ", [':time_in' => $timeIn, ':sid' => $session['session_id']]);
+            check_requirement_completion($requirementId);
+            continue;
+        }
+
+        // Calculate elapsed seconds in active session
+        $elapsedSeconds = (int)(db_one("
+            SELECT TIMESTAMPDIFF(SECOND, :time_in, NOW()) as elapsed
+        ", [':time_in' => $timeIn])['elapsed'] ?? 0);
+        $elapsedHours = $elapsedSeconds / 3600.0;
+
+        if ($elapsedHours >= $remainingHours) {
+            // Completed during this session!
+            $neededSeconds = (int)round($remainingHours * 3600);
+            db_exec("
+                UPDATE community_service_session 
+                SET time_out = DATE_ADD(time_in, INTERVAL :needed SECOND), logout_method = 'AUTO_COMPLETE'
+                WHERE session_id = :sid
+            ", [':needed' => $neededSeconds, ':sid' => $session['session_id']]);
+            
+            check_requirement_completion($requirementId);
+        }
+    }
+}
+
 if (!function_exists('scanner_hash_value')) {
   function scanner_hash_value(string $rawValue): string
   {

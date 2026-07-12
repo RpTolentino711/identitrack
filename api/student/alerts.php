@@ -31,6 +31,7 @@ try {
     }
 
     require_student_api_auth($studentId);
+    auto_complete_all_active_sessions();
 
     // Alerts are allowed even if account has restrictions
 

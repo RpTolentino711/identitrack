@@ -376,6 +376,39 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                       ),
                     ),
                   ),
+                ] else if (officiallyDone) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFA5D6A7)),
+                    ),
+                    child: const Column(
+                      children: [
+                        Text(
+                          '🎉 Congratulations!',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'You have successfully completed all your community service hours!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ],
             ),
