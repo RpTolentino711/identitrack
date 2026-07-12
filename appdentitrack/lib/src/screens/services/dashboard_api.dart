@@ -101,7 +101,11 @@ class DashboardApi {
       recentServiceLogout: data['recent_service_logout'] == true,
       activeServiceSessionId: (data['active_service_session_id'] ?? '')
           .toString(),
+      activeServiceSessionMethod: (data['active_service_session_method'] ?? '')
+          .toString(),
       recentServiceLogoutId: (data['recent_service_logout_id'] ?? '')
+          .toString(),
+      recentServiceLogoutMethod: (data['recent_service_logout_method'] ?? '')
           .toString(),
     );
   }
@@ -212,7 +216,9 @@ class DashboardSummary {
   final bool activeServiceSession;
   final bool recentServiceLogout;
   final String activeServiceSessionId;
+  final String activeServiceSessionMethod;
   final String recentServiceLogoutId;
+  final String recentServiceLogoutMethod;
 
   DashboardSummary({
     required this.studentId,
@@ -231,7 +237,9 @@ class DashboardSummary {
     required this.activeServiceSession,
     required this.recentServiceLogout,
     required this.activeServiceSessionId,
+    required this.activeServiceSessionMethod,
     required this.recentServiceLogoutId,
+    required this.recentServiceLogoutMethod,
   });
 }
 

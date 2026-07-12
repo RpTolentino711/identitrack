@@ -349,14 +349,14 @@ $unseenAppeals = db_all(
 );
 
 $activeSession = db_one(
-  "SELECT session_id FROM community_service_session
+  "SELECT session_id, login_method FROM community_service_session
    WHERE requirement_id IN (SELECT requirement_id FROM community_service_requirement WHERE student_id = :sid)
      AND time_out IS NULL",
   [':sid' => $studentId]
 );
 
 $recentLogout = db_one(
-  "SELECT session_id FROM community_service_session
+  "SELECT session_id, login_method FROM community_service_session
    WHERE requirement_id IN (SELECT requirement_id FROM community_service_requirement WHERE student_id = :sid)
      AND time_out IS NOT NULL
      AND DATE(time_out) = CURDATE()
@@ -407,6 +407,8 @@ json_out(true, 'Dashboard summary loaded.', [
   'unseen_appeals' => $unseenAppeals,
   'active_service_session' => $activeSession ? true : false,
   'recent_service_logout' => $recentLogout ? true : false,
-  'active_service_session_id' => $activeSession,
-  'recent_service_logout_id' => $recentLogout,
+  'active_service_session_id' => $activeSession ? (string)$activeSession['session_id'] : '',
+  'active_service_session_method' => $activeSession ? (string)$activeSession['login_method'] : '',
+  'recent_service_logout_id' => $recentLogout ? (string)$recentLogout['session_id'] : '',
+  'recent_service_logout_method' => $recentLogout ? (string)$recentLogout['login_method'] : '',
 ]);

@@ -265,19 +265,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _loading = false;
       });
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(
-          'active_service_session', summary.activeServiceSession);
-      await prefs.setBool(
-          'recent_service_logout', summary.recentServiceLogout);
-      await prefs.setString(
-          'active_service_session_id', summary.activeServiceSessionId);
-      await prefs.setString(
-          'recent_service_logout_id', summary.recentServiceLogoutId);
-      await prefs.setInt(
-          'unseen_offenses_count', summary.unseenOffensesCount);
-      await prefs.setInt('total_alerts_count', summary.totalAlertsCount);
-      await prefs.setInt('last_minor_offense_count', summary.minorOffense);
+      await _checkServiceSessionTransitions(summary);
 
       final hasPendingHearing = summary.hearingNotice != null &&
           summary.hearingNotice!.hearingDate.isNotEmpty &&
@@ -356,6 +344,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final summary = await _api.getSummary(studentId: widget.studentId);
       if (!mounted) return;
 
+      await _checkServiceSessionTransitions(summary);
+
       if (summary.unseenOffensesCount > _unseenOffensesCount &&
           summary.unseenOffensesCount > 0) {
         if (mounted) {
@@ -364,6 +354,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _totalOffense = summary.totalOffense;
             _minorOffense = summary.minorOffense;
             _majorOffense = summary.majorOffense;
+            _activeServiceSession = summary.activeServiceSession;
           });
           ScaffoldMessenger.of(context)
             ..clearSnackBars()
@@ -1308,6 +1299,122 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  }
+
+  void _showServiceStatusAlert({
+    required String title,
+    required String message,
+    required bool isLogin,
+  }) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(
+                isLogin ? Icons.play_circle_fill_rounded : Icons.stop_circle_rounded,
+                color: isLogin ? Colors.green.shade700 : Colors.red.shade700,
+                size: 28,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(fontSize: 14, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: const Text(
+                'OK',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (isLogin)
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(dialogCtx).pop();
+                  Navigator.of(context).pushReplacement(
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation1, animation2) =>
+                          ServiceHistoryScreen(
+                        studentId: widget.studentId,
+                        studentName: _studentName,
+                      ),
+                      transitionDuration: Duration.zero,
+                      reverseTransitionDuration: Duration.zero,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: blue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('View Timer'),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _checkServiceSessionTransitions(DashboardSummary summary) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (prefs.containsKey('active_service_session')) {
+      final bool wasActive = prefs.getBool('active_service_session') ?? false;
+      final String prevActiveId = prefs.getString('active_service_session_id') ?? '';
+      final String prevLogoutId = prefs.getString('recent_service_logout_id') ?? '';
+
+      final bool isActive = summary.activeServiceSession;
+      final String activeId = summary.activeServiceSessionId;
+      final String logoutId = summary.recentServiceLogoutId;
+      final String activeMethod = summary.activeServiceSessionMethod;
+      final String logoutMethod = summary.recentServiceLogoutMethod;
+
+      if (isActive && (prevActiveId != activeId || !wasActive)) {
+        _showServiceStatusAlert(
+          title: 'Service Session Started',
+          message: 'You have been logged in to your community service session via ${activeMethod.isNotEmpty ? activeMethod : 'NFC/Manual'}.\n\nYour timer is now active and counting.',
+          isLogin: true,
+        );
+      } else if (!isActive && wasActive && activeId.isEmpty) {
+        _showServiceStatusAlert(
+          title: 'Service Session Ended',
+          message: 'You have been logged out of your community service session.\n\nYour hours have been successfully logged and sent for validation.',
+          isLogin: false,
+        );
+      } else if (logoutId.isNotEmpty && prevLogoutId != logoutId) {
+        _showServiceStatusAlert(
+          title: 'Service Session Ended',
+          message: 'You have been logged out of your community service session via ${logoutMethod.isNotEmpty ? logoutMethod : 'NFC/Manual'}.\n\nYour hours have been successfully logged and sent for validation.',
+          isLogin: false,
+        );
+      }
+    }
+
+    await prefs.setBool('active_service_session', summary.activeServiceSession);
+    await prefs.setBool('recent_service_logout', summary.recentServiceLogout);
+    await prefs.setString('active_service_session_id', summary.activeServiceSessionId);
+    await prefs.setString('active_service_session_method', summary.activeServiceSessionMethod);
+    await prefs.setString('recent_service_logout_id', summary.recentServiceLogoutId);
+    await prefs.setString('recent_service_logout_method', summary.recentServiceLogoutMethod);
+    await prefs.setInt('unseen_offenses_count', summary.unseenOffensesCount);
+    await prefs.setInt('total_alerts_count', summary.totalAlertsCount);
+    await prefs.setInt('last_minor_offense_count', summary.minorOffense);
   }
 
   Widget _statCard({
