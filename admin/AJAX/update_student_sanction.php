@@ -171,10 +171,20 @@ try {
     $newStatus = ($completed === 1) ? 'COMPLETED' : 'ACTIVE';
     $isPreviouslyServed = ($oldStatus === 'COMPLETED' || $completedHours >= ($oldHoursRequired - 0.0001));
 
-    if ($newStatus === 'ACTIVE' && $isPreviouslyServed) {
-      $targetHours = $completedHours + $hours;
-    } else {
-      $targetHours = $hours;
+    if ($newStatus === 'ACTIVE' && $isPreviouslyServed && $csr) {
+      // If reactivating a completed or fully-served requirement, we start fresh with a NEW requirement record.
+      // 1. Mark the old requirement as COMPLETED and unlink it from the case to preserve history.
+      db_exec(
+        "UPDATE community_service_requirement 
+         SET status = 'COMPLETED', 
+             related_case_id = NULL,
+             completed_at = COALESCE(completed_at, NOW()),
+             updated_at = NOW() 
+         WHERE requirement_id = :rid",
+        [':rid' => $csr['requirement_id']]
+      );
+      // 2. Set $csr to null so the code below inserts a brand new requirement record starting from 0 hours.
+      $csr = null;
     }
 
     if ($csr) {
@@ -186,7 +196,7 @@ try {
              updated_at = NOW() 
          WHERE related_case_id = :cid",
         [
-          ':hours' => $targetHours,
+          ':hours' => $hours,
           ':status' => $newStatus,
           ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null,
           ':cid' => $caseId
@@ -200,7 +210,7 @@ try {
           ':sid' => $studentId,
           ':admin_id' => $adminId,
           ':cid' => $caseId,
-          ':hours' => $targetHours,
+          ':hours' => $hours,
           ':status' => $newStatus,
           ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null
         ]
