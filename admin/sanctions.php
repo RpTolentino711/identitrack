@@ -1118,8 +1118,9 @@ foreach ($cases as $c) {
                       $hours_comp = (float)$c['hours_completed'];
                       $hours_req = (float)$c['hours_required'];
                       $hours_rem = max(0.0, $hours_req - $hours_comp);
+                      $has_finished_hours = ($hours_comp >= ($hours_req - 0.0001));
                     ?>
-                    <div class="sanction-card cat-2">
+                    <div class="sanction-card cat-2" id="student-card-<?php echo htmlspecialchars($c['student_id']); ?>">
                       <div class="sanction-card-left">
                         <div class="sanction-avatar-wrap">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1141,6 +1142,11 @@ foreach ($cases as $c) {
                         <div class="status-badge-container">
                           <?php if (!$is_ongoing): ?>
                             <span class="status-badge completed">Completed</span>
+                          <?php elseif ($has_finished_hours): ?>
+                            <span class="status-badge completed-pending" style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                              <span style="display:inline-block; width: 6px; height: 6px; background: #dc2626; border-radius: 50%; animation: pulse 1.5s infinite;"></span>
+                              Completed (Pending Review)
+                            </span>
                           <?php else: ?>
                             <span class="status-badge ongoing">Ongoing (<?php echo formatHoursMinutes($hours_rem); ?> remaining)</span>
                           <?php endif; ?>
@@ -2088,6 +2094,49 @@ foreach ($cases as $c) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
     }
+  </script>
+  
+  <script>
+    // Highlight and scroll to target student card if specified in URL params
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const highlightId = urlParams.get('highlight_student_id');
+      if (highlightId) {
+        // Wait a small moment to let tabs load if active tab needs to switch to Category 2
+        const tab = urlParams.get('tab');
+        if (tab === 'cat2') {
+          // If there is tab switching logic, trigger the tab selection:
+          const tabBtn = document.querySelector('[data-tab="cat2"]') || document.querySelector('.tab-btn[onclick*="cat2"]');
+          if (tabBtn) {
+            tabBtn.click();
+          }
+        }
+        
+        setTimeout(() => {
+          const card = document.getElementById('student-card-' + highlightId);
+          if (card) {
+            // Apply a premium red highlighted border and background
+            card.style.border = '2px dashed #dc2626';
+            card.style.background = '#fef2f2';
+            card.style.transition = 'all 0.5s ease';
+            card.style.boxShadow = '0 12px 30px rgba(220, 38, 38, 0.2)';
+            
+            // Scroll into view smoothly
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Add a subtle bounce animation
+            card.animate([
+              { transform: 'scale(1)' },
+              { transform: 'scale(1.02)' },
+              { transform: 'scale(1)' }
+            ], {
+              duration: 800,
+              iterations: 3
+            });
+          }
+        }, 300);
+      }
+    });
   </script>
 </body>
 </html>

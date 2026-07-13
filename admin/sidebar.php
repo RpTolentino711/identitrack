@@ -933,3 +933,176 @@ if (function_exists('db_all') && db_one("SHOW TABLES LIKE 'upcc_case'")) {
     }
 </script>
 <?php endif; ?>
+
+<?php
+$serviceCompletePending = null;
+if (function_exists('db_all') && db_one("SHOW TABLES LIKE 'community_service_requirement'")) {
+    $pendingCompletes = db_all("
+        SELECT 
+            csr.requirement_id, 
+            csr.student_id, 
+            csr.hours_required, 
+            uc.case_id,
+            " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ",
+            (
+                SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
+                FROM community_service_session sess
+                WHERE sess.requirement_id = csr.requirement_id AND sess.time_out IS NOT NULL
+            ) AS hours_completed
+        FROM community_service_requirement csr
+        JOIN student s ON s.student_id = csr.student_id
+        JOIN upcc_case uc ON uc.case_id = csr.related_case_id
+        WHERE (uc.punishment_details NOT LIKE '%\"completed\":true%')
+          AND (csr.status = 'COMPLETED' OR (
+              SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess2.time_in, sess2.time_out)/3600.0), 0.0)
+              FROM community_service_session sess2
+              WHERE sess2.requirement_id = csr.requirement_id AND sess2.time_out IS NOT NULL
+          ) >= csr.hours_required)
+        ORDER BY uc.created_at DESC
+        LIMIT 1
+    ");
+    
+    if (!empty($pendingCompletes)) {
+        $serviceCompletePending = $pendingCompletes[0];
+    }
+}
+?>
+
+<?php if ($serviceCompletePending): ?>
+<style>
+.global-service-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.16);
+    border: 1px solid #fee2e2;
+    border-left: 5px solid #dc2626;
+    width: 330px;
+    z-index: 9998;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    animation: slideInUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes slideInUp {
+    0% { transform: translateY(120%); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+.gst-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.gst-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.gst-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+    line-height: 1;
+}
+.gst-close:hover { color: #475569; }
+.gst-body {
+    font-size: 13.5px;
+    color: #334155;
+    line-height: 1.45;
+}
+.gst-student {
+    font-weight: 700;
+    color: #0f172a;
+}
+.gst-hours {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 4px 10px;
+    background: #fef2f2;
+    color: #991b1b;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid #fee2e2;
+}
+.gst-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+.gst-btn {
+    flex: 1;
+    text-align: center;
+    padding: 9px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+.gst-btn-view {
+    background: #dc2626;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+}
+.gst-btn-view:hover { background: #b91c1c; color: #fff; }
+.gst-btn-ok {
+    background: #f1f5f9;
+    color: #475569;
+}
+.gst-btn-ok:hover { background: #e2e8f0; }
+</style>
+
+<div class="global-service-toast" id="globalServiceToast">
+    <div class="gst-head">
+        <div class="gst-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            Service Complete!
+        </div>
+        <button class="gst-close" onclick="dismissServiceToast()">×</button>
+    </div>
+    <div class="gst-body">
+        <?php
+            $sStudent = trim(($serviceCompletePending['student_fn'] ?? '') . ' ' . ($serviceCompletePending['student_ln'] ?? ''));
+            $sStudentId = $serviceCompletePending['student_id'];
+            $sReqHours = number_format($serviceCompletePending['hours_required'], 1);
+            $sDoneHours = number_format($serviceCompletePending['hours_completed'], 1);
+        ?>
+        <span class="gst-student"><?= htmlspecialchars($sStudent) ?></span> has completed their required hours for Category 2.
+        <div>
+            <span class="gst-hours">Completed: <?= $sDoneHours ?> / <?= $sReqHours ?> hrs</span>
+        </div>
+    </div>
+    <div class="gst-actions">
+        <a href="sanctions.php?tab=cat2&highlight_student_id=<?= urlencode($sStudentId) ?>" class="gst-btn gst-btn-view">Review Sanction</a>
+        <button class="gst-btn gst-btn-ok" onclick="dismissServiceToast()">Later</button>
+    </div>
+</div>
+
+<script>
+    if (sessionStorage.getItem('service_toast_dismissed_<?= $sStudentId ?>')) {
+        document.getElementById('globalServiceToast').style.display = 'none';
+    }
+    
+    function dismissServiceToast() {
+        document.getElementById('globalServiceToast').style.display = 'none';
+        sessionStorage.setItem('service_toast_dismissed_<?= $sStudentId ?>', '1');
+    }
+</script>
+<?php endif; ?>
