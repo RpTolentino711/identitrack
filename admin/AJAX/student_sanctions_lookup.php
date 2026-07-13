@@ -85,7 +85,7 @@ $sanctionsQuery = "
   SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details, uc.status AS case_status,
          csr.requirement_id, csr.status AS req_status, csr.hours_required, csr.task_name, csr.completed_at AS req_completed_at,
          (
-           SELECT COALESCE(SUM(TIMESTAMPDIFF(MINUTE, sess.time_in, sess.time_out)/60.0), 0.0)
+           SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
            FROM community_service_session sess
            WHERE sess.requirement_id = csr.requirement_id AND sess.time_out IS NOT NULL
          ) AS hours_completed

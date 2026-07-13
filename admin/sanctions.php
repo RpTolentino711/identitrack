@@ -60,7 +60,7 @@ if ($is_verified) {
              s.program, s.section, s.year_level, s.is_active AS student_active,
              csr.requirement_id, csr.status AS req_status, csr.hours_required, csr.task_name, csr.completed_at AS req_completed_at,
              (
-               SELECT COALESCE(SUM(TIMESTAMPDIFF(MINUTE, sess.time_in, sess.time_out)/60.0), 0.0)
+               SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
                FROM community_service_session sess
                WHERE sess.requirement_id = csr.requirement_id AND sess.time_out IS NOT NULL
              ) AS hours_completed
@@ -1477,7 +1477,7 @@ foreach ($cases as $c) {
         </p>
         <div style="display: flex; gap: 12px; justify-content: flex-end;">
           <button type="button" class="btn-edit" onclick="closeWarningModal()" style="border-radius: 8px; padding: 10px 16px;">Cancel</button>
-          <button type="button" class="btn-submit" onclick="confirmWarningAndProceed()" style="width: auto; background: #c53030; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(197, 48, 48, 0.2);">Yes, Complete Sanction</button>
+          <button type="button" class="btn-submit" id="warningConfirmBtn" onclick="confirmWarningAndProceed()" style="width: auto; background: #c53030; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(197, 48, 48, 0.2);">Yes, Complete Sanction</button>
         </div>
       </div>
     </div>
@@ -1536,6 +1536,9 @@ foreach ($cases as $c) {
       document.getElementById('editMinutes').value = mins || '';
 
       document.getElementById('editComplete').checked = !!data.completed;
+
+      // Store initial completed status
+      modalOverlay.dataset.initialCompleted = data.completed ? 'true' : 'false';
 
       toggleCategoryFields();
 
@@ -1627,6 +1630,13 @@ foreach ($cases as $c) {
         }
       }
 
+      // Check if student was already completed, but details are being modified
+      const wasCompleted = (modalOverlay.dataset.initialCompleted === 'true');
+      if (wasCompleted) {
+        openModifyCompletedWarningModal();
+        return;
+      }
+
       if (isCompleted) {
         openWarningModal();
         return;
@@ -1635,10 +1645,43 @@ foreach ($cases as $c) {
       proceedToVerification();
     }
 
+    function openModifyCompletedWarningModal() {
+      const warningTitle = document.getElementById('warningModalTitle');
+      const warningMsg = document.getElementById('warningModalMessage');
+      const warningBtn = document.getElementById('warningConfirmBtn');
+
+      warningTitle.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        Modify Completed Sanction?
+      `;
+      warningMsg.textContent = "This student has already completed their sanction. Modifying the category, required hours, or status will overwrite their completed status. Are you sure you want to do this?";
+      
+      if (warningBtn) {
+        warningBtn.textContent = "Yes, Modify Sanction";
+      }
+      
+      document.getElementById('warningModalOverlay').classList.add('active');
+    }
+
     function openWarningModal() {
       const cat = parseInt(document.getElementById('editCategory').value);
+      const warningTitle = document.getElementById('warningModalTitle');
       const warningMsg = document.getElementById('warningModalMessage');
+      const warningBtn = document.getElementById('warningConfirmBtn');
       
+      warningTitle.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        Are you sure?
+      `;
+
       if (cat === 1) {
         warningMsg.textContent = "Are you sure you want to mark this Suspension/Probation as completed? This will end the probation period immediately and restore the student's full access.";
       } else if (cat === 2) {
@@ -1649,6 +1692,10 @@ foreach ($cases as $c) {
         warningMsg.textContent = "Are you sure you want to un-expel/un-exclude this student? This will reactivate their account, allowing them to use the app and login normally.";
       } else {
         warningMsg.textContent = "Are you sure you want to mark this sanction as completed?";
+      }
+
+      if (warningBtn) {
+        warningBtn.textContent = "Yes, Complete Sanction";
       }
       
       document.getElementById('warningModalOverlay').classList.add('active');

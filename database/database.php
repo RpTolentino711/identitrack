@@ -1430,15 +1430,15 @@ function check_requirement_completion(int $requirementId): bool {
 
     // We only count validated sessions (or all sessions if we trust the logout)
     // For now, let's count all sessions that have a time_out.
-    $totalMinutes = (int)(db_one("
-        SELECT SUM(TIMESTAMPDIFF(MINUTE, time_in, time_out)) as total 
+    $totalSeconds = (int)(db_one("
+        SELECT SUM(TIMESTAMPDIFF(SECOND, time_in, time_out)) as total 
         FROM community_service_session 
         WHERE requirement_id = :id AND time_out IS NOT NULL
     ", [':id' => $requirementId])['total'] ?? 0);
 
-    $totalHours = $totalMinutes / 60.0;
+    $totalHours = $totalSeconds / 3600.0;
 
-    if ($totalHours >= (float)$req['hours_required']) {
+    if ($totalHours >= ((float)$req['hours_required'] - 0.0001)) {
         db_exec("UPDATE community_service_requirement SET status = 'COMPLETED', completed_at = NOW() WHERE requirement_id = :id", [':id' => $requirementId]);
         
         // Notify student
@@ -1475,15 +1475,15 @@ function auto_complete_all_active_sessions(): void {
         $studentId = $session['student_id'];
         
         // Sum completed hours from previous sessions
-        $prevMinutes = (int)(db_one("
-            SELECT SUM(TIMESTAMPDIFF(MINUTE, time_in, time_out)) as total 
+        $prevSeconds = (int)(db_one("
+            SELECT SUM(TIMESTAMPDIFF(SECOND, time_in, time_out)) as total 
             FROM community_service_session 
             WHERE requirement_id = :id AND time_out IS NOT NULL
         ", [':id' => $requirementId])['total'] ?? 0);
-        $prevHours = $prevMinutes / 60.0;
+        $prevHours = $prevSeconds / 3600.0;
         
         $remainingHours = $hoursRequired - $prevHours;
-        if ($remainingHours <= 0) {
+        if ($remainingHours <= 0.0001) {
             db_exec("
                 UPDATE community_service_session 
                 SET time_out = :time_in, logout_method = 'AUTO_COMPLETE'
@@ -1497,9 +1497,9 @@ function auto_complete_all_active_sessions(): void {
         $elapsedSeconds = time() - strtotime($timeIn);
         $elapsedHours = $elapsedSeconds / 3600.0;
 
-        if ($elapsedHours >= $remainingHours) {
+        if ($elapsedHours >= ($remainingHours - 0.0001)) {
             // Completed during this session!
-            $neededSeconds = (int)round($remainingHours * 3600);
+            $neededSeconds = max(0, (int)round($remainingHours * 3600.0));
             db_exec("
                 UPDATE community_service_session 
                 SET time_out = DATE_ADD(time_in, INTERVAL :needed SECOND), logout_method = 'AUTO_COMPLETE'
