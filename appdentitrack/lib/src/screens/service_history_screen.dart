@@ -1210,7 +1210,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                                                 ..._data!.sessions
                                                     .map((s) => _sessionCard(s)),
                                               ],
-                                          ),
+                                          ],
                                         ),
                             ),
                           ],
