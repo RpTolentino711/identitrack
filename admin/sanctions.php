@@ -1079,7 +1079,8 @@ foreach ($cases as $c) {
                           'category' => 1,
                           'probation_until' => !empty($c['probation_until']) ? date('Y-m-d', strtotime($c['probation_until'])) : '',
                           'hours' => 0,
-                          'completed' => $is_completed
+                          'completed' => $is_completed,
+                          'auto_check_completed' => $is_completed
                         ])); ?>)">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -1177,7 +1178,8 @@ foreach ($cases as $c) {
                           'category' => 2,
                           'probation_until' => '',
                           'hours' => $hours_req,
-                          'completed' => $is_completed
+                          'completed' => $is_completed,
+                          'auto_check_completed' => ($is_completed || $has_finished_hours)
                         ])); ?>)">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -1255,7 +1257,8 @@ foreach ($cases as $c) {
                           'category' => 3,
                           'probation_until' => '',
                           'hours' => 0,
-                          'completed' => $is_completed
+                          'completed' => $is_completed,
+                          'auto_check_completed' => $is_completed
                         ])); ?>)">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -1347,7 +1350,8 @@ foreach ($cases as $c) {
                           'category' => (int)$c['decided_category'],
                           'probation_until' => '',
                           'hours' => 0,
-                          'completed' => $is_completed
+                          'completed' => $is_completed,
+                          'auto_check_completed' => $is_completed
                         ])); ?>)">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -1541,7 +1545,7 @@ foreach ($cases as $c) {
       document.getElementById('editHours').value = hrs || '';
       document.getElementById('editMinutes').value = mins || '';
 
-      document.getElementById('editComplete').checked = !!data.completed;
+      document.getElementById('editComplete').checked = (typeof data.auto_check_completed !== 'undefined') ? !!data.auto_check_completed : !!data.completed;
 
       // Store initial completed status
       modalOverlay.dataset.initialCompleted = data.completed ? 'true' : 'false';
