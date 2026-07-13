@@ -136,6 +136,23 @@ try {
   // Manage Community Service Requirement
   if ($category === 2) {
     $csr = db_one("SELECT requirement_id FROM community_service_requirement WHERE related_case_id = :cid", [':cid' => $caseId]);
+    if (!$csr) {
+      // Look for an existing unlinked requirement for this student
+      $unlinkedCsr = db_one(
+        "SELECT requirement_id FROM community_service_requirement 
+         WHERE student_id = :sid AND (related_case_id IS NULL OR related_case_id = '') 
+         LIMIT 1",
+        [':sid' => $studentId]
+      );
+      if ($unlinkedCsr) {
+        db_exec(
+          "UPDATE community_service_requirement SET related_case_id = :cid WHERE requirement_id = :rid",
+          [':cid' => $caseId, ':rid' => $unlinkedCsr['requirement_id']]
+        );
+        $csr = $unlinkedCsr;
+      }
+    }
+
     if ($csr) {
       db_exec(
         "UPDATE community_service_requirement 
