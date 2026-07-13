@@ -135,11 +135,11 @@ try {
 
   // Manage Community Service Requirement
   if ($category === 2) {
-    $csr = db_one("SELECT requirement_id FROM community_service_requirement WHERE related_case_id = :cid", [':cid' => $caseId]);
+    $csr = db_one("SELECT requirement_id, hours_required, status FROM community_service_requirement WHERE related_case_id = :cid", [':cid' => $caseId]);
     if (!$csr) {
       // Look for an existing unlinked requirement for this student
       $unlinkedCsr = db_one(
-        "SELECT requirement_id FROM community_service_requirement 
+        "SELECT requirement_id, hours_required, status FROM community_service_requirement 
          WHERE student_id = :sid AND (related_case_id IS NULL OR related_case_id = '') 
          LIMIT 1",
         [':sid' => $studentId]
@@ -153,6 +153,30 @@ try {
       }
     }
 
+    // Determine target hours (additional hours logic when reactivating completed/fully-served requirement)
+    $completedHours = 0.0;
+    $oldHoursRequired = 0.0;
+    $oldStatus = 'ACTIVE';
+    if ($csr) {
+      $oldHoursRequired = (float)$csr['hours_required'];
+      $oldStatus = $csr['status'];
+      $completedHours = (float)db_one(
+        "SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, time_out)/3600.0), 0.0) AS completed
+         FROM community_service_session 
+         WHERE requirement_id = :rid AND time_out IS NOT NULL",
+        [':rid' => $csr['requirement_id']]
+      )['completed'];
+    }
+
+    $newStatus = ($completed === 1) ? 'COMPLETED' : 'ACTIVE';
+    $isPreviouslyServed = ($oldStatus === 'COMPLETED' || $completedHours >= ($oldHoursRequired - 0.0001));
+
+    if ($newStatus === 'ACTIVE' && $isPreviouslyServed) {
+      $targetHours = $completedHours + $hours;
+    } else {
+      $targetHours = $hours;
+    }
+
     if ($csr) {
       db_exec(
         "UPDATE community_service_requirement 
@@ -162,8 +186,8 @@ try {
              updated_at = NOW() 
          WHERE related_case_id = :cid",
         [
-          ':hours' => $hours,
-          ':status' => ($completed === 1) ? 'COMPLETED' : 'ACTIVE',
+          ':hours' => $targetHours,
+          ':status' => $newStatus,
           ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null,
           ':cid' => $caseId
         ]
@@ -176,8 +200,8 @@ try {
           ':sid' => $studentId,
           ':admin_id' => $adminId,
           ':cid' => $caseId,
-          ':hours' => $hours,
-          ':status' => ($completed === 1) ? 'COMPLETED' : 'ACTIVE',
+          ':hours' => $targetHours,
+          ':status' => $newStatus,
           ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null
         ]
       );
