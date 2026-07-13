@@ -1493,6 +1493,67 @@ foreach ($cases as $c) {
     </div>
   </div>
 
+  <!-- Undo Complete Modal -->
+  <div class="modal-overlay" id="undoCompleteModalOverlay" style="z-index: 1500;">
+    <div class="modal-container" style="max-width: 440px;">
+      <div class="modal-header" style="background: #fff5f5; border-bottom: 1px solid #fee2e2;">
+        <h3 style="color: #c53030; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          Reactivate Sanction?
+        </h3>
+        <button class="modal-close" onclick="cancelUndoComplete()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <p style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 24px;">
+          Are you sure you want to undo the completed status of this service? This will reactivate the student's community service.
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button type="button" class="btn-edit" onclick="cancelUndoComplete()" style="border-radius: 8px; padding: 10px 16px;">Cancel</button>
+          <button type="button" class="btn-submit" onclick="confirmUndoComplete()" style="width: auto; background: #c53030; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(197, 48, 48, 0.2);">Yes, Reactivate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reactivate Hours Modal -->
+  <div class="modal-overlay" id="reactivateHoursModalOverlay" style="z-index: 1500;">
+    <div class="modal-container" style="max-width: 440px;">
+      <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+        <h3 style="color: #1e3a8a; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          Set Required Service Time
+        </h3>
+        <button class="modal-close" onclick="cancelReactivateHours()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <p style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 20px;">
+          Please specify the hours and minutes the student will serve:
+        </p>
+        <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+          <div style="flex: 1;">
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px;">Hours</label>
+            <input type="number" id="reactivateHoursInput" class="input" min="0" placeholder="e.g. 10" style="width: 100%; height: 42px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px;" />
+          </div>
+          <div style="flex: 1;">
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px;">Minutes</label>
+            <input type="number" id="reactivateMinutesInput" class="input" min="0" max="59" placeholder="e.g. 30" style="width: 100%; height: 42px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px;" />
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button type="button" class="btn-edit" onclick="cancelReactivateHours()" style="border-radius: 8px; padding: 10px 16px;">Cancel</button>
+          <button type="button" class="btn-submit" onclick="saveReactivateHours()" style="width: auto; background: #2563eb; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);">Save Time</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // 1. Password Verification gate handling
     const pagePasswordForm = document.getElementById('pagePasswordForm');
@@ -1583,13 +1644,73 @@ foreach ($cases as $c) {
         editMinutes.disabled = true;
         editMinutes.style.opacity = '0.5';
       } else {
+        // If they unchecked it, show the "Are you sure you want to reactivate?" modal
+        document.getElementById('undoCompleteModalOverlay').classList.add('active');
+        // Visually keep it checked for now
+        document.getElementById('editComplete').checked = true;
+      }
+    }
+
+    function cancelUndoComplete() {
+      document.getElementById('undoCompleteModalOverlay').classList.remove('active');
+    }
+
+    function confirmUndoComplete() {
+      document.getElementById('undoCompleteModalOverlay').classList.remove('active');
+      
+      const currentCat = parseInt(document.getElementById('editCategory').value);
+      if (currentCat === 2) {
+        // Get current hours/minutes from the form
+        const curHrs = document.getElementById('editHours').value;
+        const curMins = document.getElementById('editMinutes').value;
+        
+        // Pre-fill the input fields in the reactivate modal
+        document.getElementById('reactivateHoursInput').value = curHrs;
+        document.getElementById('reactivateMinutesInput').value = curMins;
+        
+        // Show the reactivate hours modal
+        document.getElementById('reactivateHoursModalOverlay').classList.add('active');
+      } else {
+        // For other categories, just uncheck and enable fields directly
+        const checkbox = document.getElementById('editComplete');
+        checkbox.checked = false;
+        
+        const editProbationUntil = document.getElementById('editProbationUntil');
         editProbationUntil.disabled = false;
         editProbationUntil.style.opacity = '1';
-        editHours.disabled = false;
-        editHours.style.opacity = '1';
-        editMinutes.disabled = false;
-        editMinutes.style.opacity = '1';
       }
+    }
+
+    function cancelReactivateHours() {
+      document.getElementById('reactivateHoursModalOverlay').classList.remove('active');
+    }
+
+    function saveReactivateHours() {
+      const hrsInput = document.getElementById('reactivateHoursInput').value;
+      const minsInput = document.getElementById('reactivateMinutesInput').value;
+      
+      // Set the values to the main form
+      document.getElementById('editHours').value = hrsInput;
+      document.getElementById('editMinutes').value = minsInput;
+      
+      // Uncheck the completed checkbox
+      const checkbox = document.getElementById('editComplete');
+      checkbox.checked = false;
+      
+      // Enable and restore opacity of the input fields
+      const editProbationUntil = document.getElementById('editProbationUntil');
+      const editHours = document.getElementById('editHours');
+      const editMinutes = document.getElementById('editMinutes');
+      
+      editProbationUntil.disabled = false;
+      editProbationUntil.style.opacity = '1';
+      editHours.disabled = false;
+      editHours.style.opacity = '1';
+      editMinutes.disabled = false;
+      editMinutes.style.opacity = '1';
+      
+      // Close the modal
+      document.getElementById('reactivateHoursModalOverlay').classList.remove('active');
     }
 
     function toggleCategoryFields() {
