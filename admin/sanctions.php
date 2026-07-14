@@ -1683,6 +1683,7 @@ foreach ($cases as $c) {
       const editProbationUntil = document.getElementById('editProbationUntil');
       const editHours = document.getElementById('editHours');
       const editMinutes = document.getElementById('editMinutes');
+      const initialCompleted = modalOverlay.dataset.initialCompleted === 'true';
       
       if (isChecked) {
         editProbationUntil.disabled = true;
@@ -1692,10 +1693,20 @@ foreach ($cases as $c) {
         editMinutes.disabled = true;
         editMinutes.style.opacity = '0.5';
       } else {
-        // If they unchecked it, show the "Are you sure you want to reactivate?" modal
-        document.getElementById('undoCompleteModalOverlay').classList.add('active');
-        // Visually keep it checked for now
-        document.getElementById('editComplete').checked = true;
+        if (initialCompleted) {
+          // If they unchecked it and the student was initially completed, show the "Are you sure you want to reactivate?" modal
+          document.getElementById('undoCompleteModalOverlay').classList.add('active');
+          // Visually keep it checked for now
+          document.getElementById('editComplete').checked = true;
+        } else {
+          // If they were not completed initially, just allow unchecking and re-enable fields
+          editProbationUntil.disabled = false;
+          editProbationUntil.style.opacity = '1';
+          editHours.disabled = false;
+          editHours.style.opacity = '1';
+          editMinutes.disabled = false;
+          editMinutes.style.opacity = '1';
+        }
       }
     }
 
