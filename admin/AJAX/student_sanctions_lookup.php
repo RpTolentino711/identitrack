@@ -109,7 +109,6 @@ foreach ($rawSanctions as $s) {
   if ($cat === 1) {
     $is_ongoing = !$completed && (empty($s['probation_until']) || (strtotime($s['probation_until']) > time()));
   } elseif ($cat === 2) {
-    $completed = $completed || ($s['req_status'] === 'COMPLETED');
     $is_ongoing = !$completed;
   } else {
     $is_ongoing = !$completed;

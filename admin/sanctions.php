@@ -1186,7 +1186,7 @@ foreach ($cases as $c) {
                       if ($student_name === '') $student_name = $c['student_id'];
                       
                       $p_details = json_decode($c['punishment_details'] ?? '', true) ?: [];
-                      $is_completed = !empty($p_details['completed']) || ($c['req_status'] === 'COMPLETED');
+                      $is_completed = !empty($p_details['completed']);
                       $is_ongoing = !$is_completed;
                       $hours_comp = (float)$c['hours_completed'];
                       $hours_req = (float)$c['hours_required'];
