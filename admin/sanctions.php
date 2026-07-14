@@ -1594,7 +1594,6 @@ foreach ($cases as $c) {
     let otpCooldownSeconds = 0;
 
     function openEditModal(data) {
-      console.log("openEditModal received data:", JSON.stringify(data));
       document.getElementById('editCaseId').value = data.case_id;
       document.getElementById('editStudentId').value = data.student_id;
       document.getElementById('editStudentName').value = data.student_name;
