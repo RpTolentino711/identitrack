@@ -2634,6 +2634,12 @@ foreach ($cases as $c) {
             // Scroll into view smoothly
             card.scrollIntoView({ behavior: 'smooth', block: 'center' });
             
+            // Automatically open the Edit Sanction modal
+            const editBtn = card.querySelector('.btn-edit');
+            if (editBtn) {
+              editBtn.click();
+            }
+            
             // Add a subtle bounce animation
             card.animate([
               { transform: 'scale(1)' },

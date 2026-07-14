@@ -838,6 +838,23 @@ if (function_exists('db_one')) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
+    function formatHoursMinutesJS(decimalHours) {
+      const val = parseFloat(decimalHours);
+      if (isNaN(val)) return '0 mins';
+      const totalMinutes = Math.round(val * 60);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      
+      let parts = [];
+      if (hours > 0) {
+        parts.push(hours + ' hr' + (hours > 1 ? 's' : ''));
+      }
+      if (minutes > 0 || parts.length === 0) {
+        parts.push(minutes + ' min' + (minutes > 1 ? 's' : ''));
+      }
+      return parts.join(' ');
+    }
+
     function checkCompletedServices(completedServices) {
       if (!completedServices || completedServices.length === 0) return;
 
@@ -874,7 +891,7 @@ if (function_exists('db_one')) {
       const studentName = esc(activeItem.student_fn + ' ' + activeItem.student_ln);
       const studentId = esc(activeItem.student_id);
       const taskName = esc(activeItem.task_name);
-      const hours = esc(activeItem.hours_required);
+      const hoursFmt = formatHoursMinutesJS(activeItem.hours_required);
       const dateStr = formatDate(activeItem.completed_at);
 
       overlay.innerHTML = `
@@ -887,12 +904,6 @@ if (function_exists('db_one')) {
               </svg>
               Service Completed
             </h3>
-            <button class="cs-modal-close-btn" id="csModalCloseBtn" aria-label="Close">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
           </div>
           <div class="cs-modal-body">
             <div class="cs-modal-badge-container">
@@ -910,7 +921,7 @@ if (function_exists('db_one')) {
               </div>
               <div class="cs-modal-detail-row">
                 <span class="cs-modal-detail-label">Hours Required</span>
-                <span class="cs-modal-detail-value">${hours} hrs</span>
+                <span class="cs-modal-detail-value">${hoursFmt}</span>
               </div>
               <div class="cs-modal-detail-row">
                 <span class="cs-modal-detail-label">Completed At</span>
@@ -918,14 +929,14 @@ if (function_exists('db_one')) {
               </div>
             </div>
             
-            <button class="cs-modal-ack-btn" id="csModalAckBtn">Acknowledge</button>
+            <button class="cs-modal-ack-btn" id="csModalAckBtn" style="background: #3b4aa6; box-shadow: 0 4px 12px rgba(59, 74, 166, 0.2);">Review Sanction</button>
           </div>
         </div>
       `;
 
       document.body.appendChild(overlay);
 
-      const dismiss = () => {
+      const redirectAndDismiss = () => {
         dismissed.push(activeItem.requirement_id);
         if (dismissed.length > 50) dismissed.shift();
         localStorage.setItem('dismissed_completed_services', JSON.stringify(dismissed));
@@ -933,12 +944,11 @@ if (function_exists('db_one')) {
         overlay.classList.add('hide');
         setTimeout(() => {
           overlay.remove();
-          checkCompletedServices(completedServices);
+          window.location.href = 'sanctions.php?tab=cat2&highlight_student_id=' + encodeURIComponent(activeItem.student_id);
         }, 300);
       };
 
-      document.getElementById('csModalCloseBtn').addEventListener('click', dismiss);
-      document.getElementById('csModalAckBtn').addEventListener('click', dismiss);
+      document.getElementById('csModalAckBtn').addEventListener('click', redirectAndDismiss);
     }
 
     let lastPendingGuardCount = 0;
