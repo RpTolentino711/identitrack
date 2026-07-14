@@ -266,7 +266,9 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
           }
           if (hoursRemaining < epsilon) hoursRemaining = 0.0;
 
-          final bool officiallyDone = _data!.requirements
+          final bool hasActive = _data!.requirements
+              .any((r) => r.status.toUpperCase() == 'ACTIVE');
+          final bool officiallyDone = !hasActive && _data!.requirements
               .any((r) => r.status.toUpperCase() == 'COMPLETED');
           final bool effectivelyDone = assigned > 0 &&
               (confirmedCompleted >= assigned - epsilon ||
@@ -960,7 +962,9 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     // Determine if service is done (either officially or effectively)
-    bool officiallyDone = _data != null && _data!.requirements
+    bool hasActive = _data != null && _data!.requirements
+        .any((r) => r.status.toUpperCase() == 'ACTIVE');
+    bool officiallyDone = _data != null && !hasActive && _data!.requirements
         .any((r) => r.status.toUpperCase() == 'COMPLETED');
 
     bool effectivelyDone = _data != null &&

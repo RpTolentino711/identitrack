@@ -153,11 +153,41 @@ $activeAdmin = db_one("
   LIMIT 1
 ");
 
-// Compute totals
+// Compute totals based on active requirements, falling back to the latest completed requirement
+$activeReqs = [];
+$completedReqs = [];
+foreach ($reqs as $r) {
+  if ($r['status'] === 'ACTIVE') {
+    $activeReqs[] = $r;
+  } elseif ($r['status'] === 'COMPLETED') {
+    $completedReqs[] = $r;
+  }
+}
+
 $assigned = 0.0;
-foreach ($reqs as $r) $assigned += (float)($r['hours_required']);
 $completed = 0.0;
-foreach ($sessions as $s) $completed += (float)($s['hours_done']);
+
+if (!empty($activeReqs)) {
+  $activeIds = [];
+  foreach ($activeReqs as $ar) {
+    $assigned += (float)$ar['hours_required'];
+    $activeIds[] = (int)$ar['requirement_id'];
+  }
+  foreach ($sessions as $s) {
+    if (in_array((int)$s['requirement_id'], $activeIds, true)) {
+      $completed += (float)$s['hours_done'];
+    }
+  }
+} else if (!empty($completedReqs)) {
+  // Use the most recent completed requirement
+  $latestCompleted = $completedReqs[0]; // Ordered by assigned_at DESC
+  $assigned = (float)$latestCompleted['hours_required'];
+  foreach ($sessions as $s) {
+    if ((int)$s['requirement_id'] === (int)$latestCompleted['requirement_id']) {
+      $completed += (float)$s['hours_done'];
+    }
+  }
+}
 
 // If the student already has ACTIVE or COMPLETED community service, they've accepted — not under investigation
 $activeOrCompletedCount = 0;

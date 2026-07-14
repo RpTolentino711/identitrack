@@ -1354,17 +1354,24 @@ function student_account_mode(string $studentId): array
         [':sid' => $studentId, ':cid' => (int)($row['case_id'] ?? 0)]
     );
 
-    // Only congratulate if there's a COMPLETED requirement (officially done)
-    $completedReq = db_one(
+    // Only congratulate if there's a COMPLETED requirement (officially done) and NO active requirements
+    $hasActiveReq = db_one(
         "SELECT 1 FROM community_service_requirement 
-         WHERE student_id = :sid AND status = 'COMPLETED' LIMIT 1",
+         WHERE student_id = :sid AND status = 'ACTIVE' LIMIT 1",
         [':sid' => $studentId]
     );
-    if ($completedReq) {
-      return [
-        'mode' => 'FULL_ACCESS',
-        'message' => 'You have completed your community service requirement.',
-      ];
+    if (!$hasActiveReq) {
+      $completedReq = db_one(
+          "SELECT 1 FROM community_service_requirement 
+           WHERE student_id = :sid AND status = 'COMPLETED' LIMIT 1",
+          [':sid' => $studentId]
+      );
+      if ($completedReq) {
+        return [
+          'mode' => 'FULL_ACCESS',
+          'message' => 'You have completed your community service requirement.',
+        ];
+      }
     }
 
     $interventions = [];
