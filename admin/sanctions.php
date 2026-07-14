@@ -1441,7 +1441,16 @@ foreach ($cases as $c) {
 
             <!-- Category 2 Field -->
             <div class="form-group" id="groupHours" style="display:none;">
-              <label style="margin-bottom: 12px; display: block;">Required Service Time</label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <label style="margin-bottom: 0;">Required Service Time</label>
+                <button type="button" onclick="openAdjustTimeModal()" style="padding: 4px 10px; font-size: 11px; height: auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  Adjust Time
+                </button>
+              </div>
               <div style="display: flex; gap: 12px;">
                 <div style="flex: 1;">
                   <label for="editHours" style="font-size: 11px; color: #64748b; margin-bottom: 4px; display: block;">Hours</label>
@@ -1606,6 +1615,65 @@ foreach ($cases as $c) {
         <div style="display: flex; gap: 12px; justify-content: flex-end;">
           <button type="button" class="btn-edit" onclick="cancelCategoryChange()" style="border-radius: 8px; padding: 10px 16px;">No, Keep Current</button>
           <button type="button" class="btn-submit" onclick="confirmCategoryChange()" style="width: auto; background: #d97706; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);">Yes, Change Category</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Adjust Time Helper Modal -->
+  <div class="modal-overlay" id="adjustTimeModalOverlay" style="z-index: 1600;">
+    <div class="modal-container" style="max-width: 440px;">
+      <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+        <h3 style="color: #1e3a8a; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          Adjust Required Service Time
+        </h3>
+        <button class="modal-close" onclick="closeAdjustTimeModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <!-- Current Total Time info -->
+        <div style="background: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; color: #475569; font-weight: 500;">Current Total Time:</span>
+          <span id="adjustCurrentDisplay" style="font-size: 14px; color: #0f172a; font-weight: 700;">0 minutes</span>
+        </div>
+
+        <!-- Action Toggle: Add / Subtract -->
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px;">Action</label>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" id="btnActionAdd" onclick="setAdjustAction('add')" style="flex: 1; padding: 10px; border-radius: 8px; border: 2px solid #2563eb; background: #eff6ff; color: #1e40af; font-weight: 700; cursor: pointer; text-align: center;">
+              + Add Time
+            </button>
+            <button type="button" id="btnActionSubtract" onclick="setAdjustAction('subtract')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; cursor: pointer; text-align: center;">
+              - Subtract Time
+            </button>
+          </div>
+        </div>
+
+        <!-- Adjustment Duration Inputs -->
+        <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+          <div style="flex: 1;">
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px;">Hours to Adjust</label>
+            <input type="number" id="adjustHoursInput" class="input" min="0" placeholder="0" oninput="updateAdjustPreview()" style="width: 100%; height: 42px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px;" />
+          </div>
+          <div style="flex: 1;">
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px;">Minutes to Adjust</label>
+            <input type="number" id="adjustMinutesInput" class="input" min="0" placeholder="0" oninput="updateAdjustPreview()" style="width: 100%; height: 42px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px;" />
+          </div>
+        </div>
+
+        <!-- Live Preview -->
+        <div style="border-top: 1px dashed #e2e8f0; padding-top: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; color: #475569; font-weight: 500;">New Total Service Time:</span>
+          <span id="adjustPreviewDisplay" style="font-size: 15px; color: #16a34a; font-weight: 800;">0 minutes</span>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button type="button" class="btn-edit" onclick="closeAdjustTimeModal()" style="border-radius: 8px; padding: 10px 16px;">Cancel</button>
+          <button type="button" class="btn-submit" onclick="applyAdjustment()" style="width: auto; background: #2563eb; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);">Apply Adjustment</button>
         </div>
       </div>
     </div>
@@ -1807,6 +1875,110 @@ foreach ($cases as $c) {
       
       // Close the modal
       document.getElementById('reactivateHoursModalOverlay').classList.remove('active');
+    }
+
+    let adjustAction = 'add'; // 'add' or 'subtract'
+
+    function openAdjustTimeModal() {
+      const curHrs = parseInt(document.getElementById('editHours').value) || 0;
+      const curMins = parseInt(document.getElementById('editMinutes').value) || 0;
+      const totalMins = curHrs * 60 + curMins;
+
+      document.getElementById('adjustCurrentDisplay').textContent = formatMinutesToText(totalMins);
+      setAdjustAction('add');
+
+      document.getElementById('adjustHoursInput').value = '';
+      document.getElementById('adjustMinutesInput').value = '';
+
+      updateAdjustPreview();
+      document.getElementById('adjustTimeModalOverlay').classList.add('active');
+    }
+
+    function closeAdjustTimeModal() {
+      document.getElementById('adjustTimeModalOverlay').classList.remove('active');
+    }
+
+    function setAdjustAction(action) {
+      adjustAction = action;
+      const btnAdd = document.getElementById('btnActionAdd');
+      const btnSub = document.getElementById('btnActionSubtract');
+
+      if (action === 'add') {
+        btnAdd.style.border = '2px solid #2563eb';
+        btnAdd.style.background = '#eff6ff';
+        btnAdd.style.color = '#1e40af';
+        btnAdd.style.fontWeight = '700';
+
+        btnSub.style.border = '1px solid #cbd5e1';
+        btnSub.style.background = '#fff';
+        btnSub.style.color = '#475569';
+        btnSub.style.fontWeight = '600';
+      } else {
+        btnSub.style.border = '2px solid #2563eb';
+        btnSub.style.background = '#eff6ff';
+        btnSub.style.color = '#1e40af';
+        btnSub.style.fontWeight = '700';
+
+        btnAdd.style.border = '1px solid #cbd5e1';
+        btnAdd.style.background = '#fff';
+        btnAdd.style.color = '#475569';
+        btnAdd.style.fontWeight = '600';
+      }
+
+      updateAdjustPreview();
+    }
+
+    function updateAdjustPreview() {
+      const curHrs = parseInt(document.getElementById('editHours').value) || 0;
+      const curMins = parseInt(document.getElementById('editMinutes').value) || 0;
+      const currentTotal = curHrs * 60 + curMins;
+
+      const adjHrs = parseInt(document.getElementById('adjustHoursInput').value) || 0;
+      const adjMins = parseInt(document.getElementById('adjustMinutesInput').value) || 0;
+      const adjTotal = adjHrs * 60 + adjMins;
+
+      let newTotal = currentTotal;
+      if (adjustAction === 'add') {
+        newTotal = currentTotal + adjTotal;
+      } else {
+        newTotal = Math.max(0, currentTotal - adjTotal);
+      }
+
+      const previewEl = document.getElementById('adjustPreviewDisplay');
+      previewEl.textContent = formatMinutesToText(newTotal);
+      
+      if (newTotal > currentTotal) {
+        previewEl.style.color = '#16a34a';
+      } else if (newTotal < currentTotal) {
+        previewEl.style.color = '#dc2626';
+      } else {
+        previewEl.style.color = '#475569';
+      }
+    }
+
+    function applyAdjustment() {
+      const curHrs = parseInt(document.getElementById('editHours').value) || 0;
+      const curMins = parseInt(document.getElementById('editMinutes').value) || 0;
+      const currentTotal = curHrs * 60 + curMins;
+
+      const adjHrs = parseInt(document.getElementById('adjustHoursInput').value) || 0;
+      const adjMins = parseInt(document.getElementById('adjustMinutesInput').value) || 0;
+      const adjTotal = adjHrs * 60 + adjMins;
+
+      let newTotal = currentTotal;
+      if (adjustAction === 'add') {
+        newTotal = currentTotal + adjTotal;
+      } else {
+        newTotal = Math.max(0, currentTotal - adjTotal);
+      }
+
+      const newHrs = Math.floor(newTotal / 60);
+      const newMins = newTotal % 60;
+      
+      document.getElementById('editHours').value = newHrs || '';
+      document.getElementById('editMinutes').value = newMins || '';
+
+      closeAdjustTimeModal();
     }
 
     let pendingCategoryChange = null;
