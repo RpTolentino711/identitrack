@@ -1681,6 +1681,8 @@ foreach ($cases as $c) {
       const mins = Math.round((totalHours - hrs) * 60);
       document.getElementById('editHours').value = hrs || '';
       document.getElementById('editMinutes').value = mins || '';
+      modalOverlay.dataset.originalHours = hrs;
+      modalOverlay.dataset.originalMinutes = mins;
 
       document.getElementById('editComplete').checked = (typeof data.auto_check_completed !== 'undefined') ? !!data.auto_check_completed : !!data.completed;
 
@@ -1866,6 +1868,19 @@ foreach ($cases as $c) {
       toggleCompleteChecked();
     }
 
+    function formatMinutesToText(totalMins) {
+      const hrs = Math.floor(totalMins / 60);
+      const mins = totalMins % 60;
+      let result = [];
+      if (hrs > 0) {
+        result.push(hrs + (hrs === 1 ? ' hour' : ' hours'));
+      }
+      if (mins > 0 || result.length === 0) {
+        result.push(mins + (mins === 1 ? ' minute' : ' minutes'));
+      }
+      return result.join(' and ');
+    }
+
     function goToVerification() {
       const cat = parseInt(document.getElementById('editCategory').value);
       const isCompleted = document.getElementById('editComplete').checked;
@@ -1883,6 +1898,30 @@ foreach ($cases as $c) {
           if (hours <= 0 && minutes <= 0) {
             alert('Please enter a valid number of service hours and/or minutes.');
             return;
+          }
+
+          // Check if hours/minutes changed and show confirmation prompt
+          const origHrs = parseInt(modalOverlay.dataset.originalHours) || 0;
+          const origMins = parseInt(modalOverlay.dataset.originalMinutes) || 0;
+          const origTotal = origHrs * 60 + origMins;
+
+          const newHrs = Math.floor(hours);
+          const newMins = Math.round(minutes);
+          const newTotal = newHrs * 60 + newMins;
+
+          if (newTotal !== origTotal) {
+            let confirmMsg = '';
+            if (newTotal > origTotal) {
+              const addedTime = newTotal - origTotal;
+              confirmMsg = `You will add ${formatMinutesToText(addedTime)} to this student's time and it will become ${formatMinutesToText(newTotal)} total service time. Are you sure?`;
+            } else {
+              const decreasedTime = origTotal - newTotal;
+              confirmMsg = `You will decrease this student's time by ${formatMinutesToText(decreasedTime)} and the total time of the student will be ${formatMinutesToText(newTotal)}. Are you sure?`;
+            }
+
+            if (!confirm(confirmMsg)) {
+              return;
+            }
           }
         }
       }
