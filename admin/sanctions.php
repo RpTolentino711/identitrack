@@ -1658,6 +1658,21 @@ foreach ($cases as $c) {
     function confirmUndoComplete() {
       document.getElementById('undoCompleteModalOverlay').classList.remove('active');
       
+      // Uncheck the completed checkbox and enable fields immediately upon confirmation
+      const checkbox = document.getElementById('editComplete');
+      checkbox.checked = false;
+      
+      const editProbationUntil = document.getElementById('editProbationUntil');
+      const editHours = document.getElementById('editHours');
+      const editMinutes = document.getElementById('editMinutes');
+      
+      editProbationUntil.disabled = false;
+      editProbationUntil.style.opacity = '1';
+      editHours.disabled = false;
+      editHours.style.opacity = '1';
+      editMinutes.disabled = false;
+      editMinutes.style.opacity = '1';
+      
       const currentCat = parseInt(document.getElementById('editCategory').value);
       if (currentCat === 2) {
         // Get current hours/minutes from the form
@@ -1670,14 +1685,6 @@ foreach ($cases as $c) {
         
         // Show the reactivate hours modal
         document.getElementById('reactivateHoursModalOverlay').classList.add('active');
-      } else {
-        // For other categories, just uncheck and enable fields directly
-        const checkbox = document.getElementById('editComplete');
-        checkbox.checked = false;
-        
-        const editProbationUntil = document.getElementById('editProbationUntil');
-        editProbationUntil.disabled = false;
-        editProbationUntil.style.opacity = '1';
       }
     }
 
