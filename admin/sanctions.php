@@ -1870,14 +1870,16 @@ foreach ($cases as $c) {
       document.getElementById('verifyPassword').value = '';
       document.getElementById('verifyOTP').value = '';
 
-      modalOverlay.classList.add('active');
-
       if (data.category === 2 && data.auto_check_completed && (data.completed === false || data.completed === 0 || data.completed === '0' || modalOverlay.dataset.initialCompleted === 'false')) {
+        modalOverlay.dataset.isAcknowledgeFlow = 'true';
         const compStr = formatHoursMinutesJS(data.hours_completed || 0);
         const reqStr = formatHoursMinutesJS(data.hours || 0);
         setTimeout(() => {
           openWarningModal(true, `${compStr} / ${reqStr}`);
         }, 180);
+      } else {
+        modalOverlay.dataset.isAcknowledgeFlow = 'false';
+        modalOverlay.classList.add('active');
       }
     }
 
@@ -2330,6 +2332,9 @@ foreach ($cases as $c) {
       // Switch views
       stepForm.classList.remove('active');
       stepVerify.classList.add('active');
+
+      // Ensure the main edit modal overlay is visible now
+      modalOverlay.classList.add('active');
 
       // Trigger automatic OTP request
       requestOTP();
