@@ -474,51 +474,59 @@ foreach ($cases as $c) {
 
     /* Security verification check points (Password gate) */
     .lock-screen-wrapper {
-      max-width: 460px;
-      margin: 60px auto;
+      max-width: 480px;
+      margin: 80px auto;
       background: #ffffff;
-      border-radius: 24px;
-      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+      border-radius: 28px;
+      box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.15);
       overflow: hidden;
-      border: 1px solid #e2e8f0;
-      animation: fadeIn 0.4s ease-out;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .lock-screen-header {
-      background: linear-gradient(135deg, #1a2244 0%, #2b377f 100%);
+      background: linear-gradient(135deg, #1a2244 0%, #2a3890 100%);
       color: #ffffff;
-      padding: 40px 32px 32px;
+      padding: 44px 32px 36px;
       text-align: center;
       position: relative;
     }
 
-    .lock-screen-header-icon {
-      width: 64px;
-      height: 64px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
+    .lock-logo-container {
       display: flex;
-      align-items: center;
       justify-content: center;
-      margin: 0 auto 16px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #ffffff;
+      align-items: center;
+      margin-bottom: 20px;
     }
 
-    .lock-screen-header-icon svg {
-      width: 32px;
-      height: 32px;
+    .lock-logo {
+      height: 75px;
+      width: auto;
+      filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.25));
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .lock-logo:hover {
+      transform: scale(1.08);
     }
 
     .lock-screen-header h2 {
       margin: 0;
       font-family: 'Montserrat', sans-serif;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .lock-subtitle {
+      font-size: 13px;
+      opacity: 0.85;
+      margin-top: 8px;
+      line-height: 1.5;
     }
 
     .lock-screen-body {
-      padding: 32px;
+      padding: 36px 32px;
     }
 
     .form-group {
@@ -937,14 +945,11 @@ foreach ($cases as $c) {
           <!-- Password Verification gate -->
           <div class="lock-screen-wrapper">
             <div class="lock-screen-header">
-              <div class="lock-screen-header-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
+              <div class="lock-logo-container">
+                <img src="../assets/logo.png" alt="IdentiTrack Logo" class="lock-logo" />
               </div>
               <h2>Security Verification Required</h2>
-              <div style="font-size: 13px; opacity: 0.8; margin-top: 4px;">Please enter your password to access the Sanctions panel.</div>
+              <div class="lock-subtitle">Please enter your password to access the Sanctions panel.</div>
             </div>
             <div class="lock-screen-body">
               <div class="error-banner" id="pagePasswordError"></div>
