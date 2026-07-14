@@ -1679,6 +1679,31 @@ foreach ($cases as $c) {
     </div>
   </div>
 
+  <!-- Confirm Time Change Modal -->
+  <div class="modal-overlay" id="confirmTimeChangeModalOverlay" style="z-index: 1500;">
+    <div class="modal-container" style="max-width: 440px;">
+      <div class="modal-header" style="background: #fffbeb; border-bottom: 1px solid #fef3c7;">
+        <h3 style="color: #b45309; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          Confirm Service Time Change
+        </h3>
+        <button class="modal-close" onclick="cancelTimeChangeConfirm()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <p id="confirmTimeChangeMessage" style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 24px;">
+          You are changing the student's service time. Are you sure?
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button type="button" class="btn-edit" onclick="cancelTimeChangeConfirm()" style="border-radius: 8px; padding: 10px 16px;">Cancel</button>
+          <button type="button" class="btn-submit" onclick="proceedAfterTimeChangeConfirm()" style="width: auto; background: #d97706; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);">Yes, Confirm Change</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // 1. Password Verification gate handling
     const pagePasswordForm = document.getElementById('pagePasswordForm');
@@ -2091,15 +2116,38 @@ foreach ($cases as $c) {
               confirmMsg = `You will decrease this student's time by ${formatMinutesToText(decreasedTime)} and the total time of the student will be ${formatMinutesToText(newTotal)}. Are you sure?`;
             }
 
-            if (!confirm(confirmMsg)) {
-              return;
-            }
+            document.getElementById('confirmTimeChangeMessage').textContent = confirmMsg;
+            document.getElementById('confirmTimeChangeModalOverlay').classList.add('active');
+            return;
           }
         }
       }
 
       // Check if student was already completed, but details are being modified
       const wasCompleted = (modalOverlay.dataset.initialCompleted === 'true');
+      if (wasCompleted) {
+        openModifyCompletedWarningModal();
+        return;
+      }
+
+      if (isCompleted) {
+        openWarningModal();
+        return;
+      }
+
+      proceedToVerification();
+    }
+
+    function cancelTimeChangeConfirm() {
+      document.getElementById('confirmTimeChangeModalOverlay').classList.remove('active');
+    }
+
+    function proceedAfterTimeChangeConfirm() {
+      document.getElementById('confirmTimeChangeModalOverlay').classList.remove('active');
+
+      const isCompleted = document.getElementById('editComplete').checked;
+      const wasCompleted = (modalOverlay.dataset.initialCompleted === 'true');
+      
       if (wasCompleted) {
         openModifyCompletedWarningModal();
         return;
