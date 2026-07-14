@@ -942,6 +942,47 @@ foreach ($cases as $c) {
       color: #64748b;
       font-size: 13px;
     }
+
+    @keyframes glowingJump {
+      0% {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+      }
+      50% {
+        transform: translateY(-6px) scale(1.05);
+        box-shadow: 0 12px 22px rgba(16, 185, 129, 0.6), 0 0 15px rgba(16, 185, 129, 0.4);
+      }
+      100% {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+      }
+    }
+
+    .btn-acknowledge-glowing {
+      background: #10b981 !important;
+      color: #ffffff !important;
+      border: 1px solid #059669 !important;
+      animation: glowingJump 1.4s infinite ease-in-out !important;
+      font-weight: 800 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      cursor: pointer !important;
+      padding: 10px 20px !important;
+      border-radius: 10px !important;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+      transition: all 0.2s ease-in-out !important;
+      height: 38px !important;
+      font-size: 13px !important;
+      line-height: 1 !important;
+    }
+
+    .btn-acknowledge-glowing:hover {
+      background: #059669 !important;
+      box-shadow: 0 15px 25px rgba(5, 150, 105, 0.7) !important;
+      transform: translateY(-2px) scale(1.08) !important;
+      animation: none !important;
+    }
   </style>
 </head>
 <body>
@@ -1202,22 +1243,43 @@ foreach ($cases as $c) {
                       </div>
 
                       <div class="sanction-card-right">
-                        <button class="btn-edit" onclick="openEditModal(<?php echo htmlspecialchars(json_encode([
-                          'case_id' => $c['case_id'],
-                          'student_id' => $c['student_id'],
-                          'student_name' => $student_name,
-                          'category' => 2,
-                          'probation_until' => '',
-                          'hours' => $hours_req,
-                          'completed' => $is_completed,
-                          'auto_check_completed' => ($is_completed || $has_finished_hours)
-                        ])); ?>)">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                          </svg>
-                          Edit Sanction
-                        </button>
+                        <?php if (!$is_completed && $has_finished_hours): ?>
+                          <button class="btn-acknowledge-glowing" onclick="openEditModal(<?php echo htmlspecialchars(json_encode([
+                            'case_id' => $c['case_id'],
+                            'student_id' => $c['student_id'],
+                            'student_name' => $student_name,
+                            'category' => 2,
+                            'probation_until' => '',
+                            'hours' => $hours_req,
+                            'hours_completed' => $hours_comp,
+                            'completed' => $is_completed,
+                            'auto_check_completed' => true
+                          ])); ?>)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+                              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            Acknowledge
+                          </button>
+                        <?php else: ?>
+                          <button class="btn-edit" onclick="openEditModal(<?php echo htmlspecialchars(json_encode([
+                            'case_id' => $c['case_id'],
+                            'student_id' => $c['student_id'],
+                            'student_name' => $student_name,
+                            'category' => 2,
+                            'probation_until' => '',
+                            'hours' => $hours_req,
+                            'hours_completed' => $hours_comp,
+                            'completed' => $is_completed,
+                            'auto_check_completed' => ($is_completed || $has_finished_hours)
+                          ])); ?>)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                            Edit Sanction
+                          </button>
+                        <?php endif; ?>
                       </div>
                     </div>
                   <?php endforeach; ?>
@@ -1760,6 +1822,23 @@ foreach ($cases as $c) {
     let otpCooldownInterval = null;
     let otpCooldownSeconds = 0;
 
+    function formatHoursMinutesJS(decimalHours) {
+      const val = parseFloat(decimalHours);
+      if (isNaN(val)) return '0 mins';
+      const totalMinutes = Math.round(val * 60);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      
+      let parts = [];
+      if (hours > 0) {
+        parts.push(hours + ' hr' + (hours > 1 ? 's' : ''));
+      }
+      if (minutes > 0 || parts.length === 0) {
+        parts.push(minutes + ' min' + (minutes > 1 ? 's' : ''));
+      }
+      return parts.join(' ');
+    }
+
     function openEditModal(data) {
       document.getElementById('editCaseId').value = data.case_id;
       document.getElementById('editStudentId').value = data.student_id;
@@ -1792,6 +1871,14 @@ foreach ($cases as $c) {
       document.getElementById('verifyOTP').value = '';
 
       modalOverlay.classList.add('active');
+
+      if (data.category === 2 && data.auto_check_completed && (data.completed === false || data.completed === 0 || data.completed === '0' || modalOverlay.dataset.initialCompleted === 'false')) {
+        const compStr = formatHoursMinutesJS(data.hours_completed || 0);
+        const reqStr = formatHoursMinutesJS(data.hours || 0);
+        setTimeout(() => {
+          openWarningModal(true, `${compStr} / ${reqStr}`);
+        }, 180);
+      }
     }
 
     function closeEditModal() {
@@ -2182,38 +2269,51 @@ foreach ($cases as $c) {
       
       document.getElementById('warningModalOverlay').classList.add('active');
     }
-
-    function openWarningModal() {
+    function openWarningModal(isAutoCheck = false, hoursDetails = '') {
       const cat = parseInt(document.getElementById('editCategory').value);
+      const name = document.getElementById('editStudentName').value;
       const warningTitle = document.getElementById('warningModalTitle');
       const warningMsg = document.getElementById('warningModalMessage');
       const warningBtn = document.getElementById('warningConfirmBtn');
       
       warningTitle.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
-          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
-          <line x1="12" y1="9" x2="12" y2="13"></line>
-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M8 12.5l3 3 5-6"></path>
         </svg>
-        Are you sure?
+        Acknowledge Service Completion?
       `;
 
-      if (cat === 1) {
-        warningMsg.textContent = "Are you sure you want to mark this Suspension/Probation as completed? This will end the probation period immediately and restore the student's full access.";
-      } else if (cat === 2) {
-        warningMsg.textContent = "Are you sure you want to mark this Community Service requirement as completed? This will close the active service requirement for the student.";
-      } else if (cat === 3) {
-        warningMsg.textContent = "Are you sure you want to clear this Non-Readmission Warning? This will resolve the warning and allow the student to readmit next semester.";
-      } else if (cat === 4 || cat === 5) {
-        warningMsg.textContent = "Are you sure you want to un-expel/un-exclude this student? This will reactivate their account, allowing them to use the app and login normally.";
+      if (isAutoCheck && cat === 2) {
+        warningMsg.textContent = `${name} has completed their required service hours (${hoursDetails}). Do you want to acknowledge and mark this community service sanction as completed?`;
       } else {
-        warningMsg.textContent = "Are you sure you want to mark this sanction as completed?";
+        warningTitle.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          Are you sure?
+        `;
+
+        if (cat === 1) {
+          warningMsg.textContent = "Are you sure you want to mark this Suspension/Probation as completed? This will end the probation period immediately and restore the student's full access.";
+        } else if (cat === 2) {
+          warningMsg.textContent = "Are you sure you want to mark this Community Service requirement as completed? This will close the active service requirement for the student.";
+        } else if (cat === 3) {
+          warningMsg.textContent = "Are you sure you want to clear this Non-Readmission Warning? This will resolve the warning and allow the student to readmit next semester.";
+        } else if (cat === 4 || cat === 5) {
+          warningMsg.textContent = "Are you sure you want to un-expel/un-exclude this student? This will reactivate their account, allowing them to use the app and login normally.";
+        } else {
+          warningMsg.textContent = "Are you sure you want to mark this sanction as completed?";
+        }
       }
 
       if (warningBtn) {
-        warningBtn.textContent = "Yes, Complete Sanction";
+        warningBtn.textContent = isAutoCheck ? "Yes, Acknowledge & Complete" : "Yes, Complete Sanction";
       }
       
+
       document.getElementById('warningModalOverlay').classList.add('active');
     }
 
@@ -2535,8 +2635,34 @@ foreach ($cases as $c) {
                 category: s.category,
                 probation_until: s.probation_until,
                 hours: s.hours_required,
+                hours_completed: s.hours_completed,
                 completed: s.completed
               };
+
+              const isPendingReview = (s.category === 2 && !s.completed && s.hours_completed >= (s.hours_required - 0.0001));
+              let actionBtnHTML = '';
+              if (isPendingReview) {
+                modalData.auto_check_completed = true;
+                actionBtnHTML = `
+                  <button class="btn-acknowledge-glowing" onclick='openEditModal(${JSON.stringify(modalData).replace(/'/g, "&apos;")})'>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Acknowledge
+                  </button>
+                `;
+              } else {
+                actionBtnHTML = `
+                  <button class="btn-edit" onclick='openEditModal(${JSON.stringify(modalData).replace(/'/g, "&apos;")})'>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    Edit Sanction
+                  </button>
+                `;
+              }
 
               html += `
                 <div class="sanction-card ${categoryClass}">
@@ -2562,13 +2688,7 @@ foreach ($cases as $c) {
                     </div>
                   </div>
                   <div class="sanction-card-right">
-                    <button class="btn-edit" onclick='openEditModal(${JSON.stringify(modalData).replace(/'/g, "&apos;")})'>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
-                      Edit Sanction
-                    </button>
+                    ${actionBtnHTML}
                   </div>
                 </div>
               `;
@@ -2634,10 +2754,10 @@ foreach ($cases as $c) {
             // Scroll into view smoothly
             card.scrollIntoView({ behavior: 'smooth', block: 'center' });
             
-            // Automatically open the Edit Sanction modal
-            const editBtn = card.querySelector('.btn-edit');
-            if (editBtn) {
-              editBtn.click();
+            // Automatically open the Acknowledge modal only if the green Acknowledge button is present
+            const ackBtn = card.querySelector('.btn-acknowledge-glowing');
+            if (ackBtn) {
+              ackBtn.click();
             }
             
             // Add a subtle bounce animation
