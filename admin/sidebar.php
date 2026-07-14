@@ -936,7 +936,8 @@ if (function_exists('db_all') && db_one("SHOW TABLES LIKE 'upcc_case'")) {
 
 <?php
 $serviceCompletePending = null;
-if (function_exists('db_all') && db_one("SHOW TABLES LIKE 'community_service_requirement'")) {
+$isSanctionsPage = (basename($_SERVER['SCRIPT_NAME']) === 'sanctions.php');
+if (!$isSanctionsPage && function_exists('db_all') && db_one("SHOW TABLES LIKE 'community_service_requirement'")) {
     $pendingCompletes = db_all("
         SELECT 
             csr.requirement_id, 
