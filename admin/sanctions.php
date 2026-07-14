@@ -578,6 +578,28 @@ foreach ($cases as $c) {
       box-shadow: 0 4px 16px rgba(59, 74, 166, 0.3);
     }
 
+    .btn-submit:disabled {
+      background: #64748b;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #ffffff;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     .error-banner {
       background: #fef2f2;
       border: 1px solid #fecaca;
@@ -1569,9 +1591,17 @@ foreach ($cases as $c) {
     if (pagePasswordForm) {
       pagePasswordForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        const pwd = document.getElementById('pagePassword').value;
+        const pwdInput = document.getElementById('pagePassword');
+        const submitBtn = pagePasswordForm.querySelector('.btn-submit');
+        const pwd = pwdInput.value;
         const errBanner = document.getElementById('pagePasswordError');
         errBanner.style.display = 'none';
+
+        // Set loading state
+        pwdInput.disabled = true;
+        submitBtn.disabled = true;
+        const origText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner"></span>Verifying...';
 
         fetch('sanctions.php', {
           method: 'POST',
@@ -1581,13 +1611,22 @@ foreach ($cases as $c) {
         .then(res => res.json())
         .then(data => {
           if (data.success) {
+            submitBtn.innerHTML = '<span class="spinner"></span>Please wait, redirecting...';
             location.reload();
           } else {
+            // Restore form state
+            pwdInput.disabled = false;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origText;
             errBanner.textContent = data.message;
             errBanner.style.display = 'block';
           }
         })
         .catch(err => {
+          // Restore form state
+          pwdInput.disabled = false;
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = origText;
           errBanner.textContent = 'A connection error occurred. Please try again.';
           errBanner.style.display = 'block';
         });
