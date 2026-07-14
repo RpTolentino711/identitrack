@@ -1424,7 +1424,7 @@ foreach ($cases as $c) {
 
             <div class="form-group">
               <label for="editCategory">Sanction Category</label>
-              <select id="editCategory" class="form-group input" style="width:100%;" onchange="toggleCategoryFields()">
+              <select id="editCategory" class="form-group input" style="width:100%;" onchange="handleCategoryChange()">
                 <option value="1">Category 1 - Probation / Suspension</option>
                 <option value="2">Category 2 - Community Service / Formative Intervention</option>
                 <option value="3">Category 3 - Non-Readmission Warning</option>
@@ -1585,6 +1585,32 @@ foreach ($cases as $c) {
     </div>
   </div>
 
+  <!-- Confirm Category Change Modal -->
+  <div class="modal-overlay" id="confirmCategoryModalOverlay" style="z-index: 1500;">
+    <div class="modal-container" style="max-width: 440px;">
+      <div class="modal-header" style="background: #fffbeb; border-bottom: 1px solid #fef3c7;">
+        <h3 style="color: #b45309; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          Change Sanction Category?
+        </h3>
+        <button class="modal-close" onclick="cancelCategoryChange()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <p style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 24px;">
+          Are you sure you want to change the category of this sanction? This will alter the requirement parameters and rules for this student.
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button type="button" class="btn-edit" onclick="cancelCategoryChange()" style="border-radius: 8px; padding: 10px 16px;">No, Keep Current</button>
+          <button type="button" class="btn-submit" onclick="confirmCategoryChange()" style="width: auto; background: #d97706; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);">Yes, Change Category</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // 1. Password Verification gate handling
     const pagePasswordForm = document.getElementById('pagePasswordForm');
@@ -1645,7 +1671,9 @@ foreach ($cases as $c) {
       document.getElementById('editCaseId').value = data.case_id;
       document.getElementById('editStudentId').value = data.student_id;
       document.getElementById('editStudentName').value = data.student_name;
-      document.getElementById('editCategory').value = data.category;
+      const editCategoryEl = document.getElementById('editCategory');
+      editCategoryEl.value = data.category;
+      editCategoryEl.dataset.originalCategory = data.category;
       document.getElementById('editProbationUntil').value = data.probation_until;
       
       const totalHours = parseFloat(data.hours) || 0;
@@ -1777,6 +1805,38 @@ foreach ($cases as $c) {
       
       // Close the modal
       document.getElementById('reactivateHoursModalOverlay').classList.remove('active');
+    }
+
+    let pendingCategoryChange = null;
+
+    function handleCategoryChange() {
+      const editCategoryEl = document.getElementById('editCategory');
+      const newVal = parseInt(editCategoryEl.value);
+      const oldVal = parseInt(editCategoryEl.dataset.originalCategory);
+
+      if (newVal === oldVal) {
+        return;
+      }
+
+      pendingCategoryChange = newVal;
+      document.getElementById('confirmCategoryModalOverlay').classList.add('active');
+    }
+
+    function cancelCategoryChange() {
+      const editCategoryEl = document.getElementById('editCategory');
+      editCategoryEl.value = editCategoryEl.dataset.originalCategory;
+      document.getElementById('confirmCategoryModalOverlay').classList.remove('active');
+      pendingCategoryChange = null;
+    }
+
+    function confirmCategoryChange() {
+      if (pendingCategoryChange !== null) {
+        const editCategoryEl = document.getElementById('editCategory');
+        editCategoryEl.dataset.originalCategory = pendingCategoryChange;
+        document.getElementById('confirmCategoryModalOverlay').classList.remove('active');
+        pendingCategoryChange = null;
+        toggleCategoryFields();
+      }
     }
 
     function toggleCategoryFields() {
