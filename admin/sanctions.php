@@ -3,6 +3,10 @@
 require_once __DIR__ . '/../database/database.php';
 require_admin();
 
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
 function formatHoursMinutes(float $decimalHours): string {
     $hours = (int)floor($decimalHours);
     $minutes = (int)round(($decimalHours - $hours) * 60);
