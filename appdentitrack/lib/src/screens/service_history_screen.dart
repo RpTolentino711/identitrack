@@ -284,7 +284,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
 
           final double liveCompleted = serviceDone ? assigned : (assigned - hoursRemaining);
 
-          final totalSecondsRemaining = (hoursRemaining * 3600).ceil();
+          final totalSecondsRemaining = (hoursRemaining * 3600).round();
           final h = (totalSecondsRemaining ~/ 3600).toString().padLeft(2, '0');
           final m = ((totalSecondsRemaining % 3600) ~/ 60)
               .toString()
