@@ -1846,6 +1846,7 @@ foreach ($cases as $c) {
       const editCategoryEl = document.getElementById('editCategory');
       editCategoryEl.value = data.category;
       editCategoryEl.dataset.originalCategory = data.category;
+      editCategoryEl.dataset.initialCategoryLoaded = data.category;
       document.getElementById('editProbationUntil').value = data.probation_until;
       
       const totalHours = parseFloat(data.hours) || 0;
@@ -2122,6 +2123,15 @@ foreach ($cases as $c) {
         const editCategoryEl = document.getElementById('editCategory');
         editCategoryEl.dataset.originalCategory = pendingCategoryChange;
         document.getElementById('confirmCategoryModalOverlay').classList.remove('active');
+        
+        // If changing category, uncheck the mark completed checkbox automatically
+        if (parseInt(pendingCategoryChange) !== parseInt(editCategoryEl.dataset.initialCategoryLoaded)) {
+          document.getElementById('editComplete').checked = false;
+        } else {
+          const wasCompleted = (modalOverlay.dataset.initialCompleted === 'true');
+          document.getElementById('editComplete').checked = wasCompleted;
+        }
+
         pendingCategoryChange = null;
         toggleCategoryFields();
       }

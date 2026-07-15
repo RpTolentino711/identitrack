@@ -86,6 +86,11 @@ try {
     exit;
   }
 
+  // If the category is changed, reset the completed status to 0 (false)
+  if ($category !== (int)$case['decided_category']) {
+    $completed = 0;
+  }
+
   // Set values based on category
   $probationUntil = null;
   $punishDetails = null;
