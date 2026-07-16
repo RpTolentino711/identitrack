@@ -27,6 +27,18 @@ if ($caseId <= 0 || $studentId === '' || $category < 1 || $category > 5) {
   exit;
 }
 
+$lockKey = "edit_sanction_lock_{$adminId}";
+if (!empty($_SESSION[$lockKey]) && time() < (int)$_SESSION[$lockKey]) {
+  $secondsLeft = (int)$_SESSION[$lockKey] - time();
+  echo json_encode([
+    'success' => false,
+    'lockout' => true,
+    'seconds_left' => $secondsLeft,
+    'message' => 'Too many failed attempts. Please wait 5 minutes.'
+  ]);
+  exit;
+}
+
 if ($password === '') {
   echo json_encode(['success' => false, 'message' => 'Password is required.']);
   exit;
@@ -39,7 +51,25 @@ if ($otp === '') {
 
 // 1. Verify Password
 if (!admin_verify_password($adminId, $password)) {
-  echo json_encode(['success' => false, 'message' => 'Incorrect password.']);
+  $attemptsKey = "edit_sanction_attempts_{$adminId}";
+  $attempts = (int)($_SESSION[$attemptsKey] ?? 0) + 1;
+  $_SESSION[$attemptsKey] = $attempts;
+
+  if ($attempts >= 5) {
+    $_SESSION[$lockKey] = time() + 300;
+    $_SESSION[$attemptsKey] = 0; // reset
+    $secondsLeft = 300;
+    echo json_encode([
+      'success' => false,
+      'lockout' => true,
+      'seconds_left' => $secondsLeft,
+      'message' => 'Too many failed attempts. Please wait 5 minutes.'
+    ]);
+    exit;
+  }
+
+  $left = 5 - $attempts;
+  echo json_encode(['success' => false, 'message' => "Incorrect password. {$left} attempts remaining."]);
   exit;
 }
 
@@ -58,21 +88,32 @@ if (time() > (int)$rec['expires']) {
 }
 
 if (!hash_equals((string)$rec['code'], $otp)) {
-  $rec['attempts'] = (int)($rec['attempts'] ?? 0) + 1;
-  if ($rec['attempts'] >= 5) {
-    $rec['locked_until'] = time() + 300;
-    $_SESSION['otp'][$key] = $rec;
-    echo json_encode(['success' => false, 'message' => 'Too many failed attempts. Please wait 5 minutes.']);
+  $attemptsKey = "edit_sanction_attempts_{$adminId}";
+  $attempts = (int)($_SESSION[$attemptsKey] ?? 0) + 1;
+  $_SESSION[$attemptsKey] = $attempts;
+
+  if ($attempts >= 5) {
+    $_SESSION[$lockKey] = time() + 300;
+    $_SESSION[$attemptsKey] = 0; // reset
+    unset($_SESSION['otp'][$key]); // clear OTP
+    $secondsLeft = 300;
+    echo json_encode([
+      'success' => false,
+      'lockout' => true,
+      'seconds_left' => $secondsLeft,
+      'message' => 'Too many failed attempts. Please wait 5 minutes.'
+    ]);
     exit;
   }
-  $_SESSION['otp'][$key] = $rec;
-  $left = 5 - $rec['attempts'];
+
+  $left = 5 - $attempts;
   echo json_encode(['success' => false, 'message' => "Incorrect OTP code. {$left} attempts remaining."]);
   exit;
 }
 
-// OTP verified! Clear it.
+// OTP verified! Clear it and clear failed attempts count.
 unset($_SESSION['otp'][$key]);
+unset($_SESSION[$attemptsKey]);
 
 // 3. Database Transaction
 try {

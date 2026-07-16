@@ -2095,6 +2095,8 @@ function formatCaseActivity(array $act): string {
 
     let otpCooldownInterval = null;
     let otpCooldownSeconds = 0;
+    let lockoutInterval = null;
+    let lockoutSecondsLeft = 0;
 
     function formatHoursMinutesJS(decimalHours) {
       const val = parseFloat(decimalHours);
@@ -2162,6 +2164,9 @@ function formatCaseActivity(array $act): string {
       modalOverlay.classList.remove('active');
       if (otpCooldownInterval) {
         clearInterval(otpCooldownInterval);
+      }
+      if (lockoutInterval) {
+        clearInterval(lockoutInterval);
       }
     }
 
@@ -2642,9 +2647,13 @@ function formatCaseActivity(array $act): string {
           startOTPCooldown(60);
           alert('A 6-digit OTP code has been sent to your registered admin email.');
         } else {
-          btn.disabled = false;
-          btn.textContent = 'Send OTP';
-          alert('Failed to send OTP: ' + data.message);
+          if (data.lockout) {
+            startLockoutCountdown(data.seconds_left);
+          } else {
+            btn.disabled = false;
+            btn.textContent = 'Send OTP';
+            alert('Failed to send OTP: ' + data.message);
+          }
         }
       })
       .catch(err => {
@@ -2673,6 +2682,50 @@ function formatCaseActivity(array $act): string {
           textEl.textContent = '';
         } else {
           btn.textContent = `Resend OTP (${otpCooldownSeconds}s)`;
+        }
+      }, 1000);
+    }
+
+    function startLockoutCountdown(seconds) {
+      lockoutSecondsLeft = seconds;
+      const errBanner = document.getElementById('verifyError');
+      const submitBtn = document.querySelector('#sanctionVerifyForm button[type="submit"]');
+      const resendBtn = document.getElementById('btnResendOTP');
+      const passwordInput = document.getElementById('verifyPassword');
+      const otpInput = document.getElementById('verifyOTP');
+
+      if (lockoutInterval) clearInterval(lockoutInterval);
+
+      // Disable inputs and buttons
+      submitBtn.disabled = true;
+      resendBtn.disabled = true;
+      passwordInput.disabled = true;
+      otpInput.disabled = true;
+
+      function updateUI() {
+        const minutes = Math.floor(lockoutSecondsLeft / 60);
+        const secs = lockoutSecondsLeft % 60;
+        const timeStr = `${minutes}m ${secs}s`;
+        
+        errBanner.textContent = `Too many failed attempts. Please wait ${timeStr}.`;
+        errBanner.style.display = 'block';
+        submitBtn.textContent = `Confirm and Apply Changes (Disabled: ${timeStr})`;
+      }
+
+      updateUI();
+
+      lockoutInterval = setInterval(() => {
+        lockoutSecondsLeft--;
+        if (lockoutSecondsLeft <= 0) {
+          clearInterval(lockoutInterval);
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Confirm and Apply Changes';
+          resendBtn.disabled = false;
+          passwordInput.disabled = false;
+          otpInput.disabled = false;
+          errBanner.style.display = 'none';
+        } else {
+          updateUI();
         }
       }, 1000);
     }
@@ -2719,8 +2772,12 @@ function formatCaseActivity(array $act): string {
           closeEditModal();
           location.reload();
         } else {
-          errBanner.textContent = data.message;
-          errBanner.style.display = 'block';
+          if (data.lockout) {
+            startLockoutCountdown(data.seconds_left);
+          } else {
+            errBanner.textContent = data.message;
+            errBanner.style.display = 'block';
+          }
         }
       })
       .catch(err => {

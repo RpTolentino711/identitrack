@@ -198,6 +198,18 @@ if ($adminId <= 0 || $email === '') {
 
 $key = otp_key($adminId, $action);
 
+$lockKey = "edit_sanction_lock_{$adminId}";
+if ($action === 'edit_sanction' && !empty($_SESSION[$lockKey]) && time() < (int)$_SESSION[$lockKey]) {
+    $secondsLeft = (int)$_SESSION[$lockKey] - time();
+    echo json_encode([
+        'success' => false,
+        'lockout' => true,
+        'seconds_left' => $secondsLeft,
+        'message' => 'Too many failed attempts. Please wait 5 minutes.'
+    ]);
+    exit;
+}
+
 if (!isset($_SESSION['otp'])) $_SESSION['otp'] = [];
 if (!isset($_SESSION['otp'][$key])) $_SESSION['otp'][$key] = [];
 
