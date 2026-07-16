@@ -171,6 +171,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (strlen($newPass) < 8) {
             $error = 'Password must be at least 8 characters long.';
+        } elseif (!preg_match('/[A-Z]/', $newPass)) {
+            $error = 'Password must contain at least one uppercase letter.';
+        } elseif (!preg_match('/[^A-Za-z0-9]/', $newPass)) {
+            $error = 'Password must contain at least one special character/symbol.';
         } elseif ($newPass !== $confirmPass) {
             $error = 'Passwords do not match.';
         } else {
@@ -504,7 +508,7 @@ $currentStep = $_SESSION['reset_step'] ?? 'username';
                 <input type="hidden" name="action" value="submit_password">
                 <div class="field">
                     <label for="new_password">New Password</label>
-                    <input type="password" id="new_password" name="new_password" placeholder="Min. 8 characters" required autofocus>
+                    <input type="password" id="new_password" name="new_password" placeholder="Min. 8 chars (1 uppercase, 1 symbol)" required autofocus>
                 </div>
                 <div class="field">
                     <label for="confirm_password">Confirm Password</label>
