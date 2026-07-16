@@ -71,8 +71,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
         _loading = false;
       });
     } catch (e) {
+      final msg = e.toString().toLowerCase().contains('wi-fi')
+          ? e.toString().replaceFirst('Exception: ', '')
+          : 'Failed to load alerts. Please try again.';
       setState(() {
-        _error = 'Failed to load alerts. Please try again.';
+        _error = msg;
         _loading = false;
       });
     }

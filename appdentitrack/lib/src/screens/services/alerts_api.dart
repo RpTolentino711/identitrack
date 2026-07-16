@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'custom_http.dart' as http;
 
 import '../../config.dart';
 import 'student_api_auth.dart';
