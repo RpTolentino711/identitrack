@@ -54,6 +54,7 @@ $tab = isset($_GET['tab']) ? $_GET['tab'] : 'cat1';
 
 // Fetch cases only if page is verified
 $cases = [];
+$activities = [];
 if ($is_verified) {
     $params = [];
     db_add_encryption_key($params);
@@ -75,6 +76,22 @@ if ($is_verified) {
       ORDER BY uc.created_at DESC
     ";
     $cases = db_all($query, $params);
+
+    // Fetch activities for all these cases in a single query
+    $caseIds = array_column($cases, 'case_id');
+    if (!empty($caseIds)) {
+        $inClause = implode(',', array_map('intval', $caseIds));
+        $activitiesQuery = "
+          SELECT activity_id, case_id, actor_type, actor_id, action, payload_json, created_at
+          FROM upcc_case_activity
+          WHERE case_id IN ($inClause)
+          ORDER BY created_at DESC, activity_id DESC
+        ";
+        $rawActivities = db_all($activitiesQuery);
+        foreach ($rawActivities as $act) {
+            $activities[(int)$act['case_id']][] = $act;
+        }
+    }
 }
 
 // Group cases by category tab for display
@@ -93,6 +110,62 @@ foreach ($cases as $c) {
         $cat3_cases[] = $c;
     } elseif ($cat === 4 || $cat === 5) {
         $cat4_5_cases[] = $c;
+    }
+}
+
+function formatCaseActivity(array $act): string {
+    $action = $act['action'];
+    $payload = json_decode($act['payload_json'] ?? '', true) ?: [];
+    $dateStr = date('M d, Y g:i A', strtotime($act['created_at']));
+    
+    switch ($action) {
+        case 'SANCTION_CATEGORY_UPDATED':
+            $cat = (int)($payload['category'] ?? 0);
+            $by = htmlspecialchars((string)($payload['by'] ?? 'Admin'));
+            
+            $completed = !empty($payload['completed']) || (isset($payload['completed']) && $payload['completed'] == 1);
+            if ($completed) {
+                return "<strong>[$dateStr]</strong> Sanction marked as completed by <strong>$by</strong>.";
+            }
+            
+            $catNames = [
+                1 => 'Category 1 (Suspension/Probation)',
+                2 => 'Category 2 (Community Service)',
+                3 => 'Category 3 (Non-Readmission Warning)',
+                4 => 'Category 4 (Exclusion)',
+                5 => 'Category 5 (Expulsion)'
+            ];
+            $catName = $catNames[$cat] ?? "Category $cat";
+            
+            $detailStr = '';
+            if ($cat === 1 && !empty($payload['probation_until'])) {
+                $detailStr = " (Probation until " . date('M d, Y', strtotime($payload['probation_until'])) . ")";
+            } elseif ($cat === 2 && isset($payload['hours'])) {
+                $decimalHours = (float)$payload['hours'];
+                $totalMins = (int)round($decimalHours * 60);
+                $h = (int)floor($totalMins / 60);
+                $m = $totalMins % 60;
+                $timeStr = ($h > 0 ? "$h hr" . ($h > 1 ? 's' : '') : '') . ($m > 0 ? " $m min" . ($m > 1 ? 's' : '') : '');
+                if ($timeStr === '') $timeStr = '0 mins';
+                $detailStr = " (Required: $timeStr)";
+            }
+            
+            return "<strong>[$dateStr]</strong> Category updated to <strong>$catName</strong>$detailStr by <strong>$by</strong>.";
+            
+        case 'AUTO_RESOLVED_WINDOW_EXPIRED':
+            return "<strong>[$dateStr]</strong> Auto-resolved by system (grace period expired).";
+            
+        case 'CASE_STATUS_UPDATED':
+            $status = htmlspecialchars((string)($payload['status'] ?? ''));
+            return "<strong>[$dateStr]</strong> Case status updated to <strong>$status</strong>.";
+            
+        case 'DECISION_FINALIZED':
+            $cat = (int)($payload['category'] ?? 0);
+            return "<strong>[$dateStr]</strong> UPCC Decision Finalized: Category <strong>$cat</strong>.";
+            
+        default:
+            $prettyAction = ucwords(strtolower(str_replace('_', ' ', $action)));
+            return "<strong>[$dateStr]</strong> $prettyAction.";
     }
 }
 ?>
@@ -718,6 +791,81 @@ foreach ($cases as $c) {
       font-weight: 500;
     }
 
+    .sanction-card-history-section {
+      grid-column: 1 / -1;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed #e2e8f0;
+    }
+    .btn-toggle-history {
+      background: none;
+      border: none;
+      color: #3b82f6;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-toggle-history:hover {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+    .btn-toggle-history svg {
+      transition: transform 0.2s ease;
+    }
+    .btn-toggle-history.active svg {
+      transform: rotate(90deg);
+    }
+    .card-history-content {
+      margin-top: 12px;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      font-size: 13px;
+    }
+    .history-timeline {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .history-item {
+      color: #475569;
+      position: relative;
+      padding-left: 20px;
+      line-height: 1.5;
+    }
+    .history-item::before {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+    .history-item::after {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 16px;
+      width: 2px;
+      height: calc(100% + 8px);
+      background: #e2e8f0;
+    }
+    .history-item:last-child::after {
+      display: none;
+    }
+
     /* Animations */
     @keyframes fadeIn {
       from { opacity: 0; }
@@ -1161,6 +1309,31 @@ foreach ($cases as $c) {
                           Edit Sanction
                         </button>
                       </div>
+                      <?php 
+                        $case_acts = $activities[(int)$c['case_id']] ?? [];
+                      ?>
+                      <div class="sanction-card-history-section">
+                        <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'history-<?php echo $c['case_id']; ?>')">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                          </svg>
+                          Show History Log (<?php echo count($case_acts); ?>)
+                        </button>
+                        <div id="history-<?php echo $c['case_id']; ?>" class="card-history-content" style="display: none;">
+                          <?php if (empty($case_acts)): ?>
+                            <span style="color: #64748b; font-style: italic;">No history logs found for this sanction.</span>
+                          <?php else: ?>
+                            <ul class="history-timeline">
+                              <?php foreach ($case_acts as $act): ?>
+                                <li class="history-item">
+                                  <?php echo formatCaseActivity($act); ?>
+                                </li>
+                              <?php endforeach; ?>
+                            </ul>
+                          <?php endif; ?>
+                        </div>
+                      </div>
                     </div>
                   <?php endforeach; ?>
                 </div>
@@ -1281,6 +1454,31 @@ foreach ($cases as $c) {
                           </button>
                         <?php endif; ?>
                       </div>
+                      <?php 
+                        $case_acts = $activities[(int)$c['case_id']] ?? [];
+                      ?>
+                      <div class="sanction-card-history-section">
+                        <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'history-<?php echo $c['case_id']; ?>')">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                          </svg>
+                          Show History Log (<?php echo count($case_acts); ?>)
+                        </button>
+                        <div id="history-<?php echo $c['case_id']; ?>" class="card-history-content" style="display: none;">
+                          <?php if (empty($case_acts)): ?>
+                            <span style="color: #64748b; font-style: italic;">No history logs found for this sanction.</span>
+                          <?php else: ?>
+                            <ul class="history-timeline">
+                              <?php foreach ($case_acts as $act): ?>
+                                <li class="history-item">
+                                  <?php echo formatCaseActivity($act); ?>
+                                </li>
+                              <?php endforeach; ?>
+                            </ul>
+                          <?php endif; ?>
+                        </div>
+                      </div>
                     </div>
                   <?php endforeach; ?>
                 </div>
@@ -1359,6 +1557,31 @@ foreach ($cases as $c) {
                           </svg>
                           Edit Sanction
                         </button>
+                      </div>
+                      <?php 
+                        $case_acts = $activities[(int)$c['case_id']] ?? [];
+                      ?>
+                      <div class="sanction-card-history-section">
+                        <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'history-<?php echo $c['case_id']; ?>')">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                          </svg>
+                          Show History Log (<?php echo count($case_acts); ?>)
+                        </button>
+                        <div id="history-<?php echo $c['case_id']; ?>" class="card-history-content" style="display: none;">
+                          <?php if (empty($case_acts)): ?>
+                            <span style="color: #64748b; font-style: italic;">No history logs found for this sanction.</span>
+                          <?php else: ?>
+                            <ul class="history-timeline">
+                              <?php foreach ($case_acts as $act): ?>
+                                <li class="history-item">
+                                  <?php echo formatCaseActivity($act); ?>
+                                </li>
+                              <?php endforeach; ?>
+                            </ul>
+                          <?php endif; ?>
+                        </div>
                       </div>
                     </div>
                   <?php endforeach; ?>
@@ -1452,6 +1675,31 @@ foreach ($cases as $c) {
                           </svg>
                           Edit Sanction
                         </button>
+                      </div>
+                      <?php 
+                        $case_acts = $activities[(int)$c['case_id']] ?? [];
+                      ?>
+                      <div class="sanction-card-history-section">
+                        <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'history-<?php echo $c['case_id']; ?>')">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                          </svg>
+                          Show History Log (<?php echo count($case_acts); ?>)
+                        </button>
+                        <div id="history-<?php echo $c['case_id']; ?>" class="card-history-content" style="display: none;">
+                          <?php if (empty($case_acts)): ?>
+                            <span style="color: #64748b; font-style: italic;">No history logs found for this sanction.</span>
+                          <?php else: ?>
+                            <ul class="history-timeline">
+                              <?php foreach ($case_acts as $act): ?>
+                                <li class="history-item">
+                                  <?php echo formatCaseActivity($act); ?>
+                                </li>
+                              <?php endforeach; ?>
+                            </ul>
+                          <?php endif; ?>
+                        </div>
                       </div>
                     </div>
                   <?php endforeach; ?>
@@ -2679,6 +2927,47 @@ foreach ($cases as $c) {
                 `;
               }
 
+              // Render history log
+              let historyHTML = '';
+              const caseActs = s.activities || [];
+              if (caseActs.length > 0) {
+                let timelineHTML = caseActs.map(act => {
+                  let msg = formatCaseActivityJS(act);
+                  return `<li class="history-item">${msg}</li>`;
+                }).join('');
+                historyHTML = `
+                  <div class="sanction-card-history-section">
+                    <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'ajax-history-${s.case_id}')">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
+                      Show History Log (${caseActs.length})
+                    </button>
+                    <div id="ajax-history-${s.case_id}" class="card-history-content" style="display: none;">
+                      <ul class="history-timeline">
+                        ${timelineHTML}
+                      </ul>
+                    </div>
+                  </div>
+                `;
+              } else {
+                historyHTML = `
+                  <div class="sanction-card-history-section">
+                    <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'ajax-history-${s.case_id}')">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
+                      Show History Log (0)
+                    </button>
+                    <div id="ajax-history-${s.case_id}" class="card-history-content" style="display: none; color: #64748b; font-style: italic;">
+                      No history logs found for this sanction.
+                    </div>
+                  </div>
+                `;
+              }
+
               html += `
                 <div class="sanction-card ${categoryClass}">
                   <div class="sanction-card-left">
@@ -2705,6 +2994,7 @@ foreach ($cases as $c) {
                   <div class="sanction-card-right">
                     ${actionBtnHTML}
                   </div>
+                  ${historyHTML}
                 </div>
               `;
             });
@@ -2728,6 +3018,84 @@ foreach ($cases as $c) {
       document.getElementById('rfidSearchResult').style.display = 'none';
       document.getElementById('rfidSearchResult').innerHTML = '';
       document.getElementById('btnResetRFIDSearch').style.display = 'none';
+    }
+
+    function toggleCardHistory(btn, contentId) {
+      const content = document.getElementById(contentId);
+      if (!content) return;
+      
+      const isHidden = content.style.display === 'none';
+      if (isHidden) {
+        content.style.display = 'block';
+        btn.classList.add('active');
+        btn.innerHTML = btn.innerHTML.replace('Show History Log', 'Hide History Log');
+      } else {
+        content.style.display = 'none';
+        btn.classList.remove('active');
+        btn.innerHTML = btn.innerHTML.replace('Hide History Log', 'Show History Log');
+      }
+    }
+
+    function formatCaseActivityJS(act) {
+      const action = act.action;
+      let payload = {};
+      try {
+        payload = JSON.parse(act.payload_json) || {};
+      } catch(e) {}
+      
+      const date = new Date(act.created_at);
+      const options = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
+      const dateStr = date.toLocaleDateString('en-US', options);
+
+      switch (action) {
+        case 'SANCTION_CATEGORY_UPDATED':
+          const cat = parseInt(payload.category) || 0;
+          const by = escapeHTML(payload.by || 'Admin');
+          const completed = !!payload.completed;
+          
+          if (completed) {
+            return `<strong>[${dateStr}]</strong> Sanction marked as completed by <strong>${by}</strong>.`;
+          }
+          
+          const catNames = {
+            1: 'Category 1 (Suspension/Probation)',
+            2: 'Category 2 (Community Service)',
+            3: 'Category 3 (Non-Readmission Warning)',
+            4: 'Category 4 (Exclusion)',
+            5: 'Category 5 (Expulsion)'
+          };
+          const catName = catNames[cat] || `Category ${cat}`;
+          
+          let detailStr = '';
+          if (cat === 1 && payload.probation_until) {
+            const probDate = new Date(payload.probation_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            detailStr = ` (Probation until ${probDate})`;
+          } else if (cat === 2 && typeof payload.hours !== 'undefined') {
+            const decimalHours = parseFloat(payload.hours);
+            const totalMins = Math.round(decimalHours * 60);
+            const h = Math.floor(totalMins / 60);
+            const m = totalMins % 60;
+            let timeStr = (h > 0 ? `${h} hr${h > 1 ? 's' : ''}` : '') + (m > 0 ? ` ${m} min${m > 1 ? 's' : ''}` : '');
+            if (timeStr === '') timeStr = '0 mins';
+            detailStr = ` (Required: ${timeStr})`;
+          }
+          return `<strong>[${dateStr}]</strong> Category updated to <strong>${catName}</strong>${detailStr} by <strong>${by}</strong>.`;
+          
+        case 'AUTO_RESOLVED_WINDOW_EXPIRED':
+          return `<strong>[${dateStr}]</strong> Auto-resolved by system (grace period expired).`;
+          
+        case 'CASE_STATUS_UPDATED':
+          const status = escapeHTML(payload.status || '');
+          return `<strong>[${dateStr}]</strong> Case status updated to <strong>${status}</strong>.`;
+          
+        case 'DECISION_FINALIZED':
+          const finalCat = parseInt(payload.category) || 0;
+          return `<strong>[${dateStr}]</strong> UPCC Decision Finalized: Category <strong>${finalCat}</strong>.`;
+          
+        default:
+          const prettyAction = action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+          return `<strong>[${dateStr}]</strong> ${prettyAction}.`;
+      }
     }
 
     function escapeHTML(str) {

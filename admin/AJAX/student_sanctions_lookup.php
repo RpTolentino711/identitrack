@@ -99,6 +99,23 @@ $sanctionsQuery = "
 
 $rawSanctions = db_all($sanctionsQuery, $sanctParams);
 
+// Fetch activities for all these cases
+$caseIds = array_column($rawSanctions, 'case_id');
+$activities = [];
+if (!empty($caseIds)) {
+  $inClause = implode(',', array_map('intval', $caseIds));
+  $activitiesQuery = "
+    SELECT activity_id, case_id, actor_type, actor_id, action, payload_json, created_at
+    FROM upcc_case_activity
+    WHERE case_id IN ($inClause)
+    ORDER BY created_at DESC, activity_id DESC
+  ";
+  $rawActivities = db_all($activitiesQuery);
+  foreach ($rawActivities as $act) {
+    $activities[(int)$act['case_id']][] = $act;
+  }
+}
+
 $sanctionsList = [];
 foreach ($rawSanctions as $s) {
   $p_details = json_decode($s['punishment_details'] ?? '', true) ?: [];
@@ -121,7 +138,8 @@ foreach ($rawSanctions as $s) {
     'hours_required' => (float)($s['hours_required'] ?? 0.0),
     'hours_completed' => (float)($s['hours_completed'] ?? 0.0),
     'completed' => $completed,
-    'is_ongoing' => $is_ongoing
+    'is_ongoing' => $is_ongoing,
+    'activities' => $activities[(int)$s['case_id']] ?? []
   ];
 }
 
