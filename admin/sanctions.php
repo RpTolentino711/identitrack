@@ -137,19 +137,45 @@ function formatCaseActivity(array $act): string {
             ];
             $catName = $catNames[$cat] ?? "Category $cat";
             
-            $detailStr = '';
-            if ($cat === 1 && !empty($payload['probation_until'])) {
-                $detailStr = " (Probation until " . date('M d, Y', strtotime($payload['probation_until'])) . ")";
-            } elseif ($cat === 2 && isset($payload['hours'])) {
-                $decimalHours = (float)$payload['hours'];
+            $formatHours = function(float $decimalHours): string {
                 $totalMins = (int)round($decimalHours * 60);
                 $h = (int)floor($totalMins / 60);
                 $m = $totalMins % 60;
                 $timeStr = ($h > 0 ? "$h hr" . ($h > 1 ? 's' : '') : '') . ($m > 0 ? " $m min" . ($m > 1 ? 's' : '') : '');
-                if ($timeStr === '') $timeStr = '0 mins';
-                $detailStr = " (Required: $timeStr)";
+                return ($timeStr === '') ? '0 mins' : trim($timeStr);
+            };
+
+            $detailStr = '';
+            if ($cat === 1 && !empty($payload['probation_until'])) {
+                $detailStr = " (Probation until " . date('M d, Y', strtotime($payload['probation_until'])) . ")";
+            } elseif ($cat === 2 && isset($payload['hours'])) {
+                $detailStr = " (Required: " . $formatHours((float)$payload['hours']) . ")";
             }
             
+            // Check if this was a category switch
+            $oldCat = isset($payload['old_category']) ? (int)$payload['old_category'] : null;
+            if ($oldCat !== null && $oldCat !== $cat) {
+                $oldCatNames = [
+                    1 => 'Category 1 (Suspension/Probation)',
+                    2 => 'Category 2 (Community Service)',
+                    3 => 'Category 3 (Non-Readmission Warning)',
+                    4 => 'Category 4 (Exclusion)',
+                    5 => 'Category 5 (Expulsion)'
+                ];
+                $oldCatName = $oldCatNames[$oldCat] ?? "Category $oldCat";
+                
+                if ($oldCat === 2 && isset($payload['old_hours_required'])) {
+                    $oldComp = (float)($payload['old_hours_completed'] ?? 0.0);
+                    $oldReq = (float)$payload['old_hours_required'];
+                    $compStr = $formatHours($oldComp);
+                    $reqStr = $formatHours($oldReq);
+                    $statusText = ($oldComp < ($oldReq - 0.0001)) ? "incomplete at $compStr / $reqStr" : "completed";
+                    return "<strong>[$dateStr]</strong> Switched from <strong>$oldCatName</strong> ($statusText) to <strong>$catName</strong>$detailStr by <strong>$by</strong>.";
+                }
+                
+                return "<strong>[$dateStr]</strong> Switched from <strong>$oldCatName</strong> to <strong>$catName</strong>$detailStr by <strong>$by</strong>.";
+            }
+
             return "<strong>[$dateStr]</strong> Category updated to <strong>$catName</strong>$detailStr by <strong>$by</strong>.";
             
         case 'AUTO_RESOLVED_WINDOW_EXPIRED':
@@ -3066,19 +3092,37 @@ function formatCaseActivity(array $act): string {
           };
           const catName = catNames[cat] || `Category ${cat}`;
           
+          const formatHoursJS = (decimalHours) => {
+            const totalMins = Math.round(decimalHours * 60);
+            const h = Math.floor(totalMins / 60);
+            const m = totalMins % 60;
+            let timeStr = (h > 0 ? `${h} hr${h > 1 ? 's' : ''}` : '') + (m > 0 ? ` ${m} min${m > 1 ? 's' : ''}` : '');
+            return timeStr === '' ? '0 mins' : timeStr.trim();
+          };
+
           let detailStr = '';
           if (cat === 1 && payload.probation_until) {
             const probDate = new Date(payload.probation_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             detailStr = ` (Probation until ${probDate})`;
           } else if (cat === 2 && typeof payload.hours !== 'undefined') {
-            const decimalHours = parseFloat(payload.hours);
-            const totalMins = Math.round(decimalHours * 60);
-            const h = Math.floor(totalMins / 60);
-            const m = totalMins % 60;
-            let timeStr = (h > 0 ? `${h} hr${h > 1 ? 's' : ''}` : '') + (m > 0 ? ` ${m} min${m > 1 ? 's' : ''}` : '');
-            if (timeStr === '') timeStr = '0 mins';
-            detailStr = ` (Required: ${timeStr})`;
+            detailStr = ` (Required: ${formatHoursJS(parseFloat(payload.hours))})`;
           }
+
+          // Check if this was a category switch
+          const oldCat = typeof payload.old_category !== 'undefined' ? parseInt(payload.old_category) : null;
+          if (oldCat !== null && oldCat !== cat) {
+            const oldCatName = catNames[oldCat] || `Category ${oldCat}`;
+            if (oldCat === 2 && typeof payload.old_hours_required !== 'undefined') {
+              const oldComp = parseFloat(payload.old_hours_completed || 0);
+              const oldReq = parseFloat(payload.old_hours_required);
+              const compStr = formatHoursJS(oldComp);
+              const reqStr = formatHoursJS(oldReq);
+              const statusText = (oldComp < (oldReq - 0.0001)) ? `incomplete at ${compStr} / ${reqStr}` : 'completed';
+              return `<strong>[${dateStr}]</strong> Switched from <strong>${oldCatName}</strong> (${statusText}) to <strong>${catName}</strong>${detailStr} by <strong>${by}</strong>.`;
+            }
+            return `<strong>[${dateStr}]</strong> Switched from <strong>${oldCatName}</strong> to <strong>${catName}</strong>${detailStr} by <strong>${by}</strong>.`;
+          }
+
           return `<strong>[${dateStr}]</strong> Category updated to <strong>${catName}</strong>${detailStr} by <strong>${by}</strong>.`;
           
         case 'AUTO_RESOLVED_WINDOW_EXPIRED':

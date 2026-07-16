@@ -86,8 +86,30 @@ try {
     exit;
   }
 
+  $oldCategory = (int)$case['decided_category'];
+  $oldHoursCompleted = 0.0;
+  $oldHoursRequired = 0.0;
+
+  if ($oldCategory === 2) {
+    $req = db_one(
+      "SELECT r.requirement_id, r.hours_required, (
+         SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
+         FROM community_service_session sess
+         WHERE sess.requirement_id = r.requirement_id AND sess.time_out IS NOT NULL
+       ) AS hours_completed 
+       FROM community_service_requirement r 
+       WHERE r.related_case_id = :cid 
+       LIMIT 1",
+      [':cid' => $caseId]
+    );
+    if ($req) {
+      $oldHoursCompleted = (float)$req['hours_completed'];
+      $oldHoursRequired = (float)$req['hours_required'];
+    }
+  }
+
   // If the category is changed, reset the completed status to 0 (false)
-  if ($category !== (int)$case['decided_category']) {
+  if ($category !== $oldCategory) {
     $completed = 0;
   }
 
@@ -249,7 +271,10 @@ try {
         'category' => $category,
         'hours' => $hours,
         'probation_until' => $probationUntil,
-        'by' => $admin['username']
+        'by' => $admin['username'],
+        'old_category' => $oldCategory,
+        'old_hours_required' => $oldHoursRequired,
+        'old_hours_completed' => $oldHoursCompleted
       ])
     ]
   );
