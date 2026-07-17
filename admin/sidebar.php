@@ -954,11 +954,14 @@ if (!$isSanctionsPage && function_exists('db_all') && db_one("SHOW TABLES LIKE '
         JOIN student s ON s.student_id = csr.student_id
         JOIN upcc_case uc ON uc.case_id = csr.related_case_id
         WHERE (uc.punishment_details NOT LIKE '%\"completed\":true%')
-          AND (csr.status = 'COMPLETED' OR (
+          AND uc.status NOT IN ('CLOSED', 'RESOLVED')
+          AND csr.status NOT IN ('COMPLETED', 'CANCELLED')
+          AND csr.hours_required > 0
+          AND (
               SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess2.time_in, sess2.time_out)/3600.0), 0.0)
               FROM community_service_session sess2
               WHERE sess2.requirement_id = csr.requirement_id AND sess2.time_out IS NOT NULL
-          ) >= csr.hours_required)
+          ) >= csr.hours_required
         ORDER BY uc.created_at DESC
         LIMIT 1
     ");
