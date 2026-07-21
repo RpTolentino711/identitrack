@@ -147,7 +147,8 @@ $items = [];
 $resolvedCasesMap = []; 
 $resCases = db_all("
   SELECT c.case_id, c.decided_category, " . db_decrypt_col('final_decision', 'c') . " AS final_decision, c.resolution_date, co.offense_id, c.status,
-         (SELECT status FROM student_appeal_request sar WHERE sar.case_id = c.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) AS appeal_status
+         (SELECT status FROM student_appeal_request sar WHERE sar.case_id = c.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) AS appeal_status,
+         (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = c.case_id LIMIT 1) AS csr_status
   FROM upcc_case c
   JOIN upcc_case_offense co ON co.case_id = c.case_id
   WHERE c.student_id = :sid 
@@ -196,9 +197,25 @@ for ($i = 0; $i < count($minorList); $i++) {
       if (isset($resolvedCasesMap[$oid])) {
         $rc = $resolvedCasesMap[$oid];
         $status = (string)$rc['status'];
-        if ((int)$rc['decided_category'] > 0) {
-          $status .= ' (Category ' . $rc['decided_category'] . ')';
+        
+        $pStatus = 'ONGOING';
+        $catVal = (int)$rc['decided_category'];
+        $caseStatus = (string)$rc['status'];
+        $csrVal = isset($rc['csr_status']) ? (string)$rc['csr_status'] : '';
+        if ($catVal === 1) {
+            if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+        } else if ($catVal === 2) {
+            if (strtoupper($csrVal) === 'COMPLETED' || in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+        } else {
+            if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
         }
+        
+        if ($catVal > 0) {
+          $status .= ' (Category ' . $catVal . ') - ' . $pStatus;
+        } else {
+          $status .= ' - ' . $pStatus;
+        }
+        
         $appealStatus = (string)($rc['appeal_status'] ?? '');
         $descAddition = "\n\n--- UPCC FINAL DECISION ---\nCategory " . $rc['decided_category'] . "\n" . $rc['final_decision'] . "\nResolved on: " . date('M d, Y', strtotime($rc['resolution_date']));
         break;
@@ -288,9 +305,25 @@ foreach ($majorList as $r) {
   if (isset($resolvedCasesMap[$oid])) {
     $rc = $resolvedCasesMap[$oid];
     $status = (string)$rc['status'];
-    if ((int)$rc['decided_category'] > 0) {
-      $status .= ' (Category ' . $rc['decided_category'] . ')';
+    
+    $pStatus = 'ONGOING';
+    $catVal = (int)$rc['decided_category'];
+    $caseStatus = (string)$rc['status'];
+    $csrVal = isset($rc['csr_status']) ? (string)$rc['csr_status'] : '';
+    if ($catVal === 1) {
+        if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+    } else if ($catVal === 2) {
+        if (strtoupper($csrVal) === 'COMPLETED' || in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+    } else {
+        if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
     }
+    
+    if ($catVal > 0) {
+      $status .= ' (Category ' . $catVal . ') - ' . $pStatus;
+    } else {
+      $status .= ' - ' . $pStatus;
+    }
+    
     $appealStatus = (string)($rc['appeal_status'] ?? '');
     $desc .= "\n\n--- UPCC FINAL DECISION ---\nCategory " . $rc['decided_category'] . "\n" . $rc['final_decision'] . "\nResolved on: " . date('M d, Y', strtotime($rc['resolution_date']));
   }

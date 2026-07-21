@@ -1408,13 +1408,54 @@ $students = db_all($sql, $params) ?: [];
       const statusCls   = ['OPEN','RESOLVED','VOID'].includes(status) ? status : 'OPEN';
       const statusBadge = `<span class="status-badge status-${statusCls}">${esc(status)}</span>`;
 
+      let extraBadgesHtml = '';
+      if (level === 'MAJOR') {
+        const cat = o.decided_category ? parseInt(o.decided_category) : 0;
+        const caseStatus = o.case_status ? o.case_status.toUpperCase() : '';
+        const csrStatus = o.csr_status ? o.csr_status.toUpperCase() : '';
+        
+        let pStatus = 'ONGOING';
+        if (cat === 0) {
+            pStatus = 'ONGOING';
+        } else if (cat === 1) {
+            if (['CLOSED', 'RESOLVED'].includes(caseStatus)) {
+                pStatus = 'COMPLETED';
+            } else {
+                pStatus = 'ONGOING';
+            }
+        } else if (cat === 2) {
+            if (csrStatus === 'COMPLETED' || ['CLOSED', 'RESOLVED'].includes(caseStatus)) {
+                pStatus = 'COMPLETED';
+            } else {
+                pStatus = 'ONGOING';
+            }
+        } else {
+            if (['CLOSED', 'RESOLVED'].includes(caseStatus)) {
+                pStatus = 'COMPLETED';
+            } else {
+                pStatus = 'ONGOING';
+            }
+        }
+        
+        const categoryNames = {1: 'Probation', 2: 'Formative Intervention', 3: 'Non-Readmission', 4: 'Exclusion', 5: 'Expulsion'};
+        if (cat >= 1 && cat <= 5) {
+          extraBadgesHtml += `<span class="badge" style="background:var(--bg-mid);color:var(--text-2);margin-left:4px;font-weight:700;">Category ${cat} (${categoryNames[cat].toUpperCase()})</span>`;
+        }
+        
+        if (pStatus === 'COMPLETED') {
+          extraBadgesHtml += `<span class="badge" style="background:#d1e7dd;color:#0f5132;border:1px solid #badbcc;margin-left:4px;font-weight:700;">COMPLETED</span>`;
+        } else {
+          extraBadgesHtml += `<span class="badge" style="background:#fff3cd;color:#664d03;border:1px solid #ffecb5;margin-left:4px;font-weight:700;">ONGOING</span>`;
+        }
+      }
+
       const date = o.date_committed
         ? new Date(o.date_committed).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' })
         : '';
 
       return `
       <div class="offense-card level-${esc(level)}">
-        <div class="offense-card-top">${levelBadge}${statusBadge}</div>
+        <div class="offense-card-top">${levelBadge}${statusBadge}${extraBadgesHtml}</div>
         ${o.offense_code ? `<div class="offense-code">${esc(o.offense_code)}</div>` : ''}
         <div class="offense-name">${esc(o.offense_name || '—')}</div>
         ${o.description ? `<div class="offense-desc">${esc(o.description)}</div>` : ''}

@@ -358,8 +358,9 @@ $history = db_all(
   "SELECT o.offense_id, o.status, " . db_decrypt_col('description', 'o') . " AS description, o.date_committed,
           o.level,
           ot.code, ot.name, ot.major_category,
-          uc.status AS uc_status, uc.decided_category AS uc_category,
-          " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ", uc.resolution_date AS uc_resolution_date
+          uc.case_id, uc.status AS uc_status, uc.decided_category AS uc_category,
+          " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ", uc.resolution_date AS uc_resolution_date,
+          (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
@@ -384,7 +385,8 @@ for ($i = 0; $i < count($allMinors); $i += 3) {
     if (count($group) === 3) {
         $lastMinorId = $group[2]['offense_id'];
         $caseRow = db_one(
-            "SELECT uc.status, uc.decided_category, uc.final_decision, uc.punishment_details, uc.resolution_date
+            "SELECT uc.status, uc.decided_category, uc.final_decision, uc.punishment_details, uc.resolution_date,
+                    (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
              FROM upcc_case uc
              JOIN upcc_case_offense uco ON uc.case_id = uco.case_id
              WHERE uco.offense_id = :oid
@@ -397,7 +399,8 @@ for ($i = 0; $i < count($allMinors); $i += 3) {
             'case_category' => $caseRow ? $caseRow['decided_category'] : null,
             'case_decision' => $caseRow ? $caseRow['final_decision'] : null,
             'case_punishment' => $caseRow ? $caseRow['punishment_details'] : null,
-            'case_resolution_date' => $caseRow ? $caseRow['resolution_date'] : null
+            'case_resolution_date' => $caseRow ? $caseRow['resolution_date'] : null,
+            'csr_status' => $caseRow ? $caseRow['csr_status'] : null
         ];
     }
 }
@@ -1230,6 +1233,16 @@ $majorCount = $rawMajorCount + count($escalationGroups);
       border: 1px solid var(--border);
       text-decoration: line-through;
     }
+    .badge-ongoing {
+      background: #fff3cd;
+      color: #664d03;
+      border: 1px solid #ffecb5;
+    }
+    .badge-completed {
+      background: #d1e7dd;
+      color: #0f5132;
+      border: 1px solid #badbcc;
+    }
 
     .off-name {
       font-size: 14.5px;
@@ -1538,6 +1551,23 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                           <span class="badge" style="background:#fef2f2;color:var(--red);border-color:#fca5a5;font-weight:800;"><?php echo e($title); ?></span>
                           <?php if ($caseCategory): ?>
                             <span class="badge badge-category">Category <?php echo (int)$caseCategory; ?></span>
+                            <?php
+                              $pStatus = 'ONGOING';
+                              $catVal = (int)$caseCategory;
+                              $csrVal = isset($groupData['csr_status']) ? (string)$groupData['csr_status'] : '';
+                              if ($catVal === 1) {
+                                  if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                              } else if ($catVal === 2) {
+                                  if (strtoupper($csrVal) === 'COMPLETED' || in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                              } else {
+                                  if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                              }
+                              if ($pStatus === 'COMPLETED') {
+                                  echo '<span class="badge badge-completed">COMPLETED</span>';
+                              } else {
+                                  echo '<span class="badge badge-ongoing">ONGOING</span>';
+                              }
+                            ?>
                           <?php endif; ?>
                         </div>
                         <span class="badge" style="background:<?php echo $badgeBg; ?>;color:<?php echo $badgeColor; ?>;border:1px solid <?php echo $badgeBorder; ?>;font-size:11px;font-weight:700;">
@@ -1673,6 +1703,25 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                         $statusBadge = match($ucStatus) { 'RESOLVED' => 'badge-resolved', 'CLOSED' => 'badge-resolved', 'VOID' => 'badge-void', 'CANCELLED' => 'badge-void', 'UNDER_APPEAL' => 'badge-resolved', default => 'badge-open' };
                         $statusLabel = match($ucStatus) { 'RESOLVED' => 'Finalized', 'CLOSED' => 'Finalized', 'VOID' => 'Voided', 'CANCELLED' => 'Voided', 'UNDER_APPEAL' => 'Under Appeal', default => 'Open' };
                         $catLabel = !empty($h['uc_category']) ? 'Category ' . (int)$h['uc_category'] : '';
+                        
+                        $punishStatus = '';
+                        if (!empty($h['uc_category'])) {
+                            $catVal = (int)$h['uc_category'];
+                            $csrVal = isset($h['csr_status']) ? (string)$h['csr_status'] : '';
+                            $pStatus = 'ONGOING';
+                            if ($catVal === 1) {
+                                if (in_array($ucStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                            } else if ($catVal === 2) {
+                                if (strtoupper($csrVal) === 'COMPLETED' || in_array($ucStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                            } else {
+                                if (in_array($ucStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                            }
+                            if ($pStatus === 'COMPLETED') {
+                                $punishStatus = '<span class="badge badge-completed">COMPLETED</span>';
+                            } else {
+                                $punishStatus = '<span class="badge badge-ongoing">ONGOING</span>';
+                            }
+                        }
                       ?>
                     <div class="off-card major" data-level="major">
                       <div class="off-top">
@@ -1680,6 +1729,7 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                           <span class="badge badge-major"><span class="badge-dot"></span>Major</span>
                           <?php if ($catLabel !== ''): ?>
                             <span class="badge badge-category"><?php echo e($catLabel); ?></span>
+                            <?php echo $punishStatus; ?>
                           <?php endif; ?>
                         </div>
                         <span class="badge <?php echo $statusBadge; ?>"><?php echo e($statusLabel); ?></span>

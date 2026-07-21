@@ -53,9 +53,14 @@ try {
                 o.status,
                 o.level,
                 ot.name        AS offense_name,
-                ot.code        AS offense_code
+                ot.code        AS offense_code,
+                uc.decided_category,
+                uc.status      AS case_status,
+                (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
          FROM   offense o
          JOIN   offense_type ot ON ot.offense_type_id = o.offense_type_id
+         LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+         LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id AND uc.status <> 'VOID'
          WHERE  o.student_id = :sid
          ORDER  BY o.date_committed DESC",
         $offParams
