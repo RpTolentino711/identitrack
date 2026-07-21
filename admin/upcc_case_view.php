@@ -347,7 +347,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                              VALUES (:sid, :cid, :tn, :hrs, :aid, NOW(), 'PENDING_ACCEPTANCE')",
                          [':sid' => $case['student_id'],
                           ':cid' => $case_id,
-                          ':tn'  => 'Community Service',
+                          ':tn'  => 'University Service',
                           ':hrs' => $details['service_hours'],
                           ':aid' => (int)$admin['admin_id']]);
                 }
