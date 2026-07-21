@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once __DIR__ . '/../database/database.php';
 
@@ -43,6 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'New passwords do not match.';
     } elseif (strlen($newPw) < 8) {
         $error = 'New password must be at least 8 characters.';
+    } elseif (!preg_match('/[A-Z]/', $newPw)) {
+        $error = 'New password must contain at least one uppercase letter.';
+    } elseif (!preg_match('/[^A-Za-z0-9]/', $newPw)) {
+        $error = 'New password must contain at least one special character/symbol.';
     } elseif (!upcc_verify_password($upccId, $currentPw)) {
         $error = 'Current password is incorrect.';
     } elseif ($currentPw === $newPw) {

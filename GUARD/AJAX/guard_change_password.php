@@ -45,6 +45,16 @@ if (strlen($new_password) < 8) {
   exit;
 }
 
+if (!preg_match('/[A-Z]/', $new_password)) {
+  echo json_encode(['ok' => false, 'message' => 'Password must contain at least one uppercase letter.']);
+  exit;
+}
+
+if (!preg_match('/[^A-Za-z0-9]/', $new_password)) {
+  echo json_encode(['ok' => false, 'message' => 'Password must contain at least one special character/symbol.']);
+  exit;
+}
+
 if ($new_password !== $confirm_password) {
   echo json_encode(['ok' => false, 'message' => 'Passwords do not match.']);
   exit;
