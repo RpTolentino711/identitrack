@@ -146,7 +146,7 @@ $items = [];
 
 $resolvedCasesMap = []; 
 $resCases = db_all("
-  SELECT c.case_id, c.decided_category, " . db_decrypt_col('final_decision', 'c') . " AS final_decision, c.resolution_date, co.offense_id, c.status,
+  SELECT c.case_id, c.decided_category, " . db_decrypt_cols(['final_decision', 'punishment_details'], 'c') . ", c.resolution_date, c.probation_until, co.offense_id, c.status,
          (SELECT status FROM student_appeal_request sar WHERE sar.case_id = c.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) AS appeal_status,
          (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = c.case_id LIMIT 1) AS csr_status
   FROM upcc_case c
@@ -202,12 +202,35 @@ for ($i = 0; $i < count($minorList); $i++) {
         $catVal = (int)$rc['decided_category'];
         $caseStatus = (string)$rc['status'];
         $csrVal = isset($rc['csr_status']) ? (string)$rc['csr_status'] : '';
-        if ($catVal === 1) {
-            if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+        $p_details = json_decode($rc['punishment_details'] ?? '{}', true);
+        $is_manually_completed = !empty($p_details['completed']);
+
+        if ($is_manually_completed) {
+            $pStatus = 'COMPLETED';
+        } else if ($catVal === 1) {
+            $is_probation_active = false;
+            if (!empty($rc['probation_until'])) {
+                $is_probation_active = (strtotime($rc['probation_until']) > time());
+            }
+            if ($is_probation_active) {
+                $pStatus = 'ONGOING';
+            } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+                $pStatus = 'COMPLETED';
+            } else {
+                $pStatus = 'ONGOING';
+            }
         } else if ($catVal === 2) {
-            if (strtoupper($csrVal) === 'COMPLETED' || in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+            if (strtoupper($csrVal) === 'COMPLETED') {
+                $pStatus = 'COMPLETED';
+            } else {
+                $pStatus = 'ONGOING';
+            }
         } else {
-            if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+            if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+                $pStatus = 'COMPLETED';
+            } else {
+                $pStatus = 'ONGOING';
+            }
         }
         
         if ($catVal > 0) {
@@ -310,12 +333,35 @@ foreach ($majorList as $r) {
     $catVal = (int)$rc['decided_category'];
     $caseStatus = (string)$rc['status'];
     $csrVal = isset($rc['csr_status']) ? (string)$rc['csr_status'] : '';
-    if ($catVal === 1) {
-        if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+    $p_details = json_decode($rc['punishment_details'] ?? '{}', true);
+    $is_manually_completed = !empty($p_details['completed']);
+
+    if ($is_manually_completed) {
+        $pStatus = 'COMPLETED';
+    } else if ($catVal === 1) {
+        $is_probation_active = false;
+        if (!empty($rc['probation_until'])) {
+            $is_probation_active = (strtotime($rc['probation_until']) > time());
+        }
+        if ($is_probation_active) {
+            $pStatus = 'ONGOING';
+        } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+            $pStatus = 'COMPLETED';
+        } else {
+            $pStatus = 'ONGOING';
+        }
     } else if ($catVal === 2) {
-        if (strtoupper($csrVal) === 'COMPLETED' || in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+        if (strtoupper($csrVal) === 'COMPLETED') {
+            $pStatus = 'COMPLETED';
+        } else {
+            $pStatus = 'ONGOING';
+        }
     } else {
-        if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+        if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+            $pStatus = 'COMPLETED';
+        } else {
+            $pStatus = 'ONGOING';
+        }
     }
     
     if ($catVal > 0) {

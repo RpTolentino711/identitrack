@@ -342,9 +342,13 @@ if ($postStudentId !== '') {
     $postSection4Minors = (int)($countRow['cnt'] ?? 0);
   }
   
+  $liveOffensesParams = [':sid' => $postStudentId];
+  db_add_encryption_key($liveOffensesParams);
   $liveOffenses = db_all(
     "SELECT o.offense_id, o.date_committed, o.level, ot.code, ot.name, 
             uc.decided_category, uc.status AS case_status,
+            uc.probation_until,
+            " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
             (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
      FROM offense o
      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -352,7 +356,7 @@ if ($postStudentId !== '') {
      LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id AND uc.status <> 'VOID'
      WHERE o.student_id = :sid
      ORDER BY o.date_committed DESC",
-    [':sid' => $postStudentId]
+    $liveOffensesParams
   ) ?: [];
 }
 
@@ -621,17 +625,28 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           $caseStatus = isset($o['case_status']) ? (string)$o['case_status'] : '';
           $csrStatus = isset($o['csr_status']) ? (string)$o['csr_status'] : '';
           
+          $p_details = json_decode($o['punishment_details'] ?? '{}', true);
+          $is_manually_completed = !empty($p_details['completed']);
+          
           $punishmentStatus = 'ONGOING';
-          if ($cat === 0) {
+          if ($is_manually_completed) {
+              $punishmentStatus = 'COMPLETED';
+          } else if ($cat === 0) {
               $punishmentStatus = 'ONGOING';
           } else if ($cat === 1) {
-              if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+              $is_probation_active = false;
+              if (!empty($o['probation_until'])) {
+                  $is_probation_active = (strtotime($o['probation_until']) > time());
+              }
+              if ($is_probation_active) {
+                  $punishmentStatus = 'ONGOING';
+              } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
                   $punishmentStatus = 'COMPLETED';
               } else {
                   $punishmentStatus = 'ONGOING';
               }
           } else if ($cat === 2) {
-              if ($csrStatus === 'COMPLETED' || in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+              if (strtoupper($csrStatus) === 'COMPLETED') {
                   $punishmentStatus = 'COMPLETED';
               } else {
                   $punishmentStatus = 'ONGOING';

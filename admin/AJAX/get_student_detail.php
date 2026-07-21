@@ -56,6 +56,8 @@ try {
                 ot.code        AS offense_code,
                 uc.decided_category,
                 uc.status      AS case_status,
+                uc.probation_until,
+                " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
                 (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
          FROM   offense o
          JOIN   offense_type ot ON ot.offense_type_id = o.offense_type_id

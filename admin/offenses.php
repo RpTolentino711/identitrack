@@ -1414,17 +1414,33 @@ $students = db_all($sql, $params) ?: [];
         const caseStatus = o.case_status ? o.case_status.toUpperCase() : '';
         const csrStatus = o.csr_status ? o.csr_status.toUpperCase() : '';
         
+        let isManuallyCompleted = false;
+        try {
+            if (o.punishment_details) {
+                const pDetails = JSON.parse(o.punishment_details);
+                isManuallyCompleted = !!(pDetails && pDetails.completed);
+            }
+        } catch (e) {}
+
         let pStatus = 'ONGOING';
-        if (cat === 0) {
+        if (isManuallyCompleted) {
+            pStatus = 'COMPLETED';
+        } else if (cat === 0) {
             pStatus = 'ONGOING';
         } else if (cat === 1) {
-            if (['CLOSED', 'RESOLVED'].includes(caseStatus)) {
+            let isProbationActive = false;
+            if (o.probation_until) {
+                isProbationActive = (new Date(o.probation_until).getTime() > Date.now());
+            }
+            if (isProbationActive) {
+                pStatus = 'ONGOING';
+            } else if (['CLOSED', 'RESOLVED'].includes(caseStatus)) {
                 pStatus = 'COMPLETED';
             } else {
                 pStatus = 'ONGOING';
             }
         } else if (cat === 2) {
-            if (csrStatus === 'COMPLETED' || ['CLOSED', 'RESOLVED'].includes(caseStatus)) {
+            if (csrStatus === 'COMPLETED') {
                 pStatus = 'COMPLETED';
             } else {
                 pStatus = 'ONGOING';

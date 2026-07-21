@@ -359,6 +359,7 @@ $history = db_all(
           o.level,
           ot.code, ot.name, ot.major_category,
           uc.case_id, uc.status AS uc_status, uc.decided_category AS uc_category,
+          uc.probation_until,
           " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ", uc.resolution_date AS uc_resolution_date,
           (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
    FROM offense o
@@ -384,14 +385,17 @@ for ($i = 0; $i < count($allMinors); $i += 3) {
     $group = array_slice($allMinors, $i, 3);
     if (count($group) === 3) {
         $lastMinorId = $group[2]['offense_id'];
+        $escParams = [':oid' => $lastMinorId];
+        db_add_encryption_key($escParams);
         $caseRow = db_one(
-            "SELECT uc.status, uc.decided_category, uc.final_decision, uc.punishment_details, uc.resolution_date,
+            "SELECT uc.status, uc.decided_category, uc.resolution_date, uc.probation_until,
+                    " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ",
                     (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
              FROM upcc_case uc
              JOIN upcc_case_offense uco ON uc.case_id = uco.case_id
              WHERE uco.offense_id = :oid
              LIMIT 1",
-            [':oid' => $lastMinorId]
+            $escParams
         );
         $escalationGroups[] = [
             'minors' => $group,
@@ -400,6 +404,7 @@ for ($i = 0; $i < count($allMinors); $i += 3) {
             'case_decision' => $caseRow ? $caseRow['final_decision'] : null,
             'case_punishment' => $caseRow ? $caseRow['punishment_details'] : null,
             'case_resolution_date' => $caseRow ? $caseRow['resolution_date'] : null,
+            'case_probation_until' => $caseRow ? $caseRow['probation_until'] : null,
             'csr_status' => $caseRow ? $caseRow['csr_status'] : null
         ];
     }
@@ -1555,13 +1560,37 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                               $pStatus = 'ONGOING';
                               $catVal = (int)$caseCategory;
                               $csrVal = isset($groupData['csr_status']) ? (string)$groupData['csr_status'] : '';
-                              if ($catVal === 1) {
-                                  if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                              $p_details = json_decode($groupData['case_punishment'] ?? '{}', true);
+                              $is_manually_completed = !empty($p_details['completed']);
+
+                              if ($is_manually_completed) {
+                                  $pStatus = 'COMPLETED';
+                              } else if ($catVal === 1) {
+                                  $is_probation_active = false;
+                                  if (!empty($groupData['case_probation_until'])) {
+                                      $is_probation_active = (strtotime($groupData['case_probation_until']) > time());
+                                  }
+                                  if ($is_probation_active) {
+                                      $pStatus = 'ONGOING';
+                                  } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+                                      $pStatus = 'COMPLETED';
+                                  } else {
+                                      $pStatus = 'ONGOING';
+                                  }
                               } else if ($catVal === 2) {
-                                  if (strtoupper($csrVal) === 'COMPLETED' || in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                                  if (strtoupper($csrVal) === 'COMPLETED') {
+                                      $pStatus = 'COMPLETED';
+                                  } else {
+                                      $pStatus = 'ONGOING';
+                                  }
                               } else {
-                                  if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                                  if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+                                      $pStatus = 'COMPLETED';
+                                  } else {
+                                      $pStatus = 'ONGOING';
+                                  }
                               }
+
                               if ($pStatus === 'COMPLETED') {
                                   echo '<span class="badge badge-completed">COMPLETED</span>';
                               } else {
@@ -1708,14 +1737,38 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                         if (!empty($h['uc_category'])) {
                             $catVal = (int)$h['uc_category'];
                             $csrVal = isset($h['csr_status']) ? (string)$h['csr_status'] : '';
+                            $p_details = json_decode($h['punishment_details'] ?? '{}', true);
+                            $is_manually_completed = !empty($p_details['completed']);
+
                             $pStatus = 'ONGOING';
-                            if ($catVal === 1) {
-                                if (in_array($ucStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                            if ($is_manually_completed) {
+                                $pStatus = 'COMPLETED';
+                            } else if ($catVal === 1) {
+                                $is_probation_active = false;
+                                if (!empty($h['probation_until'])) {
+                                    $is_probation_active = (strtotime($h['probation_until']) > time());
+                                }
+                                if ($is_probation_active) {
+                                    $pStatus = 'ONGOING';
+                                } else if (in_array($ucStatus, ['CLOSED', 'RESOLVED'], true)) {
+                                    $pStatus = 'COMPLETED';
+                                } else {
+                                    $pStatus = 'ONGOING';
+                                }
                             } else if ($catVal === 2) {
-                                if (strtoupper($csrVal) === 'COMPLETED' || in_array($ucStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                                if (strtoupper($csrVal) === 'COMPLETED') {
+                                    $pStatus = 'COMPLETED';
+                                } else {
+                                    $pStatus = 'ONGOING';
+                                }
                             } else {
-                                if (in_array($ucStatus, ['CLOSED', 'RESOLVED'], true)) $pStatus = 'COMPLETED';
+                                if (in_array($ucStatus, ['CLOSED', 'RESOLVED'], true)) {
+                                    $pStatus = 'COMPLETED';
+                                } else {
+                                    $pStatus = 'ONGOING';
+                                }
                             }
+
                             if ($pStatus === 'COMPLETED') {
                                 $punishStatus = '<span class="badge badge-completed">COMPLETED</span>';
                             } else {
