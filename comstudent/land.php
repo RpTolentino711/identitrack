@@ -539,7 +539,6 @@ if ($_POST) {
           const studentIdInput = document.getElementById('student_id');
           if (studentIdInput) {
             let keystrokes = [];
-            let isScanner = false;
             
             studentIdInput.addEventListener('keydown', (e) => {
               if (e.key === 'Enter' || e.key === 'Process' || e.key === 'Unidentified') return;
@@ -547,22 +546,29 @@ if ($_POST) {
               const now = performance.now();
               keystrokes.push(now);
               
-              if (keystrokes.length >= 3) {
-                const intervals = [];
-                for (let i = 1; i < keystrokes.length; i++) {
-                  intervals.push(keystrokes[i] - keystrokes[i - 1]);
+              // If there are at least two keypresses, check the speed
+              if (keystrokes.length >= 2) {
+                const diff = keystrokes[keystrokes.length - 1] - keystrokes[keystrokes.length - 2];
+                if (diff < 50) {
+                  studentIdInput.type = 'password';
+                  studentIdInput.setAttribute('autocomplete', 'new-password');
+                  studentIdInput.style.webkitTextSecurity = 'disc';
                 }
-                const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-                if (avg < 45) {
-                  isScanner = true;
-                }
+              }
+              
+              if (keystrokes.length > 5) {
+                keystrokes.shift();
               }
             });
             
             studentIdInput.addEventListener('input', () => {
-              if (isScanner) {
+              const val = studentIdInput.value.trim();
+              // If the value is purely numeric and has at least 8 digits, it is likely an RFID scan value.
+              // Mask it immediately.
+              if (/^\d{8,}$/.test(val)) {
                 studentIdInput.type = 'password';
                 studentIdInput.setAttribute('autocomplete', 'new-password');
+                studentIdInput.style.webkitTextSecurity = 'disc';
               }
             });
           }
