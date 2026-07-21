@@ -120,6 +120,17 @@ $section4Count = db_one(
 );
 $major += (int)($section4Count['c'] ?? 0);
 
+// Include Unlinked Major Cases in Major count
+$unlinkedMajorCount = db_one(
+  "SELECT COUNT(*) AS c FROM upcc_case 
+   WHERE student_id = :sid 
+     AND case_kind = 'MAJOR_OFFENSE' 
+     AND status <> 'VOID' 
+     AND case_id NOT IN (SELECT DISTINCT case_id FROM upcc_case_offense WHERE case_id IS NOT NULL)",
+  [':sid' => $studentId]
+);
+$major += (int)($unlinkedMajorCount['c'] ?? 0);
+
 // Note: total reflects all individual offense records; we don't add the case count here to avoid double-counting.
 
 // Community service hours (ACTIVE requirements minus completed hours)

@@ -84,6 +84,18 @@ $section4Count = db_one(
 );
 $majorCount += (int)($section4Count['c'] ?? 0);
 
+// Include Unlinked Major Cases in Major count and total
+$unlinkedMajorCount = db_one(
+  "SELECT COUNT(*) AS c FROM upcc_case 
+   WHERE student_id = :sid 
+     AND case_kind = 'MAJOR_OFFENSE' 
+     AND status <> 'VOID' 
+     AND case_id NOT IN (SELECT DISTINCT case_id FROM upcc_case_offense WHERE case_id IS NOT NULL)",
+  [':sid' => $studentId]
+);
+$majorCount += (int)($unlinkedMajorCount['c'] ?? 0);
+$total += (int)($unlinkedMajorCount['c'] ?? 0);
+
 $minor = $minorCount;
 $major = $majorCount;
 
@@ -382,6 +394,92 @@ foreach ($majorList as $r) {
     'acknowledged_at' => $r['acknowledged_at'] ? (string)$r['acknowledged_at'] : null,
     'is_deleted_by_student' => ((int)($r['is_deleted_by_student'] ?? 0)) === 1,
     'title' => trim(((string)$r['offense_code']) . ' ' . ((string)$r['offense_name'])),
+    'description' => trim($desc),
+    'is_bundle' => false,
+    'appeal_status' => $appealStatus,
+    'upcc_case_id' => $caseId,
+    'explanation_text' => $explanation,
+    'explanation_image' => $expImage,
+    'explanation_pdf' => $expPdf,
+    'explanation_at' => $expAt,
+  ];
+}
+
+// Fetch and append unlinked major cases
+$unlinkedCases = db_all("
+  SELECT c.case_id, c.decided_category, " . db_decrypt_cols(['final_decision', 'punishment_details', 'case_summary', 'student_explanation_text'], 'c') . ", c.resolution_date, c.probation_until, c.status,
+         c.student_explanation_image, c.student_explanation_pdf, c.student_explanation_at, c.created_at,
+         (SELECT status FROM student_appeal_request sar WHERE sar.case_id = c.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) AS appeal_status,
+         (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = c.case_id LIMIT 1) AS csr_status
+  FROM upcc_case c
+  WHERE c.student_id = :sid 
+    AND c.case_id NOT IN (SELECT DISTINCT case_id FROM upcc_case_offense WHERE case_id IS NOT NULL)
+    AND (c.status IN ('CLOSED', 'RESOLVED', 'UNDER_APPEAL') OR (c.status = 'CANCELLED' AND (SELECT status FROM student_appeal_request sar WHERE sar.case_id = c.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) = 'APPROVED'))
+", [':sid' => $studentId, ':__enckey' => db_encryption_key()]);
+
+foreach ($unlinkedCases as $uc) {
+  $status = (string)$uc['status'];
+  $desc = $uc['case_summary'] ? (string)$uc['case_summary'] : 'Disciplinary case resolved by UPCC.';
+  $appealStatus = (string)($uc['appeal_status'] ?? '');
+  $caseId = (int)$uc['case_id'];
+  $explanation = $uc['student_explanation_text'];
+  $expImage = $uc['student_explanation_image'];
+  $expPdf = $uc['student_explanation_pdf'];
+  $expAt = $uc['student_explanation_at'];
+
+  $pStatus = 'ONGOING';
+  $catVal = (int)$uc['decided_category'];
+  $caseStatus = (string)$uc['status'];
+  $csrVal = isset($uc['csr_status']) ? (string)$uc['csr_status'] : '';
+  $p_details = json_decode($uc['punishment_details'] ?? '{}', true);
+  $is_manually_completed = !empty($p_details['completed']);
+
+  if ($is_manually_completed) {
+      $pStatus = 'COMPLETED';
+  } else if ($catVal === 1) {
+      $is_probation_active = false;
+      if (!empty($uc['probation_until'])) {
+          $is_probation_active = (strtotime($uc['probation_until']) > time());
+      }
+      if ($is_probation_active) {
+          $pStatus = 'ONGOING';
+      } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+          $pStatus = 'COMPLETED';
+      } else {
+          $pStatus = 'ONGOING';
+      }
+  } else if ($catVal === 2) {
+      if (strtoupper($csrVal) === 'COMPLETED') {
+          $pStatus = 'COMPLETED';
+      } else {
+          $pStatus = 'ONGOING';
+      }
+  } else {
+      if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+          $pStatus = 'COMPLETED';
+      } else {
+          $pStatus = 'ONGOING';
+      }
+  }
+  
+  if ($catVal > 0) {
+    $status .= ' (Category ' . $catVal . ') - ' . $pStatus;
+  } else {
+    $status .= ' - ' . $pStatus;
+  }
+  
+  if ($catVal > 0) {
+    $desc .= "\n\n--- UPCC FINAL DECISION ---\nCategory " . $uc['decided_category'] . "\n" . $uc['final_decision'] . "\nResolved on: " . date('M d, Y', strtotime($uc['resolution_date']));
+  }
+
+  $items[] = [
+    'offense_id' => -5000 - $caseId,
+    'level' => 'MAJOR',
+    'status' => $status,
+    'date_committed' => $uc['resolution_date'] ? (string)$uc['resolution_date'] : (string)$uc['created_at'],
+    'acknowledged_at' => null,
+    'is_deleted_by_student' => false,
+    'title' => 'Disciplinary Case #' . $caseId,
     'description' => trim($desc),
     'is_bundle' => false,
     'appeal_status' => $appealStatus,

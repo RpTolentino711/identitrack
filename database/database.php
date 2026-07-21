@@ -1493,7 +1493,7 @@ function auto_complete_all_active_sessions(): void {
         if ($remainingHours <= 0.0001) {
             db_exec("
                 UPDATE community_service_session 
-                SET time_out = :time_in, logout_method = 'AUTO_COMPLETE'
+                SET time_out = :time_in, logout_method = 'MANUAL'
                 WHERE session_id = :sid
             ", [':time_in' => $timeIn, ':sid' => $session['session_id']]);
             check_requirement_completion($requirementId);
@@ -1509,7 +1509,7 @@ function auto_complete_all_active_sessions(): void {
             $neededSeconds = max(0, (int)round($remainingHours * 3600.0));
             db_exec("
                 UPDATE community_service_session 
-                SET time_out = DATE_ADD(time_in, INTERVAL :needed SECOND), logout_method = 'AUTO_COMPLETE'
+                SET time_out = DATE_ADD(time_in, INTERVAL :needed SECOND), logout_method = 'MANUAL'
                 WHERE session_id = :sid
             ", [':needed' => $neededSeconds, ':sid' => $session['session_id']]);
             
