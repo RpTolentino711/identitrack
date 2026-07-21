@@ -464,14 +464,6 @@ if ($_POST) {
           </div>
         </div>
 
-        <?php if ($isTimingOut): ?>
-          <div class="welcome-banner" style="background:#e8eeff; border-color:#b6c6f2;">
-            <div class="wtext" style="width:100%;">
-              <strong>Active Session: <?= htmlspecialchars($activeSession['task_name']) ?></strong>
-              <span style="color:#1a3fa0;">You are currently timed in. Proceed to time out.</span>
-            </div>
-          </div>
-        <?php endif; ?>
 
         <form method="post" action="community_service.php">
           <input type="hidden" name="student_id" value="<?= htmlspecialchars($studentId) ?>">
