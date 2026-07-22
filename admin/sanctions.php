@@ -648,6 +648,66 @@ function formatCaseActivity(array $act): string {
       height: 14px;
     }
 
+    /* History Log Section in Sanction Card */
+    .sanction-card-history-section {
+      grid-column: 1 / -1;
+      width: 100%;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed #e2e8f0;
+    }
+
+    .btn-toggle-history {
+      background: none;
+      border: none;
+      color: #3b4aa6;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 6px 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s ease;
+    }
+
+    .btn-toggle-history:hover {
+      color: #1e293b;
+      text-decoration: underline;
+    }
+
+    .card-history-content {
+      margin-top: 12px;
+      padding: 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      max-height: 350px;
+      overflow-y: auto;
+    }
+
+    .history-timeline {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .history-item {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #334155;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
     .empty-state {
       padding: 64px 24px;
       text-align: center;
@@ -1579,14 +1639,14 @@ function formatCaseActivity(array $act): string {
                         $case_acts = $student_activities[$c['student_id']] ?? ($activities[(int)$c['case_id']] ?? []);
                       ?>
                       <div class="sanction-card-history-section">
-                        <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'history-<?php echo $c['case_id']; ?>')">
+                        <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'history-cat2-<?php echo htmlspecialchars($c['student_id']); ?>')">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
                             <circle cx="12" cy="12" r="10"></circle>
                             <polyline points="12 6 12 12 16 14"></polyline>
                           </svg>
                           Show History Log (<?php echo count($case_acts); ?>)
                         </button>
-                        <div id="history-<?php echo $c['case_id']; ?>" class="card-history-content" style="display: none;">
+                        <div id="history-cat2-<?php echo htmlspecialchars($c['student_id']); ?>" class="card-history-content" style="display: none;">
                           <?php if (empty($case_acts)): ?>
                             <span style="color: #64748b; font-style: italic;">No history logs found for this sanction.</span>
                           <?php else: ?>
