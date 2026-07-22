@@ -3198,21 +3198,25 @@ function formatCaseActivity(array $act): string {
       document.getElementById('btnResetRFIDSearch').style.display = 'none';
     }
 
-    function toggleCardHistory(btn, contentId) {
+    window.toggleCardHistory = function(btn, contentId) {
       const content = document.getElementById(contentId);
       if (!content) return;
       
-      const isHidden = content.style.display === 'none';
+      const isHidden = content.style.display === 'none' || window.getComputedStyle(content).display === 'none';
       if (isHidden) {
         content.style.display = 'block';
         btn.classList.add('active');
-        btn.innerHTML = btn.innerHTML.replace('Show History Log', 'Hide History Log');
+        if (btn.innerHTML.includes('Show History Log')) {
+          btn.innerHTML = btn.innerHTML.replace('Show History Log', 'Hide History Log');
+        }
       } else {
         content.style.display = 'none';
         btn.classList.remove('active');
-        btn.innerHTML = btn.innerHTML.replace('Hide History Log', 'Show History Log');
+        if (btn.innerHTML.includes('Hide History Log')) {
+          btn.innerHTML = btn.innerHTML.replace('Hide History Log', 'Show History Log');
+        }
       }
-    }
+    };
 
     function formatCaseActivityJS(act) {
       const action = act.action;
