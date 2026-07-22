@@ -189,8 +189,8 @@ try {
                 'created_at' => $baseCreatedAt,
                 'metadata' => [
                     'appeal_id' => (int)$latestAppeal['appeal_id'],
-                    'case_id' => $caseId,
-                    'offense_id' => $offenseId,
+                    'case_id' => $caseId > 0 ? $caseId : null,
+                    'offense_id' => $offenseId > 0 ? $offenseId : null,
                     'status' => $status,
                     'appeal_kind' => $kind,
                 ],
@@ -203,8 +203,8 @@ try {
                 'created_at' => (string)($latestAppeal['decided_at'] ?? $baseCreatedAt),
                 'metadata' => [
                     'appeal_id' => (int)$latestAppeal['appeal_id'],
-                    'case_id' => $caseId,
-                    'offense_id' => $offenseId,
+                    'case_id' => $caseId > 0 ? $caseId : null,
+                    'offense_id' => $offenseId > 0 ? $offenseId : null,
                     'status' => $status,
                     'appeal_kind' => $kind,
                     'admin_response' => (string)($latestAppeal['admin_response'] ?? ''),

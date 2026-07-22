@@ -88,12 +88,15 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   Widget _alertCard(StudentAlert alert) {
     final metadata = alert.metadata;
-    final int? offenseId = metadata != null && metadata['offense_id'] != null
+    final int? rawOffenseId = metadata != null && metadata['offense_id'] != null
         ? int.tryParse(metadata['offense_id'].toString())
         : null;
-    final int? caseId = metadata != null && metadata['case_id'] != null
+    final int? offenseId = (rawOffenseId != null && rawOffenseId > 0) ? rawOffenseId : null;
+
+    final int? rawCaseId = metadata != null && metadata['case_id'] != null
         ? int.tryParse(metadata['case_id'].toString())
         : null;
+    final int? caseId = (rawCaseId != null && rawCaseId > 0) ? rawCaseId : null;
 
     final cardContent = Padding(
       padding: const EdgeInsets.all(14),
@@ -284,17 +287,24 @@ class _AlertsScreenState extends State<AlertsScreen> {
                       child: CircularProgressIndicator(),
                     ),
                   );
+                  bool isDialogPopped = false;
                   try {
                     final res = await OffenseApi().getOffenses(studentId: widget.studentId);
                     if (!mounted) return;
                     Navigator.of(context).pop(); // dismiss loading dialog
+                    isDialogPopped = true;
                     
                     OffenseItem? targetOffense;
                     if (offenseId != null) {
-                      targetOffense = res.items.firstWhere(
-                        (o) => o.offenseId == offenseId,
-                      );
-                    } else if (caseId != null) {
+                      for (final item in res.items) {
+                        if (item.offenseId == offenseId) {
+                          targetOffense = item;
+                          break;
+                        }
+                      }
+                    }
+                    
+                    if (targetOffense == null && caseId != null) {
                       for (final item in res.items) {
                         if (item.upccCaseId == caseId) {
                           targetOffense = item;
@@ -309,6 +319,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           }
                         }
                       }
+                    }
+
+                    if (targetOffense == null && res.items.isNotEmpty) {
+                      targetOffense = res.items.first;
                     }
 
                     if (targetOffense != null) {
@@ -331,7 +345,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     }
                   } catch (e) {
                     if (mounted) {
-                      Navigator.of(context).pop(); // dismiss loading dialog
+                      if (!isDialogPopped) {
+                        Navigator.of(context).pop(); // dismiss loading dialog only if not yet popped
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Details not found or deleted.')),
                       );
