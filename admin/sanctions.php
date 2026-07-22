@@ -190,7 +190,21 @@ function formatCaseActivity(array $act): string {
             if ($cat === 1 && !empty($payload['probation_until'])) {
                 $detailStr = " (Probation until " . date('M d, Y', strtotime($payload['probation_until'])) . ")";
             } elseif ($cat === 2 && isset($payload['hours'])) {
-                $detailStr = " (Required: " . $formatHours((float)$payload['hours']) . ")";
+                $newHours = (float)$payload['hours'];
+                $oldReq   = isset($payload['old_hours_required']) ? (float)$payload['old_hours_required'] : null;
+                
+                $newStr = $formatHours($newHours);
+                if ($oldReq !== null && $oldReq > 0) {
+                    $oldStr = $formatHours($oldReq);
+                    $diff = $newHours - $oldReq;
+                    $diffAbsStr = $formatHours(abs($diff));
+                    if ($diff > 0) {
+                        return "<strong>[$dateStr]</strong> ➕ <strong>Admin ($by)</strong> added <strong>+$diffAbsStr</strong> to ongoing service. <span style='color:#64748b;font-size:0.88em;'>(Previous ongoing: <strong>$oldStr</strong> + Added: <strong>$diffAbsStr</strong> = New Total: <strong>$newStr</strong>)</span>";
+                    } elseif ($diff < 0) {
+                        return "<strong>[$dateStr]</strong> ➖ <strong>Admin ($by)</strong> decreased service time by <strong>-$diffAbsStr</strong>. <span style='color:#64748b;font-size:0.88em;'>(Previous ongoing: <strong>$oldStr</strong> - Decreased: <strong>$diffAbsStr</strong> = New Total: <strong>$newStr</strong>)</span>";
+                    }
+                }
+                $detailStr = " (Required: $newStr)";
             }
             
             // Check if this was a category switch
@@ -223,16 +237,32 @@ function formatCaseActivity(array $act): string {
             $added = (float)($payload['added_hours'] ?? 0.0);
             $prev  = (float)($payload['previous_hours'] ?? 0.0);
             $total = (float)($payload['new_total_hours'] ?? 0.0);
-            $source = htmlspecialchars((string)($payload['source'] ?? 'UPCC Panel / Admin'));
+            $source = htmlspecialchars((string)($payload['source'] ?? 'Admin'));
             
-            $addedStr = $formatHours($added);
+            $isDecrease = ($added < 0 || ($total < $prev && $added == 0));
+            $diffAbs = abs($added != 0 ? $added : ($prev - $total));
+            
+            $diffStr = $formatHours($diffAbs);
             $prevStr  = $formatHours($prev);
             $totalStr = $formatHours($total);
             
-            return "<strong>[$dateStr]</strong> ➕ <strong>$source</strong> added <strong>+$addedStr</strong> to ongoing community service. <span style='color:#64748b;font-size:0.85em;'>(Previous ongoing: $prevStr ➔ New Total: $totalStr)</span>";
+            if ($isDecrease) {
+                return "<strong>[$dateStr]</strong> ➖ <strong>$source</strong> decreased service time by <strong>-$diffStr</strong>. <span style='color:#64748b;font-size:0.88em;'>(Previous ongoing: <strong>$prevStr</strong> - Decreased: <strong>$diffStr</strong> = New Total: <strong>$totalStr</strong>)</span>";
+            } else {
+                return "<strong>[$dateStr]</strong> ➕ <strong>$source</strong> added <strong>+$diffStr</strong> to ongoing service. <span style='color:#64748b;font-size:0.88em;'>(Previous ongoing: <strong>$prevStr</strong> + Added: <strong>$diffStr</strong> = New Total: <strong>$totalStr</strong>)</span>";
+            }
 
         case 'FINAL_DECISION_RECORDED':
             $cat = (int)($payload['category'] ?? 0);
+            $pDetails = $payload['punishment_details'] ?? [];
+            $serviceHrs = isset($pDetails['service_hours']) ? (float)$pDetails['service_hours'] : 0.0;
+            $caseNum = isset($act['case_id']) ? (int)$act['case_id'] : 0;
+            
+            if ($cat === 2 && $serviceHrs > 0) {
+                $hrsStr = $formatHours($serviceHrs);
+                return "<strong>[$dateStr]</strong> 🏛️ <strong>UPCC Panel Decision (Case #$caseNum)</strong>: Category 2 assigned <strong>+$hrsStr</strong> service time.";
+            }
+            
             $catNames = [
                 1 => 'Category 1 (Suspension/Probation)',
                 2 => 'Category 2 (Formative Intervention / Service)',
@@ -241,7 +271,7 @@ function formatCaseActivity(array $act): string {
                 5 => 'Category 5 (Expulsion)'
             ];
             $cName = $catNames[$cat] ?? "Category $cat";
-            return "<strong>[$dateStr]</strong> 🏛️ UPCC Hearing Decision finalized: <strong>$cName</strong> by Admin.";
+            return "<strong>[$dateStr]</strong> 🏛️ <strong>UPCC Panel Decision (Case #$caseNum)</strong> finalized: <strong>$cName</strong> by Admin.";
 
         case 'AUTO_RESOLVED_WINDOW_EXPIRED':
             return "<strong>[$dateStr]</strong> Auto-resolved by system (grace period expired).";
