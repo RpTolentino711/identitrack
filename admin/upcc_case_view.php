@@ -1814,7 +1814,13 @@ body {
                           <?php endforeach; ?>
                         </ul>
                         <?php if (!empty($punishDetails['service_hours'])): ?>
-                          <span style="font-size:.78rem;color:var(--ink-500)">Required Hours: <?= htmlspecialchars((string)$punishDetails['service_hours']) ?> hrs</span>
+                          <?php
+                            $shVal = (float)$punishDetails['service_hours'];
+                            $shDisp = ($shVal < 1.0 && $shVal > 0)
+                                ? round($shVal * 60) . ' mins'
+                                : (floor($shVal) == $shVal ? (int)$shVal . ' hrs' : round($shVal, 1) . ' hrs');
+                          ?>
+                          <span style="font-size:.78rem;color:var(--ink-500)">Required Hours: <?= htmlspecialchars($shDisp) ?></span>
                         <?php endif; ?>
                       </td>
                     </tr>
