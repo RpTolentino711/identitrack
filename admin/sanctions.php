@@ -231,6 +231,18 @@ function formatCaseActivity(array $act): string {
             
             return "<strong>[$dateStr]</strong> ➕ <strong>$source</strong> added <strong>+$addedStr</strong> to ongoing community service. <span style='color:#64748b;font-size:0.85em;'>(Previous ongoing: $prevStr ➔ New Total: $totalStr)</span>";
 
+        case 'FINAL_DECISION_RECORDED':
+            $cat = (int)($payload['category'] ?? 0);
+            $catNames = [
+                1 => 'Category 1 (Suspension/Probation)',
+                2 => 'Category 2 (Formative Intervention / Service)',
+                3 => 'Category 3 (Non-Readmission Warning)',
+                4 => 'Category 4 (Exclusion)',
+                5 => 'Category 5 (Expulsion)'
+            ];
+            $cName = $catNames[$cat] ?? "Category $cat";
+            return "<strong>[$dateStr]</strong> 🏛️ UPCC Hearing Decision finalized: <strong>$cName</strong> by Admin.";
+
         case 'AUTO_RESOLVED_WINDOW_EXPIRED':
             return "<strong>[$dateStr]</strong> Auto-resolved by system (grace period expired).";
             
