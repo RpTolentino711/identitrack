@@ -782,17 +782,28 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               $caseStatus = isset($off['case_status']) ? (string)$off['case_status'] : '';
               $csrStatus = isset($off['csr_status']) ? (string)$off['csr_status'] : '';
               
+              $p_details = json_decode($off['punishment_details'] ?? '{}', true);
+              $is_manually_completed = !empty($p_details['completed']);
+
               $punishmentStatus = 'ONGOING';
-              if ($cat === 0) {
+              if ($is_manually_completed) {
+                  $punishmentStatus = 'COMPLETED';
+              } else if ($cat === 0) {
                   $punishmentStatus = 'ONGOING';
               } else if ($cat === 1) {
-                  if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+                  $is_probation_active = false;
+                  if (!empty($off['probation_until'])) {
+                      $is_probation_active = (strtotime($off['probation_until']) > time());
+                  }
+                  if ($is_probation_active) {
+                      $punishmentStatus = 'ONGOING';
+                  } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
                       $punishmentStatus = 'COMPLETED';
                   } else {
                       $punishmentStatus = 'ONGOING';
                   }
               } else if ($cat === 2) {
-                  if ($csrStatus === 'COMPLETED' || in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+                  if (strtoupper($csrStatus) === 'COMPLETED') {
                       $punishmentStatus = 'COMPLETED';
                   } else {
                       $punishmentStatus = 'ONGOING';
