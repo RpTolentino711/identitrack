@@ -1156,15 +1156,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final titleLower = notice.title.toLowerCase();
     final msgLower = notice.message.toLowerCase();
 
-    // If this notice is a Hearing notice or asks for response in Alerts, navigate directly to Alerts tab (currentIndex: 3)
+    // If this notice is a Hearing notice or asks for response in Alerts, navigate directly to AlertsScreen (index 3)
     if (titleLower.contains('hearing') || msgLower.contains('alerts') || msgLower.contains('accept or decline')) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => SharedBottomNav(
-            currentIndex: 3,
+        PageRouteBuilder(
+          pageBuilder: (context, animation1, animation2) => AlertsScreen(
             studentId: widget.studentId,
             studentName: _studentName,
           ),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
         ),
       );
       return;
