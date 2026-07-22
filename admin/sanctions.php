@@ -159,6 +159,14 @@ function formatCaseActivity(array $act): string {
     $payload = json_decode($act['payload_json'] ?? '', true) ?: [];
     $dateStr = date('M d, Y g:i A', strtotime($act['created_at']));
     
+    $formatHours = function(float $decimalHours): string {
+        $totalMins = (int)round($decimalHours * 60);
+        $h = (int)floor($totalMins / 60);
+        $m = $totalMins % 60;
+        $timeStr = ($h > 0 ? "$h hr" . ($h > 1 ? 's' : '') : '') . ($m > 0 ? " $m min" . ($m > 1 ? 's' : '') : '');
+        return ($timeStr === '') ? '0 mins' : trim($timeStr);
+    };
+
     switch ($action) {
         case 'SANCTION_CATEGORY_UPDATED':
             $cat = (int)($payload['category'] ?? 0);
@@ -177,14 +185,6 @@ function formatCaseActivity(array $act): string {
                 5 => 'Category 5 (Expulsion)'
             ];
             $catName = $catNames[$cat] ?? "Category $cat";
-            
-            $formatHours = function(float $decimalHours): string {
-                $totalMins = (int)round($decimalHours * 60);
-                $h = (int)floor($totalMins / 60);
-                $m = $totalMins % 60;
-                $timeStr = ($h > 0 ? "$h hr" . ($h > 1 ? 's' : '') : '') . ($m > 0 ? " $m min" . ($m > 1 ? 's' : '') : '');
-                return ($timeStr === '') ? '0 mins' : trim($timeStr);
-            };
 
             $detailStr = '';
             if ($cat === 1 && !empty($payload['probation_until'])) {
