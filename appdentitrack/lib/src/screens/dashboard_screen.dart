@@ -1153,6 +1153,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _onActiveCaseCardTap(HearingNotice notice) async {
+    final titleLower = notice.title.toLowerCase();
+    final msgLower = notice.message.toLowerCase();
+
+    // If this notice is a Hearing notice or asks for response in Alerts, navigate directly to Alerts tab (currentIndex: 3)
+    if (titleLower.contains('hearing') || msgLower.contains('alerts') || msgLower.contains('accept or decline')) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => SharedBottomNav(
+            currentIndex: 3,
+            studentId: widget.studentId,
+            studentName: _studentName,
+          ),
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1208,6 +1225,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _activeCaseCard(HearingNotice notice) {
+    final isHearingNotice = notice.title.toLowerCase().contains('hearing') ||
+        notice.message.toLowerCase().contains('alerts');
+
     return InkWell(
       onTap: () => _onActiveCaseCardTap(notice),
       borderRadius: BorderRadius.circular(16),
@@ -1264,7 +1284,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       height: 1.4,
                     ),
                   ),
-                  if (!notice.hasExplanation) ...[
+                  if (isHearingNotice) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Tap to open Alerts & confirm attendance',
+                      style: TextStyle(
+                        color: Color(0xFFE65100),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ] else if (!notice.hasExplanation) ...[
                     const SizedBox(height: 8),
                     const Text(
                       'Tap to view details and submit explanation',
