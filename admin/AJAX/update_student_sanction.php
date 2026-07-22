@@ -280,11 +280,19 @@ try {
 
       if ($ongoingActive && $newStatus === 'ACTIVE') {
         // Ongoing ACTIVE service exists — add new hours to the ongoing requirement!
-        $newTotal = (float)$ongoingActive['hours_required'] + $hours;
+        $oldTotal = (float)$ongoingActive['hours_required'];
+        $newTotal = $oldTotal + $hours;
         db_exec(
           "UPDATE community_service_requirement SET hours_required = :hrs, updated_at = NOW() WHERE requirement_id = :rid",
           [':hrs' => $newTotal, ':rid' => $ongoingActive['requirement_id']]
         );
+
+        upcc_log_case_activity($caseId, 'ADMIN', $adminId, 'SANCTION_HOURS_ACCUMULATED', [
+            'added_hours' => $hours,
+            'previous_hours' => $oldTotal,
+            'new_total_hours' => $newTotal,
+            'source' => 'Admin Direct Sanction',
+        ]);
 
         db_exec(
           "INSERT INTO community_service_requirement (student_id, assigned_by, related_case_id, task_name, location, hours_required, status, assigned_at, completed_at, created_at)

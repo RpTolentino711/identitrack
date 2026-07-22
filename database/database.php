@@ -1554,7 +1554,8 @@ function activate_or_merge_community_service_requirement(string $studentId, int 
     if ($activeReq) {
         // Ongoing ACTIVE service exists — add new hours to the ongoing requirement!
         $activeId = (int)$activeReq['requirement_id'];
-        $newTotalHours = (float)$activeReq['hours_required'] + $pendingHours;
+        $oldHours = (float)$activeReq['hours_required'];
+        $newTotalHours = $oldHours + $pendingHours;
 
         db_exec(
             "UPDATE community_service_requirement 
@@ -1570,6 +1571,13 @@ function activate_or_merge_community_service_requirement(string $studentId, int 
              WHERE requirement_id = :pid",
             [':pid' => $pendingId]
         );
+
+        upcc_log_case_activity($caseId, 'SYSTEM', 0, 'SANCTION_HOURS_ACCUMULATED', [
+            'added_hours' => $pendingHours,
+            'previous_hours' => $oldHours,
+            'new_total_hours' => $newTotalHours,
+            'source' => 'UPCC Panel (Case #' . $caseId . ')',
+        ]);
     } else {
         // No ongoing ACTIVE service — activate this pending requirement
         db_exec(

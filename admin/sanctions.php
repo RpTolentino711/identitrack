@@ -79,7 +79,12 @@ if ($is_verified) {
 
     // Fetch activities for all these cases in a single query
     $caseIds = array_column($cases, 'case_id');
+    $case_student_map = [];
+    $student_activities = [];
     if (!empty($caseIds)) {
+        foreach ($cases as $c) {
+            $case_student_map[(int)$c['case_id']] = $c['student_id'];
+        }
         $inClause = implode(',', array_map('intval', $caseIds));
         $activitiesQuery = "
           SELECT activity_id, case_id, actor_type, actor_id, action, payload_json, created_at
@@ -89,7 +94,12 @@ if ($is_verified) {
         ";
         $rawActivities = db_all($activitiesQuery);
         foreach ($rawActivities as $act) {
-            $activities[(int)$act['case_id']][] = $act;
+            $cid = (int)$act['case_id'];
+            $activities[$cid][] = $act;
+            $sid = $case_student_map[$cid] ?? null;
+            if ($sid) {
+                $student_activities[$sid][] = $act;
+            }
         }
     }
 }
@@ -112,6 +122,37 @@ foreach ($cases as $c) {
         $cat4_5_cases[] = $c;
     }
 }
+
+// Group Category 2 by student_id to ensure ONE single combined card per student ("make it one")
+$cat2_students = [];
+foreach ($cat2_cases as $c) {
+    $sid = $c['student_id'];
+    if (!isset($cat2_students[$sid])) {
+        // Find the student's primary ACTIVE community service requirement if any
+        $activeCsr = db_one("
+            SELECT requirement_id, status AS req_status, hours_required, task_name, completed_at AS req_completed_at,
+                   (
+                       SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
+                       FROM community_service_session sess
+                       WHERE sess.requirement_id = community_service_requirement.requirement_id AND sess.time_out IS NOT NULL
+                   ) AS hours_completed
+            FROM community_service_requirement
+            WHERE student_id = :sid AND status = 'ACTIVE'
+            ORDER BY requirement_id DESC LIMIT 1
+        ", [':sid' => $sid]);
+
+        if ($activeCsr) {
+            $c['requirement_id'] = $activeCsr['requirement_id'];
+            $c['req_status'] = $activeCsr['req_status'];
+            $c['hours_required'] = $activeCsr['hours_required'];
+            $c['task_name'] = $activeCsr['task_name'];
+            $c['req_completed_at'] = $activeCsr['req_completed_at'];
+            $c['hours_completed'] = $activeCsr['hours_completed'];
+        }
+        $cat2_students[$sid] = $c;
+    }
+}
+$cat2_cases = array_values($cat2_students);
 
 function formatCaseActivity(array $act): string {
     $action = $act['action'];
@@ -178,6 +219,18 @@ function formatCaseActivity(array $act): string {
 
             return "<strong>[$dateStr]</strong> Category updated to <strong>$catName</strong>$detailStr by <strong>$by</strong>.";
             
+        case 'SANCTION_HOURS_ACCUMULATED':
+            $added = (float)($payload['added_hours'] ?? 0.0);
+            $prev  = (float)($payload['previous_hours'] ?? 0.0);
+            $total = (float)($payload['new_total_hours'] ?? 0.0);
+            $source = htmlspecialchars((string)($payload['source'] ?? 'UPCC Panel / Admin'));
+            
+            $addedStr = $formatHours($added);
+            $prevStr  = $formatHours($prev);
+            $totalStr = $formatHours($total);
+            
+            return "<strong>[$dateStr]</strong> ➕ <strong>$source</strong> added <strong>+$addedStr</strong> to ongoing community service. <span style='color:#64748b;font-size:0.85em;'>(Previous ongoing: $prevStr ➔ New Total: $totalStr)</span>";
+
         case 'AUTO_RESOLVED_WINDOW_EXPIRED':
             return "<strong>[$dateStr]</strong> Auto-resolved by system (grace period expired).";
             
@@ -1481,7 +1534,7 @@ function formatCaseActivity(array $act): string {
                         <?php endif; ?>
                       </div>
                       <?php 
-                        $case_acts = $activities[(int)$c['case_id']] ?? [];
+                        $case_acts = $student_activities[$c['student_id']] ?? ($activities[(int)$c['case_id']] ?? []);
                       ?>
                       <div class="sanction-card-history-section">
                         <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'history-<?php echo $c['case_id']; ?>')">
