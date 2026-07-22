@@ -236,6 +236,11 @@ if ($action === 'cast_vote' && $_SERVER['REQUEST_METHOD'] === 'POST' && $isUpcc)
 // HELPERS: Consensus Detection
 // ─────────────────────────────────────────────────────────────────────────
 function checkAndUpdateConsensus($caseId, $roundNo) {
+    $caseCheck = db_one("SELECT status FROM upcc_case WHERE case_id = :c", [':c' => $caseId]);
+    if (!$caseCheck || in_array($caseCheck['status'], ['CLOSED', 'RESOLVED', 'CANCELLED'], true)) {
+        return;
+    }
+
     $panelMembers = db_all("SELECT upcc_id FROM upcc_case_panel_member WHERE case_id = :c", [':c' => $caseId]);
     $totalMembers = count($panelMembers);
     if ($totalMembers === 0) return;
@@ -270,7 +275,6 @@ function checkAndUpdateConsensus($caseId, $roundNo) {
     );
 
     $voteMap = [];
-    $voteDetailsByCategory = [];
     $disagreeCount = 0;
     $disagreeName = '';
 
@@ -284,10 +288,6 @@ function checkAndUpdateConsensus($caseId, $roundNo) {
             $row = db_one("SELECT full_name FROM upcc_user WHERE upcc_id = :u LIMIT 1", [':u' => $uid]);
             $disagreeName = $row['full_name'] ?? 'A panel member';
         }
-
-        if ($cat > 0 && !isset($voteDetailsByCategory[$cat])) {
-            $voteDetailsByCategory[$cat] = $vote['vote_details'];
-        }
     }
 
     if ($disagreeCount > 0) {
@@ -300,7 +300,7 @@ function checkAndUpdateConsensus($caseId, $roundNo) {
                  hearing_vote_suggester_id = NULL,
                  status = CASE WHEN status = 'AWAITING_ADMIN_FINALIZATION' THEN 'UNDER_INVESTIGATION' ELSE status END,
                  updated_at = NOW()
-                 WHERE case_id = :c", [':c' => $caseId]);
+                 WHERE case_id = :c AND status NOT IN ('CLOSED', 'RESOLVED', 'CANCELLED')", [':c' => $caseId]);
 
         db_exec(
             "INSERT INTO upcc_case_discussion (case_id, message, created_at, updated_at) VALUES (:c, :m, NOW(), NOW())",
@@ -339,7 +339,7 @@ function checkAndUpdateConsensus($caseId, $roundNo) {
                  hearing_vote_suggester_id = :sid,
                  status = 'AWAITING_ADMIN_FINALIZATION',
                  updated_at = NOW()
-                 WHERE case_id = :c", [
+                 WHERE case_id = :c AND status NOT IN ('CLOSED', 'RESOLVED', 'CANCELLED')", [
             ':cat' => $consensusCategory,
             ':details' => $detailsJson,
             ':sid' => $suggesterId,

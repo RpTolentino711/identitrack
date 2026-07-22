@@ -356,7 +356,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'category' => $category, 'punishment_details' => $details,
                     'force_resolve' => $forceResolve ? 1 : 0, 'use_suggested' => $useSuggested ? 1 : 0,
                 ]);
-                header("Location: {$selfViewFile}?id={$case_id}&msg=resolved"); exit;
+                db_exec("UPDATE upcc_case_vote_round SET is_active = 0 WHERE case_id = :id", [':id' => $case_id]);
+                header("Location: upcc_case_view.php?id={$case_id}&msg=resolved"); exit;
             }
         } else {
             $errMsg = 'Please select a category (1–5) and enter the final decision narrative.';
