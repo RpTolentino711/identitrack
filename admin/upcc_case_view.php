@@ -36,41 +36,52 @@ $offenses = db_all("SELECT o.*, ot.code, ot.name AS offense_name, ot.level, ot.m
     WHERE uco.case_id = :id ORDER BY o.date_committed ASC", [':id' => $case_id]);
 
 // ── Fetch Student's Disciplinary Record Book (Prior Cases & Offenses) ──────
-$studentIdForHistory = $case['student_id'];
+$studentIdForHistory = (string)($case['student_id'] ?? '');
 
 // 1. Other UPCC Cases (both ongoing and completed)
-$olderUpccCases = db_all("
-  SELECT uc.case_id, uc.status, uc.case_kind, uc.decided_category, uc.resolution_date, uc.created_at,
-         uc.final_decision,
-         GROUP_CONCAT(DISTINCT ot.name SEPARATOR ', ') AS offense_names
-  FROM upcc_case uc
-  LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
-  LEFT JOIN offense o ON o.offense_id = uco.offense_id
-  LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-  WHERE uc.student_id = :sid AND uc.case_id != :cid
-  GROUP BY uc.case_id
-  ORDER BY uc.created_at DESC
-", [':sid' => $studentIdForHistory, ':cid' => $case_id]);
+$olderUpccCases = [];
+if ($studentIdForHistory !== '') {
+    $olderUpccCases = db_all("
+      SELECT uc.case_id, uc.status, uc.case_kind, uc.decided_category, uc.resolution_date, uc.created_at,
+             " . db_decrypt_col('final_decision', 'uc') . " AS final_decision,
+             (
+               SELECT GROUP_CONCAT(DISTINCT ot2.name SEPARATOR ', ')
+               FROM upcc_case_offense uco2
+               JOIN offense o2 ON o2.offense_id = uco2.offense_id
+               JOIN offense_type ot2 ON ot2.offense_type_id = o2.offense_type_id
+               WHERE uco2.case_id = uc.case_id
+             ) AS offense_names
+      FROM upcc_case uc
+      WHERE uc.student_id = :sid AND uc.case_id != :cid
+      ORDER BY uc.created_at DESC
+    ", [':sid' => $studentIdForHistory, ':cid' => $case_id, ':__enckey' => db_encryption_key()]);
+}
 
 // 2. Prior Offenses not in current case
-$olderOffenses = db_all("
-  SELECT o.offense_id, o.date_committed, o.status, ot.code, ot.name AS offense_name, ot.level
-  FROM offense o
-  JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-  WHERE o.student_id = :sid
-    AND o.offense_id NOT IN (
-      SELECT uco.offense_id FROM upcc_case_offense uco WHERE uco.case_id = :cid
-    )
-  ORDER BY o.date_committed DESC, o.offense_id DESC
-", [':sid' => $studentIdForHistory, ':cid' => $case_id]);
+$olderOffenses = [];
+if ($studentIdForHistory !== '') {
+    $olderOffenses = db_all("
+      SELECT o.offense_id, o.date_committed, o.status, ot.code, ot.name AS offense_name, ot.level
+      FROM offense o
+      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+      WHERE o.student_id = :sid
+        AND o.offense_id NOT IN (
+          SELECT uco.offense_id FROM upcc_case_offense uco WHERE uco.case_id = :cid
+        )
+      ORDER BY o.date_committed DESC, o.offense_id DESC
+    ", [':sid' => $studentIdForHistory, ':cid' => $case_id]);
+}
 
 // 3. Community Service Requirements (both active and completed)
-$olderCommunityService = db_all("
-  SELECT requirement_id, related_case_id, hours_required, hours_rendered, status, created_at, completed_at
-  FROM community_service_requirement
-  WHERE student_id = :sid
-  ORDER BY created_at DESC
-", [':sid' => $studentIdForHistory]);
+$olderCommunityService = [];
+if ($studentIdForHistory !== '') {
+    $olderCommunityService = db_all("
+      SELECT requirement_id, related_case_id, hours_required, hours_rendered, status, created_at, completed_at
+      FROM community_service_requirement
+      WHERE student_id = :sid
+      ORDER BY created_at DESC
+    ", [':sid' => $studentIdForHistory]);
+}
 
 $departments = db_all("SELECT dept_id, dept_name FROM departments WHERE is_active = 1 ORDER BY dept_name ASC");
 $defaultDeptId = (int)($case['assigned_department_id'] ?? 0);
