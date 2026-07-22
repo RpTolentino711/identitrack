@@ -2210,15 +2210,15 @@ function formatCaseActivity(array $act): string {
       const content = document.getElementById(contentId);
       if (!content) return;
       
-      const isHidden = content.style.display === 'none' || window.getComputedStyle(content).display === 'none';
+      const isHidden = (content.style.display === 'none' || window.getComputedStyle(content).display === 'none');
       if (isHidden) {
-        content.style.display = 'block';
+        content.style.setProperty('display', 'block', 'important');
         btn.classList.add('active');
         if (btn.innerHTML.includes('Show History Log')) {
           btn.innerHTML = btn.innerHTML.replace('Show History Log', 'Hide History Log');
         }
       } else {
-        content.style.display = 'none';
+        content.style.setProperty('display', 'none', 'important');
         btn.classList.remove('active');
         if (btn.innerHTML.includes('Hide History Log')) {
           btn.innerHTML = btn.innerHTML.replace('Hide History Log', 'Show History Log');
@@ -3288,25 +3288,7 @@ function formatCaseActivity(array $act): string {
       document.getElementById('btnResetRFIDSearch').style.display = 'none';
     }
 
-    window.toggleCardHistory = function(btn, contentId) {
-      const content = document.getElementById(contentId);
-      if (!content) return;
-      
-      const isHidden = content.style.display === 'none' || window.getComputedStyle(content).display === 'none';
-      if (isHidden) {
-        content.style.display = 'block';
-        btn.classList.add('active');
-        if (btn.innerHTML.includes('Show History Log')) {
-          btn.innerHTML = btn.innerHTML.replace('Show History Log', 'Hide History Log');
-        }
-      } else {
-        content.style.display = 'none';
-        btn.classList.remove('active');
-        if (btn.innerHTML.includes('Hide History Log')) {
-          btn.innerHTML = btn.innerHTML.replace('Hide History Log', 'Show History Log');
-        }
-      }
-    };
+
 
     function formatCaseActivityJS(act) {
       const action = act.action;
