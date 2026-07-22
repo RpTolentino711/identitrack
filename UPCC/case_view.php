@@ -100,6 +100,54 @@ if (!$case) {
     exit;
 }
 
+// ── Fetch Student's Disciplinary Record Book (Prior Cases & Offenses) ──────
+$studentIdForHistory = (string)($case['student_id'] ?? '');
+
+// 1. Other UPCC Cases (both ongoing and completed)
+$olderUpccCases = [];
+if ($studentIdForHistory !== '') {
+    $olderUpccCases = db_all("
+      SELECT uc.case_id, uc.status, uc.case_kind, uc.decided_category, uc.resolution_date, uc.created_at,
+             " . db_decrypt_col('final_decision', 'uc') . " AS final_decision,
+             (
+               SELECT GROUP_CONCAT(DISTINCT ot2.name SEPARATOR ', ')
+               FROM upcc_case_offense uco2
+               JOIN offense o2 ON o2.offense_id = uco2.offense_id
+               JOIN offense_type ot2 ON ot2.offense_type_id = o2.offense_type_id
+               WHERE uco2.case_id = uc.case_id
+             ) AS offense_names
+      FROM upcc_case uc
+      WHERE uc.student_id = :sid AND uc.case_id != :cid
+      ORDER BY uc.created_at DESC
+    ", [':sid' => $studentIdForHistory, ':cid' => $caseId, ':__enckey' => db_encryption_key()]);
+}
+
+// 2. Prior Offenses not in current case
+$olderOffenses = [];
+if ($studentIdForHistory !== '') {
+    $olderOffenses = db_all("
+      SELECT o.offense_id, o.date_committed, o.status, ot.code, ot.name AS offense_name, ot.level
+      FROM offense o
+      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+      WHERE o.student_id = :sid
+        AND o.offense_id NOT IN (
+          SELECT uco.offense_id FROM upcc_case_offense uco WHERE uco.case_id = :cid
+        )
+      ORDER BY o.date_committed DESC, o.offense_id DESC
+    ", [':sid' => $studentIdForHistory, ':cid' => $caseId]);
+}
+
+// 3. Community Service Requirements (both active and completed)
+$olderCommunityService = [];
+if ($studentIdForHistory !== '') {
+    $olderCommunityService = db_all("
+      SELECT requirement_id, related_case_id, hours_required, hours_rendered, status, created_at, completed_at
+      FROM community_service_requirement
+      WHERE student_id = :sid
+      ORDER BY created_at DESC
+    ", [':sid' => $studentIdForHistory]);
+}
+
 $accessBlockReason = upcc_staff_case_access_block_reason($case);
 if ($accessBlockReason !== null) {
     header('Location: upccdashboard.php?hearing_msg=' . urlencode($accessBlockReason));
@@ -1211,6 +1259,86 @@ hr{border-color:var(--border-glass);margin:16px 0}
                                     </div>
                                 </details>
                             <?php endforeach; endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- 📖 STUDENT RECORD BOOK (PRIOR HISTORY) -->
+            <div class="glass-panel" id="student-record-book">
+                <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <div class="panel-title">📖 Student Record Book (Prior History)</div>
+                        <div style="color:var(--text-muted);font-size:12px;margin-top:2px">Prior cases, offenses, and service history</div>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="openUpccRecordBookModal()" style="padding:4px 10px;font-size:11px;">
+                        Expand Full Book ↗
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+                        <span class="badge" style="background:rgba(255,255,255,0.1);padding:4px 10px;font-size:11px;">
+                            Older Cases: <strong><?= count($olderUpccCases) ?></strong>
+                        </span>
+                        <span class="badge" style="background:rgba(255,255,255,0.1);padding:4px 10px;font-size:11px;">
+                            Other Offenses: <strong><?= count($olderOffenses) ?></strong>
+                        </span>
+                        <?php
+                            $activeCsCount = 0;
+                            foreach ($olderCommunityService as $cs) {
+                                if ($cs['status'] === 'ACTIVE') $activeCsCount++;
+                            }
+                        ?>
+                        <?php if ($activeCsCount > 0): ?>
+                            <span class="badge" style="background:rgba(245,158,11,0.2);color:#fcd34d;border:1px solid rgba(245,158,11,0.4);padding:4px 10px;font-size:11px;">
+                                ⚠️ Active Community Service (<?= $activeCsCount ?>)
+                            </span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">
+                        Older UPCC Cases
+                    </div>
+                    <?php if (empty($olderUpccCases)): ?>
+                        <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:12px">No other UPCC cases on record for this student.</div>
+                    <?php else: ?>
+                        <div style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;margin-bottom:12px">
+                            <?php foreach ($olderUpccCases as $oc): ?>
+                                <?php
+                                    $isOcClosed = in_array($oc['status'], ['CLOSED', 'RESOLVED']);
+                                    $ocStatusText = $isOcClosed ? 'COMPLETED' : 'ONGOING';
+                                    $ocStatusColor = $isOcClosed ? '#6ee7b7' : '#93c5fd';
+                                ?>
+                                <div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-glass);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                                    <div>
+                                        <strong>UPCC Case #<?= (int)$oc['case_id'] ?></strong>
+                                        <div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($oc['offense_names'] ?: 'No details') ?></div>
+                                    </div>
+                                    <div style="text-align:right">
+                                        <span style="color:<?= $ocStatusColor ?>;font-weight:800;font-size:11px"><?= $ocStatusText ?></span>
+                                        <div style="font-size:11px;color:var(--text-muted)"><?= $oc['decided_category'] ? 'Category ' . $oc['decided_category'] : 'Pending' ?></div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">
+                        Other Violations
+                    </div>
+                    <?php if (empty($olderOffenses)): ?>
+                        <div style="font-size:12px;color:var(--text-muted);font-style:italic">No other violations recorded.</div>
+                    <?php else: ?>
+                        <div style="display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto">
+                            <?php foreach ($olderOffenses as $oof): ?>
+                                <div style="background:rgba(0,0,0,0.15);border:1px solid var(--border-glass);border-radius:6px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                                    <div>
+                                        <span style="background:rgba(239,68,68,0.2);color:#fca5a5;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:800"><?= htmlspecialchars($oof['level'] ?? 'MINOR') ?></span>
+                                        <strong style="margin-left:4px"><?= htmlspecialchars($oof['offense_name']) ?></strong>
+                                    </div>
+                                    <span style="font-size:11px;color:var(--text-muted)"><?= fmtd($oof['date_committed']) ?></span>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -2859,6 +2987,136 @@ startVotingTimer();
 setInterval(syncLive,    3000);   // poll every 3 seconds
 setInterval(pingPresence, 5000);  // ping presence every 5 seconds
 syncLive(); // immediate first call
+</script>
+
+<!-- 📖 UPCC PANEL RECORD BOOK MODAL OVERLAY -->
+<div id="upccRecordBookModal" style="position:fixed;inset:0;z-index:9500;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.96);backdrop-filter:blur(12px);padding:24px">
+    <div style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:var(--radius-lg);padding:28px;max-width:760px;width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 24px 48px rgba(0,0,0,.6)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border-glass);padding-bottom:12px;">
+            <div>
+                <h3 style="margin:0;font-size:18px;color:#93c5fd;font-family:var(--font-h)">📖 Student Disciplinary Record Book</h3>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
+                    Respondent: <strong><?= htmlspecialchars($case['student_name']) ?></strong> (<?= htmlspecialchars($case['student_id']) ?>) · <?= htmlspecialchars($case['program'] ?? '') ?>
+                </div>
+            </div>
+            <button type="button" onclick="closeUpccRecordBookModal()" style="background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;">✕</button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:18px;">
+            <!-- UPCC Cases -->
+            <div>
+                <div style="font-size:12px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">
+                    🏛️ All UPCC Cases (<?= count($olderUpccCases) ?> Other Case<?= count($olderUpccCases) !== 1 ? 's' : '' ?>)
+                </div>
+                <?php if (empty($olderUpccCases)): ?>
+                    <div style="font-size:12px;color:var(--text-muted);font-style:italic">No other UPCC cases recorded for this student.</div>
+                <?php else: ?>
+                    <div style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;">
+                        <?php foreach ($olderUpccCases as $oc): ?>
+                            <?php
+                                $isOcClosed = in_array($oc['status'], ['CLOSED', 'RESOLVED']);
+                                $ocStatusText = $isOcClosed ? 'COMPLETED / CLOSED' : 'ONGOING INVESTIGATION';
+                                $ocStatusColor = $isOcClosed ? '#6ee7b7' : '#93c5fd';
+                            ?>
+                            <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border-glass);border-radius:10px;padding:12px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                    <strong style="font-size:14px">UPCC Case #<?= (int)$oc['case_id'] ?></strong>
+                                    <span style="color:<?= $ocStatusColor ?>;font-weight:800;font-size:11px"><?= $ocStatusText ?></span>
+                                </div>
+                                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+                                    <strong>Offenses:</strong> <?= htmlspecialchars($oc['offense_names'] ?: 'No details') ?>
+                                </div>
+                                <div style="font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between">
+                                    <span>Filed: <?= fmtd($oc['created_at']) ?></span>
+                                    <span>Decision: <strong><?= $oc['decided_category'] ? 'Category ' . $oc['decided_category'] : 'Pending Decision' ?></strong></span>
+                                </div>
+                                <?php if (!empty($oc['final_decision'])): ?>
+                                    <div style="margin-top:6px;font-size:11px;color:var(--text-muted);background:rgba(0,0,0,0.2);padding:6px 10px;border-radius:6px;font-style:italic;">
+                                        "<?= htmlspecialchars($oc['final_decision']) ?>"
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Other Violations -->
+            <div>
+                <div style="font-size:12px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">
+                    📋 All Other Violation Offenses (<?= count($olderOffenses) ?> Record<?= count($olderOffenses) !== 1 ? 's' : '' ?>)
+                </div>
+                <?php if (empty($olderOffenses)): ?>
+                    <div style="font-size:12px;color:var(--text-muted);font-style:italic">No other violation offenses recorded.</div>
+                <?php else: ?>
+                    <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;">
+                        <?php foreach ($olderOffenses as $oof): ?>
+                            <div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-glass);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                                <div>
+                                    <span style="background:rgba(239,68,68,0.2);color:#fca5a5;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:800"><?= htmlspecialchars($oof['level'] ?? 'MINOR') ?></span>
+                                    <strong style="margin-left:6px"><?= htmlspecialchars($oof['offense_name']) ?></strong>
+                                    <span style="font-size:11px;color:var(--text-muted);margin-left:4px">(#<?= (int)$oof['offense_id'] ?>)</span>
+                                </div>
+                                <div style="text-align:right">
+                                    <span style="font-weight:600;display:block"><?= fmtd($oof['date_committed']) ?></span>
+                                    <span style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($oof['status']) ?></span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Community Service Requirements -->
+            <div>
+                <div style="font-size:12px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">
+                    🧹 Community Service Requirements (<?= count($olderCommunityService) ?> Record<?= count($olderCommunityService) !== 1 ? 's' : '' ?>)
+                </div>
+                <?php if (empty($olderCommunityService)): ?>
+                    <div style="font-size:12px;color:var(--text-muted);font-style:italic">No community service requirements assigned.</div>
+                <?php else: ?>
+                    <div style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;">
+                        <?php foreach ($olderCommunityService as $cs): ?>
+                            <?php
+                                $isCsActive = $cs['status'] === 'ACTIVE';
+                                $csStatusText = $isCsActive ? 'ONGOING ACTIVE' : 'COMPLETED';
+                                $csStatusColor = $isCsActive ? '#fcd34d' : '#6ee7b7';
+                            ?>
+                            <div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-glass);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                                <div>
+                                    <strong>Requirement #<?= (int)$cs['requirement_id'] ?></strong>
+                                    <?php if (!empty($cs['related_case_id'])): ?>
+                                        <span style="font-size:11px;color:var(--text-muted);margin-left:4px">(Case #<?= (int)$cs['related_case_id'] ?>)</span>
+                                    <?php endif; ?>
+                                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
+                                        Rendered: <strong><?= number_format((float)$cs['hours_rendered'], 1) ?> hrs</strong> / Required: <strong><?= number_format((float)$cs['hours_required'], 1) ?> hrs</strong>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span style="color:<?= $csStatusColor ?>;font-weight:800;font-size:11px"><?= $csStatusText ?></span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div style="margin-top:20px;text-align:right">
+            <button type="button" class="btn btn-primary" onclick="closeUpccRecordBookModal()">Close Record Book</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openUpccRecordBookModal() {
+    const modal = document.getElementById('upccRecordBookModal');
+    if (modal) modal.style.display = 'flex';
+}
+function closeUpccRecordBookModal() {
+    const modal = document.getElementById('upccRecordBookModal');
+    if (modal) modal.style.display = 'none';
+}
 </script>
 </body>
 </html>
