@@ -1265,14 +1265,9 @@ function student_account_mode(string $studentId): array
       // 1. Update case status to RESOLVED
       db_exec("UPDATE upcc_case SET status = 'RESOLVED', updated_at = NOW() WHERE case_id = :cid", [':cid' => $caseId]);
 
-      // 2. If Category 2, activate the pending community service requirement
+      // 2. If Category 2, activate or merge the pending community service requirement
       if ($category === 2) {
-          db_exec(
-              "UPDATE community_service_requirement 
-               SET status = 'ACTIVE' 
-               WHERE student_id = :sid AND related_case_id = :cid AND status = 'PENDING_ACCEPTANCE'",
-              [':sid' => $studentId, ':cid' => $caseId]
-          );
+          activate_or_merge_community_service_requirement($studentId, $caseId);
       }
 
       // 3. If Category 4 or 5, freeze/deactivate the student
@@ -1525,5 +1520,64 @@ if (!function_exists('scanner_hash_value')) {
     $normalized = strtoupper(trim($rawValue));
     return hash('sha256', $pepper . ':' . $normalized);
   }
+}
+
+/**
+ * Activates or merges a pending community service requirement for a student.
+ * If the student already has an ONGOING ('ACTIVE') requirement, the newly assigned
+ * hours are added up directly to the existing ongoing requirement's total hours,
+ * and the newly assigned requirement is marked as COMPLETED (merged).
+ */
+function activate_or_merge_community_service_requirement(string $studentId, int $caseId): void {
+    $pendingReq = db_one(
+        "SELECT requirement_id, hours_required, task_name FROM community_service_requirement 
+         WHERE student_id = :sid AND related_case_id = :cid AND status = 'PENDING_ACCEPTANCE'
+         LIMIT 1",
+        [':sid' => $studentId, ':cid' => $caseId]
+    );
+
+    if (!$pendingReq) {
+        return;
+    }
+
+    $pendingId = (int)$pendingReq['requirement_id'];
+    $pendingHours = (float)$pendingReq['hours_required'];
+
+    // Find any existing ONGOING ('ACTIVE') requirement for this student
+    $activeReq = db_one(
+        "SELECT requirement_id, hours_required, task_name FROM community_service_requirement
+         WHERE student_id = :sid AND status = 'ACTIVE' AND requirement_id != :pid
+         ORDER BY assigned_at DESC LIMIT 1",
+        [':sid' => $studentId, ':pid' => $pendingId]
+    );
+
+    if ($activeReq) {
+        // Ongoing ACTIVE service exists — add new hours to the ongoing requirement!
+        $activeId = (int)$activeReq['requirement_id'];
+        $newTotalHours = (float)$activeReq['hours_required'] + $pendingHours;
+
+        db_exec(
+            "UPDATE community_service_requirement 
+             SET hours_required = :new_hrs, updated_at = NOW() 
+             WHERE requirement_id = :aid",
+            [':new_hrs' => $newTotalHours, ':aid' => $activeId]
+        );
+
+        // Mark the newly assigned requirement as COMPLETED (merged) so it doesn't create duplicate active tasks
+        db_exec(
+            "UPDATE community_service_requirement 
+             SET status = 'COMPLETED', completed_at = NOW(), updated_at = NOW() 
+             WHERE requirement_id = :pid",
+            [':pid' => $pendingId]
+        );
+    } else {
+        // No ongoing ACTIVE service — activate this pending requirement
+        db_exec(
+            "UPDATE community_service_requirement 
+             SET status = 'ACTIVE', updated_at = NOW() 
+             WHERE requirement_id = :pid",
+            [':pid' => $pendingId]
+        );
+    }
 }
 ?>

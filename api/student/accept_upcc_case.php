@@ -71,7 +71,7 @@ if (in_array((int)$case['decided_category'], [4, 5], true)) {
     db_exec("UPDATE student SET is_active = 0 WHERE student_id = :sid", [':sid' => $studentId]);
 }
 
-// Activate any pending community service requirements tied to this case
-db_exec("UPDATE community_service_requirement SET status = 'ACTIVE' WHERE student_id = :sid AND related_case_id = :cid AND status = 'PENDING_ACCEPTANCE'", [':sid' => $studentId, ':cid' => $caseId]);
+// Activate or merge any pending community service requirements tied to this case
+activate_or_merge_community_service_requirement($studentId, $caseId);
 
 json_out(true, 'UPCC decision accepted successfully.');

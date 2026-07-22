@@ -271,18 +271,45 @@ try {
         ]
       );
     } else {
-      db_exec(
-        "INSERT INTO community_service_requirement (student_id, assigned_by, related_case_id, task_name, location, hours_required, status, assigned_at, completed_at, created_at)
-         VALUES (:sid, :admin_id, :cid, 'University Service', 'SDO Office', :hours, :status, NOW(), :completed_at, NOW())",
-        [
-          ':sid' => $studentId,
-          ':admin_id' => $adminId,
-          ':cid' => $caseId,
-          ':hours' => $hours,
-          ':status' => $newStatus,
-          ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null
-        ]
+      // Check if student already has an ONGOING ('ACTIVE') requirement for another case
+      $ongoingActive = db_one(
+        "SELECT requirement_id, hours_required FROM community_service_requirement 
+         WHERE student_id = :sid AND status = 'ACTIVE' LIMIT 1",
+        [':sid' => $studentId]
       );
+
+      if ($ongoingActive && $newStatus === 'ACTIVE') {
+        // Ongoing ACTIVE service exists — add new hours to the ongoing requirement!
+        $newTotal = (float)$ongoingActive['hours_required'] + $hours;
+        db_exec(
+          "UPDATE community_service_requirement SET hours_required = :hrs, updated_at = NOW() WHERE requirement_id = :rid",
+          [':hrs' => $newTotal, ':rid' => $ongoingActive['requirement_id']]
+        );
+
+        db_exec(
+          "INSERT INTO community_service_requirement (student_id, assigned_by, related_case_id, task_name, location, hours_required, status, assigned_at, completed_at, created_at)
+           VALUES (:sid, :admin_id, :cid, 'University Service', 'SDO Office', :hours, 'COMPLETED', NOW(), NOW(), NOW())",
+          [
+            ':sid' => $studentId,
+            ':admin_id' => $adminId,
+            ':cid' => $caseId,
+            ':hours' => $hours
+          ]
+        );
+      } else {
+        db_exec(
+          "INSERT INTO community_service_requirement (student_id, assigned_by, related_case_id, task_name, location, hours_required, status, assigned_at, completed_at, created_at)
+           VALUES (:sid, :admin_id, :cid, 'University Service', 'SDO Office', :hours, :status, NOW(), :completed_at, NOW())",
+          [
+            ':sid' => $studentId,
+            ':admin_id' => $adminId,
+            ':cid' => $caseId,
+            ':hours' => $hours,
+            ':status' => $newStatus,
+            ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null
+          ]
+        );
+      }
     }
   } else {
     // If no longer Category 2, cancel requirement

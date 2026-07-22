@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') ==
                     db_exec("UPDATE student SET is_active = 0 WHERE student_id = :sid", [':sid' => $studentId]);
                 }
 
-                db_exec("UPDATE community_service_requirement SET status = 'ACTIVE' WHERE related_case_id = :cid AND student_id = :sid AND status = 'PENDING_ACCEPTANCE'", [':cid' => $caseId, ':sid' => $studentId]);
+                activate_or_merge_community_service_requirement($studentId, $caseId);
             } else if ($appeal['appeal_kind'] === 'OFFENSE' && $offenseId > 0) {
                 db_exec("UPDATE offense SET status = 'RESOLVED' WHERE offense_id = :oid AND student_id = :sid", [':oid' => $offenseId, ':sid' => $studentId]);
             }
