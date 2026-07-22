@@ -2196,6 +2196,36 @@ function formatCaseActivity(array $act): string {
   </div>
 
   <script>
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    window.toggleCardHistory = function(btn, contentId) {
+      const content = document.getElementById(contentId);
+      if (!content) return;
+      
+      const isHidden = content.style.display === 'none' || window.getComputedStyle(content).display === 'none';
+      if (isHidden) {
+        content.style.display = 'block';
+        btn.classList.add('active');
+        if (btn.innerHTML.includes('Show History Log')) {
+          btn.innerHTML = btn.innerHTML.replace('Show History Log', 'Hide History Log');
+        }
+      } else {
+        content.style.display = 'none';
+        btn.classList.remove('active');
+        if (btn.innerHTML.includes('Hide History Log')) {
+          btn.innerHTML = btn.innerHTML.replace('Hide History Log', 'Show History Log');
+        }
+      }
+    };
+
     // 1. Password Verification gate handling
     const pagePasswordForm = document.getElementById('pagePasswordForm');
     if (pagePasswordForm) {
