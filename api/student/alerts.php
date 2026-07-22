@@ -246,7 +246,7 @@ try {
             $alerts[] = [
                 'alert_type' => $hearingDate === $today ? 'HEARING_REMINDER' : 'HEARING_SCHEDULE',
                 'title' => 'Hearing Declined',
-                'message' => 'You declined this hearing. Awaiting final punishment.',
+                'message' => 'You declined this hearing schedule. Awaiting panel instructions.',
                 'created_at' => $hearingAt,
                 'metadata' => [
                     'case_id' => (int)$hearing['case_id'],
@@ -259,12 +259,48 @@ try {
                     'popup' => false,
                 ],
             ];
-        } else {
+        } elseif ($studentResponse === 'ACCEPTED') {
             if ($hearingDate === $today) {
                 $alerts[] = [
                     'alert_type' => 'HEARING_REMINDER',
-                    'title' => 'Hearing Reminder',
-                    'message' => 'Be ready for your ' . $typeLabel . ' hearing today. Wait for panel instructions.',
+                    'title' => 'Hearing Confirmed',
+                    'message' => 'You confirmed attendance. Be ready for your ' . $typeLabel . ' hearing today. Wait for panel instructions.',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'metadata' => [
+                        'case_id' => (int)$hearing['case_id'],
+                        'hearing_type' => $hearingType,
+                        'hearing_link_or_location' => $exposedLoc,
+                        'hearing_date' => $hearingDate,
+                        'hearing_time' => $hearingTime,
+                        'admin_opened' => (int)($hearing['hearing_is_open'] ?? 0) === 1,
+                        'student_hearing_response' => $studentResponse,
+                        'popup' => true,
+                    ],
+                ];
+            } else {
+                $alerts[] = [
+                    'alert_type' => 'HEARING_SCHEDULE',
+                    'title' => 'Hearing Confirmed',
+                    'message' => 'You confirmed attendance for your ' . $typeLabel . ' hearing on ' . date('M d, Y', strtotime($hearingDate)) . ' at ' . date('g:i A', strtotime($hearingTime)) . '.',
+                    'created_at' => $hearingAt,
+                    'metadata' => [
+                        'case_id' => (int)$hearing['case_id'],
+                        'hearing_type' => $hearingType,
+                        'hearing_link_or_location' => $exposedLoc,
+                        'hearing_date' => $hearingDate,
+                        'hearing_time' => $hearingTime,
+                        'student_hearing_response' => $studentResponse,
+                        'popup' => true,
+                    ],
+                ];
+            }
+        } else {
+            // Student response is PENDING
+            if ($hearingDate === $today) {
+                $alerts[] = [
+                    'alert_type' => 'HEARING_REMINDER',
+                    'title' => 'Hearing Scheduled Today',
+                    'message' => 'Your ' . $typeLabel . ' hearing is scheduled today. Please confirm if you will attend by selecting Accept or Decline below.',
                     'created_at' => date('Y-m-d H:i:s'),
                     'metadata' => [
                         'case_id' => (int)$hearing['case_id'],
@@ -281,7 +317,7 @@ try {
                 $alerts[] = [
                     'alert_type' => 'HEARING_SCHEDULE',
                     'title' => 'Hearing Scheduled',
-                    'message' => 'Your hearing is scheduled on ' . date('M d, Y', strtotime($hearingDate)) . ' at ' . date('g:i A', strtotime($hearingTime)) . ' (' . $typeLabel . ').',
+                    'message' => 'Your hearing is scheduled on ' . date('M d, Y', strtotime($hearingDate)) . ' at ' . date('g:i A', strtotime($hearingTime)) . ' (' . $typeLabel . '). Please confirm your attendance by selecting Accept or Decline below.',
                     'created_at' => $hearingAt,
                     'metadata' => [
                         'case_id' => (int)$hearing['case_id'],

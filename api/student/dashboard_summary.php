@@ -234,22 +234,34 @@ if ($activeCaseRow) {
         'hearing_time' => $hTime,
         'hearing_type' => $hType,
         'title' => 'Hearing Declined',
-        'message' => 'You declined this hearing. Awaiting final punishment.',
+        'message' => 'You declined this hearing schedule. Awaiting panel instructions.',
         'popup' => false,
         'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
       ];
-    } else {
+    } else if ($studentResponse === 'ACCEPTED') {
       $hearingNotice = [
         'case_id' => (int)$activeCaseRow['case_id'],
         'hearing_date' => $hDate,
         'hearing_time' => $hTime,
         'hearing_type' => $hType,
-        'title' => $hDate === $today ? 'Hearing Reminder' : 'Upcoming Hearing',
+        'title' => $hDate === $today ? 'Hearing Confirmed' : 'Hearing Confirmed',
         'message' => $hDate === $today
-          ? ($studentResponse === 'ACCEPTED'
-              ? 'You accepted the hearing. Be ready for your ' . $typeLabel . ' hearing today at ' . date('g:i A', strtotime($hTime)) . '.'
-              : 'Be ready for your ' . $typeLabel . ' hearing today at ' . date('g:i A', strtotime($hTime)) . '.')
-          : 'Your hearing is scheduled on ' . date('M d, Y', strtotime($hDate)) . ' at ' . date('g:i A', strtotime($hTime)) . ' (' . $typeLabel . ').',
+          ? 'You confirmed attendance. Be ready for your ' . $typeLabel . ' hearing today at ' . date('g:i A', strtotime($hTime)) . '.'
+          : 'You confirmed attendance for your ' . $typeLabel . ' hearing on ' . date('M d, Y', strtotime($hDate)) . ' at ' . date('g:i A', strtotime($hTime)) . '.',
+        'popup' => false,
+        'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
+      ];
+    } else {
+      // Student response is PENDING
+      $hearingNotice = [
+        'case_id' => (int)$activeCaseRow['case_id'],
+        'hearing_date' => $hDate,
+        'hearing_time' => $hTime,
+        'hearing_type' => $hType,
+        'title' => $hDate === $today ? 'Hearing Scheduled Today' : 'Upcoming Hearing',
+        'message' => $hDate === $today
+          ? 'Your ' . $typeLabel . ' hearing is scheduled today at ' . date('g:i A', strtotime($hTime)) . '. Please confirm if you will attend (Accept or Decline in Alerts).'
+          : 'Your ' . $typeLabel . ' hearing is scheduled on ' . date('M d, Y', strtotime($hDate)) . ' at ' . date('g:i A', strtotime($hTime)) . '. Please confirm your attendance in Alerts.',
         'popup' => false,
         'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
       ];
