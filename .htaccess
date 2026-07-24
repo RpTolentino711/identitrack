@@ -1,5 +1,28 @@
+# Disable directory browsing for security
+Options -Indexes
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /
+
+    # Pass Authorization Header for API / Mobile bearer tokens
     RewriteCond %{HTTP:Authorization} ^(.*)
     RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+
+    # Redirect GET requests from /file.php to /file (Hides .php extension in browser address bar)
+    RewriteCond %{THE_REQUEST} \s/+(.+?)\.php[\s?] [NC]
+    RewriteCond %{REQUEST_METHOD} !POST
+    RewriteRule ^ /%1 [R=301,L]
+
+    # Internally rewrite clean URLs without .php to the actual .php file
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^(.*?)/?$ $1.php [L,QSA]
 </IfModule>
+
+# Security Protections: Block direct browser access to sensitive files (.env, .git, .sql, .log)
+<FilesMatch "^(\.env|\.git|\.htaccess|.*\.sql|.*\.log|.*\.md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
