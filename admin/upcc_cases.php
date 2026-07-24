@@ -1025,11 +1025,36 @@ function fmt_case_id(int $id, string $created): string {
         .dept-member-meta { min-width: 0; }
         .dept-member-name { font-size: 13px; font-weight: 700; color: #1a1a1a; }
         .dept-member-sub { font-size: 11px; color: #7b86a9; margin-top: 2px; }
-        .dept-modal-section { margin-top: 14px; }
-        .dept-modal-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: #4f5b7d; margin-bottom: 8px; }
         .dept-inline-form { display: flex; gap: 8px; align-items: end; }
         .dept-inline-form .field-group { margin-bottom: 0; flex: 1; }
         .dept-inline-form button { height: 38px; }
+
+        @media (max-width: 991px) {
+            .cpanel-modal {
+                width: 94vw !important;
+                max-width: 94vw !important;
+                max-height: 86vh !important;
+                margin: auto !important;
+            }
+            .cpanel-head {
+                padding: 16px 18px !important;
+            }
+            .cpanel-stats {
+                flex-wrap: wrap !important;
+                gap: 10px !important;
+            }
+            .cp-toolbar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            .dept-inline-form {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            .dept-inline-form button {
+                width: 100% !important;
+            }
+        }
     </style>
 </head>
 <body>

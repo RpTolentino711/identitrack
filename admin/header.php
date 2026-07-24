@@ -524,6 +524,56 @@ if (function_exists('db_one')) {
     .filter-bar select, .filter-bar input, .toolbar button {
       width: 100% !important;
     }
+
+    /* ── UNIVERSAL MOBILE MODAL RESPONSIVENESS ── */
+    .modal-overlay, .logout-modal-overlay, .global-scan-overlay, .cs-modal-overlay, .scan-overlay, .modal-backdrop, .cpanel-overlay {
+      padding: 10px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      z-index: 100000 !important;
+    }
+
+    .modal-card, .modal-content, .modal-dialog, .logout-modal, .global-scan-card, .scan-card, .modal, .cpanel-modal, .panel-modal, .dialog-card, .cs-modal-card {
+      width: min(92vw, 540px) !important;
+      max-width: 92vw !important;
+      max-height: 85vh !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      margin: auto !important;
+      padding: 20px 16px !important;
+      box-sizing: border-box !important;
+    }
+
+    .cpanel-body {
+      padding: 16px !important;
+      overflow-y: auto !important;
+    }
+
+    .cpanel-head {
+      padding: 16px 18px !important;
+    }
+
+    .cpanel-stats {
+      flex-wrap: wrap !important;
+      gap: 10px !important;
+    }
+
+    .cpanel-tabs {
+      overflow-x: auto !important;
+      white-space: nowrap !important;
+      padding: 10px 14px 0 !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+
+    .field-row, .modal-form-grid, .form-row {
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+    }
+
+    .modal-buttons, .modal-actions, .modal-footer {
+      flex-wrap: wrap !important;
+      gap: 8px !important;
+    }
   }
 
   @media (max-width: 640px) {
