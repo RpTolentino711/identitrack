@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $loginUrl = 'login.php';
 ?>
 <!DOCTYPE html>
@@ -68,8 +68,8 @@ $loginUrl = 'login.php';
 
     .hero {
       background-image: url('../assets/wallpaper.png');
-      background-size: 100% auto;
-      background-position: center top;
+      background-size: cover;
+      background-position: center center;
       background-repeat: no-repeat;
       width: 100%;
       position: relative;
