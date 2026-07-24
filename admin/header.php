@@ -531,14 +531,20 @@ if (function_exists('db_one')) {
     }
 
     /* ── UNIVERSAL MOBILE MODAL RESPONSIVENESS ── */
-    .modal-overlay, .logout-modal-overlay, .global-scan-overlay, .cs-modal-overlay, .scan-overlay, .modal-backdrop, .cpanel-overlay {
+    .modal-overlay, .logout-modal-overlay, .global-scan-overlay, .cs-modal-overlay, .scan-overlay, .modal-backdrop, .cpanel-overlay, .modal {
+      top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
       padding: 10px !important;
       align-items: center !important;
       justify-content: center !important;
       z-index: 100000 !important;
+      box-sizing: border-box !important;
     }
 
-    .modal-card, .modal-content, .modal-dialog, .logout-modal, .global-scan-card, .scan-card, .modal, .cpanel-modal, .panel-modal, .dialog-card, .cs-modal-card {
+    .modal-card, .modal-content, .modal-dialog, .logout-modal, .global-scan-card, .scan-card, .cpanel-modal, .panel-modal, .dialog-card, .cs-modal-card {
       width: min(92vw, 540px) !important;
       max-width: 92vw !important;
       max-height: 85vh !important;
