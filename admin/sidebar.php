@@ -315,37 +315,83 @@ if (function_exists('db_one')) {
     color: #ffffff;
   }
 
-  @media (max-width: 900px) {
+  .admin-sidebar-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 99998;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .admin-sidebar-backdrop.show {
+    display: block;
+    opacity: 1;
+  }
+  .admin-sidebar-header-mobile {
+    display: none;
+  }
+
+  @media (max-width: 991px) {
     .admin-sidebar {
-      width: 100%;
-      min-height: auto;
-      border-right: 0;
-      border-bottom: 1px solid #dee2e6;
+      position: fixed !important;
+      top: 0 !important; left: 0 !important; bottom: 0 !important;
+      width: 270px !important;
+      max-width: 84vw !important;
+      height: 100vh !important;
+      min-height: 100vh !important;
+      z-index: 99999 !important;
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 8px 0 32px rgba(0, 0, 0, 0.35);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      background: #ffffff !important;
+      padding-top: 0 !important;
     }
-
-    .admin-sidebar-menu {
+    .admin-sidebar.open {
+      transform: translateX(0);
+    }
+    .admin-sidebar-header-mobile {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      background: #314094;
+      color: #ffffff;
+      margin-bottom: 12px;
     }
-
-    .admin-sidebar-link {
-      margin-bottom: 0;
+    .admin-sidebar-header-mobile-title {
+      font-weight: 700;
+      font-size: 15px;
+      font-family: 'Segoe UI', sans-serif;
     }
-
-    .admin-sidebar-bottom {
-      margin-top: 0;
-      border-top: 1px solid #dee2e6;
-      padding-top: 12px;
-    }
-
-    .sidebar-divider {
-      display: none;
+    .admin-sidebar-close-btn {
+      background: rgba(255,255,255,0.18);
+      border: none;
+      font-size: 18px;
+      color: #ffffff;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
     }
   }
 </style>
 
+<div class="admin-sidebar-backdrop" id="adminSidebarBackdrop"></div>
+
 <aside class="admin-sidebar" aria-label="Admin sidebar navigation">
+  <div class="admin-sidebar-header-mobile">
+    <span class="admin-sidebar-header-mobile-title">SDO Menu</span>
+    <button type="button" class="admin-sidebar-close-btn" id="adminSidebarCloseBtn" aria-label="Close menu">&times;</button>
+  </div>
   <ul class="admin-sidebar-menu">
     <li>
       <a class="admin-sidebar-link <?php echo $activeSidebar === 'dashboard' ? 'active' : ''; ?>" href="dashboard.php">
@@ -1110,3 +1156,35 @@ if (!$isSanctionsPage && function_exists('db_all') && db_one("SHOW TABLES LIKE '
     }
 </script>
 <?php endif; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleBtn = document.getElementById('adminMobileToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+    const backdrop = document.getElementById('adminSidebarBackdrop');
+    const closeBtn = document.getElementById('adminSidebarCloseBtn');
+
+    function openSidebar() {
+        if (sidebar) sidebar.classList.add('open');
+        if (backdrop) backdrop.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+        if (sidebar) sidebar.classList.remove('open');
+        if (backdrop) backdrop.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    if (toggleBtn) toggleBtn.addEventListener('click', openSidebar);
+    if (backdrop) backdrop.addEventListener('click', closeSidebar);
+    if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
+
+    const links = document.querySelectorAll('.admin-sidebar-link');
+    links.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 991) closeSidebar();
+        });
+    });
+});
+</script>

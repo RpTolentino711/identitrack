@@ -446,11 +446,91 @@ if (function_exists('db_one')) {
     to { width: 0%; }
   }
 
+  /* ── MOBILE RESPONSIVENESS & HAMBURGER TOGGLE ── */
+  .admin-mobile-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    margin-right: 6px;
+  }
+  .admin-mobile-toggle:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+  .admin-mobile-toggle svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+  }
+
+  @media (max-width: 991px) {
+    .admin-mobile-toggle {
+      display: inline-flex;
+    }
+    .admin-header-inner {
+      padding: 8px 12px;
+    }
+    .admin-header-logo {
+      width: 40px;
+      height: 40px;
+    }
+    .admin-header-title {
+      font-size: 1.25rem;
+    }
+    .admin-header-subtitle {
+      font-size: 0.78rem;
+    }
+    .admin-shell {
+      display: block !important;
+      width: 100% !important;
+    }
+    .wrap, .admin-main, .main-content, .content-area {
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 12px !important;
+      overflow-x: hidden;
+    }
+    .dashboard-hero {
+      padding: 16px 18px !important;
+    }
+    .dashboard-title {
+      font-size: 20px !important;
+    }
+    .welcome {
+      font-size: 13px !important;
+    }
+    /* Mobile Table Scroll Wrappers */
+    table {
+      max-width: 100%;
+    }
+    .table-responsive, div:has(> table) {
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+    /* Filter Bar & Action Bar stacking */
+    .filter-bar, .toolbar, .action-bar {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 8px !important;
+    }
+    .filter-bar select, .filter-bar input, .toolbar button {
+      width: 100% !important;
+    }
+  }
+
   @media (max-width: 640px) {
-    .admin-header-inner { padding: 8px 14px 8px 10px; }
-    .admin-header-logo { width: 42px; height: 42px; }
-    .admin-header-title { font-size: 1.06rem; }
-    .admin-header-subtitle { font-size: 0.76rem; }
+    .admin-header-inner { padding: 8px 10px; }
+    .admin-header-logo { width: 36px; height: 36px; }
+    .admin-header-title { font-size: 1.05rem; }
+    .admin-header-subtitle { font-size: 0.72rem; }
     .header-icon-btn,
     .profile-avatar { width: 29px; height: 29px; }
     .notif-container {
@@ -646,6 +726,14 @@ if (function_exists('db_one')) {
 
   <div class="admin-header-inner">
     <div class="admin-header-left">
+      <button type="button" class="admin-mobile-toggle" id="adminMobileToggle" aria-label="Toggle Navigation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
       <img class="admin-header-logo" src="../assets/logo.png" alt="NU Logo">
 
       <div class="admin-header-text">
