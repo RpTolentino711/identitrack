@@ -746,7 +746,15 @@ $showRecoveryLink = ($currentFailures >= 4);
             </div>
             <div class="field">
                 <label for="recNewPassword">New Password</label>
-                <input type="password" id="recNewPassword" placeholder="Enter new password" oninput="checkPwStrength()" required>
+                <div class="input-wrapper">
+                    <input type="password" id="recNewPassword" placeholder="Enter new password" oninput="checkPwStrength()" required>
+                    <button type="button" class="eye-toggle" onclick="togglePasswordVisibility('recNewPassword', this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
                 <div class="pw-hints">
                     <div class="pw-hint-item" id="hintLen">&bull; 8+ Characters</div>
                     <div class="pw-hint-item" id="hintUpper">&bull; Uppercase (A-Z)</div>
@@ -756,7 +764,16 @@ $showRecoveryLink = ($currentFailures >= 4);
             </div>
             <div class="field">
                 <label for="recConfirmPassword">Confirm New Password</label>
-                <input type="password" id="recConfirmPassword" placeholder="Re-enter new password" required>
+                <div class="input-wrapper">
+                    <input type="password" id="recConfirmPassword" placeholder="Re-enter new password" oninput="checkPwStrength()" required>
+                    <button type="button" class="eye-toggle" onclick="togglePasswordVisibility('recConfirmPassword', this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="matchNotice" style="font-size:12px;margin-top:6px;display:none;"></div>
             </div>
             <button type="button" id="btnSaveCredentials" class="btn-login" onclick="saveNewCredentials()">Save &amp; Sign In &rarr;</button>
         </div>
@@ -766,6 +783,49 @@ $showRecoveryLink = ($currentFailures >= 4);
 <script>
 let step = <?= $username_checked ? 2 : 1 ?>;
 let lockoutTimer = null;
+
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const icon = btn.querySelector('.eye-icon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    } else {
+        input.type = 'password';
+        icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
+}
+
+function checkPwStrength() {
+    const pw = document.getElementById('recNewPassword').value;
+    const confirmPw = document.getElementById('recConfirmPassword').value;
+    
+    const hLen = document.getElementById('hintLen');
+    const hUpper = document.getElementById('hintUpper');
+    const hLower = document.getElementById('hintLower');
+    const hSpec = document.getElementById('hintSpec');
+    const matchNotice = document.getElementById('matchNotice');
+
+    if (pw.length >= 8) hLen.classList.add('valid'); else hLen.classList.remove('valid');
+    if (/[A-Z]/.test(pw)) hUpper.classList.add('valid'); else hUpper.classList.remove('valid');
+    if (/[a-z]/.test(pw)) hLower.classList.add('valid'); else hLower.classList.remove('valid');
+    if (/[^a-zA-Z0-9]/.test(pw)) hSpec.classList.add('valid'); else hSpec.classList.remove('valid');
+
+    if (confirmPw.length > 0) {
+        matchNotice.style.display = 'block';
+        if (pw === confirmPw) {
+            matchNotice.style.color = '#4ade80';
+            matchNotice.style.fontWeight = '600';
+            matchNotice.innerHTML = '&#10004; Passwords match';
+        } else {
+            matchNotice.style.color = '#fca5a5';
+            matchNotice.style.fontWeight = '500';
+            matchNotice.innerHTML = '&#10008; Passwords do not match';
+        }
+    } else {
+        matchNotice.style.display = 'none';
+    }
+}
 
 function openRecoveryModal() {
     document.getElementById('recoveryModal').classList.add('active');
