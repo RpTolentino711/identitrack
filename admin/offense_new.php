@@ -1491,10 +1491,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                   <div class="form-group">
                     <label for="student_id">Student ID *</label>
-                    <input id="studentIdInput" name="student_id"
-                           value="<?php echo htmlspecialchars($postStudentId); ?>"
-                           placeholder="e.g., 2024-01001"
-                           autocomplete="off"/>
+                    <div style="display: flex; gap: 8px;">
+                      <input id="studentIdInput" name="student_id"
+                             value="<?php echo htmlspecialchars($postStudentId); ?>"
+                             placeholder="e.g., 2024-01001"
+                             autocomplete="off" style="flex: 1;"/>
+                      <button type="button" id="btnCheckStudent" onclick="lookupStudentId()" style="padding: 0 16px; font-weight: 700; font-size: 13px; white-space: nowrap; height: 42px; border-radius: 10px; background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; cursor: pointer;">
+                        Check
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2246,17 +2251,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     window.location.href = 'offense_new.php?' + params.toString();
   }
 
-  let debounceTimer;
+  function lookupStudentId() {
+    if (!studentIdInput) return;
+    const studentId = studentIdInput.value.trim();
+    const level     = levelSelect ? levelSelect.value : 'MINOR';
+    const params    = new URLSearchParams({ level });
+    if (studentId) params.set('student_id', studentId);
+    window.location.href = 'offense_new.php?' + params.toString();
+  }
+
   if (studentIdInput) {
-    studentIdInput.addEventListener('input', () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        const studentId = studentIdInput.value.trim();
-        const level     = levelSelect.value;
-        const params    = new URLSearchParams({ level });
-        if (studentId) params.set('student_id', studentId);
-        window.location.href = 'offense_new.php?' + params.toString();
-      }, 800);
+    studentIdInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        lookupStudentId();
+      }
     });
   }
 
