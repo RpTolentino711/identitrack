@@ -1428,21 +1428,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       .content-grid { padding: 16px; }
       .form-row     { grid-template-columns: 1fr; }
       .letter-grid  { grid-template-columns: 1fr; }
-      .btn-check-student {
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        padding: 0 16px;
-        font-weight: 700;
-        font-size: 13px;
-        white-space: nowrap;
-        height: 42px;
-        border-radius: 10px;
-        background: #e0e7ff;
-        color: #3730a3;
-        border: 1px solid #c7d2fe;
-        cursor: pointer;
-      }
     }
   </style>
 </head>
@@ -1523,17 +1508,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                     </div>
                     <div class="form-group">
                       <label for="student_id">Student ID *</label>
-                      <div class="student-input-container" style="display: flex; gap: 8px;">
-                        <div style="position: relative; flex: 1;">
-                          <input id="studentIdInput" name="student_id"
-                                 value="<?php echo htmlspecialchars($postStudentId); ?>"
-                                 placeholder="e.g., 2024-01001"
-                                 autocomplete="off" style="width: 100%;"/>
-                          <div id="studentSuggestions" class="student-suggestions-dropdown"></div>
-                        </div>
-                        <button type="button" id="btnCheckStudent" class="btn-check-student" onclick="lookupStudentId()">
-                          Check
-                        </button>
+                      <div style="position: relative; width: 100%;">
+                        <input id="studentIdInput" name="student_id"
+                               value="<?php echo htmlspecialchars($postStudentId); ?>"
+                               placeholder="e.g., 2024-01001"
+                               autocomplete="off" style="width: 100%;"/>
+                        <div id="studentSuggestions" class="student-suggestions-dropdown"></div>
                       </div>
                     </div>
                   </div>
