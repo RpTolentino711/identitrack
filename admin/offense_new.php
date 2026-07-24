@@ -1383,41 +1383,29 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       background: var(--surface);
       border-radius: var(--radius);
       width: 500px;
-      max-width: 90%;
-      max-height: 90vh;
-      display: flex;
-      flex-direction: column;
-      box-shadow: var(--shadow);
     }
-    .modal-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .btn-check-student {
+      display: none;
+      padding: 0 16px;
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+      height: 42px;
+      border-radius: 10px;
+      background: #e0e7ff;
+      color: #3730a3;
+      border: 1px solid #c7d2fe;
+      cursor: pointer;
     }
-    .modal-header h3 { font-size: 16px; font-weight: 700; }
-    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-3); }
-    .modal-body { padding: 20px; overflow-y: auto; }
-    .modal-footer {
-      padding: 12px 20px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-
-    @media (max-width: 1100px) {
-      .content-grid { grid-template-columns: 1fr; }
-      .letter-wrap  { grid-column: 1; }
-    }
-    @media (max-width: 1024px) {
-      .admin-shell { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 640px) {
+    @media (max-width: 991px) {
       .content-grid { padding: 16px; }
       .form-row     { grid-template-columns: 1fr; }
       .letter-grid  { grid-template-columns: 1fr; }
+      .btn-check-student {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
     }
   </style>
 </head>
@@ -1425,9 +1413,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   <?php require_once __DIR__ . '/header.php'; ?>
 
   <script>
-    // This page uses its own scanner behavior (auto-fill student field),
-    // so skip sidebar's global redirect scanner listener here.
     window.__identitrackDisableGlobalScan = true;
+    const studentInput = document.getElementById('studentIdInput');
+    let timer;
+    studentInput.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if(studentInput.value.length >= 5) lookupStudentId();
+      }, 800);
+    });
   </script>
 
   <div class="admin-shell">
@@ -1448,7 +1442,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
       <div class="content-grid">
 
-        <!-- LEFT: FORM -->
         <div>
           <div class="card">
             <div class="card-header">
@@ -2260,7 +2253,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     window.location.href = 'offense_new.php?' + params.toString();
   }
 
+  let debounceTimer;
   if (studentIdInput) {
+    studentIdInput.addEventListener('input', () => {
+      if (window.innerWidth > 991) {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          lookupStudentId();
+        }, 800);
+      }
+    });
+
     studentIdInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
