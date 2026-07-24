@@ -5,7 +5,6 @@ require_once __DIR__ . '/../database/database.php';
 try {
     $col = db_one("SHOW COLUMNS FROM upcc_user LIKE 'must_change_password'");
     if (!$col) {
-        // Existing accounts should continue logging in; only newly created members are forced to reset.
         db_exec("ALTER TABLE upcc_user ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0");
     } else {
         db_exec("ALTER TABLE upcc_user MODIFY COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0");
@@ -41,20 +40,55 @@ if (isset($_SESSION['upcc_authenticated']) && upcc_current()) {
     exit;
 }
 
+// AJAX Username Verification Endpoint
+if (isset($_POST['action']) && $_POST['action'] === 'check_username') {
+    header('Content-Type: application/json');
+    $username = trim($_POST['username'] ?? '');
+    if ($username === '') {
+        echo json_encode(['ok' => false, 'error' => 'Please enter your username.']);
+        exit;
+    }
+    $upcc = upcc_find_by_username($username);
+    if (!$upcc) {
+        echo json_encode(['ok' => false, 'error' => 'Account not found.']);
+        exit;
+    }
+    if ((int)($upcc['is_active'] ?? 0) !== 1) {
+        echo json_encode(['ok' => false, 'error' => 'Account is inactive.']);
+        exit;
+    }
+    echo json_encode(['ok' => true, 'username' => $upcc['username'], 'full_name' => $upcc['full_name']]);
+    exit;
+}
+
 $error = '';
+$username_checked = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
 
-    $result = upcc_login($username, $password);
-
-    if ($result['ok']) {
-        $_SESSION['upcc_pending_otp'] = $result['user']['username'];
-        header('Location: send_otp.php');
-        exit;
+    if ($username === '') {
+        $error = 'Please enter your username.';
     } else {
-        $error = $result['error'];
+        $upcc = upcc_find_by_username($username);
+        if (!$upcc) {
+            $error = 'Account not found.';
+        } elseif ((int)($upcc['is_active'] ?? 0) !== 1) {
+            $error = 'Account is inactive.';
+        } elseif ($password === '') {
+            $username_checked = true;
+        } else {
+            $result = upcc_login($username, $password);
+            if ($result['ok']) {
+                $_SESSION['upcc_pending_otp'] = $result['user']['username'];
+                header('Location: send_otp.php');
+                exit;
+            } else {
+                $username_checked = true;
+                $error = $result['error'];
+            }
+        }
     }
 }
 
@@ -167,7 +201,10 @@ unset($_SESSION['login_error']);
         }
         .alert-err svg { width: 18px; height: 18px; flex-shrink: 0; }
 
-        .field { margin-bottom: 20px; }
+        .field { 
+            margin-bottom: 20px;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
         .field label {
             display: block;
             font-size: 13px;
@@ -236,9 +273,26 @@ unset($_SESSION['login_error']);
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 0 4px 12px var(--accent-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 16px var(--accent-glow); filter: brightness(1.1); }
         .btn-login:active { transform: translateY(0); box-shadow: 0 2px 8px var(--accent-glow); }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
 
         .secure-note {
             display: flex;
@@ -275,27 +329,28 @@ unset($_SESSION['login_error']);
         <div class="card-title">Sign in</div>
         <div class="card-sub">University Promotion &amp; Conduct Committee</div>
 
-        <?php if (!empty($error)): ?>
-            <div class="alert-err">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <?= htmlspecialchars($error) ?>
-            </div>
-        <?php endif; ?>
+        <div id="alertBox" class="alert-err" style="<?= empty($error) ? 'display: none;' : '' ?>">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span id="alertText"><?= htmlspecialchars($error) ?></span>
+        </div>
 
-        <form method="post" action="upccpanel.php" autocomplete="off">
-            <div class="field">
+        <form id="loginForm" method="post" action="upccpanel.php" autocomplete="off">
+            <!-- Step 1: Username Field -->
+            <div class="field" id="field-username">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username"
                        value="<?= htmlspecialchars($_POST['username'] ?? '') ?>"
                        placeholder="Enter username" autofocus required>
             </div>
-            <div class="field">
+
+            <!-- Step 2: Password Field (hidden until username is verified) -->
+            <div class="field" id="field-password" style="<?= $username_checked ? 'display: block; opacity: 1;' : 'display: none; opacity: 0;' ?>">
                 <label for="password">Password</label>
                 <div class="input-wrapper">
                     <input type="password" id="password" name="password"
-                           placeholder="Enter password" required>
+                           placeholder="Enter password" <?= $username_checked ? 'required' : '' ?>>
                     <button type="button" class="eye-toggle" id="eye-toggle">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -306,11 +361,11 @@ unset($_SESSION['login_error']);
             </div>
 
             <!-- Forgot password link -->
-            <div class="field-footer">
+            <div class="field-footer" id="forgot-footer" style="<?= $username_checked ? 'display: flex;' : 'display: none;' ?>">
                 <a href="reset_password.php" class="forgot-link">Forgot / Reset password?</a>
             </div>
 
-            <button type="submit" class="btn-login">Continue &rarr;</button>
+            <button type="submit" id="btnSubmit" class="btn-login"><?= $username_checked ? 'Sign in &rarr;' : 'Continue &rarr;' ?></button>
         </form>
 
         <div class="secure-note">
@@ -327,6 +382,68 @@ unset($_SESSION['login_error']);
 </div>
 
 <script>
+let step = <?= $username_checked ? 2 : 1 ?>;
+
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    if (step === 1) {
+        e.preventDefault();
+        const usernameInput = document.getElementById('username');
+        const username = usernameInput.value.trim();
+        const alertBox = document.getElementById('alertBox');
+        const alertText = document.getElementById('alertText');
+        const btnSubmit = document.getElementById('btnSubmit');
+
+        if (!username) {
+            alertText.textContent = 'Please enter your username.';
+            alertBox.style.display = 'flex';
+            return;
+        }
+
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<span class="spinner"></span>Checking...';
+        alertBox.style.display = 'none';
+
+        const params = new URLSearchParams();
+        params.append('action', 'check_username');
+        params.append('username', username);
+
+        fetch('upccpanel.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString()
+        })
+        .then(res => res.json())
+        .then(data => {
+            btnSubmit.disabled = false;
+            if (data.ok) {
+                step = 2;
+                const passField = document.getElementById('field-password');
+                const forgotFooter = document.getElementById('forgot-footer');
+                const passInput = document.getElementById('password');
+
+                passField.style.display = 'block';
+                setTimeout(() => { passField.style.opacity = '1'; }, 10);
+                forgotFooter.style.display = 'flex';
+
+                passInput.required = true;
+                passInput.focus();
+
+                btnSubmit.innerHTML = 'Sign in &rarr;';
+            } else {
+                alertText.textContent = data.error || 'Account not found.';
+                alertBox.style.display = 'flex';
+                btnSubmit.innerHTML = 'Continue &rarr;';
+            }
+        })
+        .catch(err => {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = 'Continue &rarr;';
+            alertText.textContent = 'Connection error. Please try again.';
+            alertBox.style.display = 'flex';
+        });
+    }
+});
+
 document.getElementById('eye-toggle').addEventListener('click', function() {
     const input = document.getElementById('password');
     const icon  = this.querySelector('.eye-icon');
@@ -341,3 +458,4 @@ document.getElementById('eye-toggle').addEventListener('click', function() {
 </script>
 </body>
 </html>
+
