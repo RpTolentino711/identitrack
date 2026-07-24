@@ -342,7 +342,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     [':cat' => $category, ':dec' => $decision,
                      ':pu'  => $probationUntil, ':pd' => $jsonDetails, ':id' => $case_id]);
 
+                $previousOngoingHours = null;
                 if ($category === 2 && !empty($details['service_hours'])) {
+                    $activeReq = db_one(
+                        "SELECT requirement_id, hours_required FROM community_service_requirement WHERE student_id = :sid AND status = 'ACTIVE' LIMIT 1",
+                        [':sid' => $case['student_id']]
+                    );
+                    if ($activeReq) {
+                        $previousOngoingHours = (float)$activeReq['hours_required'];
+                    }
+
                     db_exec("INSERT INTO community_service_requirement (student_id, related_case_id, task_name, hours_required, assigned_by, assigned_at, status)
                              VALUES (:sid, :cid, :tn, :hrs, :aid, NOW(), 'PENDING_ACCEPTANCE')",
                          [':sid' => $case['student_id'],
@@ -353,8 +362,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'FINAL_DECISION_RECORDED', [
-                    'category' => $category, 'punishment_details' => $details,
-                    'force_resolve' => $forceResolve ? 1 : 0, 'use_suggested' => $useSuggested ? 1 : 0,
+                    'category' => $category, 
+                    'punishment_details' => $details,
+                    'force_resolve' => $forceResolve ? 1 : 0, 
+                    'use_suggested' => $useSuggested ? 1 : 0,
+                    'previous_ongoing_hours' => $previousOngoingHours
                 ]);
                 db_exec("UPDATE upcc_case_vote_round SET is_active = 0 WHERE case_id = :id", [':id' => $case_id]);
                 header("Location: upcc_case_view.php?id={$case_id}&msg=resolved"); exit;

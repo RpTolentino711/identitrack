@@ -3343,7 +3343,20 @@ function formatCaseActivity(array $act): string {
             const probDate = new Date(payload.probation_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             detailStr = ` (Probation until ${probDate})`;
           } else if (cat === 2 && typeof payload.hours !== 'undefined') {
-            detailStr = ` (Required: ${formatHoursJS(parseFloat(payload.hours))})`;
+            const newHours = parseFloat(payload.hours);
+            const oldReq   = typeof payload.old_hours_required !== 'undefined' ? parseFloat(payload.old_hours_required) : null;
+            const newStr   = formatHoursJS(newHours);
+            if (oldReq !== null && oldReq > 0 && Math.abs(newHours - oldReq) > 0.001) {
+              const oldStr = formatHoursJS(oldReq);
+              const diff = newHours - oldReq;
+              const diffAbsStr = formatHoursJS(Math.abs(diff));
+              if (diff > 0) {
+                return `<strong>[${dateStr}]</strong> ➕ <strong>Admin (${by})</strong> added <strong>+${diffAbsStr}</strong> to ongoing service. <span style="color:#64748b;font-size:0.88em;">(Previous ongoing: <strong>${oldStr}</strong> + Added: <strong>${diffAbsStr}</strong> = New Total: <strong>${newStr}</strong>)</span>`;
+              } else if (diff < 0) {
+                return `<strong>[${dateStr}]</strong> ➖ <strong>Admin (${by})</strong> decreased service time by <strong>-${diffAbsStr}</strong>. <span style="color:#64748b;font-size:0.88em;">(Previous ongoing: <strong>${oldStr}</strong> - Decreased: <strong>${diffAbsStr}</strong> = New Total: <strong>${newStr}</strong>)</span>`;
+              }
+            }
+            detailStr = ` (Required: ${newStr})`;
           }
 
           // Check if this was a category switch
@@ -3362,6 +3375,52 @@ function formatCaseActivity(array $act): string {
           }
 
           return `<strong>[${dateStr}]</strong> Category updated to <strong>${catName}</strong>${detailStr} by <strong>${by}</strong>.`;
+
+        case 'SANCTION_HOURS_ACCUMULATED':
+          const added = parseFloat(payload.added_hours || 0);
+          const prev  = parseFloat(payload.previous_hours || 0);
+          const total = parseFloat(payload.new_total_hours || 0);
+          const source = escapeHTML(payload.source || 'Admin');
+          
+          const isDecrease = (added < 0 || (total < prev && added === 0));
+          const diffAbs = Math.abs(added !== 0 ? added : (prev - total));
+          
+          const diffStr = formatHoursJS(diffAbs);
+          const prevStr  = formatHoursJS(prev);
+          const totalStr = formatHoursJS(total);
+          
+          if (isDecrease) {
+            return `<strong>[${dateStr}]</strong> ➖ <strong>${source}</strong> decreased service time by <strong>-${diffStr}</strong>. <span style="color:#64748b;font-size:0.88em;">(Previous ongoing: <strong>${prevStr}</strong> - Decreased: <strong>${diffStr}</strong> = New Total: <strong>${totalStr}</strong>)</span>`;
+          } else {
+            return `<strong>[${dateStr}]</strong> ➕ <strong>${source}</strong> added <strong>+${diffStr}</strong> to ongoing service. <span style="color:#64748b;font-size:0.88em;">(Previous ongoing: <strong>${prevStr}</strong> + Added: <strong>${diffStr}</strong> = New Total: <strong>${totalStr}</strong>)</span>`;
+          }
+
+        case 'FINAL_DECISION_RECORDED':
+          const fCat = parseInt(payload.category) || 0;
+          const pDetails = payload.punishment_details || {};
+          const serviceHrs = parseFloat(pDetails.service_hours || 0);
+          const caseNum = parseInt(act.case_id) || 0;
+          
+          if (fCat === 2 && serviceHrs > 0) {
+            const hrsStr = formatHoursJS(serviceHrs);
+            if (typeof payload.previous_ongoing_hours !== 'undefined' && payload.previous_ongoing_hours !== null) {
+              const prevOngoing = parseFloat(payload.previous_ongoing_hours);
+              const prevStr = formatHoursJS(prevOngoing);
+              const totalStr = formatHoursJS(prevOngoing + serviceHrs);
+              return `<strong>[${dateStr}]</strong> 🏛️ <strong>UPCC Panel Decision (Case #${caseNum})</strong>: Added <strong>+${hrsStr}</strong> to ongoing service. <span style="color:#64748b;font-size:0.88em;">(Previous ongoing: <strong>${prevStr}</strong> + Added: <strong>${hrsStr}</strong> = New Total: <strong>${totalStr}</strong>)</span>`;
+            }
+            return `<strong>[${dateStr}]</strong> 🏛️ <strong>UPCC Panel Decision (Case #${caseNum})</strong>: Category 2 assigned <strong>+${hrsStr}</strong> service time.`;
+          }
+          
+          const catNamesMap = {
+            1: 'Category 1 (Suspension/Probation)',
+            2: 'Category 2 (Formative Intervention / Service)',
+            3: 'Category 3 (Non-Readmission Warning)',
+            4: 'Category 4 (Exclusion)',
+            5: 'Category 5 (Expulsion)'
+          };
+          const cName = catNamesMap[fCat] || `Category ${fCat}`;
+          return `<strong>[${dateStr}]</strong> 🏛️ <strong>UPCC Panel Decision (Case #${caseNum})</strong> finalized: <strong>${cName}</strong> by Admin.`;
           
         case 'AUTO_RESOLVED_WINDOW_EXPIRED':
           return `<strong>[${dateStr}]</strong> Auto-resolved by system (grace period expired).`;
