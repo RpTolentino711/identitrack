@@ -1,8 +1,5 @@
 <?php
 // File: admin/offense_new.php
-header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-header('Pragma: no-cache');
-header('Expires: 0');
 require_once __DIR__ . '/../database/database.php';
 require_admin();
 
@@ -348,7 +345,7 @@ if ($postStudentId !== '') {
   $liveOffensesParams = [':sid' => $postStudentId];
   db_add_encryption_key($liveOffensesParams);
   $liveOffenses = db_all(
-    "SELECT o.offense_id, o.date_committed, o.level, ot.code, ot.name, 
+ "SELECT o.offense_id, o.date_committed, o.level, ot.code, ot.name, 
             uc.decided_category, uc.status AS case_status,
             uc.probation_until,
             " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
@@ -361,6 +358,14 @@ if ($postStudentId !== '') {
      ORDER BY o.date_committed DESC",
     $liveOffensesParams
   ) ?: [];
+}
+
+// ── Success message from query params ──────────────────────────────────────
+$successMsg = '';
+if (isset($_GET['msg'])) {
+    $successMsg = htmlspecialchars($_GET['msg']);
+} elseif (isset($_GET['success']) && $_GET['success'] == '1') {
+    $successMsg = 'Offense registered successfully.';
 }
 
 // ── Helper: render alert panel HTML ──────────────────────────────────────────
@@ -789,16 +794,24 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               $is_manually_completed = !empty($p_details['completed']);
 
               $punishmentStatus = 'ONGOING';
-              if ($cat === 0) {
+              if ($is_manually_completed) {
+                  $punishmentStatus = 'COMPLETED';
+              } else if ($cat === 0) {
                   $punishmentStatus = 'ONGOING';
               } else if ($cat === 1) {
-                  if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+                  $is_probation_active = false;
+                  if (!empty($off['probation_until'])) {
+                      $is_probation_active = (strtotime($off['probation_until']) > time());
+                  }
+                  if ($is_probation_active) {
+                      $punishmentStatus = 'ONGOING';
+                  } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
                       $punishmentStatus = 'COMPLETED';
                   } else {
                       $punishmentStatus = 'ONGOING';
                   }
               } else if ($cat === 2) {
-                  if ($csrStatus === 'COMPLETED' || in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+                  if (strtoupper($csrStatus) === 'COMPLETED') {
                       $punishmentStatus = 'COMPLETED';
                   } else {
                       $punishmentStatus = 'ONGOING';
@@ -927,9 +940,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       display: grid;
       grid-template-columns: 240px 1fr;
     }
-    .main-wrap { display: flex; flex-direction: column; min-height: 100%; }
+    .wrap { display: flex; flex-direction: column; min-height: 100%; }
 
-    .page-header {
+    .page-hero {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       padding: 16px 32px;
@@ -940,7 +953,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       top: 0;
       z-index: 10;
     }
-    .back-btn {
+    .hero-left { display: flex; align-items: center; gap: 14px; }
+    .btn-back {
       display: inline-flex;
       align-items: center;
       gap: 6px;
@@ -954,16 +968,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       background: var(--surface);
       transition: all .18s;
     }
-    .back-btn svg { width: 14px; height: 14px; }
-    .back-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+    .btn-back svg { width: 14px; height: 14px; }
+    .btn-back:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
     .page-title { font-size: 17px; font-weight: 800; letter-spacing: -.3px; }
     .page-sub   { font-size: 12px; color: var(--text-4); margin-left: auto; font-weight: 500; }
 
+    .content-area { padding: 24px 32px; }
     .content-grid {
       display: grid;
       grid-template-columns: 1fr 340px;
       gap: 20px;
-      padding: 24px 32px;
       align-items: start;
     }
 
@@ -979,8 +993,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       border-bottom: 1px solid var(--border);
       background: linear-gradient(180deg,#fafcff 0%,var(--surface) 100%);
     }
-    .card-header__title { font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
-    .card-header__sub   { font-size: 12px; color: var(--text-4); margin-top: 2px; }
+    .card-title { font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
+    .card-sub   { font-size: 12px; color: var(--text-4); margin-top: 2px; }
     .card-body { padding: 22px; }
 
     .form-row {
@@ -1085,7 +1099,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     .btn-circle svg { width: 18px; height: 18px; margin: 0; }
     .btn-circle:hover { background: var(--surface); border-color: var(--blue); color: var(--blue); }
 
-    .errors {
+    .alert-ok {
+      background: var(--green-soft);
+      border: 1.5px solid var(--green-mid);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      color: var(--green);
+      margin-bottom: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .alert-err {
       background: var(--red-soft);
       border: 1.5px solid #fca5a5;
       border-radius: var(--radius-sm);
@@ -1093,9 +1117,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       color: var(--red);
       margin-bottom: 20px;
       font-size: 13px;
+      font-weight: 600;
     }
-    .errors ul { margin: 0; padding-left: 18px; }
-    .errors li { margin: 3px 0; font-weight: 600; }
+    .alert-err div { margin: 3px 0; }
 
     /* Student Info Card */
     .student-info-card {
@@ -1506,15 +1530,24 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               </div>
               <div class="card-body">
 
+                <!-- Student info summary (compact) appears here if a student is loaded -->
                 <?php if ($studentInfo): ?>
-                  <?php echo renderStudentBanner($studentInfo, $level, $categoryDescriptions, $guardianEmail, $minorOffenseCount, $majorOffenseCount, $hasActiveUpccCase, $activeUpccCaseInfo, $hasActiveSection4Case, $postSection4Minors); ?>
-                <?php else: ?>
-                  <div class="student-banner student-banner--empty">
-                    <div style="font-size:24px;margin-bottom:6px;">👤</div>
-                    <div style="font-weight:700;font-size:14px;color:var(--text-1);">Enter a Student ID</div>
-                    <div style="font-size:12px;color:var(--text-4);margin-top:2px;">
-                      Type a valid Student ID (e.g. 2024-01001) or student name to select from live suggestions.
+                  <div style="background: var(--blue-soft); border-left: 4px solid var(--blue); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                      <strong style="font-size: 14px;"><?php echo htmlspecialchars($studentInfo['student_fn'] . ' ' . $studentInfo['student_ln']); ?></strong>
+                      <span style="margin-left: 12px; font-size: 13px; color: var(--text-3);"><?php echo htmlspecialchars($studentInfo['student_id']); ?></span>
+                      <span style="margin-left: 12px; font-size: 12px; color: var(--text-3);"><?php echo htmlspecialchars($studentInfo['program'] ?? ''); ?></span>
                     </div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--blue);">
+                      <?php echo $liveMinorCount; ?> minor · <?php echo $liveMajorCount; ?> major
+                      <?php if ($hasActiveSection4): ?>
+                        <span style="background: var(--red); color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 6px;">Section 4</span>
+                      <?php endif; ?>
+                    </div>
+                  </div>
+                <?php else: ?>
+                  <div style="background: var(--surface-2); border: 1px dashed var(--border); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 18px; text-align: center; color: var(--text-4);">
+                    Enter a Student ID above to load student information.
                   </div>
                 <?php endif; ?>
 
@@ -1530,10 +1563,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                     </div>
                     <div class="form-group">
                       <label for="student_id">Student ID *</label>
-                      <input id="studentIdInput" name="student_id"
-                             value="<?php echo htmlspecialchars($postStudentId); ?>"
-                             placeholder="e.g., 2024-01001"
-                             autocomplete="off"/>
+                      <div style="position: relative; width: 100%;">
+                        <input id="studentIdInput" name="student_id"
+                               value="<?php echo htmlspecialchars($postStudentId); ?>"
+                               placeholder="e.g., 2024-01001"
+                               autocomplete="off" style="width: 100%;"/>
+                        <div id="studentSuggestions" class="student-suggestions-dropdown"></div>
+                      </div>
                     </div>
                   </div>
 
@@ -1752,7 +1788,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               </div>
             </div>
           </div>
-
+        </div>
         <?php endif; ?>
 
       </div>
@@ -2286,17 +2322,80 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     window.location.href = 'offense_new.php?' + params.toString();
   }
 
-  let debounceTimer;
-  if (studentIdInput) {
-    studentIdInput.addEventListener('input', () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        const studentId = studentIdInput.value.trim();
-        const level     = levelSelect.value;
-        const params    = new URLSearchParams({ level });
-        if (studentId) params.set('student_id', studentId);
-        window.location.href = 'offense_new.php?' + params.toString();
-      }, 800);
+  function lookupStudentId(overrideId) {
+    if (!studentIdInput) return;
+    const studentId = overrideId || studentIdInput.value.trim();
+    const level     = levelSelect ? levelSelect.value : 'MINOR';
+    const params    = new URLSearchParams({ level });
+    if (studentId) params.set('student_id', studentId);
+    window.location.href = 'offense_new.php?' + params.toString();
+  }
+
+  const suggestionsBox = document.getElementById('studentSuggestions');
+  let searchTimer = null;
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  if (studentIdInput && suggestionsBox) {
+    studentIdInput.addEventListener('input', function() {
+      const q = this.value.trim();
+      if (searchTimer) clearTimeout(searchTimer);
+
+      if (q.length < 2) {
+        suggestionsBox.classList.remove('show');
+        suggestionsBox.innerHTML = '';
+        return;
+      }
+
+      searchTimer = setTimeout(async function() {
+        try {
+          const res = await fetch('AJAX/search_students_offenses.php?q=' + encodeURIComponent(q) + '&limit=8', {
+            headers: { 'Accept': 'application/json' }
+          });
+          const json = await res.json();
+          if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
+            suggestionsBox.innerHTML = json.data.map(s => `
+              <div class="suggestion-item" data-id="${escapeHtml(s.student_id)}">
+                <div class="suggestion-info">
+                  <span class="suggestion-id">${escapeHtml(s.student_id)}</span>
+                  <span class="suggestion-name">${escapeHtml(s.student_name)}</span>
+                </div>
+                <span class="suggestion-program">${escapeHtml(s.program || '')}</span>
+              </div>
+            `).join('');
+            suggestionsBox.classList.add('show');
+
+            suggestionsBox.querySelectorAll('.suggestion-item').forEach(item => {
+              item.addEventListener('click', function() {
+                const sid = this.getAttribute('data-id');
+                studentIdInput.value = sid;
+                suggestionsBox.classList.remove('show');
+                lookupStudentId(sid);
+              });
+            });
+          } else {
+            suggestionsBox.classList.remove('show');
+          }
+        } catch(e) {
+          suggestionsBox.classList.remove('show');
+        }
+      }, 200);
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!studentIdInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+        suggestionsBox.classList.remove('show');
+      }
+    });
+
+    studentIdInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        suggestionsBox.classList.remove('show');
+        lookupStudentId();
+      }
     });
   }
 
@@ -2633,4 +2732,3 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   </script>
 </body>
 </html>
-
