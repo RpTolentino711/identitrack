@@ -789,24 +789,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               $is_manually_completed = !empty($p_details['completed']);
 
               $punishmentStatus = 'ONGOING';
-              if ($is_manually_completed) {
-                  $punishmentStatus = 'COMPLETED';
-              } else if ($cat === 0) {
+              if ($cat === 0) {
                   $punishmentStatus = 'ONGOING';
               } else if ($cat === 1) {
-                  $is_probation_active = false;
-                  if (!empty($off['probation_until'])) {
-                      $is_probation_active = (strtotime($off['probation_until']) > time());
-                  }
-                  if ($is_probation_active) {
-                      $punishmentStatus = 'ONGOING';
-                  } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+                  if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
                       $punishmentStatus = 'COMPLETED';
                   } else {
                       $punishmentStatus = 'ONGOING';
                   }
               } else if ($cat === 2) {
-                  if (strtoupper($csrStatus) === 'COMPLETED') {
+                  if ($csrStatus === 'COMPLETED' || in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
                       $punishmentStatus = 'COMPLETED';
                   } else {
                       $punishmentStatus = 'ONGOING';
@@ -1538,13 +1530,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                     </div>
                     <div class="form-group">
                       <label for="student_id">Student ID *</label>
-                      <div style="position: relative; width: 100%;">
-                        <input id="studentIdInput" name="student_id"
-                               value="<?php echo htmlspecialchars($postStudentId); ?>"
-                               placeholder="e.g., 2024-01001"
-                               autocomplete="off" style="width: 100%;"/>
-                        <div id="studentSuggestions" class="student-suggestions-dropdown"></div>
-                      </div>
+                      <input id="studentIdInput" name="student_id"
+                             value="<?php echo htmlspecialchars($postStudentId); ?>"
+                             placeholder="e.g., 2024-01001"
+                             autocomplete="off"/>
                     </div>
                   </div>
 
@@ -2297,80 +2286,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     window.location.href = 'offense_new.php?' + params.toString();
   }
 
-  function lookupStudentId(overrideId) {
-    if (!studentIdInput) return;
-    const studentId = overrideId || studentIdInput.value.trim();
-    const level     = levelSelect ? levelSelect.value : 'MINOR';
-    const params    = new URLSearchParams({ level });
-    if (studentId) params.set('student_id', studentId);
-    window.location.href = 'offense_new.php?' + params.toString();
-  }
-
-  const suggestionsBox = document.getElementById('studentSuggestions');
-  let searchTimer = null;
-
-  function escapeHtml(str) {
-    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  if (studentIdInput && suggestionsBox) {
-    studentIdInput.addEventListener('input', function() {
-      const q = this.value.trim();
-      if (searchTimer) clearTimeout(searchTimer);
-
-      if (q.length < 2) {
-        suggestionsBox.classList.remove('show');
-        suggestionsBox.innerHTML = '';
-        return;
-      }
-
-      searchTimer = setTimeout(async function() {
-        try {
-          const res = await fetch('AJAX/search_students_offenses.php?q=' + encodeURIComponent(q) + '&limit=8', {
-            headers: { 'Accept': 'application/json' }
-          });
-          const json = await res.json();
-          if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
-            suggestionsBox.innerHTML = json.data.map(s => `
-              <div class="suggestion-item" data-id="${escapeHtml(s.student_id)}">
-                <div class="suggestion-info">
-                  <span class="suggestion-id">${escapeHtml(s.student_id)}</span>
-                  <span class="suggestion-name">${escapeHtml(s.student_name)}</span>
-                </div>
-                <span class="suggestion-program">${escapeHtml(s.program || '')}</span>
-              </div>
-            `).join('');
-            suggestionsBox.classList.add('show');
-
-            suggestionsBox.querySelectorAll('.suggestion-item').forEach(item => {
-              item.addEventListener('click', function() {
-                const sid = this.getAttribute('data-id');
-                studentIdInput.value = sid;
-                suggestionsBox.classList.remove('show');
-                lookupStudentId(sid);
-              });
-            });
-          } else {
-            suggestionsBox.classList.remove('show');
-          }
-        } catch(e) {
-          suggestionsBox.classList.remove('show');
-        }
-      }, 200);
-    });
-
-    document.addEventListener('click', function(e) {
-      if (!studentIdInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
-        suggestionsBox.classList.remove('show');
-      }
-    });
-
-    studentIdInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        suggestionsBox.classList.remove('show');
-        lookupStudentId();
-      }
+  let debounceTimer;
+  if (studentIdInput) {
+    studentIdInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const studentId = studentIdInput.value.trim();
+        const level     = levelSelect.value;
+        const params    = new URLSearchParams({ level });
+        if (studentId) params.set('student_id', studentId);
+        window.location.href = 'offense_new.php?' + params.toString();
+      }, 800);
     });
   }
 
