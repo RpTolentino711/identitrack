@@ -1386,10 +1386,38 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       background: var(--surface);
       border-radius: var(--radius);
       width: 500px;
+      max-width: 95%;
+      max-height: 95vh;
+      overflow-y: auto;
     }
-    .btn-check-student {
-      display: none !important;
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 22px 12px;
+      border-bottom: 1px solid var(--border);
     }
+    .modal-header h3 { font-size: 16px; font-weight: 700; margin: 0; }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      line-height: 1;
+      color: var(--text-4);
+      cursor: pointer;
+      padding: 0 6px;
+    }
+    .modal-close:hover { color: var(--text-1); }
+    .modal-body { padding: 20px 22px; }
+    .modal-footer {
+      padding: 12px 22px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .btn-check-student { display: none !important; }
     .student-input-container {
       position: relative;
       width: 100%;
@@ -1408,9 +1436,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
-    .student-suggestions-dropdown.show {
-      display: block;
-    }
+    .student-suggestions-dropdown.show { display: block; }
     .suggestion-item {
       padding: 10px 14px;
       display: flex;
@@ -1428,7 +1454,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     .suggestion-program { font-size: 11px; color: #64748b; font-weight: 600; }
 
     @media (max-width: 768px) {
-      .content-grid { padding: 16px; }
+      .content-grid { padding: 16px; grid-template-columns: 1fr; }
+      .content-area { padding: 16px; }
       .form-row     { grid-template-columns: 1fr; }
       .letter-grid  { grid-template-columns: 1fr; }
     }
@@ -1661,6 +1688,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   else echo '📧 Guardian Notification';
                 ?>
               </h3>
+              <button class="modal-close" onclick="document.getElementById('modal-guardian-letter').classList.remove('active')">&times;</button>
             </div>
             <div class="modal-body" style="padding: 24px;">
               <p style="color: var(--text-2); margin-bottom: 20px; font-size: 13px;">Review and send the notification letter to the guardian. You can update the email address if needed before sending.</p>
