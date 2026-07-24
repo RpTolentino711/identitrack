@@ -22,7 +22,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
         $_SESSION['upcc_pending_otp'],
         $_SESSION['upcc_otp_val'],
         $_SESSION['upcc_otp_user'],
-        $_SESSION['upcc_otp_time']
+        $_SESSION['upcc_otp_time'],
+        $_SESSION['upcc_recovery']
     );
     header('Location: upccpanel.php');
     exit;
@@ -54,62 +55,259 @@ if (isset($_SESSION['upcc_username_locked_until'])) {
     }
 }
 
-// AJAX Username Verification Endpoint
-if (isset($_POST['action']) && $_POST['action'] === 'check_username') {
+// Email OTP Helper Function
+function send_upcc_recovery_email(string $toEmail, string $toName, string $otp): bool {
+    require_once __DIR__ . '/class.phpmailer.php';
+    require_once __DIR__ . '/class.smtp.php';
+
+    try {
+        $mail = new PHPMailer(true);
+        $mail->CharSet   = 'UTF-8';
+        $mail->isSMTP();
+        $mail->Host      = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
+        $mail->Port      = 587;
+        $mail->SMTPAuth  = true;
+        $mail->SMTPSecure = 'tls';
+        $mail->Username  = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+        $mail->Password  = $_ENV['SMTP_PASS'] ?? '';
+        $mail->Timeout   = 30;
+
+        $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'UPCC Panel');
+        $mail->addAddress($toEmail, $toName);
+        $mail->addReplyTo('no-reply@identitrack.local', 'UPCC Panel');
+
+        $logoPath = realpath(__DIR__ . '/../assets/logo.png');
+        $cid = 'upcclogo';
+        if ($logoPath && is_readable($logoPath)) {
+            $mail->addEmbeddedImage($logoPath, $cid, 'logo.png');
+            $logoHtml = "<img src=\"cid:$cid\" width=\"42\" height=\"42\" alt=\"UPCC\" style=\"display:block;border-radius:12px;\" />";
+        } else {
+            $logoHtml = "<div style=\"width:42px;height:42px;border-radius:12px;background:#1e3a8a;color:#fff;font-weight:800;font-size:14px;text-align:center;line-height:42px;\">IT</div>";
+        }
+
+        $safeName = htmlspecialchars($toName, ENT_QUOTES, 'UTF-8');
+        $safeOtp  = htmlspecialchars($otp, ENT_QUOTES, 'UTF-8');
+
+        $mail->isHTML(true);
+        $mail->Subject = 'UPCC Account Recovery OTP';
+        $mail->Body = "
+    <!doctype html>
+    <html>
+    <head><meta charset='utf-8'></head>
+    <body style='margin:0;padding:0;background:#f3f4f6;'>
+      <div style='padding:24px 12px;'>
+        <div style='max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(17,24,39,.10);font-family:Segoe UI,Tahoma,Arial,sans-serif;'>
+          <div style='background:#0b1630;padding:20px 24px;'>
+            <div style='display:flex;align-items:center;gap:12px;'>
+              {$logoHtml}
+              <div>
+                <div style='font-size:17px;font-weight:900;color:#e8ecf7;'>UPCC Panel</div>
+                <div style='font-size:12px;color:#7a8aac;margin-top:3px;'>Account Recovery Verification</div>
+              </div>
+            </div>
+          </div>
+          <div style='padding:28px 24px;color:#1f2937;'>
+            <h2 style='margin:0 0 12px;font-size:20px;color:#111827;'>Hello, {$safeName}</h2>
+            <p style='margin:0 0 20px;font-size:14px;color:#4b5563;'>You requested to recover your UPCC panel account username/password. Use the 6-digit verification code below to proceed:</p>
+            <div style='text-align:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:24px;'>
+              <span style='font-size:36px;font-weight:800;letter-spacing:8px;color:#2563eb;'>{$safeOtp}</span>
+            </div>
+            <p style='font-size:13px;color:#6b7280;margin:0;'>This code will expire in 10 minutes. If you did not request account recovery, please ignore this email.</p>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>";
+
+        return $mail->send();
+    } catch (Exception $e) {
+        error_log('Recovery mail failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
+// AJAX API Handlers
+if (isset($_POST['action'])) {
     header('Content-Type: application/json');
+    $action = $_POST['action'];
 
-    if ($isLocked) {
-        echo json_encode([
-            'ok' => false,
-            'locked' => true,
-            'seconds_left' => $secondsLeft,
-            'error' => 'Too many invalid attempts. Account search is locked.'
-        ]);
-        exit;
-    }
-
-    $username = trim($_POST['username'] ?? '');
-    if ($username === '') {
-        echo json_encode(['ok' => false, 'error' => 'Please enter your username.']);
-        exit;
-    }
-
-    $upcc = upcc_find_by_username($username);
-
-    if (!$upcc || (int)($upcc['is_active'] ?? 0) !== 1) {
-        $failures = ($_SESSION['upcc_username_failures'] ?? 0) + 1;
-        $_SESSION['upcc_username_failures'] = $failures;
-
-        if ($failures >= 4) {
-            $_SESSION['upcc_username_locked_until'] = time() + 300; // 5 minutes
+    if ($action === 'check_username') {
+        if ($isLocked) {
             echo json_encode([
                 'ok' => false,
                 'locked' => true,
-                'seconds_left' => 300,
-                'error' => 'Too many invalid attempts (4/4). Account search is locked for 5 minutes.'
+                'seconds_left' => $secondsLeft,
+                'error' => 'Too many invalid attempts (8/8). Account search is locked for 5 minutes.'
             ]);
+            exit;
+        }
+
+        $username = trim($_POST['username'] ?? '');
+        if ($username === '') {
+            echo json_encode(['ok' => false, 'error' => 'Please enter your username.']);
+            exit;
+        }
+
+        $upcc = upcc_find_by_username($username);
+
+        if (!$upcc || (int)($upcc['is_active'] ?? 0) !== 1) {
+            $failures = ($_SESSION['upcc_username_failures'] ?? 0) + 1;
+            $_SESSION['upcc_username_failures'] = $failures;
+
+            if ($failures >= 8) {
+                $_SESSION['upcc_username_locked_until'] = time() + 300; // 5 minutes lockout
+                echo json_encode([
+                    'ok' => false,
+                    'locked' => true,
+                    'seconds_left' => 300,
+                    'show_recovery' => true,
+                    'error' => 'Too many invalid attempts (8/8). Account search is locked for 5 minutes.'
+                ]);
+            } else {
+                $rem = 8 - $failures;
+                $msg = !$upcc ? 'Account not found.' : 'Account is inactive.';
+                echo json_encode([
+                    'ok' => false,
+                    'failures' => $failures,
+                    'show_recovery' => ($failures >= 4),
+                    'error' => $msg . " ($failures/8 failed attempts. Lockout after $rem more attempt" . ($rem > 1 ? 's' : '') . ".)"
+                ]);
+            }
+            exit;
+        }
+
+        // Success -> reset failure counter
+        unset($_SESSION['upcc_username_failures'], $_SESSION['upcc_username_locked_until']);
+        echo json_encode(['ok' => true, 'username' => $upcc['username'], 'full_name' => $upcc['full_name']]);
+        exit;
+    }
+
+    if ($action === 'send_recovery_otp') {
+        $email = trim(strtolower($_POST['email'] ?? ''));
+        if ($email === '') {
+            echo json_encode(['ok' => false, 'error' => 'Please enter your registered email address.']);
+            exit;
+        }
+
+        $user = db_one(
+            "SELECT upcc_id, full_name, username, email, is_active FROM upcc_user WHERE LOWER(email) = :email LIMIT 1",
+            [':email' => $email]
+        );
+
+        if (!$user || (int)($user['is_active'] ?? 0) !== 1) {
+            echo json_encode(['ok' => false, 'error' => 'No active UPCC panel account found with this email address.']);
+            exit;
+        }
+
+        $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $_SESSION['upcc_recovery'] = [
+            'upcc_id' => (int)$user['upcc_id'],
+            'username' => $user['username'],
+            'email' => $user['email'],
+            'full_name' => $user['full_name'],
+            'otp' => $otp,
+            'expires' => time() + 600,
+            'verified' => false
+        ];
+
+        $sent = send_upcc_recovery_email($user['email'], $user['full_name'], $otp);
+        if ($sent) {
+            $parts = explode('@', $user['email']);
+            $masked = substr($parts[0], 0, 2) . '***@' . $parts[1];
+            echo json_encode(['ok' => true, 'email_masked' => $masked, 'message' => "Verification code sent to $masked"]);
         } else {
-            $rem = 4 - $failures;
-            $msg = !$upcc ? 'Account not found.' : 'Account is inactive.';
-            echo json_encode([
-                'ok' => false,
-                'error' => $msg . " ($failures/4 failed attempts. Lockout after $rem more attempt" . ($rem > 1 ? 's' : '') . ".)"
-            ]);
+            echo json_encode(['ok' => false, 'error' => 'Failed to send recovery OTP email. Please verify SMTP configuration.']);
         }
         exit;
     }
 
-    // Success -> reset failure counter
-    unset($_SESSION['upcc_username_failures'], $_SESSION['upcc_username_locked_until']);
-    echo json_encode(['ok' => true, 'username' => $upcc['username'], 'full_name' => $upcc['full_name']]);
-    exit;
+    if ($action === 'verify_recovery_otp') {
+        $otp = trim($_POST['otp'] ?? '');
+        $rec = $_SESSION['upcc_recovery'] ?? null;
+
+        if (!$rec || time() > ($rec['expires'] ?? 0)) {
+            echo json_encode(['ok' => false, 'error' => 'Recovery session expired. Please request a new OTP code.']);
+            exit;
+        }
+
+        if ($otp === $rec['otp']) {
+            $_SESSION['upcc_recovery']['verified'] = true;
+            echo json_encode(['ok' => true, 'username' => $rec['username']]);
+        } else {
+            echo json_encode(['ok' => false, 'error' => 'Invalid OTP code. Please check your email and try again.']);
+        }
+        exit;
+    }
+
+    if ($action === 'reset_account_credentials') {
+        $rec = $_SESSION['upcc_recovery'] ?? null;
+        if (!$rec || empty($rec['verified'])) {
+            echo json_encode(['ok' => false, 'error' => 'Unauthorized recovery attempt. Please verify OTP first.']);
+            exit;
+        }
+
+        $newUsername = trim(strtolower($_POST['new_username'] ?? ''));
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if ($newUsername === '') {
+            echo json_encode(['ok' => false, 'error' => 'Please enter a username.']);
+            exit;
+        }
+
+        // Check if username taken by someone else
+        $taken = db_one(
+            "SELECT upcc_id FROM upcc_user WHERE LOWER(username) = :u AND upcc_id != :id LIMIT 1",
+            [':u' => $newUsername, ':id' => $rec['upcc_id']]
+        );
+        if ($taken) {
+            echo json_encode(['ok' => false, 'error' => "Username '$newUsername' is already taken by another account."]);
+            exit;
+        }
+
+        if (strlen($newPassword) < 8) {
+            echo json_encode(['ok' => false, 'error' => 'Password must be at least 8 characters long.']);
+            exit;
+        }
+        if (!preg_match('/[A-Z]/', $newPassword)) {
+            echo json_encode(['ok' => false, 'error' => 'Password must contain at least one uppercase letter (A-Z).']);
+            exit;
+        }
+        if (!preg_match('/[a-z]/', $newPassword)) {
+            echo json_encode(['ok' => false, 'error' => 'Password must contain at least one lowercase letter (a-z).']);
+            exit;
+        }
+        if (!preg_match('/[^a-zA-Z0-9]/', $newPassword)) {
+            echo json_encode(['ok' => false, 'error' => 'Password must contain at least one special character (e.g. !@#$%^&*).']);
+            exit;
+        }
+
+        if ($newPassword !== $confirmPassword) {
+            echo json_encode(['ok' => false, 'error' => 'Passwords do not match.']);
+            exit;
+        }
+
+        $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+        db_exec(
+            "UPDATE upcc_user SET username = :u, password_hash = :p WHERE upcc_id = :id",
+            [':u' => $newUsername, ':p' => $hash, ':id' => $rec['upcc_id']]
+        );
+
+        unset($_SESSION['upcc_username_failures'], $_SESSION['upcc_username_locked_until'], $_SESSION['upcc_recovery']);
+        echo json_encode([
+            'ok' => true,
+            'username' => $newUsername,
+            'message' => 'Credentials updated successfully! You can now log in.'
+        ]);
+        exit;
+    }
 }
 
 $error = '';
 $username_checked = false;
 
 if ($isLocked) {
-    $error = "Too many invalid attempts (4/4). Account search is locked for 5 minutes.";
+    $error = "Too many invalid attempts (8/8). Account search is locked for 5 minutes.";
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
@@ -141,6 +339,8 @@ if ($isLocked) {
 
 $error = $error ?: ($_SESSION['login_error'] ?? '');
 unset($_SESSION['login_error']);
+$currentFailures = $_SESSION['upcc_username_failures'] ?? 0;
+$showRecoveryLink = ($currentFailures >= 4);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -162,6 +362,7 @@ unset($_SESSION['login_error']);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --danger: #ef4444;
+            --success: #10b981;
         }
 
         body {
@@ -312,6 +513,20 @@ unset($_SESSION['login_error']);
         }
         .forgot-link:hover { color: var(--text-main); text-decoration: underline; }
 
+        .btn-recovery-link {
+            background: none;
+            border: none;
+            color: #60a5fa;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: underline;
+            transition: color 0.2s;
+            display: inline-block;
+            margin-top: 8px;
+        }
+        .btn-recovery-link:hover { color: #93c5fd; }
+
         .btn-login {
             width: 100%;
             padding: 16px;
@@ -350,6 +565,53 @@ unset($_SESSION['login_error']);
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Modal Styles for Recovery */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-card {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            padding: 32px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px; right: 20px;
+            background: none; border: none;
+            color: var(--text-muted);
+            font-size: 22px; cursor: pointer;
+            line-height: 1;
+        }
+        .modal-close:hover { color: var(--text-main); }
+        .pw-hints {
+            font-size: 12px;
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .pw-hint-item { color: #94a3b8; transition: color 0.2s; }
+        .pw-hint-item.valid { color: #4ade80; font-weight: 600; }
 
         .secure-note {
             display: flex;
@@ -390,7 +652,14 @@ unset($_SESSION['login_error']);
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <span id="alertText"><?= htmlspecialchars($error) ?></span>
+            <div style="flex:1;">
+                <span id="alertText"><?= htmlspecialchars($error) ?></span>
+                <div id="recoveryLinkBox" style="<?= $showRecoveryLink ? 'display:block;' : 'display:none;' ?>">
+                    <button type="button" class="btn-recovery-link" onclick="openRecoveryModal()">
+                        🔍 Forgot Username / Account Recovery?
+                    </button>
+                </div>
+            </div>
         </div>
 
         <form id="loginForm" method="post" action="upccpanel.php" autocomplete="off">
@@ -438,9 +707,256 @@ unset($_SESSION['login_error']);
     </div>
 </div>
 
+<!-- Account Recovery Modal -->
+<div id="recoveryModal" class="modal-overlay">
+    <div class="modal-card">
+        <button type="button" class="modal-close" onclick="closeRecoveryModal()">&times;</button>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;margin-bottom:6px;text-align:center;">Account Recovery</div>
+        <div style="font-size:13px;color:var(--text-muted);text-align:center;margin-bottom:24px;" id="recModalSub">Retrieve your username and set a new password via email OTP.</div>
+
+        <div id="recAlert" class="alert-err" style="display:none;margin-bottom:20px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="recAlertText"></span>
+        </div>
+
+        <!-- Recovery Step 1: Send OTP -->
+        <div id="recStep1">
+            <div class="field">
+                <label for="recEmail">Registered Email Address</label>
+                <input type="email" id="recEmail" placeholder="e.g. name@domain.com" required>
+            </div>
+            <button type="button" id="btnSendRecOtp" class="btn-login" onclick="sendRecoveryOtp()">Send Verification OTP &rarr;</button>
+        </div>
+
+        <!-- Recovery Step 2: Verify OTP -->
+        <div id="recStep2" style="display:none;">
+            <div style="font-size:13px;color:#38bdf8;background:rgba(56,189,248,0.1);padding:10px 14px;border-radius:10px;margin-bottom:18px;" id="recEmailNotice"></div>
+            <div class="field">
+                <label for="recOtp">Enter 6-Digit OTP Code</label>
+                <input type="text" id="recOtp" maxlength="6" placeholder="000000" style="text-align:center;letter-spacing:6px;font-size:20px;font-weight:700;" required>
+            </div>
+            <button type="button" id="btnVerifyRecOtp" class="btn-login" onclick="verifyRecoveryOtp()">Verify OTP Code &rarr;</button>
+        </div>
+
+        <!-- Recovery Step 3: Reset Credentials -->
+        <div id="recStep3" style="display:none;">
+            <div class="field">
+                <label for="recNewUsername">Username</label>
+                <input type="text" id="recNewUsername" placeholder="Enter username" required>
+            </div>
+            <div class="field">
+                <label for="recNewPassword">New Password</label>
+                <input type="password" id="recNewPassword" placeholder="Enter new password" oninput="checkPwStrength()" required>
+                <div class="pw-hints">
+                    <div class="pw-hint-item" id="hintLen">&bull; 8+ Characters</div>
+                    <div class="pw-hint-item" id="hintUpper">&bull; Uppercase (A-Z)</div>
+                    <div class="pw-hint-item" id="hintLower">&bull; Lowercase (a-z)</div>
+                    <div class="pw-hint-item" id="hintSpec">&bull; Special (!@#$)</div>
+                </div>
+            </div>
+            <div class="field">
+                <label for="recConfirmPassword">Confirm New Password</label>
+                <input type="password" id="recConfirmPassword" placeholder="Re-enter new password" required>
+            </div>
+            <button type="button" id="btnSaveCredentials" class="btn-login" onclick="saveNewCredentials()">Save &amp; Sign In &rarr;</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let step = <?= $username_checked ? 2 : 1 ?>;
 let lockoutTimer = null;
+
+function openRecoveryModal() {
+    document.getElementById('recoveryModal').classList.add('active');
+    document.getElementById('recStep1').style.display = 'block';
+    document.getElementById('recStep2').style.display = 'none';
+    document.getElementById('recStep3').style.display = 'none';
+    document.getElementById('recAlert').style.display = 'none';
+}
+
+function closeRecoveryModal() {
+    document.getElementById('recoveryModal').classList.remove('active');
+}
+
+function sendRecoveryOtp() {
+    const email = document.getElementById('recEmail').value.trim();
+    const alertBox = document.getElementById('recAlert');
+    const alertText = document.getElementById('recAlertText');
+    const btn = document.getElementById('btnSendRecOtp');
+
+    if (!email) {
+        alertText.textContent = 'Please enter your registered email address.';
+        alertBox.style.display = 'flex';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Sending OTP...';
+    alertBox.style.display = 'none';
+
+    const params = new URLSearchParams();
+    params.append('action', 'send_recovery_otp');
+    params.append('email', email);
+
+    fetch('upccpanel.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = 'Send Verification OTP &rarr;';
+        if (data.ok) {
+            document.getElementById('recStep1').style.display = 'none';
+            document.getElementById('recStep2').style.display = 'block';
+            document.getElementById('recEmailNotice').textContent = data.message;
+        } else {
+            alertText.textContent = data.error || 'Failed to send recovery OTP.';
+            alertBox.style.display = 'flex';
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = 'Send Verification OTP &rarr;';
+        alertText.textContent = 'Connection error. Please try again.';
+        alertBox.style.display = 'flex';
+    });
+}
+
+function verifyRecoveryOtp() {
+    const otp = document.getElementById('recOtp').value.trim();
+    const alertBox = document.getElementById('recAlert');
+    const alertText = document.getElementById('recAlertText');
+    const btn = document.getElementById('btnVerifyRecOtp');
+
+    if (!otp || otp.length !== 6) {
+        alertText.textContent = 'Please enter the 6-digit OTP code sent to your email.';
+        alertBox.style.display = 'flex';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Verifying...';
+    alertBox.style.display = 'none';
+
+    const params = new URLSearchParams();
+    params.append('action', 'verify_recovery_otp');
+    params.append('otp', otp);
+
+    fetch('upccpanel.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = 'Verify OTP Code &rarr;';
+        if (data.ok) {
+            document.getElementById('recStep2').style.display = 'none';
+            document.getElementById('recStep3').style.display = 'block';
+            document.getElementById('recNewUsername').value = data.username;
+        } else {
+            alertText.textContent = data.error || 'Invalid OTP code.';
+            alertBox.style.display = 'flex';
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = 'Verify OTP Code &rarr;';
+        alertText.textContent = 'Connection error. Please try again.';
+        alertBox.style.display = 'flex';
+    });
+}
+
+function checkPwStrength() {
+    const pw = document.getElementById('recNewPassword').value;
+    
+    const hLen = document.getElementById('hintLen');
+    const hUpper = document.getElementById('hintUpper');
+    const hLower = document.getElementById('hintLower');
+    const hSpec = document.getElementById('hintSpec');
+
+    if (pw.length >= 8) hLen.classList.add('valid'); else hLen.classList.remove('valid');
+    if (/[A-Z]/.test(pw)) hUpper.classList.add('valid'); else hUpper.classList.remove('valid');
+    if (/[a-z]/.test(pw)) hLower.classList.add('valid'); else hLower.classList.remove('valid');
+    if (/[^a-zA-Z0-9]/.test(pw)) hSpec.classList.add('valid'); else hSpec.classList.remove('valid');
+}
+
+function saveNewCredentials() {
+    const newUsername = document.getElementById('recNewUsername').value.trim();
+    const newPassword = document.getElementById('recNewPassword').value;
+    const confirmPassword = document.getElementById('recConfirmPassword').value;
+    const alertBox = document.getElementById('recAlert');
+    const alertText = document.getElementById('recAlertText');
+    const btn = document.getElementById('btnSaveCredentials');
+
+    if (!newUsername) {
+        alertText.textContent = 'Please enter a username.';
+        alertBox.style.display = 'flex';
+        return;
+    }
+
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[^a-zA-Z0-9]/.test(newPassword)) {
+        alertText.textContent = 'Password must be 8+ characters and contain an uppercase letter, a lowercase letter, and a special character.';
+        alertBox.style.display = 'flex';
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        alertText.textContent = 'Passwords do not match.';
+        alertBox.style.display = 'flex';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Saving...';
+    alertBox.style.display = 'none';
+
+    const params = new URLSearchParams();
+    params.append('action', 'reset_account_credentials');
+    params.append('new_username', newUsername);
+    params.append('new_password', newPassword);
+    params.append('confirm_password', confirmPassword);
+
+    fetch('upccpanel.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = 'Save &amp; Sign In &rarr;';
+        if (data.ok) {
+            closeRecoveryModal();
+            document.getElementById('username').value = data.username;
+            step = 2;
+            document.getElementById('field-password').style.display = 'block';
+            document.getElementById('field-password').style.opacity = '1';
+            document.getElementById('forgot-footer').style.display = 'flex';
+            document.getElementById('password').value = newPassword;
+            document.getElementById('btnSubmit').innerHTML = 'Sign in &rarr;';
+            
+            const mainAlert = document.getElementById('alertBox');
+            const mainAlertText = document.getElementById('alertText');
+            mainAlertText.style.color = '#4ade80';
+            mainAlertText.textContent = 'Account updated successfully! Click Sign in to proceed.';
+            mainAlert.style.display = 'flex';
+        } else {
+            alertText.textContent = data.error || 'Failed to update credentials.';
+            alertBox.style.display = 'flex';
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = 'Save &amp; Sign In &rarr;';
+        alertText.textContent = 'Connection error. Please try again.';
+        alertBox.style.display = 'flex';
+    });
+}
 
 function startLockoutCountdown(seconds) {
     const alertBox = document.getElementById('alertBox');
@@ -470,7 +986,7 @@ function startLockoutCountdown(seconds) {
         const m = Math.floor(remaining / 60);
         const s = remaining % 60;
         const timeStr = `${m}:${s < 10 ? '0' : ''}${s}`;
-        alertText.innerHTML = `Too many invalid attempts (4/4). Account search is locked. <strong>(Try again in ${timeStr})</strong>`;
+        alertText.innerHTML = `Too many invalid attempts (8/8). Account search is locked. <strong>(Try again in ${timeStr})</strong>`;
         remaining--;
     };
 
@@ -490,6 +1006,7 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
         const alertBox = document.getElementById('alertBox');
         const alertText = document.getElementById('alertText');
         const btnSubmit = document.getElementById('btnSubmit');
+        const recoveryBox = document.getElementById('recoveryLinkBox');
 
         if (!username) {
             alertText.textContent = 'Please enter your username.';
@@ -536,6 +1053,10 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
                 alertText.innerHTML = data.error || 'Account not found.';
                 alertBox.style.display = 'flex';
                 btnSubmit.innerHTML = 'Continue &rarr;';
+
+                if (data.show_recovery) {
+                    recoveryBox.style.display = 'block';
+                }
             }
         })
         .catch(err => {
@@ -558,6 +1079,6 @@ document.getElementById('eye-toggle').addEventListener('click', function() {
         icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
     }
 });
+</script>
 </body>
 </html>
-
