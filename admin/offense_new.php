@@ -1385,26 +1385,63 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       width: 500px;
     }
     .btn-check-student {
-      display: none;
-      padding: 0 16px;
-      font-weight: 700;
-      font-size: 13px;
-      white-space: nowrap;
-      height: 42px;
-      border-radius: 10px;
-      background: #e0e7ff;
-      color: #3730a3;
-      border: 1px solid #c7d2fe;
-      cursor: pointer;
+      display: none !important;
     }
-    @media (max-width: 991px) {
+    .student-input-container {
+      position: relative;
+      width: 100%;
+    }
+    .student-suggestions-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0; right: 0;
+      background: #ffffff;
+      border: 1.5px solid #c7d2fe;
+      border-radius: 12px;
+      box-shadow: 0 12px 28px rgba(27, 41, 118, 0.2);
+      z-index: 99999;
+      display: none;
+      max-height: 240px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .student-suggestions-dropdown.show {
+      display: block;
+    }
+    .suggestion-item {
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      border-bottom: 1px solid #f1f5f9;
+      transition: background 0.15s ease;
+    }
+    .suggestion-item:last-child { border-bottom: none; }
+    .suggestion-item:hover, .suggestion-item.active { background: #eef2ff; }
+    .suggestion-info { display: flex; flex-direction: column; }
+    .suggestion-id { font-weight: 700; color: #1b2b6b; font-size: 13px; }
+    .suggestion-name { font-size: 12px; color: #475569; }
+    .suggestion-program { font-size: 11px; color: #64748b; font-weight: 600; }
+
+    @media (max-width: 768px) {
       .content-grid { padding: 16px; }
       .form-row     { grid-template-columns: 1fr; }
       .letter-grid  { grid-template-columns: 1fr; }
       .btn-check-student {
-        display: inline-flex;
+        display: inline-flex !important;
         align-items: center;
         justify-content: center;
+        padding: 0 16px;
+        font-weight: 700;
+        font-size: 13px;
+        white-space: nowrap;
+        height: 42px;
+        border-radius: 10px;
+        background: #e0e7ff;
+        color: #3730a3;
+        border: 1px solid #c7d2fe;
+        cursor: pointer;
       }
     }
   </style>
@@ -1414,87 +1451,90 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   <script>
     window.__identitrackDisableGlobalScan = true;
-    const studentInput = document.getElementById('studentIdInput');
-    let timer;
-    studentInput.addEventListener('input', () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        if(studentInput.value.length >= 5) lookupStudentId();
-      }, 800);
-    });
   </script>
 
   <div class="admin-shell">
     <?php require_once __DIR__ . '/sidebar.php'; ?>
 
-    <main class="main-wrap">
-
-      <section class="page-header">
-        <a class="back-btn" href="offenses.php">
-          <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-          Back
-        </a>
-        <div>
-          <div class="page-title">Register New Offense</div>
+    <main class="wrap">
+      <section class="page-hero">
+        <div class="hero-left">
+          <a class="btn-back" href="offenses.php">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+            Back
+          </a>
+          <h1 class="page-title">Register New Offense</h1>
         </div>
         <div class="page-sub">Student Discipline Office</div>
-      </section>
+      <div class="content-area">
 
-      <div class="content-grid">
+        <?php if ($successMsg): ?>
+          <div class="alert-ok">
+            ✓ <?php echo htmlspecialchars($successMsg); ?>
+          </div>
+        <?php endif; ?>
 
-        <div>
-          <div class="card">
-            <div class="card-header">
-              <div class="card-header__title">Offense Details</div>
-              <div class="card-header__sub">Fill in all required fields marked with *</div>
-            </div>
-            <div class="card-body">
+        <?php if (!empty($errors)): ?>
+          <div class="alert-err">
+            <?php foreach ($errors as $e): ?>
+              <div>• <?php echo htmlspecialchars($e); ?></div>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
 
-              <?php if (!empty($errors)): ?>
-                <div id="errorModal" class="modal active" style="z-index: 9999;">
-                  <div class="modal-content" style="max-width: 400px; text-align: center; border-radius: 24px; overflow: hidden; padding-top: 36px; border: none;">
-                    <img src="../assets/logo.png" alt="Logo" style="width: 76px; height: auto; margin: 0 auto 18px; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
-                    <h3 style="font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 10px; letter-spacing: -0.5px;">Action Required</h3>
-                    <div style="width: 48px; height: 4px; background: var(--red); margin: 0 auto 24px; border-radius: 4px; opacity: 0.8;"></div>
-                    <div class="modal-body" style="padding: 0 32px 24px;">
-                      <ul style="list-style: none; padding: 0; margin: 0; color: var(--text-2); font-weight: 500; font-size: 15px; line-height: 1.6;">
-                        <?php foreach ($errors as $e): ?>
-                          <li style="margin-bottom: 8px;">
-                            <?php echo htmlspecialchars($e); ?>
-                          </li>
-                        <?php endforeach; ?>
-                      </ul>
-                    </div>
-                    <div style="padding: 16px 32px 32px;">
-                      <button type="button" class="btn btn-primary" style="width: 100%; justify-content: center; background: linear-gradient(135deg, var(--red) 0%, #b91c1c 100%); border: none; box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3); border-radius: 14px; height: 50px; font-size: 15px; font-weight: 700;" onclick="this.closest('.modal').classList.remove('active')">Got it</button>
-                    </div>
-                  </div>
+        <div class="content-grid">
+
+          <!-- LEFT: Form -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Offense Details</div>
+                  <div class="card-sub">Fill in all required fields marked with *</div>
                 </div>
-              <?php endif; ?>
+              </div>
+              <div class="card-body">
 
-              <form method="post" action="offense_new.php" id="offenseForm">
-
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="level">Offense Level *</label>
-                    <select id="levelSelect" name="level" onchange="onLevelChange(this.value)">
-                      <option value="MINOR" <?php echo $level === 'MINOR' ? 'selected' : ''; ?>>Minor</option>
-                      <option value="MAJOR" <?php echo $level === 'MAJOR' ? 'selected' : ''; ?>>Major</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label for="student_id">Student ID *</label>
-                    <div style="display: flex; gap: 8px;">
-                      <input id="studentIdInput" name="student_id"
-                             value="<?php echo htmlspecialchars($postStudentId); ?>"
-                             placeholder="e.g., 2024-01001"
-                             autocomplete="off" style="flex: 1;"/>
-                      <button type="button" id="btnCheckStudent" onclick="lookupStudentId()" style="padding: 0 16px; font-weight: 700; font-size: 13px; white-space: nowrap; height: 42px; border-radius: 10px; background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; cursor: pointer;">
-                        Check
-                      </button>
+                <?php if ($studentInfo): ?>
+                  <?php echo renderStudentBanner($studentInfo, $level, $categoryDescriptions, $guardianEmail, $minorOffenseCount, $majorOffenseCount, $hasActiveUpccCase, $activeUpccCaseInfo, $hasActiveSection4Case, $postSection4Minors); ?>
+                <?php else: ?>
+                  <div class="student-banner student-banner--empty">
+                    <div style="font-size:24px;margin-bottom:6px;">👤</div>
+                    <div style="font-weight:700;font-size:14px;color:var(--text-1);">Enter a Student ID</div>
+                    <div style="font-size:12px;color:var(--text-4);margin-top:2px;">
+                      Type a valid Student ID (e.g. 2024-01001) or student name to select from live suggestions.
                     </div>
                   </div>
-                </div>
+                <?php endif; ?>
+
+                <form method="post" action="offense_new.php" id="offenseForm">
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="level">Offense Level *</label>
+                      <select id="levelSelect" name="level" onchange="onLevelChange(this.value)">
+                        <option value="MINOR" <?php echo $level === 'MINOR' ? 'selected' : ''; ?>>Minor</option>
+                        <option value="MAJOR" <?php echo $level === 'MAJOR' ? 'selected' : ''; ?>>Major</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="student_id">Student ID *</label>
+                      <div class="student-input-container" style="display: flex; gap: 8px;">
+                        <div style="position: relative; flex: 1;">
+                          <input id="studentIdInput" name="student_id"
+                                 value="<?php echo htmlspecialchars($postStudentId); ?>"
+                                 placeholder="e.g., 2024-01001"
+                                 autocomplete="off" style="width: 100%;"/>
+                          <div id="studentSuggestions" class="student-suggestions-dropdown"></div>
+                        </div>
+                        <button type="button" id="btnCheckStudent" class="btn-check-student" onclick="lookupStudentId()">
+                          Check
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
                 <div class="form-row" id="row2">
                   <div class="form-group">
@@ -2244,29 +2284,78 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     window.location.href = 'offense_new.php?' + params.toString();
   }
 
-  function lookupStudentId() {
+  function lookupStudentId(overrideId) {
     if (!studentIdInput) return;
-    const studentId = studentIdInput.value.trim();
+    const studentId = overrideId || studentIdInput.value.trim();
     const level     = levelSelect ? levelSelect.value : 'MINOR';
     const params    = new URLSearchParams({ level });
     if (studentId) params.set('student_id', studentId);
     window.location.href = 'offense_new.php?' + params.toString();
   }
 
-  let debounceTimer;
-  if (studentIdInput) {
-    studentIdInput.addEventListener('input', () => {
-      if (window.innerWidth > 991) {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-          lookupStudentId();
-        }, 800);
+  const suggestionsBox = document.getElementById('studentSuggestions');
+  let searchTimer = null;
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  if (studentIdInput && suggestionsBox) {
+    studentIdInput.addEventListener('input', function() {
+      const q = this.value.trim();
+      if (searchTimer) clearTimeout(searchTimer);
+
+      if (q.length < 2) {
+        suggestionsBox.classList.remove('show');
+        suggestionsBox.innerHTML = '';
+        return;
+      }
+
+      searchTimer = setTimeout(async function() {
+        try {
+          const res = await fetch('AJAX/search_students_offenses.php?q=' + encodeURIComponent(q) + '&limit=8', {
+            headers: { 'Accept': 'application/json' }
+          });
+          const json = await res.json();
+          if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
+            suggestionsBox.innerHTML = json.data.map(s => `
+              <div class="suggestion-item" data-id="${escapeHtml(s.student_id)}">
+                <div class="suggestion-info">
+                  <span class="suggestion-id">${escapeHtml(s.student_id)}</span>
+                  <span class="suggestion-name">${escapeHtml(s.student_name)}</span>
+                </div>
+                <span class="suggestion-program">${escapeHtml(s.program || '')}</span>
+              </div>
+            `).join('');
+            suggestionsBox.classList.add('show');
+
+            suggestionsBox.querySelectorAll('.suggestion-item').forEach(item => {
+              item.addEventListener('click', function() {
+                const sid = this.getAttribute('data-id');
+                studentIdInput.value = sid;
+                suggestionsBox.classList.remove('show');
+                lookupStudentId(sid);
+              });
+            });
+          } else {
+            suggestionsBox.classList.remove('show');
+          }
+        } catch(e) {
+          suggestionsBox.classList.remove('show');
+        }
+      }, 200);
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!studentIdInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+        suggestionsBox.classList.remove('show');
       }
     });
 
     studentIdInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
+        suggestionsBox.classList.remove('show');
         lookupStudentId();
       }
     });
