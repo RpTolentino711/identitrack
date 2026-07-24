@@ -40,23 +40,67 @@ if (isset($_SESSION['upcc_authenticated']) && upcc_current()) {
     exit;
 }
 
+// Check active lockout status
+$now = time();
+$isLocked = false;
+$secondsLeft = 0;
+
+if (isset($_SESSION['upcc_username_locked_until'])) {
+    if ($now < $_SESSION['upcc_username_locked_until']) {
+        $isLocked = true;
+        $secondsLeft = $_SESSION['upcc_username_locked_until'] - $now;
+    } else {
+        unset($_SESSION['upcc_username_locked_until'], $_SESSION['upcc_username_failures']);
+    }
+}
+
 // AJAX Username Verification Endpoint
 if (isset($_POST['action']) && $_POST['action'] === 'check_username') {
     header('Content-Type: application/json');
+
+    if ($isLocked) {
+        echo json_encode([
+            'ok' => false,
+            'locked' => true,
+            'seconds_left' => $secondsLeft,
+            'error' => 'Too many invalid attempts. Account search is locked.'
+        ]);
+        exit;
+    }
+
     $username = trim($_POST['username'] ?? '');
     if ($username === '') {
         echo json_encode(['ok' => false, 'error' => 'Please enter your username.']);
         exit;
     }
+
     $upcc = upcc_find_by_username($username);
-    if (!$upcc) {
-        echo json_encode(['ok' => false, 'error' => 'Account not found.']);
+
+    if (!$upcc || (int)($upcc['is_active'] ?? 0) !== 1) {
+        $failures = ($_SESSION['upcc_username_failures'] ?? 0) + 1;
+        $_SESSION['upcc_username_failures'] = $failures;
+
+        if ($failures >= 4) {
+            $_SESSION['upcc_username_locked_until'] = time() + 300; // 5 minutes
+            echo json_encode([
+                'ok' => false,
+                'locked' => true,
+                'seconds_left' => 300,
+                'error' => 'Too many invalid attempts (4/4). Account search is locked for 5 minutes.'
+            ]);
+        } else {
+            $rem = 4 - $failures;
+            $msg = !$upcc ? 'Account not found.' : 'Account is inactive.';
+            echo json_encode([
+                'ok' => false,
+                'error' => $msg . " ($failures/4 failed attempts. Lockout after $rem more attempt" . ($rem > 1 ? 's' : '') . ".)"
+            ]);
+        }
         exit;
     }
-    if ((int)($upcc['is_active'] ?? 0) !== 1) {
-        echo json_encode(['ok' => false, 'error' => 'Account is inactive.']);
-        exit;
-    }
+
+    // Success -> reset failure counter
+    unset($_SESSION['upcc_username_failures'], $_SESSION['upcc_username_locked_until']);
     echo json_encode(['ok' => true, 'username' => $upcc['username'], 'full_name' => $upcc['full_name']]);
     exit;
 }
@@ -64,7 +108,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'check_username') {
 $error = '';
 $username_checked = false;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($isLocked) {
+    $error = "Too many invalid attempts (4/4). Account search is locked for 5 minutes.";
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
 
@@ -81,6 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $result = upcc_login($username, $password);
             if ($result['ok']) {
+                unset($_SESSION['upcc_username_failures'], $_SESSION['upcc_username_locked_until']);
                 $_SESSION['upcc_pending_otp'] = $result['user']['username'];
                 header('Location: send_otp.php');
                 exit;
@@ -198,6 +245,7 @@ unset($_SESSION['login_error']);
             display: flex;
             align-items: center;
             gap: 10px;
+            line-height: 1.4;
         }
         .alert-err svg { width: 18px; height: 18px; flex-shrink: 0; }
 
@@ -228,6 +276,10 @@ unset($_SESSION['login_error']);
             border-color: var(--accent);
             box-shadow: 0 0 0 4px var(--accent-glow);
             background: rgba(0, 0, 0, 0.4);
+        }
+        .field input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         .field input::placeholder { color: rgba(148, 163, 184, 0.5); }
 
@@ -277,8 +329,13 @@ unset($_SESSION['login_error']);
             align-items: center;
             justify-content: center;
         }
-        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 16px var(--accent-glow); filter: brightness(1.1); }
-        .btn-login:active { transform: translateY(0); box-shadow: 0 2px 8px var(--accent-glow); }
+        .btn-login:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 16px var(--accent-glow); filter: brightness(1.1); }
+        .btn-login:active:not(:disabled) { transform: translateY(0); box-shadow: 0 2px 8px var(--accent-glow); }
+        .btn-login:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
 
         .spinner {
             display: inline-block;
@@ -342,7 +399,7 @@ unset($_SESSION['login_error']);
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username"
                        value="<?= htmlspecialchars($_POST['username'] ?? '') ?>"
-                       placeholder="Enter username" autofocus required>
+                       placeholder="Enter username" autofocus required <?= $isLocked ? 'disabled' : '' ?>>
             </div>
 
             <!-- Step 2: Password Field (hidden until username is verified) -->
@@ -350,7 +407,7 @@ unset($_SESSION['login_error']);
                 <label for="password">Password</label>
                 <div class="input-wrapper">
                     <input type="password" id="password" name="password"
-                           placeholder="Enter password" <?= $username_checked ? 'required' : '' ?>>
+                           placeholder="Enter password" <?= $username_checked ? 'required' : '' ?> <?= $isLocked ? 'disabled' : '' ?>>
                     <button type="button" class="eye-toggle" id="eye-toggle">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -365,7 +422,7 @@ unset($_SESSION['login_error']);
                 <a href="reset_password.php" class="forgot-link">Forgot / Reset password?</a>
             </div>
 
-            <button type="submit" id="btnSubmit" class="btn-login"><?= $username_checked ? 'Sign in &rarr;' : 'Continue &rarr;' ?></button>
+            <button type="submit" id="btnSubmit" class="btn-login" <?= $isLocked ? 'disabled' : '' ?>><?= $username_checked ? 'Sign in &rarr;' : 'Continue &rarr;' ?></button>
         </form>
 
         <div class="secure-note">
@@ -383,6 +440,47 @@ unset($_SESSION['login_error']);
 
 <script>
 let step = <?= $username_checked ? 2 : 1 ?>;
+let lockoutTimer = null;
+
+function startLockoutCountdown(seconds) {
+    const alertBox = document.getElementById('alertBox');
+    const alertText = document.getElementById('alertText');
+    const btnSubmit = document.getElementById('btnSubmit');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+
+    usernameInput.disabled = true;
+    passwordInput.disabled = true;
+    btnSubmit.disabled = true;
+    alertBox.style.display = 'flex';
+
+    if (lockoutTimer) clearInterval(lockoutTimer);
+
+    let remaining = seconds;
+    const updateMsg = () => {
+        if (remaining <= 0) {
+            clearInterval(lockoutTimer);
+            usernameInput.disabled = false;
+            passwordInput.disabled = false;
+            btnSubmit.disabled = false;
+            alertBox.style.display = 'none';
+            btnSubmit.innerHTML = step === 2 ? 'Sign in &rarr;' : 'Continue &rarr;';
+            return;
+        }
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        const timeStr = `${m}:${s < 10 ? '0' : ''}${s}`;
+        alertText.innerHTML = `Too many invalid attempts (4/4). Account search is locked. <strong>(Try again in ${timeStr})</strong>`;
+        remaining--;
+    };
+
+    updateMsg();
+    lockoutTimer = setInterval(updateMsg, 1000);
+}
+
+<?php if ($isLocked && $secondsLeft > 0): ?>
+startLockoutCountdown(<?= $secondsLeft ?>);
+<?php endif; ?>
 
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     if (step === 1) {
@@ -414,6 +512,11 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
         })
         .then(res => res.json())
         .then(data => {
+            if (data.locked) {
+                startLockoutCountdown(data.seconds_left);
+                return;
+            }
+
             btnSubmit.disabled = false;
             if (data.ok) {
                 step = 2;
@@ -430,7 +533,7 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
 
                 btnSubmit.innerHTML = 'Sign in &rarr;';
             } else {
-                alertText.textContent = data.error || 'Account not found.';
+                alertText.innerHTML = data.error || 'Account not found.';
                 alertBox.style.display = 'flex';
                 btnSubmit.innerHTML = 'Continue &rarr;';
             }
@@ -455,7 +558,6 @@ document.getElementById('eye-toggle').addEventListener('click', function() {
         icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
     }
 });
-</script>
 </body>
 </html>
 
