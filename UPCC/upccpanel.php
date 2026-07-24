@@ -655,16 +655,210 @@ $showRecoveryLink = ($currentFailures >= 4);
             <div style="flex:1;">
                 <span id="alertText"><?= htmlspecialchars($error) ?></span>
                 <div id="recoveryLinkBox" style="<?= $showRecoveryLink ? 'display:block;' : 'display:none;' ?>">
+        }
+        .field input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-main);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .field input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+            background: rgba(0, 0, 0, 0.4);
+        }
+        .field input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .field input::placeholder { color: rgba(148, 163, 184, 0.5); }
+
+        .input-wrapper { position: relative; }
+        .input-wrapper input { padding-right: 50px; }
+
+        .eye-toggle {
+            position: absolute;
+            right: 14px; top: 50%;
+            transform: translateY(-50%);
+            background: none; border: none;
+            color: var(--text-muted); cursor: pointer;
+            padding: 4px; border-radius: 4px;
+            transition: color 0.2s;
+        }
+        .eye-toggle:hover { color: var(--text-main); }
+        .eye-icon { width: 20px; height: 20px; outline: none; }
+
+        .field-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: -8px;
+            margin-bottom: 24px;
+        }
+        .forgot-link {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .forgot-link:hover { color: var(--text-main); text-decoration: underline; }
+
+        .btn-recovery-link {
+            background: none;
+            border: none;
+            color: #60a5fa;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: underline;
+            transition: color 0.2s;
+            display: inline-block;
+            margin-top: 8px;
+        }
+        .btn-recovery-link:hover { color: #93c5fd; }
+
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: var(--accent);
+            color: #fff;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px var(--accent-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-login:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 16px var(--accent-glow); filter: brightness(1.1); }
+        .btn-login:active:not(:disabled) { transform: translateY(0); box-shadow: 0 2px 8px var(--accent-glow); }
+        .btn-login:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Modal Styles for Recovery */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-card {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            padding: 32px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px; right: 20px;
+            background: none; border: none;
+            color: var(--text-muted);
+            font-size: 22px; cursor: pointer;
+            line-height: 1;
+        }
+        .modal-close:hover { color: var(--text-main); }
+        .pw-hints {
+            font-size: 12px;
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .pw-hint-item { color: #94a3b8; transition: color 0.2s; }
+        .pw-hint-item.valid { color: #4ade80; font-weight: 600; }
+
+        .secure-note {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 24px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .secure-note svg { width: 14px; height: 14px; }
+
+        .back-link { text-align: center; margin-top: 24px; }
+        .back-link a {
+            color: var(--text-muted); text-decoration: none;
+            font-size: 14px; transition: color 0.2s;
+        }
+        .back-link a:hover { color: var(--text-main); }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); filter: blur(4px); }
+            to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="logo-row">
+        <img src="../assets/logo.png" alt="UPCC Logo" class="logo-mark">
+        <div class="logo-text">UPCC Panel</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Sign in</div>
+        <div class="card-sub">University Promotion &amp; Conduct Committee</div>
+
+        <div id="alertBox" class="alert-err" style="<?= empty($error) ? 'display: none;' : '' ?>">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <div style="flex:1;">
+                <span id="alertText"><?= htmlspecialchars($error) ?></span>
+                <div id="recoveryLinkBox" style="<?= $showRecoveryLink ? 'display:block;' : 'display:none;' ?>">
                     <button type="button" class="btn-recovery-link" onclick="openRecoveryModal()">
                         🔍 Forgot Username / Account Recovery?
                     </button>
                 </div>
             </div>
         </div>
-
         <form id="loginForm" method="post" action="upccpanel.php" autocomplete="off">
             <!-- Step 1: Username Field -->
-            <div class="field" id="field-username">
+            <div class="field" id="field-username" style="<?= $isLocked ? 'display: none;' : '' ?>">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username"
                        value="<?= htmlspecialchars($_POST['username'] ?? '') ?>"
@@ -672,7 +866,7 @@ $showRecoveryLink = ($currentFailures >= 4);
             </div>
 
             <!-- Step 2: Password Field (hidden until username is verified) -->
-            <div class="field" id="field-password" style="<?= $username_checked ? 'display: block; opacity: 1;' : 'display: none; opacity: 0;' ?>">
+            <div class="field" id="field-password" style="<?= ($username_checked && !$isLocked) ? 'display: block; opacity: 1;' : 'display: none; opacity: 0;' ?>">
                 <label for="password">Password</label>
                 <div class="input-wrapper">
                     <input type="password" id="password" name="password"
@@ -687,11 +881,11 @@ $showRecoveryLink = ($currentFailures >= 4);
             </div>
 
             <!-- Forgot password link -->
-            <div class="field-footer" id="forgot-footer" style="<?= $username_checked ? 'display: flex;' : 'display: none;' ?>">
+            <div class="field-footer" id="forgot-footer" style="<?= ($username_checked && !$isLocked) ? 'display: flex;' : 'display: none;' ?>">
                 <a href="reset_password.php" class="forgot-link">Forgot / Reset password?</a>
             </div>
 
-            <button type="submit" id="btnSubmit" class="btn-login" <?= $isLocked ? 'disabled' : '' ?>><?= $username_checked ? 'Sign in &rarr;' : 'Continue &rarr;' ?></button>
+            <button type="submit" id="btnSubmit" class="btn-login" style="<?= $isLocked ? 'display: none;' : '' ?>" <?= $isLocked ? 'disabled' : '' ?>><?= $username_checked ? 'Sign in &rarr;' : 'Continue &rarr;' ?></button>
         </form>
 
         <div class="secure-note">
@@ -931,20 +1125,6 @@ function verifyRecoveryOtp() {
     });
 }
 
-function checkPwStrength() {
-    const pw = document.getElementById('recNewPassword').value;
-    
-    const hLen = document.getElementById('hintLen');
-    const hUpper = document.getElementById('hintUpper');
-    const hLower = document.getElementById('hintLower');
-    const hSpec = document.getElementById('hintSpec');
-
-    if (pw.length >= 8) hLen.classList.add('valid'); else hLen.classList.remove('valid');
-    if (/[A-Z]/.test(pw)) hUpper.classList.add('valid'); else hUpper.classList.remove('valid');
-    if (/[a-z]/.test(pw)) hLower.classList.add('valid'); else hLower.classList.remove('valid');
-    if (/[^a-zA-Z0-9]/.test(pw)) hSpec.classList.add('valid'); else hSpec.classList.remove('valid');
-}
-
 function saveNewCredentials() {
     const newUsername = document.getElementById('recNewUsername').value.trim();
     const newPassword = document.getElementById('recNewPassword').value;
@@ -992,19 +1172,31 @@ function saveNewCredentials() {
         btn.innerHTML = 'Save &amp; Sign In &rarr;';
         if (data.ok) {
             closeRecoveryModal();
-            document.getElementById('username').value = data.username;
             step = 2;
-            document.getElementById('field-password').style.display = 'block';
-            document.getElementById('field-password').style.opacity = '1';
+            const usernameInput = document.getElementById('username');
+            const fieldUsername = document.getElementById('field-username');
+            const fieldPassword = document.getElementById('field-password');
+            const btnSubmit = document.getElementById('btnSubmit');
+
+            fieldUsername.style.display = 'block';
+            usernameInput.value = data.username;
+            usernameInput.disabled = false;
+
+            fieldPassword.style.display = 'block';
+            fieldPassword.style.opacity = '1';
             document.getElementById('forgot-footer').style.display = 'flex';
             document.getElementById('password').value = newPassword;
-            document.getElementById('btnSubmit').innerHTML = 'Sign in &rarr;';
+            
+            btnSubmit.style.display = 'flex';
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = 'Sign in &rarr;';
             
             const mainAlert = document.getElementById('alertBox');
             const mainAlertText = document.getElementById('alertText');
             mainAlertText.style.color = '#4ade80';
             mainAlertText.textContent = 'Account updated successfully! Click Sign in to proceed.';
             mainAlert.style.display = 'flex';
+            document.getElementById('recoveryLinkBox').style.display = 'none';
         } else {
             alertText.textContent = data.error || 'Failed to update credentials.';
             alertBox.style.display = 'flex';
@@ -1022,12 +1214,19 @@ function startLockoutCountdown(seconds) {
     const alertBox = document.getElementById('alertBox');
     const alertText = document.getElementById('alertText');
     const btnSubmit = document.getElementById('btnSubmit');
-    const usernameInput = document.getElementById('username');
-    const passwordInput = document.getElementById('password');
+    const usernameField = document.getElementById('field-username');
+    const passwordField = document.getElementById('field-password');
+    const forgotFooter = document.getElementById('forgot-footer');
+    const recoveryBox = document.getElementById('recoveryLinkBox');
 
-    usernameInput.disabled = true;
-    passwordInput.disabled = true;
-    btnSubmit.disabled = true;
+    // HIDE username field and button during countdown!
+    usernameField.style.display = 'none';
+    passwordField.style.display = 'none';
+    forgotFooter.style.display = 'none';
+    btnSubmit.style.display = 'none';
+
+    // SHOW recovery link during lockout
+    recoveryBox.style.display = 'block';
     alertBox.style.display = 'flex';
 
     if (lockoutTimer) clearInterval(lockoutTimer);
@@ -1036,11 +1235,20 @@ function startLockoutCountdown(seconds) {
     const updateMsg = () => {
         if (remaining <= 0) {
             clearInterval(lockoutTimer);
+            
+            // Re-appear username field & button after countdown
+            usernameField.style.display = 'block';
+            const usernameInput = usernameField.querySelector('input');
+            usernameInput.value = '';
             usernameInput.disabled = false;
-            passwordInput.disabled = false;
+
+            btnSubmit.style.display = 'flex';
             btnSubmit.disabled = false;
+            btnSubmit.innerHTML = 'Continue &rarr;';
+            step = 1;
+
             alertBox.style.display = 'none';
-            btnSubmit.innerHTML = step === 2 ? 'Sign in &rarr;' : 'Continue &rarr;';
+            recoveryBox.style.display = 'none';
             return;
         }
         const m = Math.floor(remaining / 60);
