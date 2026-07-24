@@ -1,5 +1,10 @@
 <?php
 // Reusable admin header branding + notifications/profile actions (AJAX live badge)
+if (!headers_sent()) {
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+}
 
 $admin = function_exists('admin_current') ? admin_current() : null;
 $adminId = (int)($admin['admin_id'] ?? $admin['id'] ?? 0);
