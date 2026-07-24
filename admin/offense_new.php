@@ -1468,6 +1468,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           <h1 class="page-title">Register New Offense</h1>
         </div>
         <div class="page-sub">Student Discipline Office</div>
+      </section>
+
       <div class="content-area">
 
         <?php if ($successMsg): ?>
