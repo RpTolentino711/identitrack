@@ -311,6 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           required
           autocomplete="username"
           value="<?php echo e((string)($_POST['username'] ?? '')); ?>"
+          <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>
         />
       </div>
 
@@ -324,6 +325,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             placeholder="Enter your password"
             required
             autocomplete="current-password"
+            <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>
           />
           <button
             type="button"
@@ -332,13 +334,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             aria-label="Show password"
             aria-controls="password"
             aria-pressed="false"
+            <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>
           >
             <span class="eye-icon" aria-hidden="true">&#128065;</span>
           </button>
         </div>
       </div>
 
-      <button class="btn" type="submit">Login to Dashboard</button>
+      <button class="btn" type="submit" <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>>Login to Dashboard</button>
       
       <?php if (($_SESSION['admin_login_attempts'] ?? 0) >= 3): ?>
         <a class="forgot" href="forgot_password.php">Forgot Password?</a>
@@ -370,9 +373,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       var usernameInput = document.getElementById('username');
       var submitBtn = document.querySelector('button[type="submit"]');
 
-      if (usernameInput) { usernameInput.disabled = true; usernameInput.style.opacity = '0.6'; }
-      if (passwordInput) { passwordInput.disabled = true; passwordInput.style.opacity = '0.6'; }
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.6'; submitBtn.style.cursor = 'not-allowed'; }
+      if (usernameInput) { usernameInput.disabled = true; usernameInput.style.opacity = '0.5'; usernameInput.style.cursor = 'not-allowed'; }
+      if (passwordInput) { passwordInput.disabled = true; passwordInput.style.opacity = '0.5'; passwordInput.style.cursor = 'not-allowed'; }
+      if (toggleBtn) { toggleBtn.disabled = true; toggleBtn.style.opacity = '0.5'; toggleBtn.style.cursor = 'not-allowed'; }
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.5'; submitBtn.style.cursor = 'not-allowed'; }
 
       var interval = setInterval(function() {
         remaining--;
