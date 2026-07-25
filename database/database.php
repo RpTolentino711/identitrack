@@ -307,6 +307,19 @@ function admin_find_by_username(string $username): ?array
   );
 }
 
+function admin_find_by_email(string $email): ?array
+{
+  $email = trim(strtolower($email));
+
+  return db_one(
+    "SELECT admin_id, full_name, username, email, role, is_active, password_hash, photo_path
+     FROM admin_user
+     WHERE LOWER(email) = :email
+     LIMIT 1",
+    [':email' => $email]
+  );
+}
+
 function admin_login(string $username, string $password): array
 {
   $username = trim($username);
