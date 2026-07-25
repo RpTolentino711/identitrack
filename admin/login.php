@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($isLocked) {
     $min = floor($remainingSeconds / 60);
     $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
-    $errors[] = "LOCKOUT_ERR::Too many invalid attempts (5/5). Account search is locked. (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
+    $errors[] = "LOCKOUT_ERR::Too many invalid attempts (5/5). (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
   } else {
     $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['admin_lockout_until'] = $lockoutUntil;
         $isLocked = true;
         $remainingSeconds = 300;
-        $errors[] = "LOCKOUT_ERR::Too many invalid attempts (5/5). Account search is locked. (Try again in <span id=\"lockoutTimer\">5:00</span>)";
+        $errors[] = "LOCKOUT_ERR::Too many invalid attempts (5/5). (Try again in <span id=\"lockoutTimer\">5:00</span>)";
       } else {
         $remainingAttempts = 5 - $lockoutAttempts;
         $errors[] = (string)($res['error'] ?? 'Login failed.') . " ({$lockoutAttempts}/5 invalid attempts)";
@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 } elseif ($isLocked) {
   $min = floor($remainingSeconds / 60);
   $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
-  $errors[] = "LOCKOUT_ERR::Too many invalid attempts (5/5). Account search is locked. (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
+  $errors[] = "LOCKOUT_ERR::Too many invalid attempts (5/5). (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
 }
 ?>
 <!doctype html>
