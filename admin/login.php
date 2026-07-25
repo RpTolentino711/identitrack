@@ -255,6 +255,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <p>Student Discipline Office</p>
     </div>
 
+    <?php if (isset($_GET['reason']) && $_GET['reason'] === 'inactivity'): ?>
+      <div class="errors" style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.4); color: #92400e;" role="alert">
+        <strong>🔒 Security Auto-Logout:</strong>
+        <div style="font-size: 0.9em; margin-top: 4px;">You were automatically logged out due to inactivity to protect your account.</div>
+      </div>
+    <?php endif; ?>
+
     <?php if (!empty($errors)): ?>
       <div class="errors" role="alert">
         <strong>Login failed:</strong>

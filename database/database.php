@@ -375,6 +375,17 @@ function require_admin(): void
     redirect('login.php');
   }
 
+  // Server-side inactivity check (15 minutes = 900 seconds)
+  $maxIdleSeconds = 900;
+  if (isset($_SESSION['last_activity_time'])) {
+    $idleDuration = time() - (int)$_SESSION['last_activity_time'];
+    if ($idleDuration > $maxIdleSeconds) {
+      admin_logout();
+      redirect('login.php?reason=inactivity');
+    }
+  }
+  $_SESSION['last_activity_time'] = time();
+
   static $updatedActive = false;
   if (!$updatedActive) {
     db_exec("UPDATE admin_user SET last_active = NOW() WHERE admin_id = :id", [':id' => (int)$admin['admin_id']]);

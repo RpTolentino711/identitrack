@@ -1175,3 +1175,101 @@ if (function_exists('db_one')) {
   })();
 </script>
 
+<!-- ADMIN INACTIVITY WARNING MODAL -->
+<div id="idleWarningModal" class="modal" style="z-index: 999999; display: none;">
+  <div class="modal-content" style="max-width: 440px; text-align: center; border-radius: 20px; padding: 24px 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); border: none; background: #ffffff;">
+    <div style="width: 56px; height: 56px; background: rgba(245, 158, 11, 0.12); color: #d97706; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 30px; height: 30px;">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <h3 style="font-size: 20px; font-weight: 800; color: #1e293b; margin: 0 0 8px;">Session Inactivity Warning</h3>
+    <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin-bottom: 18px;">
+      You have been inactive for over 14 minutes.<br>For security purposes, you will be logged out in:
+    </p>
+    <div style="font-size: 36px; font-weight: 900; color: #d97706; margin-bottom: 22px; letter-spacing: -1px;" id="idleSeconds">30</div>
+    <button type="button" class="btn btn-primary" id="btnStayLoggedIn" style="width: 100%; height: 46px; border-radius: 12px; font-size: 15px; font-weight: 700; background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%); border: none; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3); cursor: pointer; color: #ffffff;">
+      Stay Logged In
+    </button>
+  </div>
+</div>
+
+<script>
+(function() {
+  const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 Minutes
+  const WARNING_DURATION_MS = 30 * 1000;   // 30 Seconds warning
+  const WARNING_TRIGGER_MS = IDLE_TIMEOUT_MS - WARNING_DURATION_MS;
+
+  let idleTimer = null;
+  let countdownTimer = null;
+  let remainingSeconds = 30;
+  let isWarningShown = false;
+
+  const warningModal = document.getElementById('idleWarningModal');
+  const secondsEl = document.getElementById('idleSeconds');
+  const stayBtn = document.getElementById('btnStayLoggedIn');
+
+  function resetIdleTimer() {
+    if (isWarningShown) {
+      hideWarning();
+    }
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(showWarning, WARNING_TRIGGER_MS);
+  }
+
+  function showWarning() {
+    isWarningShown = true;
+    remainingSeconds = 30;
+    if (secondsEl) secondsEl.textContent = remainingSeconds;
+    if (warningModal) {
+      warningModal.classList.add('active');
+      warningModal.style.display = 'flex';
+    }
+
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(function() {
+      remainingSeconds--;
+      if (secondsEl) secondsEl.textContent = remainingSeconds;
+      if (remainingSeconds <= 0) {
+        clearInterval(countdownTimer);
+        window.location.href = 'logout.php?reason=inactivity';
+      }
+    }, 1000);
+  }
+
+  function hideWarning() {
+    isWarningShown = false;
+    clearInterval(countdownTimer);
+    if (warningModal) {
+      warningModal.classList.remove('active');
+      warningModal.style.display = 'none';
+    }
+  }
+
+  if (stayBtn) {
+    stayBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      resetIdleTimer();
+    });
+  }
+
+  const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'pointerdown'];
+  let throttleTimer = null;
+  activityEvents.forEach(function(evt) {
+    window.addEventListener(evt, function() {
+      if (!isWarningShown) {
+        if (!throttleTimer) {
+          throttleTimer = setTimeout(function() {
+            throttleTimer = null;
+            resetIdleTimer();
+          }, 1000);
+        }
+      }
+    }, { passive: true });
+  });
+
+  resetIdleTimer();
+})();
+</script>
+
