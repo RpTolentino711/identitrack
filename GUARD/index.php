@@ -10,31 +10,70 @@ if (!$logoutSuccess && isset($_SESSION['guard_logged_in']) && $_SESSION['guard_l
 }
 
 $error = '';
-$logoutSuccess = isset($_GET['logout']) && $_GET['logout'] === '1';
+$isLocked = false;
+$remainingSeconds = 0;
+$lockoutAttempts = (int)($_SESSION['guard_login_attempts'] ?? 0);
+$lockoutUntil = (int)($_SESSION['guard_lockout_until'] ?? 0);
+
+if ($lockoutUntil > time()) {
+    $isLocked = true;
+    $remainingSeconds = $lockoutUntil - time();
+} else {
+    if ($lockoutUntil > 0) {
+        unset($_SESSION['guard_lockout_until']);
+        $_SESSION['guard_login_attempts'] = 0;
+        $lockoutAttempts = 0;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-
-    if ($username === '' || $password === '') {
-        $error = 'Please enter both username and password.';
+    if ($isLocked) {
+        $min = floor($remainingSeconds / 60);
+        $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
+        $error = "LOCKOUT_ERR::Too many invalid attempts (5/5). (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
     } else {
-        require_once __DIR__ . '/../database/database.php';
-        $pdo = db();
-        $stmt = $pdo->prepare("SELECT guard_id, full_name, username, password_hash, role, is_active
-            FROM security_guard WHERE username = :u LIMIT 1");
-        $stmt->execute([':u' => $username]);
-        $guard = $stmt->fetch(PDO::FETCH_ASSOC);
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-        if ($guard && $guard['is_active'] && password_verify($password, $guard['password_hash'])) {
-            $_SESSION['guard_logged_in'] = true;
-            $_SESSION['guard_id']        = $guard['guard_id'];
-            $_SESSION['guard_name']      = $guard['full_name'];
-            $_SESSION['guard_role']      = $guard['role'];
-            header('Location: dashboard.php?welcome=1'); exit;
+        if ($username === '' || $password === '') {
+            $error = 'Please enter both username and password.';
         } else {
-            $error = 'Invalid username or password.';
+            require_once __DIR__ . '/../database/database.php';
+            $pdo = db();
+            $stmt = $pdo->prepare("SELECT guard_id, full_name, username, password_hash, role, is_active
+                FROM security_guard WHERE username = :u LIMIT 1");
+            $stmt->execute([':u' => $username]);
+            $guard = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($guard && $guard['is_active'] && password_verify($password, $guard['password_hash'])) {
+                unset($_SESSION['guard_login_attempts']);
+                unset($_SESSION['guard_lockout_until']);
+
+                $_SESSION['guard_logged_in'] = true;
+                $_SESSION['guard_id']        = $guard['guard_id'];
+                $_SESSION['guard_name']      = $guard['full_name'];
+                $_SESSION['guard_role']      = $guard['role'];
+                header('Location: dashboard.php?welcome=1'); exit;
+            } else {
+                $lockoutAttempts++;
+                $_SESSION['guard_login_attempts'] = $lockoutAttempts;
+
+                if ($lockoutAttempts >= 5) {
+                    $lockoutUntil = time() + 300; // 5 minutes lockout
+                    $_SESSION['guard_lockout_until'] = $lockoutUntil;
+                    $isLocked = true;
+                    $remainingSeconds = 300;
+                    $error = "LOCKOUT_ERR::Too many invalid attempts (5/5). (Try again in <span id=\"lockoutTimer\">5:00</span>)";
+                } else {
+                    $error = "Invalid username or password. ({$lockoutAttempts}/5 invalid attempts)";
+                }
+            }
         }
     }
+} elseif ($isLocked) {
+    $min = floor($remainingSeconds / 60);
+    $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
+    $error = "LOCKOUT_ERR::Too many invalid attempts (5/5). (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
 }
 ?>
 <!DOCTYPE html>
@@ -496,11 +535,11 @@ body::after {
         <div class="card-sub">Sign in to file a student violation report.</div>
 
         <?php if ($error): ?>
-        <div class="err">
+        <div class="err" style="font-weight: 600;">
             <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <?= htmlspecialchars($error) ?>
+            <span><?= (strpos($error, 'LOCKOUT_ERR::') === 0) ? str_replace('LOCKOUT_ERR::', '', $error) : htmlspecialchars($error) ?></span>
         </div>
         <?php endif; ?>
 
@@ -510,7 +549,8 @@ body::after {
                 <input type="text" id="username" name="username"
                     placeholder="Enter your username"
                     value="<?= htmlspecialchars($_POST['username'] ?? '') ?>"
-                    autocomplete="username" autofocus>
+                    autocomplete="username" autofocus
+                    <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>>
             </div>
 
             <div class="field">
@@ -518,8 +558,9 @@ body::after {
                 <div class="pw-wrap">
                     <input type="password" id="password" name="password"
                         placeholder="Enter your password"
-                        autocomplete="current-password">
-                    <button type="button" class="pw-toggle" id="pwToggle" aria-label="Toggle password">
+                        autocomplete="current-password"
+                        <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>>
+                    <button type="button" class="pw-toggle" id="pwToggle" aria-label="Toggle password" <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>>
                         <!-- Eye open -->
                         <svg id="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -535,7 +576,7 @@ body::after {
                 </div>
             </div>
 
-            <button type="submit" class="btn-submit">
+            <button type="submit" class="btn-submit" <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>>
                 <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
                     <polyline points="10 17 15 12 10 7"/>
@@ -559,6 +600,34 @@ body::after {
 </div>
 
 <script>
+<?php if ($isLocked && $remainingSeconds > 0): ?>
+(function() {
+    var remaining = <?php echo (int)$remainingSeconds; ?>;
+    var timerEl = document.getElementById('lockoutTimer');
+    var usernameInput = document.getElementById('username');
+    var pwInput = document.getElementById('password');
+    var pwToggle = document.getElementById('pwToggle');
+    var submitBtn = document.querySelector('.btn-submit');
+
+    if (usernameInput) { usernameInput.disabled = true; usernameInput.style.opacity = '0.5'; usernameInput.style.cursor = 'not-allowed'; }
+    if (pwInput) { pwInput.disabled = true; pwInput.style.opacity = '0.5'; pwInput.style.cursor = 'not-allowed'; }
+    if (pwToggle) { pwToggle.disabled = true; pwToggle.style.opacity = '0.5'; pwToggle.style.cursor = 'not-allowed'; }
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.5'; submitBtn.style.cursor = 'not-allowed'; }
+
+    var interval = setInterval(function() {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(interval);
+            window.location.reload();
+        } else {
+            var m = Math.floor(remaining / 60);
+            var s = remaining % 60;
+            var sStr = s < 10 ? '0' + s : s;
+            if (timerEl) timerEl.textContent = m + ':' + sStr;
+        }
+    }, 1000);
+})();
+<?php endif; ?>
 const pwToggle  = document.getElementById('pwToggle');
 const pwInput   = document.getElementById('password');
 const eyeOpen   = document.getElementById('eye-open');

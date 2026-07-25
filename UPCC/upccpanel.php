@@ -133,11 +133,13 @@ if (isset($_POST['action'])) {
 
     if ($action === 'check_username') {
         if ($isLocked) {
+            $min = floor($secondsLeft / 60);
+            $sec = str_pad((string)($secondsLeft % 60), 2, '0', STR_PAD_LEFT);
             echo json_encode([
                 'ok' => false,
                 'locked' => true,
                 'seconds_left' => $secondsLeft,
-                'error' => 'Too many invalid attempts (8/8). Account search is locked for 5 minutes.'
+                'error' => "Too many invalid attempts (5/5). (Try again in {$min}:{$sec})"
             ]);
             exit;
         }
@@ -154,23 +156,23 @@ if (isset($_POST['action'])) {
             $failures = ($_SESSION['upcc_username_failures'] ?? 0) + 1;
             $_SESSION['upcc_username_failures'] = $failures;
 
-            if ($failures >= 8) {
+            if ($failures >= 5) {
                 $_SESSION['upcc_username_locked_until'] = time() + 300; // 5 minutes lockout
                 echo json_encode([
                     'ok' => false,
                     'locked' => true,
                     'seconds_left' => 300,
                     'show_recovery' => true,
-                    'error' => 'Too many invalid attempts (8/8). Account search is locked for 5 minutes.'
+                    'error' => 'Too many invalid attempts (5/5). (Try again in 5:00)'
                 ]);
             } else {
-                $rem = 8 - $failures;
+                $rem = 5 - $failures;
                 $msg = !$upcc ? 'Account not found.' : 'Account is inactive.';
                 echo json_encode([
                     'ok' => false,
                     'failures' => $failures,
-                    'show_recovery' => ($failures >= 4),
-                    'error' => $msg . " ($failures/8 failed attempts. Lockout after $rem more attempt" . ($rem > 1 ? 's' : '') . ".)"
+                    'show_recovery' => ($failures >= 3),
+                    'error' => $msg . " ($failures/5 failed attempts. Lockout after $rem more attempt" . ($rem > 1 ? 's' : '') . ".)"
                 ]);
             }
             exit;
@@ -307,7 +309,9 @@ $error = '';
 $username_checked = false;
 
 if ($isLocked) {
-    $error = "Too many invalid attempts (8/8). Account search is locked for 5 minutes.";
+    $min = floor($secondsLeft / 60);
+    $sec = str_pad((string)($secondsLeft % 60), 2, '0', STR_PAD_LEFT);
+    $error = "Too many invalid attempts (5/5). (Try again in {$min}:{$sec})";
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
@@ -340,7 +344,7 @@ if ($isLocked) {
 $error = $error ?: ($_SESSION['login_error'] ?? '');
 unset($_SESSION['login_error']);
 $currentFailures = $_SESSION['upcc_username_failures'] ?? 0;
-$showRecoveryLink = ($currentFailures >= 4);
+$showRecoveryLink = ($currentFailures >= 3);
 ?>
 <!DOCTYPE html>
 <html lang="en">
