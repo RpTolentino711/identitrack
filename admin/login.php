@@ -5,44 +5,75 @@
 
 require_once __DIR__ . '/../database/database.php';
 
+if (session_status() === PHP_SESSION_NONE) session_start();
+
 $errors = [];
+$isLocked = false;
+$remainingSeconds = 0;
+$lockoutAttempts = (int)($_SESSION['admin_login_attempts'] ?? 0);
+$lockoutUntil = (int)($_SESSION['admin_lockout_until'] ?? 0);
+
+if ($lockoutUntil > time()) {
+  $isLocked = true;
+  $remainingSeconds = $lockoutUntil - time();
+} else {
+  if ($lockoutUntil > 0) {
+    unset($_SESSION['admin_lockout_until']);
+    $_SESSION['admin_login_attempts'] = 0;
+    $lockoutAttempts = 0;
+  }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $username = trim((string)($_POST['username'] ?? ''));
-  $password = (string)($_POST['password'] ?? '');
-
-  if (session_status() === PHP_SESSION_NONE) session_start();
-  
-  $res = admin_login($username, $password);
-  if (($res['ok'] ?? false) === true) {
-    // Reset failed attempts on success
-    unset($_SESSION['admin_login_attempts']);
-    
-    // 2FA IMPLEMENTATION
-    $adminData = admin_find_by_username($username);
-    if (!$adminData) {
-        $errors[] = "Critical error: Admin data not found after login.";
-    } else {
-        // Store pre-2fa state
-        $_SESSION['admin_pre_2fa'] = [
-            'admin_id' => $adminData['admin_id'],
-            'username' => $adminData['username'],
-            'full_name' => $adminData['full_name'],
-            'email' => $adminData['email']
-        ];
-        
-        // Clear normal admin session if it was set by admin_login (admin_login usually sets it)
-        unset($_SESSION['admin_id']);
-        unset($_SESSION['admin_username']);
-
-        // Redirect to a helper that sends the OTP and shows the UI
-        redirect('login_otp.php?init=1');
-    }
+  if ($isLocked) {
+    $min = floor($remainingSeconds / 60);
+    $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
+    $errors[] = "LOCKOUT_ERR::Too many invalid attempts (5/5). Account search is locked. (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
   } else {
-    // Increment failed attempts
-    $_SESSION['admin_login_attempts'] = ($_SESSION['admin_login_attempts'] ?? 0) + 1;
-    $errors[] = (string)($res['error'] ?? 'Login failed.');
+    $username = trim((string)($_POST['username'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+
+    $res = admin_login($username, $password);
+    if (($res['ok'] ?? false) === true) {
+      unset($_SESSION['admin_login_attempts']);
+      unset($_SESSION['admin_lockout_until']);
+      
+      // 2FA IMPLEMENTATION
+      $adminData = admin_find_by_username($username);
+      if (!$adminData) {
+          $errors[] = "Critical error: Admin data not found after login.";
+      } else {
+          $_SESSION['admin_pre_2fa'] = [
+              'admin_id' => $adminData['admin_id'],
+              'username' => $adminData['username'],
+              'full_name' => $adminData['full_name'],
+              'email' => $adminData['email']
+          ];
+          unset($_SESSION['admin_id']);
+          unset($_SESSION['admin_username']);
+
+          redirect('login_otp.php?init=1');
+      }
+    } else {
+      $lockoutAttempts++;
+      $_SESSION['admin_login_attempts'] = $lockoutAttempts;
+
+      if ($lockoutAttempts >= 5) {
+        $lockoutUntil = time() + 300; // 5 minutes lockout
+        $_SESSION['admin_lockout_until'] = $lockoutUntil;
+        $isLocked = true;
+        $remainingSeconds = 300;
+        $errors[] = "LOCKOUT_ERR::Too many invalid attempts (5/5). Account search is locked. (Try again in <span id=\"lockoutTimer\">5:00</span>)";
+      } else {
+        $remainingAttempts = 5 - $lockoutAttempts;
+        $errors[] = (string)($res['error'] ?? 'Login failed.') . " ({$lockoutAttempts}/5 invalid attempts)";
+      }
+    }
   }
+} elseif ($isLocked) {
+  $min = floor($remainingSeconds / 60);
+  $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
+  $errors[] = "LOCKOUT_ERR::Too many invalid attempts (5/5). Account search is locked. (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
 }
 ?>
 <!doctype html>
@@ -257,10 +288,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <?php if (!empty($errors)): ?>
       <div class="errors" role="alert">
-        <strong>Login failed:</strong>
-        <ul style="margin:8px 0 0; padding-left: 18px;">
+        <ul style="margin:0; list-style: none; padding-left: 0;">
           <?php foreach ($errors as $err): ?>
-            <li><?php echo e($err); ?></li>
+            <?php if (strpos($err, 'LOCKOUT_ERR::') === 0): ?>
+              <li style="font-weight: 700; color: var(--danger); font-size: 13.5px; line-height: 1.4;"><?php echo str_replace('LOCKOUT_ERR::', '', $err); ?></li>
+            <?php else: ?>
+              <li style="font-weight: 600; margin-bottom: 3px;">• <?php echo e($err); ?></li>
+            <?php endif; ?>
           <?php endforeach; ?>
         </ul>
       </div>
@@ -320,15 +354,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       var passwordInput = document.getElementById('password');
       var toggleBtn = document.getElementById('togglePassword');
 
-      if (!passwordInput || !toggleBtn) return;
+      if (passwordInput && toggleBtn) {
+        toggleBtn.addEventListener('click', function () {
+          var isHidden = passwordInput.type === 'password';
+          passwordInput.type = isHidden ? 'text' : 'password';
+          toggleBtn.classList.toggle('is-hidden', !isHidden);
+          toggleBtn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+          toggleBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+        });
+      }
 
-      toggleBtn.addEventListener('click', function () {
-        var isHidden = passwordInput.type === 'password';
-        passwordInput.type = isHidden ? 'text' : 'password';
-        toggleBtn.classList.toggle('is-hidden', !isHidden);
-        toggleBtn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
-        toggleBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
-      });
+      <?php if ($isLocked && $remainingSeconds > 0): ?>
+      var remaining = <?php echo (int)$remainingSeconds; ?>;
+      var timerEl = document.getElementById('lockoutTimer');
+      var usernameInput = document.getElementById('username');
+      var submitBtn = document.querySelector('button[type="submit"]');
+
+      if (usernameInput) { usernameInput.disabled = true; usernameInput.style.opacity = '0.6'; }
+      if (passwordInput) { passwordInput.disabled = true; passwordInput.style.opacity = '0.6'; }
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.6'; submitBtn.style.cursor = 'not-allowed'; }
+
+      var interval = setInterval(function() {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(interval);
+          window.location.reload();
+        } else {
+          var m = Math.floor(remaining / 60);
+          var s = remaining % 60;
+          var sStr = s < 10 ? '0' + s : s;
+          if (timerEl) timerEl.textContent = m + ':' + sStr;
+        }
+      }, 1000);
+      <?php endif; ?>
     })();
   </script>
 </body>
