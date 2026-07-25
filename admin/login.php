@@ -344,7 +344,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <button class="btn" type="submit" <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>>Login to Dashboard</button>
       
       <?php if (($_SESSION['admin_login_attempts'] ?? 0) >= 3): ?>
-        <a class="forgot" href="forgot_password.php">Forgot Password?</a>
+        <a class="forgot" id="forgotPasswordLink" href="<?php echo $isLocked ? 'javascript:void(0);' : 'forgot_password.php'; ?>" <?php echo $isLocked ? 'style="opacity:0.4; cursor:not-allowed; pointer-events:none;" onclick="return false;"' : ''; ?>>Forgot Password?</a>
       <?php endif; ?>
 
       <div class="divider"></div>
@@ -372,11 +372,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       var timerEl = document.getElementById('lockoutTimer');
       var usernameInput = document.getElementById('username');
       var submitBtn = document.querySelector('button[type="submit"]');
+      var forgotLink = document.getElementById('forgotPasswordLink');
 
       if (usernameInput) { usernameInput.disabled = true; usernameInput.style.opacity = '0.5'; usernameInput.style.cursor = 'not-allowed'; }
       if (passwordInput) { passwordInput.disabled = true; passwordInput.style.opacity = '0.5'; passwordInput.style.cursor = 'not-allowed'; }
       if (toggleBtn) { toggleBtn.disabled = true; toggleBtn.style.opacity = '0.5'; toggleBtn.style.cursor = 'not-allowed'; }
       if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.5'; submitBtn.style.cursor = 'not-allowed'; }
+      if (forgotLink) { forgotLink.style.opacity = '0.4'; forgotLink.style.cursor = 'not-allowed'; forgotLink.style.pointerEvents = 'none'; forgotLink.removeAttribute('href'); }
 
       var interval = setInterval(function() {
         remaining--;
