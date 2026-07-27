@@ -2861,42 +2861,51 @@ setInterval(pingPresence, 5000);  // ping presence every 5 seconds
 syncLive(); // immediate first call
 </script>
 
-<!-- FLOATING FB-MESSENGER STYLE AI CHAT DRAWER -->
-<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:99999;cursor:pointer;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;padding:12px 22px;border-radius:50px;box-shadow:0 10px 30px rgba(29,78,216,0.6);border:2px solid rgba(255,255,255,0.3);font-family:sans-serif;font-weight:700;font-size:14px;transition:all .3s cubic-bezier(0.4, 0, 0.2, 1);" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-  <div style="width:12px;height:12px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;animation:pulse 2s infinite;"></div>
-  <span>✨ AI Sanction Assistant</span>
+<!-- ULTRA-PREMIUM FLOATING AI CHAT DRAWER -->
+<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:99999;cursor:pointer;display:flex;align-items:center;gap:12px;background:rgba(15, 23, 42, 0.85);backdrop-filter:blur(12px);color:#fff;padding:10px 20px;border-radius:50px;box-shadow:0 12px 35px rgba(2, 132, 199, 0.35);border:1px solid rgba(56, 189, 248, 0.4);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-weight:600;font-size:13px;letter-spacing:0.3px;transition:all .3s cubic-bezier(0.16, 1, 0.3, 1);" onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='rgba(56, 189, 248, 0.8)';" onmouseout="this.style.transform='translateY(0)';this.style.borderColor='rgba(56, 189, 248, 0.4)';">
+  <div style="position:relative;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 12px rgba(14,165,233,0.6);">
+    ✨
+    <span style="position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:#10b981;border:2px solid #0f172a;"></span>
+  </div>
+  <span>IdentiTrack AI</span>
 </div>
 
-<!-- SLIDE-UP FB MESSENGER CHAT DRAWER -->
-<div id="aiChatDrawer" style="position:fixed;bottom:20px;right:24px;width:380px;height:520px;max-height:85vh;background:#0f172a;border:1px solid #334155;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,0.6);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%);transition:transform .35s cubic-bezier(0.16, 1, 0.3, 1);font-family:sans-serif;">
+<!-- SLIDE-UP PREMIUM GLASS CHAT DRAWER -->
+<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:390px;height:530px;max-height:85vh;background:rgba(9, 14, 26, 0.95);backdrop-filter:blur(20px);border:1px solid rgba(56, 189, 248, 0.25);border-radius:24px;box-shadow:0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(14, 165, 233, 0.15);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%);transition:transform .4s cubic-bezier(0.16, 1, 0.3, 1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   
   <!-- DRAWER HEADER -->
-  <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 10px rgba(0,0,0,0.2);">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div style="width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;">✨</div>
+  <div style="background:rgba(15, 23, 42, 0.9);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 15px rgba(14,165,233,0.4);">
+        ✨
+      </div>
       <div>
-        <div style="font-weight:800;font-size:14px;color:#fff;line-height:1.2;">IdentiTrack AI Assistant</div>
-        <div style="font-size:11px;color:#93c5fd;opacity:0.9;">Locked to Hearing Context</div>
+        <div style="font-weight:700;font-size:14px;color:#f8fafc;letter-spacing:0.2px;">IdentiTrack AI</div>
+        <div style="font-size:11px;color:#38bdf8;display:flex;align-items:center;gap:5px;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span> Hearing Advisory System
+        </div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:6px;">
-      <button onclick="toggleAiDrawer()" title="Minimize" style="background:none;border:none;color:#93c5fd;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">—</button>
-      <button onclick="toggleAiDrawer()" title="Close" style="background:none;border:none;color:#93c5fd;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">✕</button>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <button onclick="toggleAiDrawer()" title="Minimize" style="background:rgba(255,255,255,0.05);border:none;color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)';this.style.color='#fff';" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8';">─</button>
+      <button onclick="toggleAiDrawer()" title="Close" style="background:rgba(255,255,255,0.05);border:none;color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)';this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8';">✕</button>
     </div>
   </div>
 
   <!-- CHAT MESSAGES THREAD -->
-  <div id="aiChatThread" style="flex:1;padding:14px;overflow-y:auto;background:#0b1329;display:flex;flex-direction:column;gap:12px;">
-    <div style="text-align:center;padding:20px;color:#64748b;font-size:12px;">
-      <div style="font-size:24px;margin-bottom:6px;">🧠</div>
-      Initializing AI Hearing Assistant...
+  <div id="aiChatThread" style="flex:1;padding:16px;overflow-y:auto;background:transparent;display:flex;flex-direction:column;gap:14px;">
+    <div style="text-align:center;padding:30px 20px;color:#64748b;font-size:12px;">
+      <div style="font-size:26px;margin-bottom:8px;opacity:0.8;">🧠</div>
+      Initializing AI Assistant...
     </div>
   </div>
 
   <!-- BOTTOM INPUT BAR -->
-  <div style="padding:10px 12px;background:#0f172a;border-top:1px solid #1e293b;display:flex;gap:8px;align-items:center;">
-    <input type="text" id="aiChatInput" placeholder="Ask AI about this hearing..." style="flex:1;background:#1e293b;border:1px solid #334155;color:#fff;padding:9px 12px;border-radius:20px;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter') sendAiChat()">
-    <button onclick="sendAiChat()" style="background:#2563eb;color:#fff;border:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;">➔</button>
+  <div style="padding:12px 14px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:center;">
+    <input type="text" id="aiChatInput" placeholder="Ask AI about this hearing..." style="flex:1;background:rgba(30, 41, 59, 0.7);border:1px solid rgba(255,255,255,0.1);color:#f8fafc;padding:10px 16px;border-radius:24px;font-size:13px;outline:none;transition:all .2s;" onfocus="this.style.borderColor='rgba(56,189,248,0.5)';this.style.background='rgba(30,41,59,0.95)';" onblur="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(30,41,59,0.7)';" onkeydown="if(event.key==='Enter') sendAiChat()">
+    <button onclick="sendAiChat()" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.4);transition:transform .2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+    </button>
   </div>
 </div>
 
@@ -2925,10 +2934,12 @@ function initAiGreeting() {
     thread.dataset.loaded = '1';
     
     thread.innerHTML = `
-      <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:12px;color:#e2e8f0;font-size:13px;line-height:1.5;">
-        <div style="font-weight:800;color:#38bdf8;margin-bottom:4px;">👋 Hello Panel Member!</div>
-        <div>I am your <b>IdentiTrack AI Hearing Assistant</b>. I have loaded and analyzed the student's case file against the <b>NU Lipa Student Handbook</b> and disk precedents.</div>
-        <div style="margin-top:8px;font-size:12px;color:#94a3b8;">How can I assist your panel today? Tap a prompt below or type your question!</div>
+      <div style="background:rgba(30, 41, 59, 0.7);border:1px solid rgba(56, 189, 248, 0.2);border-radius:18px;padding:14px 16px;color:#f1f5f9;font-size:13px;line-height:1.6;box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+        <div style="font-weight:700;color:#38bdf8;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          <span>👋</span> <span>Hello Panel Member</span>
+        </div>
+        <div>I am your <b>IdentiTrack AI Hearing Assistant</b>. I have loaded and analyzed the student's case file against the <b>NU Lipa Student Handbook</b>.</div>
+        <div style="margin-top:8px;font-size:12px;color:#94a3b8;">Type any question below regarding offense history, handbook policy rules, or community service hours!</div>
       </div>
     `;
 }
@@ -2940,22 +2951,22 @@ function sendAiChat(presetText) {
     if (!query) return;
     if (input) input.value = '';
 
-    thread.innerHTML += `<div style="text-align:right;margin-top:8px;"><span style="background:#2563eb;color:#fff;padding:7px 13px;border-radius:16px 16px 2px 16px;font-size:12px;display:inline-block;max-width:80%;">${query}</span></div>`;
+    thread.innerHTML += `<div style="text-align:right;margin-top:4px;"><span style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;padding:8px 14px;border-radius:18px 18px 4px 18px;font-size:13px;display:inline-block;max-width:82%;box-shadow:0 3px 10px rgba(2,132,199,0.3);line-height:1.4;">${query}</span></div>`;
     thread.scrollTop = thread.scrollHeight;
 
     fetch(`../admin/api_ai_suggest_sanction.php?action=chat&case_id=<?= $caseId ?>&query=${encodeURIComponent(query)}`)
       .then(res => res.json())
       .then(data => {
           if (data.ok && data.reply) {
-              thread.innerHTML += `<div style="text-align:left;margin-top:8px;"><div style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:9px 13px;border-radius:16px 16px 16px 2px;font-size:12px;line-height:1.5;max-width:88%;">${data.reply}</div></div>`;
+              thread.innerHTML += `<div style="text-align:left;margin-top:6px;"><div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(255,255,255,0.08);color:#f1f5f9;padding:10px 14px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:88%;box-shadow:0 4px 15px rgba(0,0,0,0.2);">${data.reply}</div></div>`;
           } else {
               let errText = data.error || 'No reply generated.';
-              thread.innerHTML += `<div style="text-align:left;margin-top:8px;"><div style="background:#1e293b;border:1px solid #ef4444;color:#f87171;padding:9px 13px;border-radius:12px;font-size:12px;">⚠️ ${errText}</div></div>`;
+              thread.innerHTML += `<div style="text-align:left;margin-top:6px;"><div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ ${errText}</div></div>`;
           }
           thread.scrollTop = thread.scrollHeight;
       })
       .catch(err => {
-          thread.innerHTML += `<div style="text-align:left;margin-top:8px;"><div style="background:#1e293b;border:1px solid #ef4444;color:#f87171;padding:9px 13px;border-radius:12px;font-size:12px;">⚠️ Connection error: ${err.message}</div></div>`;
+          thread.innerHTML += `<div style="text-align:left;margin-top:6px;"><div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ Connection error: ${err.message}</div></div>`;
           thread.scrollTop = thread.scrollHeight;
       });
 }
