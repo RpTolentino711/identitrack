@@ -198,7 +198,9 @@ try {
 
         // Generate in-scope intelligent response
         $reply = "";
-        if (strpos($lowerQuery, 'history') !== false || strpos($lowerQuery, 'prior') !== false || strpos($lowerQuery, 'past') !== false) {
+        if (in_array($lowerQuery, ['hi', 'hello', 'hey', 'hi ai', 'hello ai', 'good morning', 'good afternoon', 'good evening'])) {
+            $reply = "👋 **Hello Panel Member!** I am your IdentiTrack AI Hearing Assistant. I have loaded and analyzed Student **{$targetStudentId}**'s hearing file. How can I assist your panel today? You can ask about the student's offense history, Student Handbook rules, or requested service hours!";
+        } elseif (strpos($lowerQuery, 'history') !== false || strpos($lowerQuery, 'prior') !== false || strpos($lowerQuery, 'past') !== false) {
             $reply = "📋 **Student Disciplinary History**: Student ID **{$targetStudentId}** has **{$totalMajorCount}** Major Offense(s) and **{$instanceCount}** instance(s) of `{$offenseName}` on record.";
         } elseif (strpos($lowerQuery, 'handbook') !== false || strpos($lowerQuery, 'section') !== false || strpos($lowerQuery, 'rule') !== false) {
             $reply = "📜 **Student Handbook Policy**: According to **{$handbookCitation}**: *{$rationale}*";
