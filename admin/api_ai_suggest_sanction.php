@@ -20,7 +20,7 @@ try {
     $case = null;
     if ($caseId > 0) {
         $case = db_one("
-            SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details, uc.incident_summary,
+            SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details,
                    o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
             FROM upcc_case uc
             LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
@@ -203,6 +203,8 @@ try {
         $reply = "";
         if (in_array($lowerQuery, ['hi', 'hello', 'hey', 'sup', 'sup ai', 'yo', 'wassup', 'watsup', 'hi ai', 'hello ai', 'good morning', 'good afternoon', 'good evening', 'kamusta'])) {
             $reply = "👋 **Hello Panel Member!** I am your IdentiTrack AI Hearing Assistant. I have loaded and analyzed **{$studentName}** (ID: {$targetStudentId})'s hearing file. How can I assist your panel today? You can ask about offense history, Student Handbook rules, or community service hours!";
+        } elseif (strpos($lowerQuery, 'created') !== false || strpos($lowerQuery, 'made') !== false || strpos($lowerQuery, 'built') !== false || strpos($lowerQuery, 'developer') !== false || strpos($lowerQuery, 'creator') !== false || strpos($lowerQuery, 'who are you') !== false) {
+            $reply = "🤖 **IdentiTrack AI Engine**: I was created and developed by the **NU Lipa IdentiTrack Capstone Research Team** as a specialized Data-Driven Decision Support System (DSS) for student disciplinary hearing analysis.";
         } elseif (strpos($lowerQuery, 'defense') !== false || strpos($lowerQuery, 'explain') !== false || strpos($lowerQuery, 'paliwanag') !== false || strpos($lowerQuery, 'sinabi') !== false) {
             $reply = "📝 **Student Defense Summary**: Student **{$studentName}** has submitted their formal explanation regarding `{$offenseName}`. The incident occurred on record with **{$instanceCount}** logged offense instance(s). You can review their attached defense files directly in the hearing panel.";
         } elseif (strpos($lowerQuery, 'history') !== false || strpos($lowerQuery, 'prior') !== false || strpos($lowerQuery, 'past') !== false || strpos($lowerQuery, 'nakaraan') !== false) {
@@ -218,7 +220,6 @@ try {
         } elseif (strpos($lowerQuery, 'suggest') !== false || strpos($lowerQuery, 'recommend') !== false || strpos($lowerQuery, 'sanction') !== false || strpos($lowerQuery, 'parusa') !== false || strpos($lowerQuery, 'category') !== false || strpos($lowerQuery, 'kategorya') !== false) {
             $reply = "🎯 **AI Sanction Suggestion**: **Category {$suggestedCategory}** under **{$handbookCitation}**. Rationale: *{$rationale}*";
         } else {
-            // General Conversational Response tailored to query
             $reply = "⚖️ **AI Assistant Response**: Regarding your question about Student **{$studentName}** (ID: {$targetStudentId}): The offense on file is `{$offenseName}` (Instance #{$instanceCount}, Total Major: {$totalMajorCount}). Suggested handbook classification is **Category {$suggestedCategory}** under **{$handbookCitation}**. Let me know if you need specific details on their defense or offense history!";
         }
 
