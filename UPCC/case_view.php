@@ -2875,7 +2875,7 @@ syncLive(); // immediate first call
       <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;">✨</div>
       <div>
         <h3 style="margin:0;font-size:18px;color:#f8fafc;">IdentiTrack AI Sanction Advisor</h3>
-        <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Strict Handbook & E:\ Drive Precedent Analysis</p>
+        <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Decision Support System • Final decision rests with UPCC Panel</p>
       </div>
     </div>
     
