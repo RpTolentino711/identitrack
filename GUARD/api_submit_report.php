@@ -33,6 +33,10 @@ if ($dateCommitted === '') {
     echo json_encode(['success' => false, 'message' => 'Date & time of incident is required.']);
     exit;
 }
+if ($description === '') {
+    echo json_encode(['success' => false, 'message' => 'Incident details / remarks are required.']);
+    exit;
+}
 
 // Parse datetime
 $dt = DateTime::createFromFormat('Y-m-d\TH:i', $dateCommitted);

@@ -840,9 +840,9 @@ input[type=datetime-local].form-control { color-scheme: light; }
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            Incident Details / Remarks (Optional)
+            Incident Details / Remarks <span style="color:#e53e3e; font-weight:bold;">*</span>
           </div>
-          <textarea id="description" class="form-control" placeholder="Add any additional notes about the violation..."></textarea>
+          <textarea id="description" class="form-control" placeholder="Add additional details about the violation..." required></textarea>
         </div>
 
         <div class="form-divider"></div>
@@ -1147,9 +1147,10 @@ function submitReport() {
   const descEl     = document.getElementById('description');
   const desc       = descEl ? descEl.value : '';
   
-  if (!studentId)  { showToast('No student selected.', 'error'); return; }
-  if (!offenseId)  { showToast('Please select an offense type.', 'error'); return; }
-  if (!dateCommit) { showToast('Please enter the incident date & time.', 'error'); return; }
+  if (!studentId)        { showToast('No student selected.', 'error'); return; }
+  if (!offenseId)        { showToast('Please select an offense type.', 'error'); return; }
+  if (!dateCommit)       { showToast('Please enter the incident date & time.', 'error'); return; }
+  if (!desc || !desc.trim()) { showToast('Please enter the incident details / remarks.', 'error'); if (descEl) descEl.focus(); return; }
 
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
