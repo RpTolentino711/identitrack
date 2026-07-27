@@ -2860,5 +2860,119 @@ setInterval(syncLive,    3000);   // poll every 3 seconds
 setInterval(pingPresence, 5000);  // ping presence every 5 seconds
 syncLive(); // immediate first call
 </script>
+
+<!-- FLOATING AI SANCTION ADVISOR BUBBLE -->
+<div id="aiFloatingBubble" onclick="openAiAdvisorModal()" style="position:fixed;bottom:28px;right:28px;z-index:9999;cursor:pointer;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;padding:12px 20px;border-radius:50px;box-shadow:0 10px 25px rgba(29,78,216,0.5);border:2px solid rgba(255,255,255,0.3);font-family:sans-serif;font-weight:700;font-size:14px;transition:all .3s ease;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">
+  <div style="width:12px;height:12px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;"></div>
+  <span>✨ AI Sanction Advisor</span>
+</div>
+
+<!-- AI ADVISOR MODAL -->
+<div id="aiAdvisorModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(11,22,48,0.8);backdrop-filter:blur(6px);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#0f172a;border:1px solid #334155;border-radius:20px;max-width:540px;width:100%;padding:24px;color:#f8fafc;box-shadow:0 25px 50px rgba(0,0,0,0.5);font-family:sans-serif;position:relative;">
+    <button onclick="closeAiAdvisorModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">✕</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;">✨</div>
+      <div>
+        <h3 style="margin:0;font-size:18px;color:#f8fafc;">IdentiTrack AI Sanction Advisor</h3>
+        <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Strict Handbook & E:\ Drive Precedent Analysis</p>
+      </div>
+    </div>
+    
+    <div id="aiModalContent" style="padding:16px;background:#1e293b;border-radius:14px;margin-bottom:18px;min-height:140px;">
+      <div style="text-align:center;padding:30px;color:#94a3b8;">Loading AI Recommendation...</div>
+    </div>
+    
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="closeAiAdvisorModal()" style="background:#334155;color:#fff;border:none;padding:10px 18px;border-radius:10px;font-weight:600;cursor:pointer;">Close</button>
+      <button id="btnApplyAiRec" onclick="applyAiRecommendation()" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;padding:10px 20px;border-radius:10px;font-weight:700;cursor:pointer;display:none;">Apply to Decision Form</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentAiRec = null;
+
+function openAiAdvisorModal() {
+    const modal = document.getElementById('aiAdvisorModal');
+    if (modal) modal.style.display = 'flex';
+    fetchAiRecommendation();
+}
+
+function closeAiAdvisorModal() {
+    const modal = document.getElementById('aiAdvisorModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function fetchAiRecommendation() {
+    const content = document.getElementById('aiModalContent');
+    const btnApply = document.getElementById('btnApplyAiRec');
+    if (!content) return;
+    
+    content.innerHTML = `<div style="text-align:center;padding:30px;color:#94a3b8;"><div style="font-size:24px;margin-bottom:10px;">🧠</div>Analyzing student history & scanning E:\\ Drive dataset...</div>`;
+    if (btnApply) btnApply.style.display = 'none';
+    
+    fetch('../admin/api_ai_suggest_sanction.php?case_id=<?= $caseId ?>')
+      .then(res => res.json())
+      .then(data => {
+          if (!data.ok) {
+              content.innerHTML = `<div style="color:#ef4444;padding:16px;"><b>Error:</b> ${data.error}</div>`;
+              return;
+          }
+          currentAiRec = data;
+          let catLabel = 'Category ' + data.suggested_category;
+          if (data.suggested_category === 1) catLabel += ' (Probation / Reprimand)';
+          else if (data.suggested_category === 2) catLabel += ' (Community Service)';
+          else if (data.suggested_category === 3) catLabel += ' (Suspension)';
+          else if (data.suggested_category === 4) catLabel += ' (Dismissal)';
+          else if (data.suggested_category === 5) catLabel += ' (Expulsion)';
+
+          let hoursHtml = data.suggested_hours > 0 ? `<div style="margin-top:8px;font-size:14px;color:#60a5fa;">⏱️ <b>Recommended Service Hours:</b> ${data.suggested_hours} Hours</div>` : '';
+
+          let precHtml = '';
+          if (data.matched_precedents && data.matched_precedents.length > 0) {
+              precHtml = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #334155;font-size:12px;color:#cbd5e1;">
+                  <b>📊 Matched Historical Precedents (${data.dataset_source}):</b><ul style="margin:6px 0 0;padding-left:18px;">`;
+              data.matched_precedents.forEach(p => {
+                  precHtml += `<li>Match Score ${p._match_score}%: ${p.case_summary} -> <b>Category ${p.decided_category}</b> (${p.recommended_hours}h)</li>`;
+              });
+              precHtml += `</ul></div>`;
+          }
+
+          content.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <span style="font-size:13px;font-weight:800;color:#38bdf8;text-transform:uppercase;letter-spacing:1px;">Handbook Citation</span>
+              <span style="background:#0284c7;color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;">${data.confidence_score}% Precedent Match</span>
+            </div>
+            <div style="font-size:16px;font-weight:800;color:#f8fafc;margin-bottom:4px;">${catLabel}</div>
+            <div style="font-size:12px;color:#94a3b8;">${data.handbook_citation}</div>
+            ${hoursHtml}
+            <div style="margin-top:12px;background:#0f172a;padding:12px;border-radius:10px;font-size:13px;line-height:1.5;color:#e2e8f0;border-left:4px solid #3b82f6;">
+              <b>💡 Rationale:</b> ${data.rationale}
+            </div>
+            ${precHtml}
+          `;
+          if (btnApply) btnApply.style.display = 'inline-block';
+      })
+      .catch(err => {
+          content.innerHTML = `<div style="color:#ef4444;padding:16px;">Failed to load AI recommendation.</div>`;
+      });
+}
+
+function applyAiRecommendation() {
+    if (!currentAiRec) return;
+    const catInput = document.getElementById('suggest_category') || document.getElementById('decided_category');
+    const hrsInput = document.getElementById('suggest_hours') || document.getElementById('hours_required');
+    if (catInput) {
+        catInput.value = currentAiRec.suggested_category;
+        catInput.dispatchEvent(new Event('change'));
+    }
+    if (hrsInput && currentAiRec.suggested_hours > 0) {
+        hrsInput.value = currentAiRec.suggested_hours;
+    }
+    closeAiAdvisorModal();
+    alert('✨ AI Recommendation applied to decision form!');
+}
+</script>
 </body>
 </html>
