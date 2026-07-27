@@ -2893,14 +2893,6 @@ syncLive(); // immediate first call
     </div>
   </div>
 
-  <!-- QUICK ACTION CHIPS -->
-  <div style="padding:8px 12px;background:#0f172a;border-top:1px solid #1e293b;display:flex;gap:6px;overflow-x:auto;">
-    <button onclick="sendAiChat('Show AI sanction recommendation')" style="white-space:nowrap;background:#2563eb;border:none;color:#fff;font-size:11px;padding:5px 12px;border-radius:14px;cursor:pointer;font-weight:700;">🎯 AI Suggestion</button>
-    <button onclick="sendAiChat('Show student offense history')" style="white-space:nowrap;background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;">📋 Offense History</button>
-    <button onclick="sendAiChat('Show Handbook policy rule')" style="white-space:nowrap;background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;">📜 Handbook Rule</button>
-    <button onclick="sendAiChat('Calculate community service hours')" style="white-space:nowrap;background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;">⏱️ Service Hours</button>
-  </div>
-
   <!-- BOTTOM INPUT BAR -->
   <div style="padding:10px 12px;background:#0f172a;border-top:1px solid #1e293b;display:flex;gap:8px;align-items:center;">
     <input type="text" id="aiChatInput" placeholder="Ask AI about this hearing..." style="flex:1;background:#1e293b;border:1px solid #334155;color:#fff;padding:9px 12px;border-radius:20px;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter') sendAiChat()">
