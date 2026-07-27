@@ -2861,133 +2861,133 @@ setInterval(pingPresence, 5000);  // ping presence every 5 seconds
 syncLive(); // immediate first call
 </script>
 
-<!-- FLOATING AI SANCTION ADVISOR BUBBLE -->
-<div id="aiFloatingBubble" onclick="openAiAdvisorModal()" style="position:fixed;bottom:28px;right:28px;z-index:9999;cursor:pointer;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;padding:12px 20px;border-radius:50px;box-shadow:0 10px 25px rgba(29,78,216,0.5);border:2px solid rgba(255,255,255,0.3);font-family:sans-serif;font-weight:700;font-size:14px;transition:all .3s ease;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">
-  <div style="width:12px;height:12px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;"></div>
-  <span>✨ AI Sanction Advisor</span>
+<!-- FLOATING FB-MESSENGER STYLE AI CHAT DRAWER -->
+<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:99999;cursor:pointer;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;padding:12px 22px;border-radius:50px;box-shadow:0 10px 30px rgba(29,78,216,0.6);border:2px solid rgba(255,255,255,0.3);font-family:sans-serif;font-weight:700;font-size:14px;transition:all .3s cubic-bezier(0.4, 0, 0.2, 1);" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+  <div style="width:12px;height:12px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;animation:pulse 2s infinite;"></div>
+  <span>✨ AI Sanction Assistant</span>
 </div>
 
-<!-- AI ADVISOR MODAL -->
-<div id="aiAdvisorModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(11,22,48,0.8);backdrop-filter:blur(6px);z-index:10000;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:#0f172a;border:1px solid #334155;border-radius:20px;max-width:560px;width:100%;padding:24px;color:#f8fafc;box-shadow:0 25px 50px rgba(0,0,0,0.5);font-family:sans-serif;position:relative;">
-    <button onclick="closeAiAdvisorModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">✕</button>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-      <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;">✨</div>
+<!-- SLIDE-UP FB MESSENGER CHAT DRAWER -->
+<div id="aiChatDrawer" style="position:fixed;bottom:20px;right:24px;width:380px;height:520px;max-height:85vh;background:#0f172a;border:1px solid #334155;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,0.6);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%);transition:transform .35s cubic-bezier(0.16, 1, 0.3, 1);font-family:sans-serif;">
+  
+  <!-- DRAWER HEADER -->
+  <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 10px rgba(0,0,0,0.2);">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;">✨</div>
       <div>
-        <h3 style="margin:0;font-size:18px;color:#f8fafc;">IdentiTrack AI Hearing Assistant</h3>
-        <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Locked to Hearing Context & Student Handbook • Panel Decision Support</p>
+        <div style="font-weight:800;font-size:14px;color:#fff;line-height:1.2;">IdentiTrack AI Assistant</div>
+        <div style="font-size:11px;color:#93c5fd;opacity:0.9;">Locked to Hearing Context</div>
       </div>
     </div>
-    
-    <div id="aiModalContent" style="padding:16px;background:#1e293b;border-radius:14px;margin-bottom:14px;min-height:140px;max-height:260px;overflow-y:auto;">
-      <div style="text-align:center;padding:30px;color:#94a3b8;">Loading AI Recommendation...</div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <button onclick="toggleAiDrawer()" title="Minimize" style="background:none;border:none;color:#93c5fd;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">—</button>
+      <button onclick="toggleAiDrawer()" title="Close" style="background:none;border:none;color:#93c5fd;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">✕</button>
     </div>
+  </div>
 
-    <!-- CHAT PROMPT CHIPS -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
-      <button onclick="sendAiChat('Show student offense history')" style="background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;">📋 Offense History</button>
-      <button onclick="sendAiChat('Show Handbook policy rule')" style="background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;">📜 Handbook Rule</button>
-      <button onclick="sendAiChat('Calculate community service hours')" style="background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;">⏱️ Service Hours</button>
+  <!-- CHAT MESSAGES THREAD -->
+  <div id="aiChatThread" style="flex:1;padding:14px;overflow-y:auto;background:#0b1329;display:flex;flex-direction:column;gap:12px;">
+    <div style="text-align:center;padding:20px;color:#64748b;font-size:12px;">
+      <div style="font-size:24px;margin-bottom:6px;">🧠</div>
+      Initializing AI Hearing Assistant...
     </div>
+  </div>
 
-    <!-- INTERACTIVE CHAT INPUT -->
-    <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <input type="text" id="aiChatInput" placeholder="Ask AI about this hearing or handbook rules..." style="flex:1;background:#1e293b;border:1px solid #334155;color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter') sendAiChat()">
-      <button onclick="sendAiChat()" style="background:#2563eb;color:#fff;border:none;padding:10px 16px;border-radius:10px;font-weight:700;cursor:pointer;">Ask AI</button>
-    </div>
-    
-    <div style="display:flex;gap:10px;justify-content:flex-end;">
-      <button onclick="closeAiAdvisorModal()" style="background:#334155;color:#fff;border:none;padding:10px 18px;border-radius:10px;font-weight:600;cursor:pointer;">Close</button>
-      <button id="btnApplyAiRec" onclick="applyAiRecommendation()" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;padding:10px 20px;border-radius:10px;font-weight:700;cursor:pointer;display:none;">Apply to Decision Form</button>
-    </div>
+  <!-- QUICK ACTION CHIPS -->
+  <div style="padding:8px 12px;background:#0f172a;border-top:1px solid #1e293b;display:flex;gap:6px;overflow-x:auto;">
+    <button onclick="sendAiChat('Show student offense history')" style="white-space:nowrap;background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;">📋 Offense History</button>
+    <button onclick="sendAiChat('Show Handbook policy rule')" style="white-space:nowrap;background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;">📜 Handbook Rule</button>
+    <button onclick="sendAiChat('Calculate community service hours')" style="white-space:nowrap;background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;">⏱️ Service Hours</button>
+  </div>
+
+  <!-- BOTTOM INPUT BAR -->
+  <div style="padding:10px 12px;background:#0f172a;border-top:1px solid #1e293b;display:flex;gap:8px;align-items:center;">
+    <input type="text" id="aiChatInput" placeholder="Ask AI about this hearing..." style="flex:1;background:#1e293b;border:1px solid #334155;color:#fff;padding:9px 12px;border-radius:20px;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter') sendAiChat()">
+    <button onclick="sendAiChat()" style="background:#2563eb;color:#fff;border:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;">➔</button>
   </div>
 </div>
 
 <script>
+let isAiDrawerOpen = false;
 let currentAiRec = null;
 
-function openAiAdvisorModal() {
-    const modal = document.getElementById('aiAdvisorModal');
-    if (modal) modal.style.display = 'flex';
-    fetchAiRecommendation();
-}
-
-function closeAiAdvisorModal() {
-    const modal = document.getElementById('aiAdvisorModal');
-    if (modal) modal.style.display = 'none';
+function toggleAiDrawer() {
+    const drawer = document.getElementById('aiChatDrawer');
+    const bubble = document.getElementById('aiFloatingBubble');
+    if (!drawer) return;
+    
+    isAiDrawerOpen = !isAiDrawerOpen;
+    if (isAiDrawerOpen) {
+        drawer.style.transform = 'translateY(0)';
+        if (bubble) bubble.style.display = 'none';
+        if (!currentAiRec) fetchAiRecommendation();
+    } else {
+        drawer.style.transform = 'translateY(120%)';
+        if (bubble) bubble.style.display = 'flex';
+    }
 }
 
 function fetchAiRecommendation() {
-    const content = document.getElementById('aiModalContent');
-    const btnApply = document.getElementById('btnApplyAiRec');
-    if (!content) return;
+    const thread = document.getElementById('aiChatThread');
+    if (!thread) return;
     
-    content.innerHTML = `<div style="text-align:center;padding:30px;color:#94a3b8;"><div style="font-size:24px;margin-bottom:10px;">🧠</div>Analyzing student history & scanning E:\\ Drive dataset...</div>`;
-    if (btnApply) btnApply.style.display = 'none';
+    thread.innerHTML = `<div style="text-align:center;padding:20px;color:#64748b;font-size:12px;"><div style="font-size:24px;margin-bottom:6px;">🧠</div>Scanning E:\\ Drive dataset & calculating Handbook rules...</div>`;
     
     fetch('../admin/api_ai_suggest_sanction.php?case_id=<?= $caseId ?>')
       .then(res => res.json())
       .then(data => {
           if (!data.ok) {
-              content.innerHTML = `<div style="color:#ef4444;padding:16px;"><b>Error:</b> ${data.error}</div>`;
+              thread.innerHTML = `<div style="color:#ef4444;padding:12px;background:#1e293b;border-radius:10px;"><b>Error:</b> ${data.error}</div>`;
               return;
           }
           currentAiRec = data;
           let catLabel = 'Category ' + data.suggested_category;
-          if (data.suggested_category === 1) catLabel += ' (Probation / Reprimand)';
+          if (data.suggested_category === 1) catLabel += ' (Probation)';
           else if (data.suggested_category === 2) catLabel += ' (Community Service)';
           else if (data.suggested_category === 3) catLabel += ' (Suspension)';
           else if (data.suggested_category === 4) catLabel += ' (Dismissal)';
           else if (data.suggested_category === 5) catLabel += ' (Expulsion)';
 
-          let hoursHtml = data.suggested_hours > 0 ? `<div style="margin-top:8px;font-size:14px;color:#60a5fa;">⏱️ <b>Recommended Service Hours:</b> ${data.suggested_hours} Hours</div>` : '';
+          let hoursHtml = data.suggested_hours > 0 ? `<div style="margin-top:6px;font-size:13px;color:#60a5fa;font-weight:700;">⏱️ Recommended Service Hours: ${data.suggested_hours} Hours</div>` : '';
 
-          let precHtml = '';
-          if (data.matched_precedents && data.matched_precedents.length > 0) {
-              precHtml = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #334155;font-size:12px;color:#cbd5e1;">
-                  <b>📊 Matched Historical Precedents (${data.dataset_source}):</b><ul style="margin:6px 0 0;padding-left:18px;">`;
-              data.matched_precedents.forEach(p => {
-                  precHtml += `<li>Match Score ${p._match_score}%: ${p.case_summary} -> <b>Category ${p.decided_category}</b> (${p.recommended_hours}h)</li>`;
-              });
-              precHtml += `</ul></div>`;
-          }
-
-          content.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-              <span style="font-size:13px;font-weight:800;color:#38bdf8;text-transform:uppercase;letter-spacing:1px;">Handbook Citation</span>
-              <span style="background:#0284c7;color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;">${data.confidence_score}% Precedent Match</span>
+          thread.innerHTML = `
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:12px;color:#e2e8f0;font-size:13px;line-height:1.5;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span style="font-size:11px;font-weight:800;color:#38bdf8;text-transform:uppercase;">AI Sanction Analysis</span>
+                <span style="background:#0284c7;color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;">${data.confidence_score}% Precedent Match</span>
+              </div>
+              <div style="font-size:15px;font-weight:800;color:#f8fafc;margin-bottom:2px;">${catLabel}</div>
+              <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">${data.handbook_citation}</div>
+              ${hoursHtml}
+              <div style="margin-top:8px;background:#0f172a;padding:8px 10px;border-radius:8px;font-size:12px;color:#cbd5e1;border-left:3px solid #3b82f6;">
+                <b>💡 Rationale:</b> ${data.rationale}
+              </div>
+              <button onclick="applyAiRecommendation()" style="margin-top:10px;width:100%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;padding:8px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;">⚡ Apply to Decision Form</button>
             </div>
-            <div style="font-size:16px;font-weight:800;color:#f8fafc;margin-bottom:4px;">${catLabel}</div>
-            <div style="font-size:12px;color:#94a3b8;">${data.handbook_citation}</div>
-            ${hoursHtml}
-            <div style="margin-top:12px;background:#0f172a;padding:12px;border-radius:10px;font-size:13px;line-height:1.5;color:#e2e8f0;border-left:4px solid #3b82f6;">
-              <b>💡 Rationale:</b> ${data.rationale}
-            </div>
-            ${precHtml}
+            <div style="font-size:11px;color:#64748b;text-align:center;">You can now ask questions below about this hearing!</div>
           `;
-          if (btnApply) btnApply.style.display = 'inline-block';
       })
       .catch(err => {
-          content.innerHTML = `<div style="color:#ef4444;padding:16px;">Failed to load AI recommendation.</div>`;
+          thread.innerHTML = `<div style="color:#ef4444;padding:12px;">Failed to load AI recommendation.</div>`;
       });
 }
 
 function sendAiChat(presetText) {
     const input = document.getElementById('aiChatInput');
-    const content = document.getElementById('aiModalContent');
+    const thread = document.getElementById('aiChatThread');
     const query = presetText || (input ? input.value.trim() : '');
     if (!query) return;
     if (input) input.value = '';
 
-    content.innerHTML += `<div style="margin-top:10px;text-align:right;"><span style="background:#2563eb;color:#fff;padding:6px 12px;border-radius:12px;font-size:12px;display:inline-block;">${query}</span></div>`;
-    content.scrollTop = content.scrollHeight;
+    thread.innerHTML += `<div style="text-align:right;"><span style="background:#2563eb;color:#fff;padding:7px 13px;border-radius:16px 16px 2px 16px;font-size:12px;display:inline-block;max-width:80%;">${query}</span></div>`;
+    thread.scrollTop = thread.scrollHeight;
 
     fetch(`../admin/api_ai_suggest_sanction.php?action=chat&case_id=<?= $caseId ?>&query=${encodeURIComponent(query)}`)
       .then(res => res.json())
       .then(data => {
           if (data.ok && data.reply) {
-              content.innerHTML += `<div style="margin-top:10px;text-align:left;"><div style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:10px 14px;border-radius:12px;font-size:12px;line-height:1.5;">${data.reply}</div></div>`;
-              content.scrollTop = content.scrollHeight;
+              thread.innerHTML += `<div style="text-align:left;"><div style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:9px 13px;border-radius:16px 16px 16px 2px;font-size:12px;line-height:1.5;max-width:88%;">${data.reply}</div></div>`;
+              thread.scrollTop = thread.scrollHeight;
           }
       });
 }
@@ -3003,8 +3003,7 @@ function applyAiRecommendation() {
     if (hrsInput && currentAiRec.suggested_hours > 0) {
         hrsInput.value = currentAiRec.suggested_hours;
     }
-    closeAiAdvisorModal();
-    alert('✨ AI Recommendation applied to decision form!');
+    alert('⚡ AI Recommendation applied to decision form!');
 }
 </script>
 </body>
