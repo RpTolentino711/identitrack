@@ -68,11 +68,11 @@ function send_upcc_recovery_email(string $toEmail, string $toName, string $otp):
         $mail->Port      = 587;
         $mail->SMTPAuth  = true;
         $mail->SMTPSecure = 'tls';
-        $mail->Username  = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-        $mail->Password  = $_ENV['SMTP_PASS'] ?? '';
-        $mail->Timeout   = 30;
+        $mail->Username  = db_smtp_user();
+        $mail->Password  = db_smtp_pass();
+        $mail->Timeout   = 15;
 
-        $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'UPCC Panel');
+        $mail->setFrom(db_smtp_user(), 'UPCC Panel');
         $mail->addAddress($toEmail, $toName);
         $mail->addReplyTo('no-reply@identitrack.local', 'UPCC Panel');
 

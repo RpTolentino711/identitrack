@@ -106,6 +106,18 @@ function db_encryption_key(): string
   return $key;
 }
 
+function db_smtp_user(): string
+{
+  $val = trim((string)($_ENV['SMTP_USER'] ?? $_SERVER['SMTP_USER'] ?? getenv('SMTP_USER') ?: ''));
+  return $val !== '' ? $val : 'identitrack@identitrack.site';
+}
+
+function db_smtp_pass(): string
+{
+  $val = trim((string)($_ENV['SMTP_PASS'] ?? $_SERVER['SMTP_PASS'] ?? getenv('SMTP_PASS') ?: ''));
+  return $val !== '' ? $val : 'Pogilameg@10';
+}
+
 function getConnection(): PDO
 {
   return db();
@@ -898,8 +910,8 @@ function upcc_send_panel_assignment_email(int $caseId, array $panelIds): array {
             $mail->Port = 587;
             $mail->SMTPAuth = true;
             $mail->SMTPSecure = 'tls';
-            $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-            $mail->Password = $_ENV['SMTP_PASS'] ?? '';
+            $mail->Username = db_smtp_user();
+            $mail->Password = db_smtp_pass();
             $mail->Timeout = 30;
 
             $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack UPCC');
@@ -976,8 +988,8 @@ function upcc_process_panel_reminders(): void {
             $mail->Port = 587;
             $mail->SMTPAuth = true;
             $mail->SMTPSecure = 'tls';
-            $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-            $mail->Password = $_ENV['SMTP_PASS'] ?? '';
+            $mail->Username = db_smtp_user();
+            $mail->Password = db_smtp_pass();
             $mail->Timeout = 30;
 
             $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack UPCC');
@@ -1051,8 +1063,8 @@ function upcc_send_explanation_notification(int $caseId): array {
             $mail->Port = 587;
             $mail->SMTPAuth = true;
             $mail->SMTPSecure = 'tls';
-            $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-            $mail->Password = $_ENV['SMTP_PASS'] ?? '';
+            $mail->Username = db_smtp_user();
+            $mail->Password = db_smtp_pass();
             $mail->Timeout = 30;
 
             $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack UPCC');
@@ -1110,8 +1122,8 @@ function send_student_community_service_email(string $studentId, string $taskNam
         $mail->Port      = 587;
         $mail->SMTPAuth  = true;
         $mail->SMTPSecure = 'tls';
-        $mail->Username  = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-        $mail->Password  = $_ENV['SMTP_PASS'] ?? '';
+        $mail->Username  = db_smtp_user();
+        $mail->Password  = db_smtp_pass();
         $mail->Timeout   = 30;
 
         $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack Community Service');
