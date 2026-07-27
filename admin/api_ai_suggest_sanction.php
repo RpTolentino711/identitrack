@@ -70,6 +70,14 @@ try {
     ", [':sid' => $targetStudentId]);
     $totalPrior = max(0, (int)($totalPriorRow['cnt'] ?? 1) - 1);
 
+    // Count total MAJOR offenses for this student (for Cumulative Major Violation Escalation)
+    $totalMajorRow = db_one("
+        SELECT COUNT(*) as cnt FROM offense o
+        JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+        WHERE o.student_id = :sid AND ot.level = 'MAJOR'
+    ", [':sid' => $targetStudentId]);
+    $totalMajorCount = max(1, (int)($totalMajorRow['cnt'] ?? 1));
+
     // 1. Read E:\ Drive Dataset (with local fallback)
     $datasetPath = 'E:\identitrack_ai_dataset\sanction_history_dataset.json';
     if (!file_exists($datasetPath)) {
@@ -89,7 +97,22 @@ try {
     $handbookCitation = "NU Lipa Student Handbook Section 3.1";
     $rationale = "";
 
-    if ($offenseLevel === 'MINOR') {
+    // Check Cumulative Major Escalation Rule (2 or more Major Offenses -> Category 4 or 5)
+    if ($offenseLevel === 'MAJOR' && $totalMajorCount >= 2) {
+        if ($totalMajorCount === 2) {
+            $suggestedCategory = 4;
+            $suggestedHours = 0;
+            $probationDays = 365;
+            $handbookCitation = "NU Lipa Student Handbook Section 4.4.B";
+            $rationale = "Cumulative Major Violations (Student has 2 Major Offenses on record): Escalated to Category 4 Exclusion / Dismissal.";
+        } else {
+            $suggestedCategory = 5;
+            $suggestedHours = 0;
+            $probationDays = 365;
+            $handbookCitation = "NU Lipa Student Handbook Section 4.5.B";
+            $rationale = "Chronic Major Violations (Student has {$totalMajorCount} Major Offenses on record): Escalated to Category 5 Summary Expulsion.";
+        }
+    } elseif ($offenseLevel === 'MINOR') {
         if ($instanceCount === 1) {
             $suggestedCategory = 1;
             $suggestedHours = 0;
@@ -176,17 +199,19 @@ try {
         // Generate in-scope intelligent response
         $reply = "";
         if (strpos($lowerQuery, 'history') !== false || strpos($lowerQuery, 'prior') !== false || strpos($lowerQuery, 'past') !== false) {
-            $reply = "📋 **Student Disciplinary History**: Student ID **{$targetStudentId}** currently has **{$instanceCount}** instance(s) of offense type `{$offenseName}` on record, with **{$totalPrior}** additional prior violation(s) logged in the database.";
+            $reply = "📋 **Student Disciplinary History**: Student ID **{$targetStudentId}** has **{$totalMajorCount}** Major Offense(s) and **{$instanceCount}** instance(s) of `{$offenseName}` on record.";
         } elseif (strpos($lowerQuery, 'handbook') !== false || strpos($lowerQuery, 'section') !== false || strpos($lowerQuery, 'rule') !== false) {
-            $reply = "📜 **Student Handbook Policy**: According to **{$handbookCitation}**, a **{$offenseLevel}** violation (Category " . ($majorCategory ?? 1) . ") for `{$offenseName}` requires: *{$rationale}*";
+            $reply = "📜 **Student Handbook Policy**: According to **{$handbookCitation}**: *{$rationale}*";
         } elseif (strpos($lowerQuery, 'hour') !== false || strpos($lowerQuery, 'service') !== false) {
             if ($suggestedHours > 0) {
-                $reply = "⏱️ **Community Service Calculation**: Recommended **{$suggestedHours} Hours** based on Base (15h) + Repeat Instance Escalation (#{$instanceCount}) + Prior Violations ({$totalPrior}).";
+                $reply = "⏱️ **Community Service Calculation**: Recommended **{$suggestedHours} Hours** based on Base (15h) + Repeat Instance Escalation (#{$instanceCount}).";
             } else {
-                $reply = "⏱️ **Service Hours**: Community service is applicable for Category 2 offenses. Current offense falls under Category {$suggestedCategory} ({$rationale}).";
+                $reply = "⏱️ **Service Hours**: Community service applies to Category 2. Current case status is Category {$suggestedCategory} ({$rationale}).";
             }
+        } elseif (strpos($lowerQuery, 'suggest') !== false || strpos($lowerQuery, 'recommend') !== false || strpos($lowerQuery, 'sanction') !== false) {
+            $reply = "🎯 **AI Sanction Suggestion**: Category **Category {$suggestedCategory}** under **{$handbookCitation}**. Rationale: *{$rationale}*";
         } else {
-            $reply = "⚖️ **Hearing Case Summary**: For Student **{$targetStudentId}** facing `{$offenseName}` (Instance #{$instanceCount}): Recommended Category is **Category {$suggestedCategory}** per **{$handbookCitation}**. Rationale: *{$rationale}*";
+            $reply = "⚖️ **Hearing Case Summary**: Student **{$targetStudentId}** facing `{$offenseName}` (Major Count: {$totalMajorCount}). Suggested Category: **Category {$suggestedCategory}** under **{$handbookCitation}**.";
         }
 
         echo json_encode([
@@ -225,6 +250,7 @@ try {
         'offense_name' => $offenseName,
         'instance_count' => $instanceCount,
         'total_prior_offenses' => $totalPrior,
+        'total_major_count' => $totalMajorCount,
         'suggested_category' => $suggestedCategory,
         'suggested_hours' => $suggestedHours,
         'probation_days' => $probationDays,

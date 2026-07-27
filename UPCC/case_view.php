@@ -2895,6 +2895,7 @@ syncLive(); // immediate first call
 
   <!-- QUICK ACTION CHIPS -->
   <div style="padding:8px 12px;background:#0f172a;border-top:1px solid #1e293b;display:flex;gap:6px;overflow-x:auto;">
+    <button onclick="sendAiChat('Show AI sanction recommendation')" style="white-space:nowrap;background:#2563eb;border:none;color:#fff;font-size:11px;padding:5px 12px;border-radius:14px;cursor:pointer;font-weight:700;">🎯 AI Suggestion</button>
     <button onclick="sendAiChat('Show student offense history')" style="white-space:nowrap;background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;">📋 Offense History</button>
     <button onclick="sendAiChat('Show Handbook policy rule')" style="white-space:nowrap;background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;">📜 Handbook Rule</button>
     <button onclick="sendAiChat('Calculate community service hours')" style="white-space:nowrap;background:#1e293b;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;">⏱️ Service Hours</button>
@@ -2909,7 +2910,6 @@ syncLive(); // immediate first call
 
 <script>
 let isAiDrawerOpen = false;
-let currentAiRec = null;
 
 function toggleAiDrawer() {
     const drawer = document.getElementById('aiChatDrawer');
@@ -2920,55 +2920,25 @@ function toggleAiDrawer() {
     if (isAiDrawerOpen) {
         drawer.style.transform = 'translateY(0)';
         if (bubble) bubble.style.display = 'none';
-        if (!currentAiRec) fetchAiRecommendation();
+        initAiGreeting();
     } else {
         drawer.style.transform = 'translateY(120%)';
         if (bubble) bubble.style.display = 'flex';
     }
 }
 
-function fetchAiRecommendation() {
+function initAiGreeting() {
     const thread = document.getElementById('aiChatThread');
-    if (!thread) return;
+    if (!thread || thread.dataset.loaded === '1') return;
+    thread.dataset.loaded = '1';
     
-    thread.innerHTML = `<div style="text-align:center;padding:20px;color:#64748b;font-size:12px;"><div style="font-size:24px;margin-bottom:6px;">🧠</div>Scanning E:\\ Drive dataset & calculating Handbook rules...</div>`;
-    
-    fetch('../admin/api_ai_suggest_sanction.php?case_id=<?= $caseId ?>')
-      .then(res => res.json())
-      .then(data => {
-          if (!data.ok) {
-              thread.innerHTML = `<div style="color:#ef4444;padding:12px;background:#1e293b;border-radius:10px;"><b>Error:</b> ${data.error}</div>`;
-              return;
-          }
-          currentAiRec = data;
-          let catLabel = 'Category ' + data.suggested_category;
-          if (data.suggested_category === 1) catLabel += ' (Probation)';
-          else if (data.suggested_category === 2) catLabel += ' (Community Service)';
-          else if (data.suggested_category === 3) catLabel += ' (Suspension)';
-          else if (data.suggested_category === 4) catLabel += ' (Dismissal)';
-          else if (data.suggested_category === 5) catLabel += ' (Expulsion)';
-
-          let hoursHtml = data.suggested_hours > 0 ? `<div style="margin-top:6px;font-size:13px;color:#60a5fa;font-weight:700;">⏱️ Recommended Service Hours: ${data.suggested_hours} Hours</div>` : '';
-
-          thread.innerHTML = `
-            <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:12px;color:#e2e8f0;font-size:13px;line-height:1.5;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                <span style="font-size:11px;font-weight:800;color:#38bdf8;text-transform:uppercase;">AI Sanction Analysis</span>
-                <span style="background:#0284c7;color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;">${data.confidence_score}% Precedent Match</span>
-              </div>
-              <div style="font-size:15px;font-weight:800;color:#f8fafc;margin-bottom:2px;">${catLabel}</div>
-              <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">${data.handbook_citation}</div>
-              ${hoursHtml}
-              <div style="margin-top:8px;background:#0f172a;padding:8px 10px;border-radius:8px;font-size:12px;color:#cbd5e1;border-left:3px solid #3b82f6;">
-                <b>💡 Rationale:</b> ${data.rationale}
-              </div>
-            </div>
-            <div style="font-size:11px;color:#64748b;text-align:center;">You can now ask questions below about this hearing!</div>
-          `;
-      })
-      .catch(err => {
-          thread.innerHTML = `<div style="color:#ef4444;padding:12px;">Failed to load AI recommendation.</div>`;
-      });
+    thread.innerHTML = `
+      <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:12px;color:#e2e8f0;font-size:13px;line-height:1.5;">
+        <div style="font-weight:800;color:#38bdf8;margin-bottom:4px;">👋 Hello Panel Member!</div>
+        <div>I am your <b>IdentiTrack AI Hearing Assistant</b>. I have loaded and analyzed the student's case file against the <b>NU Lipa Student Handbook</b> and disk precedents.</div>
+        <div style="margin-top:8px;font-size:12px;color:#94a3b8;">How can I assist your panel today? Tap a prompt below or type your question!</div>
+      </div>
+    `;
 }
 
 function sendAiChat(presetText) {
