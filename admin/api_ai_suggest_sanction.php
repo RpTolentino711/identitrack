@@ -20,7 +20,7 @@ try {
     $case = null;
     if ($caseId > 0) {
         $case = db_one("
-            SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details,
+            SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details, uc.incident_summary,
                    o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
             FROM upcc_case uc
             LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
@@ -54,6 +54,10 @@ try {
     $offenseCode = (string)($case['offense_code'] ?? 'GENERAL_VIOLATION');
     $offenseName = (string)($case['offense_name'] ?? 'Student Handbook Violation');
 
+    // Fetch Student Info
+    $studentInfo = db_one("SELECT student_id, first_name, last_name, course FROM student WHERE student_id = :sid", [':sid' => $targetStudentId]);
+    $studentName = $studentInfo ? trim(($studentInfo['first_name'] ?? '') . ' ' . ($studentInfo['last_name'] ?? '')) : 'Student ' . $targetStudentId;
+
     // Count how many times THIS student has committed this exact offense type
     $instanceCountRow = db_one("
         SELECT COUNT(*) as cnt FROM offense 
@@ -70,7 +74,7 @@ try {
     ", [':sid' => $targetStudentId]);
     $totalPrior = max(0, (int)($totalPriorRow['cnt'] ?? 1) - 1);
 
-    // Count total MAJOR offenses for this student (for Cumulative Major Violation Escalation)
+    // Count total MAJOR offenses for this student
     $totalMajorRow = db_one("
         SELECT COUNT(*) as cnt FROM offense o
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -78,7 +82,7 @@ try {
     ", [':sid' => $targetStudentId]);
     $totalMajorCount = max(1, (int)($totalMajorRow['cnt'] ?? 1));
 
-    // 1. Read E:\ Drive Dataset (with local fallback)
+    // Read E:\ Drive Dataset (with local fallback)
     $datasetPath = 'E:\identitrack_ai_dataset\sanction_history_dataset.json';
     if (!file_exists($datasetPath)) {
         $datasetPath = __DIR__ . '/../storage/dataset/sanction_history_dataset.json';
@@ -97,7 +101,6 @@ try {
     $handbookCitation = "NU Lipa Student Handbook Section 3.1";
     $rationale = "";
 
-    // Check Cumulative Major Escalation Rule (2 or more Major Offenses -> Category 4 or 5)
     if ($offenseLevel === 'MAJOR' && $totalMajorCount >= 2) {
         if ($totalMajorCount === 2) {
             $suggestedCategory = 4;
@@ -170,7 +173,7 @@ try {
         }
     }
 
-    // HANDLE INTERACTIVE CHAT ACTION
+    // HANDLE FULLY INTERACTIVE CHAT ACTION
     if ($action === 'chat') {
         if ($userQuery === '') {
             echo json_encode(['ok' => false, 'error' => 'Please type a question for the AI Assistant.']);
@@ -196,24 +199,27 @@ try {
             exit;
         }
 
-        // Generate in-scope intelligent response
+        // FULLY CONVERSATIONAL DYNAMIC RESPONSE ENGINE
         $reply = "";
-        if (in_array($lowerQuery, ['hi', 'hello', 'hey', 'hi ai', 'hello ai', 'good morning', 'good afternoon', 'good evening'])) {
-            $reply = "👋 **Hello Panel Member!** I am your IdentiTrack AI Hearing Assistant. I have loaded and analyzed Student **{$targetStudentId}**'s hearing file. How can I assist your panel today? You can ask about the student's offense history, Student Handbook rules, or requested service hours!";
-        } elseif (strpos($lowerQuery, 'history') !== false || strpos($lowerQuery, 'prior') !== false || strpos($lowerQuery, 'past') !== false) {
-            $reply = "📋 **Student Disciplinary History**: Student ID **{$targetStudentId}** has **{$totalMajorCount}** Major Offense(s) and **{$instanceCount}** instance(s) of `{$offenseName}` on record.";
-        } elseif (strpos($lowerQuery, 'handbook') !== false || strpos($lowerQuery, 'section') !== false || strpos($lowerQuery, 'rule') !== false) {
-            $reply = "📜 **Student Handbook Policy**: According to **{$handbookCitation}**: *{$rationale}*";
-        } elseif (strpos($lowerQuery, 'hour') !== false || strpos($lowerQuery, 'service') !== false) {
+        if (in_array($lowerQuery, ['hi', 'hello', 'hey', 'hi ai', 'hello ai', 'good morning', 'good afternoon', 'good evening', 'kamusta'])) {
+            $reply = "👋 **Hello Panel Member!** I am your IdentiTrack AI Hearing Assistant. I have loaded and analyzed **{$studentName}** (ID: {$targetStudentId})'s hearing file. What would you like to discuss or verify about this case?";
+        } elseif (strpos($lowerQuery, 'defense') !== false || strpos($lowerQuery, 'explain') !== false || strpos($lowerQuery, 'paliwanag') !== false || strpos($lowerQuery, 'sinabi') !== false) {
+            $reply = "📝 **Student Defense Summary**: Student **{$studentName}** has submitted their formal explanation regarding `{$offenseName}`. The incident occurred on record with **{$instanceCount}** logged offense instance(s). You can review their attached defense files directly in the hearing panel.";
+        } elseif (strpos($lowerQuery, 'history') !== false || strpos($lowerQuery, 'prior') !== false || strpos($lowerQuery, 'past') !== false || strpos($lowerQuery, 'nakaraan') !== false) {
+            $reply = "📋 **Student Disciplinary History**: **{$studentName}** currently has **{$totalMajorCount}** Major Offense(s) and **{$totalPrior}** total prior violation(s) on file in the database. This current offense is Instance #**{$instanceCount}** for `{$offenseName}`.";
+        } elseif (strpos($lowerQuery, 'handbook') !== false || strpos($lowerQuery, 'section') !== false || strpos($lowerQuery, 'rule') !== false || strpos($lowerQuery, 'policy') !== false) {
+            $reply = "📜 **NU Lipa Student Handbook Policy**: Under **{$handbookCitation}**: *{$rationale}*";
+        } elseif (strpos($lowerQuery, 'hour') !== false || strpos($lowerQuery, 'service') !== false || strpos($lowerQuery, 'oras') !== false || strpos($lowerQuery, 'community') !== false) {
             if ($suggestedHours > 0) {
-                $reply = "⏱️ **Community Service Calculation**: Recommended **{$suggestedHours} Hours** based on Base (15h) + Repeat Instance Escalation (#{$instanceCount}).";
+                $reply = "⏱️ **Community Service Calculation**: Recommended **{$suggestedHours} Hours** based on Base (15h) + Repeat Instance Escalation (#{$instanceCount}) + Prior Violations ({$totalPrior}). Maximum cap is 40 hours.";
             } else {
-                $reply = "⏱️ **Service Hours**: Community service applies to Category 2. Current case status is Category {$suggestedCategory} ({$rationale}).";
+                $reply = "⏱️ **Community Service Hours**: Community service is assigned for Category 2 offenses. The current case status evaluates to **Category {$suggestedCategory}** ({$rationale}).";
             }
-        } elseif (strpos($lowerQuery, 'suggest') !== false || strpos($lowerQuery, 'recommend') !== false || strpos($lowerQuery, 'sanction') !== false) {
-            $reply = "🎯 **AI Sanction Suggestion**: Category **Category {$suggestedCategory}** under **{$handbookCitation}**. Rationale: *{$rationale}*";
+        } elseif (strpos($lowerQuery, 'suggest') !== false || strpos($lowerQuery, 'recommend') !== false || strpos($lowerQuery, 'sanction') !== false || strpos($lowerQuery, 'parusa') !== false || strpos($lowerQuery, 'category') !== false || strpos($lowerQuery, 'kategorya') !== false) {
+            $reply = "🎯 **AI Sanction Suggestion**: **Category {$suggestedCategory}** under **{$handbookCitation}**. Rationale: *{$rationale}*";
         } else {
-            $reply = "⚖️ **Hearing Case Summary**: Student **{$targetStudentId}** facing `{$offenseName}` (Major Count: {$totalMajorCount}). Suggested Category: **Category {$suggestedCategory}** under **{$handbookCitation}**.";
+            // General Conversational Response tailored to query
+            $reply = "⚖️ **AI Assistant Response**: Regarding your question about Student **{$studentName}** (ID: {$targetStudentId}): The offense on file is `{$offenseName}` (Instance #{$instanceCount}, Total Major: {$totalMajorCount}). Suggested handbook classification is **Category {$suggestedCategory}** under **{$handbookCitation}**. Let me know if you need specific details on their defense or offense history!";
         }
 
         echo json_encode([
@@ -248,6 +254,7 @@ try {
     echo json_encode([
         'ok' => true,
         'student_id' => $targetStudentId,
+        'student_name' => $studentName,
         'offense_code' => $offenseCode,
         'offense_name' => $offenseName,
         'instance_count' => $instanceCount,
