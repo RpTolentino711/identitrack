@@ -34,10 +34,11 @@ function send_otp_email(string $toEmail, string $otp): array {
     $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
     $mail->SMTPAuth = true;
     $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-    $mail->Password = $_ENV['SMTP_PASS'] ?? '';
+    $mail->Password = $_ENV['SMTP_PASS'] ?? 'Pogilameg@10';
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
     $mail->SMTPAutoTLS = true;
+    $mail->Timeout = 10;
 
     $mail->CharSet = 'UTF-8';
     $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack SDO');
