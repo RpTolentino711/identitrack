@@ -9,6 +9,8 @@ header('Content-Type: application/json; charset=utf-8');
 try {
     $caseId = (int)($_GET['case_id'] ?? $_POST['case_id'] ?? 0);
     $studentId = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
+    $action = trim((string)($_GET['action'] ?? $_POST['action'] ?? 'suggest'));
+    $userQuery = trim((string)($_GET['query'] ?? $_POST['query'] ?? ''));
 
     if ($caseId <= 0 && $studentId === '') {
         echo json_encode(['ok' => false, 'error' => 'Case ID or Student ID required.']);
@@ -80,27 +82,7 @@ try {
         $dataset = json_decode((string)$jsonContent, true) ?: [];
     }
 
-    // 2. Precedent Match Engine (Calculate similarity scores against E: drive dataset)
-    $matchedPrecedents = [];
-    foreach ($dataset as $row) {
-        $score = 0.0;
-        if (($row['offense_code'] ?? '') === $offenseCode) $score += 40.0;
-        if (($row['offense_level'] ?? '') === $offenseLevel) $score += 20.0;
-        if ($majorCategory !== null && (int)($row['major_category'] ?? 0) === $majorCategory) $score += 20.0;
-        if ((int)($row['instance_number'] ?? 1) === $instanceCount) $score += 10.0;
-        if (abs((int)($row['prior_total_offenses'] ?? 0) - $totalPrior) <= 1) $score += 10.0;
-
-        if ($score > 30.0) {
-            $row['_match_score'] = round($score, 1);
-            $matchedPrecedents[] = $row;
-        }
-    }
-
-    usort($matchedPrecedents, fn($a, $b) => $b['_match_score'] <=> $a['_match_score']);
-    $topPrecedents = array_slice($matchedPrecedents, 0, 3);
-    $bestMatchScore = !empty($topPrecedents) ? (float)$topPrecedents[0]['_match_score'] : 92.0;
-
-    // 3. Strict Student Handbook Recommendation Engine
+    // Calculate baseline suggestion
     $suggestedCategory = 1;
     $suggestedHours = 0;
     $probationDays = 30;
@@ -128,7 +110,6 @@ try {
             $rationale = "3rd Minor Offense: Escalated to Category 2 Community Service (15 Hours) per chronic policy.";
         }
     } else {
-        // MAJOR Offense Category 1 to 5 Strict Mapping
         $cat = $majorCategory ?? 1;
         if ($cat === 1) {
             $suggestedCategory = 1;
@@ -138,7 +119,6 @@ try {
             $rationale = "Major Category 1: Formal Reprimand & Active Semester Probation.";
         } elseif ($cat === 2) {
             $suggestedCategory = 2;
-            // Base 15 Hours + 15 Hours per repeat instance + 5 Hours per prior violation
             $baseHours = 15;
             $extraInstance = ($instanceCount - 1) * 15;
             $extraPrior = $totalPrior * 5;
@@ -166,6 +146,77 @@ try {
             $rationale = "Major Category 5: Summary Expulsion and Police Referral.";
         }
     }
+
+    // HANDLE INTERACTIVE CHAT ACTION
+    if ($action === 'chat') {
+        if ($userQuery === '') {
+            echo json_encode(['ok' => false, 'error' => 'Please type a question for the AI Assistant.']);
+            exit;
+        }
+
+        $lowerQuery = strtolower($userQuery);
+        $outOfScopeKeywords = ['weather', 'recipe', 'game', 'movie', 'song', 'sports', 'crypto', 'president', 'math', 'code'];
+        $isOutOfScope = false;
+        foreach ($outOfScopeKeywords as $kw) {
+            if (strpos($lowerQuery, $kw) !== false && strpos($lowerQuery, 'handbook') === false && strpos($lowerQuery, 'offense') === false) {
+                $isOutOfScope = true;
+                break;
+            }
+        }
+
+        if ($isOutOfScope) {
+            echo json_encode([
+                'ok' => true,
+                'action' => 'chat',
+                'reply' => "⚠️ **Scope Restriction**: I am strictly configured as the **IdentiTrack AI Hearing Assistant**. I can only assist with questions regarding this specific hearing, student defense evidence, offense history, and the NU Lipa Student Handbook."
+            ]);
+            exit;
+        }
+
+        // Generate in-scope intelligent response
+        $reply = "";
+        if (strpos($lowerQuery, 'history') !== false || strpos($lowerQuery, 'prior') !== false || strpos($lowerQuery, 'past') !== false) {
+            $reply = "📋 **Student Disciplinary History**: Student ID **{$targetStudentId}** currently has **{$instanceCount}** instance(s) of offense type `{$offenseName}` on record, with **{$totalPrior}** additional prior violation(s) logged in the database.";
+        } elseif (strpos($lowerQuery, 'handbook') !== false || strpos($lowerQuery, 'section') !== false || strpos($lowerQuery, 'rule') !== false) {
+            $reply = "📜 **Student Handbook Policy**: According to **{$handbookCitation}**, a **{$offenseLevel}** violation (Category " . ($majorCategory ?? 1) . ") for `{$offenseName}` requires: *{$rationale}*";
+        } elseif (strpos($lowerQuery, 'hour') !== false || strpos($lowerQuery, 'service') !== false) {
+            if ($suggestedHours > 0) {
+                $reply = "⏱️ **Community Service Calculation**: Recommended **{$suggestedHours} Hours** based on Base (15h) + Repeat Instance Escalation (#{$instanceCount}) + Prior Violations ({$totalPrior}).";
+            } else {
+                $reply = "⏱️ **Service Hours**: Community service is applicable for Category 2 offenses. Current offense falls under Category {$suggestedCategory} ({$rationale}).";
+            }
+        } else {
+            $reply = "⚖️ **Hearing Case Summary**: For Student **{$targetStudentId}** facing `{$offenseName}` (Instance #{$instanceCount}): Recommended Category is **Category {$suggestedCategory}** per **{$handbookCitation}**. Rationale: *{$rationale}*";
+        }
+
+        echo json_encode([
+            'ok' => true,
+            'action' => 'chat',
+            'query' => $userQuery,
+            'reply' => $reply
+        ]);
+        exit;
+    }
+
+    // Default Suggestion Output
+    $matchedPrecedents = [];
+    foreach ($dataset as $row) {
+        $score = 0.0;
+        if (($row['offense_code'] ?? '') === $offenseCode) $score += 40.0;
+        if (($row['offense_level'] ?? '') === $offenseLevel) $score += 20.0;
+        if ($majorCategory !== null && (int)($row['major_category'] ?? 0) === $majorCategory) $score += 20.0;
+        if ((int)($row['instance_number'] ?? 1) === $instanceCount) $score += 10.0;
+        if (abs((int)($row['prior_total_offenses'] ?? 0) - $totalPrior) <= 1) $score += 10.0;
+
+        if ($score > 30.0) {
+            $row['_match_score'] = round($score, 1);
+            $matchedPrecedents[] = $row;
+        }
+    }
+
+    usort($matchedPrecedents, fn($a, $b) => $b['_match_score'] <=> $a['_match_score']);
+    $topPrecedents = array_slice($matchedPrecedents, 0, 3);
+    $bestMatchScore = !empty($topPrecedents) ? (float)$topPrecedents[0]['_match_score'] : 92.0;
 
     echo json_encode([
         'ok' => true,
