@@ -2962,7 +2962,6 @@ function fetchAiRecommendation() {
               <div style="margin-top:8px;background:#0f172a;padding:8px 10px;border-radius:8px;font-size:12px;color:#cbd5e1;border-left:3px solid #3b82f6;">
                 <b>💡 Rationale:</b> ${data.rationale}
               </div>
-              <button onclick="applyAiRecommendation()" style="margin-top:10px;width:100%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;padding:8px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;">⚡ Apply to Decision Form</button>
             </div>
             <div style="font-size:11px;color:#64748b;text-align:center;">You can now ask questions below about this hearing!</div>
           `;
@@ -2990,20 +2989,6 @@ function sendAiChat(presetText) {
               thread.scrollTop = thread.scrollHeight;
           }
       });
-}
-
-function applyAiRecommendation() {
-    if (!currentAiRec) return;
-    const catInput = document.getElementById('suggest_category') || document.getElementById('decided_category');
-    const hrsInput = document.getElementById('suggest_hours') || document.getElementById('hours_required');
-    if (catInput) {
-        catInput.value = currentAiRec.suggested_category;
-        catInput.dispatchEvent(new Event('change'));
-    }
-    if (hrsInput && currentAiRec.suggested_hours > 0) {
-        hrsInput.value = currentAiRec.suggested_hours;
-    }
-    alert('⚡ AI Recommendation applied to decision form!');
 }
 </script>
 </body>
