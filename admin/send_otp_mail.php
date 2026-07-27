@@ -213,7 +213,8 @@ if ($action === 'edit_sanction' && !empty($_SESSION[$lockKey]) && time() < (int)
 if (!isset($_SESSION['otp'])) $_SESSION['otp'] = [];
 if (!isset($_SESSION['otp'][$key])) $_SESSION['otp'][$key] = [];
 
-if (!empty($_SESSION['otp'][$key]['last_sent'])) {
+$force = isset($_POST['force']) && ($_POST['force'] === '1' || $_POST['force'] === 1);
+if (!$force && !empty($_SESSION['otp'][$key]['last_sent']) && !empty($_SESSION['otp'][$key]['code'])) {
     $diff = time() - (int)$_SESSION['otp'][$key]['last_sent'];
     if ($diff < OTP_COOLDOWN_SECONDS) {
         http_response_code(429);

@@ -2360,6 +2360,7 @@ function formatCaseActivity(array $act): string {
       if (otpCooldownInterval) {
         clearInterval(otpCooldownInterval);
       }
+      otpCooldownSeconds = 0;
       if (lockoutInterval) {
         clearInterval(lockoutInterval);
       }
@@ -2820,13 +2821,16 @@ function formatCaseActivity(array $act): string {
       // Ensure the main edit modal overlay is visible now
       modalOverlay.classList.add('active');
 
-      // Trigger automatic OTP request
-      requestOTP();
+      // Trigger automatic OTP request (force fresh OTP)
+      requestOTP(true);
     }
 
-    function requestOTP() {
+    function requestOTP(force = false) {
       const btn = document.getElementById('btnResendOTP');
-      if (otpCooldownSeconds > 0) return;
+      if (!force && otpCooldownSeconds > 0) return;
+
+      if (otpCooldownInterval) clearInterval(otpCooldownInterval);
+      otpCooldownSeconds = 0;
 
       btn.disabled = true;
       btn.textContent = 'Sending...';
@@ -2834,7 +2838,7 @@ function formatCaseActivity(array $act): string {
       fetch('send_otp_mail.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=edit_sanction'
+        body: 'action=edit_sanction' + (force ? '&force=1' : '')
       })
       .then(res => res.json())
       .then(data => {
