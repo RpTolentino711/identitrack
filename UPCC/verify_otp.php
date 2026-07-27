@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    if ($submitted === $stored || $submitted === '123456') {
+    if ($submitted === $stored) {
         // ✅ Correct OTP — fetch user and set authenticated session
         $username = $_SESSION['upcc_otp_user'];
         $user = upcc_find_by_username($username);
