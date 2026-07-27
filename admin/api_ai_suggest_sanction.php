@@ -201,8 +201,8 @@ try {
 
         // FULLY CONVERSATIONAL DYNAMIC RESPONSE ENGINE
         $reply = "";
-        if (in_array($lowerQuery, ['hi', 'hello', 'hey', 'hi ai', 'hello ai', 'good morning', 'good afternoon', 'good evening', 'kamusta'])) {
-            $reply = "👋 **Hello Panel Member!** I am your IdentiTrack AI Hearing Assistant. I have loaded and analyzed **{$studentName}** (ID: {$targetStudentId})'s hearing file. What would you like to discuss or verify about this case?";
+        if (in_array($lowerQuery, ['hi', 'hello', 'hey', 'sup', 'sup ai', 'yo', 'wassup', 'watsup', 'hi ai', 'hello ai', 'good morning', 'good afternoon', 'good evening', 'kamusta'])) {
+            $reply = "👋 **Hello Panel Member!** I am your IdentiTrack AI Hearing Assistant. I have loaded and analyzed **{$studentName}** (ID: {$targetStudentId})'s hearing file. How can I assist your panel today? You can ask about offense history, Student Handbook rules, or community service hours!";
         } elseif (strpos($lowerQuery, 'defense') !== false || strpos($lowerQuery, 'explain') !== false || strpos($lowerQuery, 'paliwanag') !== false || strpos($lowerQuery, 'sinabi') !== false) {
             $reply = "📝 **Student Defense Summary**: Student **{$studentName}** has submitted their formal explanation regarding `{$offenseName}`. The incident occurred on record with **{$instanceCount}** logged offense instance(s). You can review their attached defense files directly in the hearing panel.";
         } elseif (strpos($lowerQuery, 'history') !== false || strpos($lowerQuery, 'prior') !== false || strpos($lowerQuery, 'past') !== false || strpos($lowerQuery, 'nakaraan') !== false) {

@@ -2940,16 +2940,23 @@ function sendAiChat(presetText) {
     if (!query) return;
     if (input) input.value = '';
 
-    thread.innerHTML += `<div style="text-align:right;"><span style="background:#2563eb;color:#fff;padding:7px 13px;border-radius:16px 16px 2px 16px;font-size:12px;display:inline-block;max-width:80%;">${query}</span></div>`;
+    thread.innerHTML += `<div style="text-align:right;margin-top:8px;"><span style="background:#2563eb;color:#fff;padding:7px 13px;border-radius:16px 16px 2px 16px;font-size:12px;display:inline-block;max-width:80%;">${query}</span></div>`;
     thread.scrollTop = thread.scrollHeight;
 
     fetch(`../admin/api_ai_suggest_sanction.php?action=chat&case_id=<?= $caseId ?>&query=${encodeURIComponent(query)}`)
       .then(res => res.json())
       .then(data => {
           if (data.ok && data.reply) {
-              thread.innerHTML += `<div style="text-align:left;"><div style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:9px 13px;border-radius:16px 16px 16px 2px;font-size:12px;line-height:1.5;max-width:88%;">${data.reply}</div></div>`;
-              thread.scrollTop = thread.scrollHeight;
+              thread.innerHTML += `<div style="text-align:left;margin-top:8px;"><div style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:9px 13px;border-radius:16px 16px 16px 2px;font-size:12px;line-height:1.5;max-width:88%;">${data.reply}</div></div>`;
+          } else {
+              let errText = data.error || 'No reply generated.';
+              thread.innerHTML += `<div style="text-align:left;margin-top:8px;"><div style="background:#1e293b;border:1px solid #ef4444;color:#f87171;padding:9px 13px;border-radius:12px;font-size:12px;">⚠️ ${errText}</div></div>`;
           }
+          thread.scrollTop = thread.scrollHeight;
+      })
+      .catch(err => {
+          thread.innerHTML += `<div style="text-align:left;margin-top:8px;"><div style="background:#1e293b;border:1px solid #ef4444;color:#f87171;padding:9px 13px;border-radius:12px;font-size:12px;">⚠️ Connection error: ${err.message}</div></div>`;
+          thread.scrollTop = thread.scrollHeight;
       });
 }
 </script>
