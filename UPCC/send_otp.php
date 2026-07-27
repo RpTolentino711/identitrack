@@ -53,7 +53,7 @@ if (!$isLocked) {
 
         $mail->setFrom(db_smtp_user(), 'UPCC Panel');
         $mail->addAddress($user['email'], $user['full_name']);
-        $mail->addReplyTo('no-reply@identitrack.local', 'UPCC Panel');
+        $mail->addReplyTo('no-reply@identitrack.site', 'UPCC Panel');
 
         $logoPath = realpath(__DIR__ . '/../assets/logo.png');
         $cid = 'upcclogo';

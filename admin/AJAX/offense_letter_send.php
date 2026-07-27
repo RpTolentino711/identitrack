@@ -194,7 +194,7 @@ $mail->isSMTP();
 
 $mail->setFrom($mail->Username, 'IdentiTrack Admin');
 $mail->addAddress($guardianEmail, $guardianName);
-$mail->addReplyTo('no-reply@identitrack.local', 'IdentiTrack');
+$mail->addReplyTo('no-reply@identitrack.site', 'IdentiTrack');
 
 $mail->isHTML(true);
 $mail->Subject = $subject;

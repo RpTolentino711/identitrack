@@ -69,7 +69,7 @@ function sendOTPEmail(string $toEmail, string $toName, string $action, string $o
 
     $mail->setFrom($mail->Username, 'IdentiTrack Admin');
     $mail->addAddress($toEmail, $toName ?: 'Admin');
-    $mail->addReplyTo('no-reply@identitrack.local', 'IdentiTrack');
+    $mail->addReplyTo('no-reply@identitrack.site', 'IdentiTrack');
 
     $actionLabel = themeActionLabel($action);
     $mail->isHTML(true);

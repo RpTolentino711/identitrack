@@ -134,12 +134,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       $mail->Port = 587;
                       $mail->SMTPAuth = true;
                       $mail->SMTPSecure = 'tls';
-                      $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-                      $mail->Password = $_ENV['SMTP_PASS'] ?? '';
+                      $mail->Username = db_smtp_user();
+                      $mail->Password = db_smtp_pass();
                       
                       $mail->setFrom($mail->Username, 'IdentiTrack Admin');
                       $mail->addAddress($guardianEmail, $guardianName);
-                      $mail->addReplyTo('no-reply@identitrack.local', 'IdentiTrack');
+                      $mail->addReplyTo('no-reply@identitrack.site', 'IdentiTrack');
                       
                       $mail->isHTML(true);
                       $mail->Subject = 'Major Offense Notice - UPCC Investigation Required';

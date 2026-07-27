@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'UPCC Panel');
                     $mail->addAddress($user['email'], $user['full_name']);
-                    $mail->addReplyTo('no-reply@identitrack.local', 'UPCC Panel');
+                    $mail->addReplyTo('no-reply@identitrack.site', 'UPCC Panel');
                     
                     $logoPath = realpath(__DIR__ . '/../assets/logo.png');
                     $cid = 'upcclogo';

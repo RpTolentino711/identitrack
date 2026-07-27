@@ -74,7 +74,7 @@ function send_upcc_recovery_email(string $toEmail, string $toName, string $otp):
 
         $mail->setFrom(db_smtp_user(), 'UPCC Panel');
         $mail->addAddress($toEmail, $toName);
-        $mail->addReplyTo('no-reply@identitrack.local', 'UPCC Panel');
+        $mail->addReplyTo('no-reply@identitrack.site', 'UPCC Panel');
 
         $logoPath = realpath(__DIR__ . '/../assets/logo.png');
         $cid = 'upcclogo';
