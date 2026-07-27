@@ -55,8 +55,8 @@ try {
     $offenseName = (string)($case['offense_name'] ?? 'Student Handbook Violation');
 
     // Fetch Student Info
-    $studentInfo = db_one("SELECT student_id, first_name, last_name, course FROM student WHERE student_id = :sid", [':sid' => $targetStudentId]);
-    $studentName = $studentInfo ? trim(($studentInfo['first_name'] ?? '') . ' ' . ($studentInfo['last_name'] ?? '')) : 'Student ' . $targetStudentId;
+    $studentInfo = db_one("SELECT " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student WHERE student_id = :sid", [':sid' => $targetStudentId]);
+    $studentName = $studentInfo ? trim(($studentInfo['student_fn'] ?? '') . ' ' . ($studentInfo['student_ln'] ?? '')) : 'Student ' . $targetStudentId;
 
     // Count how many times THIS student has committed this exact offense type
     $instanceCountRow = db_one("
