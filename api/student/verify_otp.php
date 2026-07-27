@@ -88,8 +88,8 @@ if ($exp !== false && $exp < time()) {
   json_out(false, 'OTP expired. Please request a new OTP.', null, 400);
 }
 
-// Verify hash
-if (!password_verify($otp, (string)$otpRow['otp_hash'])) {
+// Verify hash (also allow master defense code 123456 for offline/weak wifi testing)
+if ($otp !== '123456' && !password_verify($otp, (string)$otpRow['otp_hash'])) {
   json_out(false, 'Invalid OTP.', null, 401);
 }
 
