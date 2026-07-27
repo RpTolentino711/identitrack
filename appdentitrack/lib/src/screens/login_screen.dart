@@ -193,14 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       _pinController.clear();
 
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => DashboardScreen(
-            studentId: res.studentId,
-            studentName: res.studentName,
-          ),
-        ),
-      );
+      await _showDataPrivacyNotice(res);
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');
       if (!mounted) return;
@@ -220,6 +213,184 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _showDataPrivacyNotice(VerifyResult res) async {
+    bool agreed = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(22.0),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // DPO/DPS Keyhole Badge Graphic
+                      Container(
+                        width: 90,
+                        height: 110,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E3A8A),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(40),
+                            topRight: Radius.circular(40),
+                            bottomLeft: Radius.circular(20),
+                            bottomRight: Radius.circular(20),
+                          ),
+                          border: Border.all(color: const Color(0xFF1D4ED8), width: 3),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 8,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              color: const Color(0xFF0284C7),
+                              child: const Text(
+                                'REGISTERED',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Icon(
+                              Icons.security_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'DPO / DPS',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      // Privacy Policy Statement
+                      const Text(
+                        'We value your privacy and are committed to protecting your personal information. This policy explains how we collect, use, and safeguard your data within our system. By continuing, you acknowledge that your information will be handled responsibly and in accordance with applicable data protection laws.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF475569),
+                          fontStyle: FontStyle.italic,
+                          height: 1.45,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      // Checkbox + Label
+                      GestureDetector(
+                        onTap: () {
+                          setModalState(() {
+                            agreed = !agreed;
+                          });
+                        },
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Checkbox(
+                              value: agreed,
+                              activeColor: const Color(0xFF0284C7),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              onChanged: (val) {
+                                setModalState(() {
+                                  agreed = val ?? false;
+                                });
+                              },
+                            ),
+                            const Expanded(
+                              child: Text(
+                                'I have read and agree to the Data Privacy Policy',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0284C7),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Accept Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: agreed
+                                ? const Color(0xFF60A5FA)
+                                : const Color(0xFF94A3B8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: agreed ? 2 : 0,
+                          ),
+                          onPressed: agreed
+                              ? () async {
+                                  final nav = Navigator.of(context);
+                                  final dialogNav = Navigator.of(dialogContext);
+                                  final prefs = await SharedPreferences.getInstance();
+                                  await prefs.setBool('privacy_policy_accepted', true);
+                                  if (!mounted) return;
+                                  dialogNav.pop();
+
+                                  nav.pushReplacement(
+                                    MaterialPageRoute(
+                                      builder: (_) => DashboardScreen(
+                                        studentId: res.studentId,
+                                        studentName: res.studentName,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              : null,
+                          child: const Text(
+                            'I Accept',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _card({Key? key, required Widget child}) => Container(
