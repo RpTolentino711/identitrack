@@ -19,25 +19,25 @@ try {
     if ($caseId > 0) {
         $case = db_one("
             SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details,
-                   so.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
+                   o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
             FROM upcc_case uc
-            LEFT JOIN student_offense so ON so.student_id = uc.student_id
-            LEFT JOIN offense_type ot ON ot.offense_type_id = so.offense_type_id
+            LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
+            LEFT JOIN offense o ON o.offense_id = uco.offense_id
+            LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
             WHERE uc.case_id = :cid
-            ORDER BY so.created_at DESC LIMIT 1
+            ORDER BY o.date_committed DESC LIMIT 1
         ", [':cid' => $caseId]);
     }
 
     if (!$case && $studentId !== '') {
-        $key = db_encryption_key();
         $case = db_one("
             SELECT s.student_id,
-                   so.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
+                   o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
             FROM student s
-            LEFT JOIN student_offense so ON so.student_id = s.student_id
-            LEFT JOIN offense_type ot ON ot.offense_type_id = so.offense_type_id
+            LEFT JOIN offense o ON o.student_id = s.student_id
+            LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
             WHERE s.student_id = :sid
-            ORDER BY so.created_at DESC LIMIT 1
+            ORDER BY o.date_committed DESC LIMIT 1
         ", [':sid' => $studentId]);
     }
 
@@ -54,7 +54,7 @@ try {
 
     // Count how many times THIS student has committed this exact offense type
     $instanceCountRow = db_one("
-        SELECT COUNT(*) as cnt FROM student_offense 
+        SELECT COUNT(*) as cnt FROM offense 
         WHERE student_id = :sid AND offense_type_id = :otid
     ", [
         ':sid'  => $targetStudentId,
@@ -64,7 +64,7 @@ try {
 
     // Count total prior offenses for this student
     $totalPriorRow = db_one("
-        SELECT COUNT(*) as cnt FROM student_offense WHERE student_id = :sid
+        SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid
     ", [':sid' => $targetStudentId]);
     $totalPrior = max(0, (int)($totalPriorRow['cnt'] ?? 1) - 1);
 
