@@ -2440,10 +2440,38 @@ function syncLive() {
         .then(data => {
             if (!data.ok) return;
 
-            // ── CHECK IF CASE IS RESOLVED ─────────────────────────────
+            // ── CHECK IF CASE IS RESOLVED OR PAUSED ───────────────────
+            const aiInput = document.getElementById('aiChatInput');
+            const aiStatusBadge = document.getElementById('aiStatusBadge');
+            
             if (data.is_closed || (data.case_status && (data.case_status === 'CLOSED' || data.case_status === 'RESOLVED'))) {
+                if (aiInput) {
+                    aiInput.disabled = true;
+                    aiInput.placeholder = "🔒 Case Concluded — AI Read-only";
+                }
+                if (aiStatusBadge) {
+                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#64748b;display:inline-block;"></span> Concluded';
+                }
                 showCaseResolvedModal();
                 return; // Stop processing further state changes
+            }
+
+            if (data.hearing_open === false) {
+                if (aiInput) {
+                    aiInput.disabled = true;
+                    aiInput.placeholder = "⏸️ Hearing Paused — AI Assistant on standby";
+                }
+                if (aiStatusBadge) {
+                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block;"></span> Paused (Standby)';
+                }
+            } else {
+                if (aiInput) {
+                    aiInput.disabled = false;
+                    aiInput.placeholder = "Ask AI about this hearing...";
+                }
+                if (aiStatusBadge) {
+                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span> Hearing Advisory System';
+                }
             }
 
             // ── CHAT ──────────────────────────────────────────────────
@@ -2881,7 +2909,7 @@ syncLive(); // immediate first call
       </div>
       <div>
         <div style="font-weight:700;font-size:14px;color:#f8fafc;letter-spacing:0.2px;">IdentiTrack AI</div>
-        <div style="font-size:11px;color:#38bdf8;display:flex;align-items:center;gap:5px;">
+        <div id="aiStatusBadge" style="font-size:11px;color:#38bdf8;display:flex;align-items:center;gap:5px;">
           <span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span> Hearing Advisory System
         </div>
       </div>
