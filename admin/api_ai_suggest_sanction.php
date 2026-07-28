@@ -166,8 +166,8 @@ try {
                 $suggestedCategory = 2;
                 $suggestedHours = 15;
                 $probationDays = 90;
-                $handbookCitation = "NU Lipa Student Handbook Section 3.1.C";
-                $rationale = "3rd Minor Offense: Escalated to Category 2 Community Service (15 Hours) per chronic policy.";
+                $handbookCitation = "NU Lipa Student Handbook Section 4";
+                $rationale = "3rd Minor Offense (3 Attempt Escalation): Escalated to Section 4 / Category 2 Community Service (15 Hours) per chronic minor policy.";
             }
         } else {
             $cat = $majorCategory ?? 1;
