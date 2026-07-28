@@ -94,86 +94,121 @@ try {
         $dataset = json_decode((string)$jsonContent, true) ?: [];
     }
 
-    // Calculate baseline suggestion
+    // 1. PRECEDENT SCAN ENGINE
+    $matchedPrecedents = [];
+    $exactMatch = null;
+
+    foreach ($dataset as $row) {
+        $score = 0.0;
+        if (($row['offense_code'] ?? '') === $offenseCode) $score += 40.0;
+        if (($row['offense_level'] ?? '') === $offenseLevel) $score += 20.0;
+        if ($majorCategory !== null && (int)($row['major_category'] ?? 0) === $majorCategory) $score += 20.0;
+        if ((int)($row['instance_number'] ?? 1) === $instanceCount) $score += 10.0;
+        if (abs((int)($row['prior_total_offenses'] ?? 0) - $totalPrior) <= 0) $score += 10.0;
+
+        if ($score > 30.0) {
+            $row['_match_score'] = round($score, 1);
+            $matchedPrecedents[] = $row;
+            if ($score >= 99.0 && $exactMatch === null) {
+                $exactMatch = $row;
+            }
+        }
+    }
+
+    usort($matchedPrecedents, fn($a, $b) => $b['_match_score'] <=> $a['_match_score']);
+    $topPrecedents = array_slice($matchedPrecedents, 0, 3);
+    $bestMatchScore = !empty($topPrecedents) ? (float)$topPrecedents[0]['_match_score'] : 92.0;
+
+    // 2. SANCTION CALCULATION (Exact Precedent Priority -> Rule Engine Fallback)
     $suggestedCategory = 1;
     $suggestedHours = 0;
     $probationDays = 30;
     $handbookCitation = "NU Lipa Student Handbook Section 3.1";
     $rationale = "";
 
-    if ($offenseLevel === 'MAJOR' && $totalMajorCount >= 2) {
-        if ($totalMajorCount === 2) {
-            $suggestedCategory = 4;
-            $suggestedHours = 0;
-            $probationDays = 365;
-            $handbookCitation = "NU Lipa Student Handbook Section 4.4.B";
-            $rationale = "Cumulative Major Violations (Student has 2 Major Offenses on record): Escalated to Category 4 Exclusion / Dismissal.";
-        } else {
-            $suggestedCategory = 5;
-            $suggestedHours = 0;
-            $probationDays = 365;
-            $handbookCitation = "NU Lipa Student Handbook Section 4.5.B";
-            $rationale = "Chronic Major Violations (Student has {$totalMajorCount} Major Offenses on record): Escalated to Category 5 Summary Expulsion.";
-        }
-    } elseif ($offenseLevel === 'MINOR') {
-        if ($instanceCount === 1) {
-            $suggestedCategory = 1;
-            $suggestedHours = 0;
-            $probationDays = 30;
-            $handbookCitation = "NU Lipa Student Handbook Section 3.1.A";
-            $rationale = "1st Minor Offense: Formal written reprimand and 30 days disciplinary probation.";
-        } elseif ($instanceCount === 2) {
-            $suggestedCategory = 1;
-            $suggestedHours = 0;
-            $probationDays = 60;
-            $handbookCitation = "NU Lipa Student Handbook Section 3.1.B";
-            $rationale = "2nd Minor Offense (Repeat): Warning, mandatory SDO counseling, and 60 days probation.";
-        } else {
-            $suggestedCategory = 2;
-            $suggestedHours = 15;
-            $probationDays = 90;
-            $handbookCitation = "NU Lipa Student Handbook Section 3.1.C";
-            $rationale = "3rd Minor Offense: Escalated to Category 2 Community Service (15 Hours) per chronic policy.";
-        }
+    if ($exactMatch !== null) {
+        // EXACT PRECEDENT INHERITANCE
+        $suggestedCategory = (int)($exactMatch['decided_category'] ?? 1);
+        $suggestedHours = (int)($exactMatch['recommended_hours'] ?? 0);
+        $probationDays = (int)($exactMatch['probation_days'] ?? 30);
+        $handbookCitation = (string)($exactMatch['handbook_citation'] ?? "NU Lipa Student Handbook");
+        $rationale = "🎯 Exact Campus Precedent Match (100% Match with Case #" . ($exactMatch['dataset_id'] ?? 1) . "): " . ($exactMatch['rationale'] ?? '');
     } else {
-        $cat = $majorCategory ?? 1;
-        if ($cat === 1) {
-            $suggestedCategory = 1;
-            $suggestedHours = 0;
-            $probationDays = 90;
-            $handbookCitation = "NU Lipa Student Handbook Section 4.1.A";
-            $rationale = "Major Category 1: Formal Reprimand & Active Semester Probation.";
-        } elseif ($cat === 2) {
-            $suggestedCategory = 2;
-            $baseHours = 15;
-            $extraInstance = ($instanceCount - 1) * 15;
-            $extraPrior = $totalPrior * 5;
-            $suggestedHours = min(40, $baseHours + $extraInstance + $extraPrior);
-            $probationDays = 90;
-            $handbookCitation = "NU Lipa Student Handbook Section 4.2." . chr(64 + min(3, $instanceCount));
-            $rationale = "Major Category 2 (Instance #{$instanceCount}): Mandatory {$suggestedHours} Hours Community Service based on handbook escalation rules.";
-        } elseif ($cat === 3) {
-            $suggestedCategory = 3;
-            $suggestedHours = 0;
-            $probationDays = 180;
-            $handbookCitation = "NU Lipa Student Handbook Section 4.3.A";
-            $rationale = "Major Category 3: Mandatory Non-Readmission / 1 Semester Suspension.";
-        } elseif ($cat === 4) {
-            $suggestedCategory = 4;
-            $suggestedHours = 0;
-            $probationDays = 365;
-            $handbookCitation = "NU Lipa Student Handbook Section 4.4.A";
-            $rationale = "Major Category 4: Exclusion / Mandatory Dismissal from University.";
+        // HANDBOOK RULE ENGINE FALLBACK
+        if ($offenseLevel === 'MAJOR' && $totalMajorCount >= 2) {
+            if ($totalMajorCount === 2) {
+                $suggestedCategory = 4;
+                $suggestedHours = 0;
+                $probationDays = 365;
+                $handbookCitation = "NU Lipa Student Handbook Section 4.4.B";
+                $rationale = "Cumulative Major Violations (Student has 2 Major Offenses on record): Escalated to Category 4 Exclusion / Dismissal.";
+            } else {
+                $suggestedCategory = 5;
+                $suggestedHours = 0;
+                $probationDays = 365;
+                $handbookCitation = "NU Lipa Student Handbook Section 4.5.B";
+                $rationale = "Chronic Major Violations (Student has {$totalMajorCount} Major Offenses on record): Escalated to Category 5 Summary Expulsion.";
+            }
+        } elseif ($offenseLevel === 'MINOR') {
+            if ($instanceCount === 1) {
+                $suggestedCategory = 1;
+                $suggestedHours = 0;
+                $probationDays = 30;
+                $handbookCitation = "NU Lipa Student Handbook Section 3.1.A";
+                $rationale = "1st Minor Offense: Formal written reprimand and 30 days disciplinary probation.";
+            } elseif ($instanceCount === 2) {
+                $suggestedCategory = 1;
+                $suggestedHours = 0;
+                $probationDays = 60;
+                $handbookCitation = "NU Lipa Student Handbook Section 3.1.B";
+                $rationale = "2nd Minor Offense (Repeat): Warning, mandatory SDO counseling, and 60 days probation.";
+            } else {
+                $suggestedCategory = 2;
+                $suggestedHours = 15;
+                $probationDays = 90;
+                $handbookCitation = "NU Lipa Student Handbook Section 3.1.C";
+                $rationale = "3rd Minor Offense: Escalated to Category 2 Community Service (15 Hours) per chronic policy.";
+            }
         } else {
-            $suggestedCategory = 5;
-            $suggestedHours = 0;
-            $probationDays = 365;
-            $handbookCitation = "NU Lipa Student Handbook Section 4.5.A";
-            $rationale = "Major Category 5: Summary Expulsion and Police Referral.";
+            $cat = $majorCategory ?? 1;
+            if ($cat === 1) {
+                $suggestedCategory = 1;
+                $suggestedHours = 0;
+                $probationDays = 90;
+                $handbookCitation = "NU Lipa Student Handbook Section 4.1.A";
+                $rationale = "Major Category 1: Formal Reprimand & Active Semester Probation.";
+            } elseif ($cat === 2) {
+                $suggestedCategory = 2;
+                $baseHours = 15;
+                $extraInstance = ($instanceCount - 1) * 15;
+                $extraPrior = $totalPrior * 5;
+                $suggestedHours = min(40, $baseHours + $extraInstance + $extraPrior);
+                $probationDays = 90;
+                $handbookCitation = "NU Lipa Student Handbook Section 4.2." . chr(64 + min(3, $instanceCount));
+                $rationale = "Major Category 2 (Instance #{$instanceCount}): Mandatory {$suggestedHours} Hours Community Service based on handbook escalation rules.";
+            } elseif ($cat === 3) {
+                $suggestedCategory = 3;
+                $suggestedHours = 0;
+                $probationDays = 180;
+                $handbookCitation = "NU Lipa Student Handbook Section 4.3.A";
+                $rationale = "Major Category 3: Mandatory Non-Readmission / 1 Semester Suspension.";
+            } elseif ($cat === 4) {
+                $suggestedCategory = 4;
+                $suggestedHours = 0;
+                $probationDays = 365;
+                $handbookCitation = "NU Lipa Student Handbook Section 4.4.A";
+                $rationale = "Major Category 4: Exclusion / Mandatory Dismissal from University.";
+            } else {
+                $suggestedCategory = 5;
+                $suggestedHours = 0;
+                $probationDays = 365;
+                $handbookCitation = "NU Lipa Student Handbook Section 4.5.A";
+                $rationale = "Major Category 5: Summary Expulsion and Police Referral.";
+            }
         }
     }
 
-    // HANDLE FULLY INTERACTIVE CHAT ACTION
+    // HANDLE INTERACTIVE CHAT ACTION
     if ($action === 'chat') {
         if ($userQuery === '') {
             echo json_encode(['ok' => false, 'error' => 'Please type a question for the AI Assistant.']);
@@ -199,7 +234,7 @@ try {
             exit;
         }
 
-        // FULLY CONVERSATIONAL DYNAMIC RESPONSE ENGINE
+        // CONVERSATIONAL DYNAMIC RESPONSE ENGINE
         $reply = "";
         if (in_array($lowerQuery, ['hi', 'hello', 'hey', 'sup', 'sup ai', 'yo', 'wassup', 'watsup', 'hi ai', 'hello ai', 'good morning', 'good afternoon', 'good evening', 'kamusta'])) {
             $reply = "👋 **Hello Panel Member!** I am your IdentiTrack AI Hearing Assistant. I have loaded and analyzed **{$studentName}** (ID: {$targetStudentId})'s hearing file. How can I assist your panel today? You can ask about offense history, Student Handbook rules, or community service hours!";
@@ -231,26 +266,6 @@ try {
         ]);
         exit;
     }
-
-    // Default Suggestion Output
-    $matchedPrecedents = [];
-    foreach ($dataset as $row) {
-        $score = 0.0;
-        if (($row['offense_code'] ?? '') === $offenseCode) $score += 40.0;
-        if (($row['offense_level'] ?? '') === $offenseLevel) $score += 20.0;
-        if ($majorCategory !== null && (int)($row['major_category'] ?? 0) === $majorCategory) $score += 20.0;
-        if ((int)($row['instance_number'] ?? 1) === $instanceCount) $score += 10.0;
-        if (abs((int)($row['prior_total_offenses'] ?? 0) - $totalPrior) <= 1) $score += 10.0;
-
-        if ($score > 30.0) {
-            $row['_match_score'] = round($score, 1);
-            $matchedPrecedents[] = $row;
-        }
-    }
-
-    usort($matchedPrecedents, fn($a, $b) => $b['_match_score'] <=> $a['_match_score']);
-    $topPrecedents = array_slice($matchedPrecedents, 0, 3);
-    $bestMatchScore = !empty($topPrecedents) ? (float)$topPrecedents[0]['_match_score'] : 92.0;
 
     echo json_encode([
         'ok' => true,
