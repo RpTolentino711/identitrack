@@ -533,6 +533,59 @@ function _checkAndFinalizeConsensus(int $caseId, int $roundNo, array $assignedPa
             [':cat' => $consensusCategory, ':det' => $consensusDetails,
              ':sid' => $suggesterId, ':c'   => $caseId]);
 
+        // ── AI DYNAMIC INCREMENTAL LEARNING HOOK (PANEL VOTE CONSENSUS) ──
+        try {
+            $datasetPath = 'E:\identitrack_ai_dataset\sanction_history_dataset.json';
+            if (!file_exists($datasetPath)) {
+                $datasetPath = __DIR__ . '/../storage/dataset/sanction_history_dataset.json';
+            }
+            $dataset = file_exists($datasetPath) ? (json_decode((string)file_get_contents($datasetPath), true) ?: []) : [];
+
+            $cRow = db_one("SELECT student_id FROM upcc_case WHERE case_id = :cid LIMIT 1", [':cid' => $caseId]);
+            $studentId = (string)($cRow['student_id'] ?? '');
+
+            $caseOff = db_one("
+                SELECT o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
+                FROM upcc_case_offense uco
+                JOIN offense o ON o.offense_id = uco.offense_id
+                JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+                WHERE uco.case_id = :cid LIMIT 1
+            ", [':cid' => $caseId]);
+
+            if ($caseOff && $studentId !== '') {
+                $instRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND offense_type_id = :otid", [':sid' => $studentId, ':otid' => $caseOff['offense_type_id']]);
+                $priorRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid", [':sid' => $studentId]);
+
+                $detailsDec = json_decode((string)$consensusDetails, true) ?: [];
+                $votedHours = (int)($detailsDec['interventions_hours'] ?? ($detailsDec['hours'] ?? 15));
+
+                $newLearnedRecord = [
+                    'dataset_id' => count($dataset) + 1,
+                    'offense_level' => (string)($caseOff['offense_level'] ?? 'MAJOR'),
+                    'major_category' => $caseOff['major_category'] !== null ? (int)$caseOff['major_category'] : null,
+                    'offense_code' => (string)($caseOff['offense_code'] ?? 'GENERAL_VIOLATION'),
+                    'offense_name' => (string)($caseOff['offense_name'] ?? 'Student Handbook Violation'),
+                    'instance_number' => max(1, (int)($instRow['cnt'] ?? 1)),
+                    'prior_total_offenses' => max(0, (int)($priorRow['cnt'] ?? 1) - 1),
+                    'decided_category' => $consensusCategory,
+                    'recommended_hours' => $consensusCategory === 2 ? $votedHours : 0,
+                    'probation_days' => 90,
+                    'handbook_citation' => "NU Lipa Student Handbook Section " . ($consensusCategory === 2 ? "4.2" : ($consensusCategory === 1 ? "3.1" : "4")),
+                    'case_summary' => "UPCC Panel Consensus Precedent Case #" . $caseId,
+                    'rationale' => "Official UPCC Democratic Panel Vote Consensus: Majority agreed on Category " . $consensusCategory . " (" . $votedHours . " Hours)."
+                ];
+
+                $dataset[] = $newLearnedRecord;
+                $updatedJson = json_encode($dataset, JSON_PRETTY_PRINT);
+                file_put_contents(__DIR__ . '/../storage/dataset/sanction_history_dataset.json', $updatedJson);
+                if (file_exists('E:\\identitrack_ai_dataset')) {
+                    file_put_contents('E:\\identitrack_ai_dataset\\sanction_history_dataset.json', $updatedJson);
+                }
+            }
+        } catch (\Throwable $ex) {
+            // Non-blocking background learning exception
+        }
+
         _closeRound($caseId, $roundNo);
 
         db_exec(
