@@ -3032,22 +3032,67 @@ function sendAiChat(presetText) {
     if (!query) return;
     if (input) input.value = '';
 
-    thread.innerHTML += `<div style="text-align:right;margin-top:4px;"><span style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;padding:8px 14px;border-radius:18px 18px 4px 18px;font-size:13px;display:inline-block;max-width:82%;box-shadow:0 3px 10px rgba(2,132,199,0.3);line-height:1.4;">${query}</span></div>`;
+    // Append user message cleanly
+    const userDiv = document.createElement('div');
+    userDiv.style.cssText = 'text-align:right;margin-top:6px;';
+    userDiv.innerHTML = `<span style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;padding:8px 14px;border-radius:18px 18px 4px 18px;font-size:13px;display:inline-block;max-width:82%;box-shadow:0 3px 10px rgba(2,132,199,0.3);line-height:1.4;">${query}</span>`;
+    thread.appendChild(userDiv);
+
+    // Append AI Animated Thinking Dots Indicator
+    const loadingId = 'ai_loading_' + Date.now();
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = loadingId;
+    loadingDiv.style.cssText = 'text-align:left;margin-top:6px;';
+    loadingDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(56, 189, 248, 0.3);color:#38bdf8;padding:10px 16px;border-radius:18px 18px 18px 4px;font-size:13px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:16px;">🧠</span> <span>AI is thinking...</span> <span style="display:inline-flex;gap:3px;"><span style="animation: aiDotBounce 1.4s infinite 0s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.2s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.4s;">•</span></span></div>`;
+    thread.appendChild(loadingDiv);
     thread.scrollTop = thread.scrollHeight;
 
-    fetch(`../admin/api_ai_suggest_sanction.php?action=chat&case_id=<?= $caseId ?>&query=${encodeURIComponent(query)}`)
+    const startTime = Date.now();
+
+    // Cache-busting HTTP POST request
+    fetch(`../admin/api_ai_suggest_sanction.php?t=${Date.now()}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+        },
+        body: new URLSearchParams({
+            action: 'chat',
+            case_id: '<?= $caseId ?>',
+            query: query
+        })
+    })
       .then(res => res.json())
       .then(data => {
-          if (data.ok && data.reply) {
-              thread.innerHTML += `<div style="text-align:left;margin-top:6px;"><div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(255,255,255,0.08);color:#f1f5f9;padding:10px 14px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:88%;box-shadow:0 4px 15px rgba(0,0,0,0.2);">${data.reply}</div></div>`;
-          } else {
-              let errText = data.error || 'No reply generated.';
-              thread.innerHTML += `<div style="text-align:left;margin-top:6px;"><div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ ${errText}</div></div>`;
-          }
-          thread.scrollTop = thread.scrollHeight;
+          const elapsed = Date.now() - startTime;
+          const minDelay = Math.max(0, 1000 - elapsed);
+          setTimeout(() => {
+              const lNode = document.getElementById(loadingId);
+              if (lNode) lNode.remove();
+
+              if (data.ok && data.reply) {
+                  const replyDiv = document.createElement('div');
+                  replyDiv.style.cssText = 'text-align:left;margin-top:6px;';
+                  replyDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(255,255,255,0.08);color:#f1f5f9;padding:10px 14px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:88%;box-shadow:0 4px 15px rgba(0,0,0,0.2);">${data.reply}</div>`;
+                  thread.appendChild(replyDiv);
+              } else {
+                  let errText = data.error || 'No reply generated.';
+                  const errDiv = document.createElement('div');
+                  errDiv.style.cssText = 'text-align:left;margin-top:6px;';
+                  errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ ${errText}</div>`;
+                  thread.appendChild(errDiv);
+              }
+              thread.scrollTop = thread.scrollHeight;
+          }, minDelay);
       })
       .catch(err => {
-          thread.innerHTML += `<div style="text-align:left;margin-top:6px;"><div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ Connection error: ${err.message}</div></div>`;
+          const lNode = document.getElementById(loadingId);
+          if (lNode) lNode.remove();
+          const errDiv = document.createElement('div');
+          errDiv.style.cssText = 'text-align:left;margin-top:6px;';
+          errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ Connection error: ${err.message}</div>`;
+          thread.appendChild(errDiv);
           thread.scrollTop = thread.scrollHeight;
       });
 }
