@@ -391,19 +391,30 @@ try {
                      "• **Category 3 (Sec 4.3.A)**: Exam cheating, clearance forgery, severe bullying $\rightarrow$ 1 Semester Non-Readmission.\n" .
                      "• **Category 4 (Sec 4.4.A)**: Physical assault, brawling, extortion, theft $\rightarrow$ Exclusion / Dismissal.\n" .
                      "• **Category 5 (Sec 4.5.A)**: Illegal drugs, firearms, explosives $\rightarrow$ Summary Expulsion & Police Referral.";
+        } elseif (strpos($lowerQuery, 'student') !== false || strpos($lowerQuery, 'who is') !== false || strpos($lowerQuery, 'record') !== false || strpos($lowerQuery, 'history') !== false || strpos($lowerQuery, 'about this') !== false) {
+            $formattedPrecedent = formatPunishmentDetails($precedentContext);
+            $reply = "👤 **Student Case Summary Profile**:\n\n" .
+                     "• **Student Name**: **{$studentName}**\n" .
+                     "• **Student ID**: **{$targetStudentId}**\n" .
+                     "• **Charged Offense**: **{$offenseName}** ({$offenseLevel})\n" .
+                     "• **Offense Recidivism**: **Instance #{$instanceCount}** for this specific offense type.\n" .
+                     "• **Total Major Offenses**: **{$totalMajorCount} Major Offense(s)** on record.\n" .
+                     "• **Total Prior Disciplinary Cases**: **{$totalPrior} Prior Case(s)**.\n\n" .
+                     "⚖️ **Precedent & Sanction Context**:\n" .
+                     "{$formattedPrecedent}";
         } elseif (strpos($lowerQuery, 'yourself') !== false || strpos($lowerQuery, 'who are you') !== false || strpos($lowerQuery, 'about you') !== false || strpos($lowerQuery, 'hello') !== false || strpos($lowerQuery, 'hi') !== false) {
             $reply = "🤖 **Hello Panel Member! I am the IdentiTrack AI Hearing Assistant**.\n\n" .
                      "I am a specialized Decision Support System grounded in the **NU Lipa Student Handbook** to assist your hearing panel.\n\n" .
                      "✨ **You can ask me**:\n" .
+                     "• 👤 *'Tell me about this student'*\n" .
                      "• 📜 *'Tell me all the minor offenses'*\n" .
                      "• 📜 *'What are the 5 major categories?'*\n" .
-                     "• ⏱️ *'How are community service hours calculated?'*\n" .
-                     "• 📝 *'What is the student's offense history?'*";
+                     "• ⏱️ *'How are community service hours calculated?'*";
         } else {
             $reply = "⚖️ **IdentiTrack AI Advisor (Handbook Grounded)**:\n\n" .
                      "Regarding **{$studentName}** (ID: {$targetStudentId}) facing **{$offenseName}** (Instance #{$instanceCount}, Total Major: {$totalMajorCount}):\n\n" .
                      "• Under Section 3 & 4 of the NU Lipa Student Handbook, sanctions are evaluated based on recidivism history and handbook category rules.\n" .
-                     "• Precedent context: {$precedentContext}";
+                     "• Precedent context: " . formatPunishmentDetails($precedentContext);
         }
 
         echo json_encode([
