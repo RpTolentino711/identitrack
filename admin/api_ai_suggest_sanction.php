@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+// Hostinger Live OPCache Invalidation Timestamp: 2026-07-30 06:31
 session_start();
 require_once __DIR__ . '/../database/database.php';
 
