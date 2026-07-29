@@ -3025,36 +3025,55 @@ function initAiGreeting() {
     `;
 }
 
+function formatAiMarkdown(text) {
+    if (!text) return '';
+    
+    // Clean raw JSON strings if any remain in text
+    let clean = text.replace(/\{"service_hours":([0-9.]+),"interventions":\[(.*?)\](,"completed":(true|false))?\}/gi, function(match, hours, interventions) {
+        let h = Math.round(parseFloat(hours));
+        let i = interventions.replace(/"/g, '').split(',').join(', ');
+        return `<b>${h} Hours Community Service</b> (${i})`;
+    });
+
+    // Format Markdown bold **text**
+    clean = clean.replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;font-weight:600;">$1</b>');
+
+    // Format Markdown italic *text*
+    clean = clean.replace(/\*(.*?)\*/g, '<i>$1</i>');
+
+    // Format bullet points
+    clean = clean.replace(/^•\s*(.*)$/gm, '<span style="display:block;margin-left:10px;margin-top:3px;"><span style="color:#38bdf8;">•</span> $1</span>');
+
+    // Convert line breaks
+    clean = clean.replace(/\n/g, '<br>');
+
+    return clean;
+}
+
 function typewriteAiReply(containerThread, rawText) {
     const replyWrapper = document.createElement('div');
     replyWrapper.style.cssText = 'text-align:left;margin-top:6px;';
     
     const bubble = document.createElement('div');
-    bubble.style.cssText = 'background:rgba(30, 41, 59, 0.88);border:1px solid rgba(56, 189, 248, 0.25);color:#f1f5f9;padding:12px 16px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:90%;box-shadow:0 4px 18px rgba(0,0,0,0.25);position:relative;';
+    bubble.style.cssText = 'background:rgba(30, 41, 59, 0.92);border:1px solid rgba(56, 189, 248, 0.3);color:#f1f5f9;padding:12px 16px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:90%;box-shadow:0 4px 18px rgba(0,0,0,0.3);position:relative;';
     
     replyWrapper.appendChild(bubble);
     containerThread.appendChild(replyWrapper);
 
-    const formattedFinal = rawText
-        .replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;">$1</b>')
-        .replace(/\*(.*?)\*/g, '<i>$1</i>')
-        .replace(/\n/g, '<br>');
+    const formattedFinal = formatAiMarkdown(rawText);
 
     let idx = 0;
-    const speedMs = 10;
+    const speedMs = 22; // 22ms per char for realistic, smooth typewriter feel
     const totalLen = rawText.length;
 
     function streamStep() {
         if (idx < totalLen) {
             let chunk = rawText.substring(0, idx + 1);
-            let chunkFormatted = chunk
-                .replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;">$1</b>')
-                .replace(/\*(.*?)\*/g, '<i>$1</i>')
-                .replace(/\n/g, '<br>');
+            let chunkFormatted = formatAiMarkdown(chunk);
             
-            bubble.innerHTML = chunkFormatted + '<span style="display:inline-block;width:7px;height:14px;background:#38bdf8;margin-left:3px;vertical-align:middle;border-radius:1px;box-shadow:0 0 8px #38bdf8;animation:aiGlowPulse 0.6s infinite alternate;"></span>';
+            bubble.innerHTML = chunkFormatted + '<span style="display:inline-block;width:8px;height:14px;background:#38bdf8;margin-left:3px;vertical-align:middle;border-radius:1px;box-shadow:0 0 10px #38bdf8;animation:aiGlowPulse 0.5s infinite alternate;"></span>';
             
-            idx += 2; // type 2 characters per tick for fluid, snappy animation
+            idx += 1; // Type 1 character per step for authentic typewriter effect
             containerThread.scrollTop = containerThread.scrollHeight;
             setTimeout(streamStep, speedMs);
         } else {

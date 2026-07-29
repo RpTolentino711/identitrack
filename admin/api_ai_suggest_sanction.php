@@ -37,6 +37,28 @@ Category 5 (Sec 4.5.A): Illegal drugs, firearms, explosives, deadly weapons.
 TEXT;
 
 /**
+ * Formats raw JSON punishment details like {"service_hours":100.33...} into clean text
+ */
+function formatPunishmentDetails(?string $details): string
+{
+    if (empty($details)) return 'n/a';
+    if (strpos($details, '{') === 0) {
+        $json = json_decode($details, true);
+        if (is_array($json)) {
+            $parts = [];
+            if (!empty($json['service_hours'])) {
+                $parts[] = round((float)$json['service_hours']) . " Hours Community Service";
+            }
+            if (!empty($json['interventions']) && is_array($json['interventions'])) {
+                $parts[] = implode(', ', $json['interventions']);
+            }
+            return !empty($parts) ? implode(' — ', $parts) : $details;
+        }
+    }
+    return $details;
+}
+
+/**
  * Exact precedent: other students' CLOSED, DECIDED cases for the
  * exact same offense_type_id. This is what makes "if a new student
  * has the same record" bias-avoidance work — it searches across
@@ -317,7 +339,7 @@ try {
         usleep(800000);
 
         $precedentContext = !empty($exactPrecedents)
-            ? implode("\n", array_map(fn($p) => "Case #{$p['case_id']}: Category {$p['decided_category']} — " . ($p['punishment_details'] ?? 'n/a'), $exactPrecedents))
+            ? implode("\n", array_map(fn($p) => "Case #{$p['case_id']}: Category {$p['decided_category']} — " . formatPunishmentDetails($p['punishment_details']), $exactPrecedents))
             : "No prior decided cases for this exact offense.";
 
         $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. Answer ONLY questions about this hearing, "
