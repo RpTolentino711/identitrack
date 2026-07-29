@@ -3025,6 +3025,46 @@ function initAiGreeting() {
     `;
 }
 
+function typewriteAiReply(containerThread, rawText) {
+    const replyWrapper = document.createElement('div');
+    replyWrapper.style.cssText = 'text-align:left;margin-top:6px;';
+    
+    const bubble = document.createElement('div');
+    bubble.style.cssText = 'background:rgba(30, 41, 59, 0.88);border:1px solid rgba(56, 189, 248, 0.25);color:#f1f5f9;padding:12px 16px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:90%;box-shadow:0 4px 18px rgba(0,0,0,0.25);position:relative;';
+    
+    replyWrapper.appendChild(bubble);
+    containerThread.appendChild(replyWrapper);
+
+    const formattedFinal = rawText
+        .replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;">$1</b>')
+        .replace(/\*(.*?)\*/g, '<i>$1</i>')
+        .replace(/\n/g, '<br>');
+
+    let idx = 0;
+    const speedMs = 10;
+    const totalLen = rawText.length;
+
+    function streamStep() {
+        if (idx < totalLen) {
+            let chunk = rawText.substring(0, idx + 1);
+            let chunkFormatted = chunk
+                .replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;">$1</b>')
+                .replace(/\*(.*?)\*/g, '<i>$1</i>')
+                .replace(/\n/g, '<br>');
+            
+            bubble.innerHTML = chunkFormatted + '<span style="display:inline-block;width:7px;height:14px;background:#38bdf8;margin-left:3px;vertical-align:middle;border-radius:1px;box-shadow:0 0 8px #38bdf8;animation:aiGlowPulse 0.6s infinite alternate;"></span>';
+            
+            idx += 2; // type 2 characters per tick for fluid, snappy animation
+            containerThread.scrollTop = containerThread.scrollHeight;
+            setTimeout(streamStep, speedMs);
+        } else {
+            bubble.innerHTML = formattedFinal;
+            containerThread.scrollTop = containerThread.scrollHeight;
+        }
+    }
+    streamStep();
+}
+
 function sendAiChat(presetText) {
     const input = document.getElementById('aiChatInput');
     const thread = document.getElementById('aiChatThread');
@@ -3032,24 +3072,24 @@ function sendAiChat(presetText) {
     if (!query) return;
     if (input) input.value = '';
 
-    // Append user message cleanly
+    // 1. Append user message cleanly
     const userDiv = document.createElement('div');
     userDiv.style.cssText = 'text-align:right;margin-top:6px;';
     userDiv.innerHTML = `<span style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;padding:8px 14px;border-radius:18px 18px 4px 18px;font-size:13px;display:inline-block;max-width:82%;box-shadow:0 3px 10px rgba(2,132,199,0.3);line-height:1.4;">${query}</span>`;
     thread.appendChild(userDiv);
 
-    // Append AI Animated Thinking Dots Indicator
+    // 2. Append AI Animated Loading Indicator
     const loadingId = 'ai_loading_' + Date.now();
     const loadingDiv = document.createElement('div');
     loadingDiv.id = loadingId;
     loadingDiv.style.cssText = 'text-align:left;margin-top:6px;';
-    loadingDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(56, 189, 248, 0.3);color:#38bdf8;padding:10px 16px;border-radius:18px 18px 18px 4px;font-size:13px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:16px;">🧠</span> <span>AI is thinking...</span> <span style="display:inline-flex;gap:3px;"><span style="animation: aiDotBounce 1.4s infinite 0s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.2s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.4s;">•</span></span></div>`;
+    loadingDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(56, 189, 248, 0.35);color:#38bdf8;padding:10px 16px;border-radius:18px 18px 18px 4px;font-size:13px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:16px;">🧠</span> <span style="font-weight:600;">AI is analyzing Student Handbook & Precedents...</span> <span style="display:inline-flex;gap:3px;"><span style="animation: aiDotBounce 1.4s infinite 0s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.2s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.4s;">•</span></span></div>`;
     thread.appendChild(loadingDiv);
     thread.scrollTop = thread.scrollHeight;
 
     const startTime = Date.now();
 
-    // Cache-busting HTTP POST request
+    // 3. Cache-busting HTTP POST request
     fetch(`../admin/api_ai_suggest_sanction.php?t=${Date.now()}`, {
         method: 'POST',
         headers: {
@@ -3066,24 +3106,22 @@ function sendAiChat(presetText) {
       .then(res => res.json())
       .then(data => {
           const elapsed = Date.now() - startTime;
-          const minDelay = Math.max(0, 1000 - elapsed);
+          const minDelay = Math.max(0, 800 - elapsed);
           setTimeout(() => {
               const lNode = document.getElementById(loadingId);
               if (lNode) lNode.remove();
 
               if (data.ok && data.reply) {
-                  const replyDiv = document.createElement('div');
-                  replyDiv.style.cssText = 'text-align:left;margin-top:6px;';
-                  replyDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(255,255,255,0.08);color:#f1f5f9;padding:10px 14px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:88%;box-shadow:0 4px 15px rgba(0,0,0,0.2);">${data.reply}</div>`;
-                  thread.appendChild(replyDiv);
+                  // 4. Trigger Snappy Typewriter Effect
+                  typewriteAiReply(thread, data.reply);
               } else {
                   let errText = data.error || 'No reply generated.';
                   const errDiv = document.createElement('div');
                   errDiv.style.cssText = 'text-align:left;margin-top:6px;';
                   errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ ${errText}</div>`;
                   thread.appendChild(errDiv);
+                  thread.scrollTop = thread.scrollHeight;
               }
-              thread.scrollTop = thread.scrollHeight;
           }, minDelay);
       })
       .catch(err => {
