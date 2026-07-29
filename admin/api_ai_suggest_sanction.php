@@ -141,8 +141,7 @@ try {
         }
 
         $case = db_one("SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details,
-                   o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
-                   " . db_decrypt_col('description', 'ot') . " as offense_description
+                   o.offense_type_id, o.description as offense_description, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
             FROM upcc_case uc
             LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
             LEFT JOIN offense o ON o.offense_id = uco.offense_id
@@ -154,8 +153,7 @@ try {
 
     if (!$case && $studentId !== '') {
         $case = db_one(" SELECT s.student_id,
-                   o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
-                   " . db_decrypt_col('description', 'ot') . " as offense_description
+                   o.offense_type_id, o.description as offense_description, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
             FROM student s
             LEFT JOIN offense o ON o.student_id = s.student_id
             LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -350,7 +348,7 @@ try {
         $reply = "";
 
         if (strpos($lowerQuery, 'minor') !== false || strpos($lowerQuery, 'section 3') !== false || strpos($lowerQuery, 'dress code') !== false || strpos($lowerQuery, 'tardiness') !== false) {
-            $dbMinors = db_all("SELECT ot.name, " . db_decrypt_col('description', 'ot') . " as description FROM offense_type ot WHERE ot.level = 'MINOR' ORDER BY ot.name ASC");
+            $dbMinors = db_all("SELECT ot.name, ot.name as description FROM offense_type ot WHERE ot.level = 'MINOR' ORDER BY ot.name ASC");
             $mList = [];
             foreach ($dbMinors as $m) {
                 $mList[] = "• **" . $m['name'] . "**" . ($m['description'] ? ": _{$m['description']}_" : "");
