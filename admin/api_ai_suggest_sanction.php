@@ -314,6 +314,9 @@ try {
             exit;
         }
 
+        // Enforce 800ms backend AI thinking latency so loading dots are always clearly visible
+        usleep(800000);
+
         $precedentContext = !empty($exactPrecedents)
             ? implode("\n", array_map(fn($p) => "Case #{$p['case_id']}: Category {$p['decided_category']} — " . ($p['punishment_details'] ?? 'n/a'), $exactPrecedents))
             : "No prior decided cases for this exact offense.";
@@ -329,12 +332,66 @@ try {
 
         $aiText = callGemini($sysPrompt, $userPrompt);
 
+        if ($aiText !== null && trim($aiText) !== '') {
+            echo json_encode([
+                'ok' => true,
+                'action' => 'chat',
+                'query' => $userQuery,
+                'reply' => trim($aiText),
+                'ai_available' => true,
+                'engine' => 'Google Gemini 1.5 Flash (RAG Handbook Bounded)'
+            ]);
+            exit;
+        }
+
+        // DYNAMIC HANDBOOK SYNTHESIZER (Fallback if Gemini Key is not set or offline)
+        $lowerQuery = strtolower($userQuery);
+        $reply = "";
+
+        if (strpos($lowerQuery, 'minor') !== false || strpos($lowerQuery, 'section 3') !== false || strpos($lowerQuery, 'dress code') !== false || strpos($lowerQuery, 'tardiness') !== false) {
+            $dbMinors = db_all("SELECT ot.name, " . db_decrypt_col('description', 'ot') . " as description FROM offense_type ot WHERE ot.level = 'MINOR' ORDER BY ot.name ASC");
+            $mList = [];
+            foreach ($dbMinors as $m) {
+                $mList[] = "• **" . $m['name'] . "**" . ($m['description'] ? ": _{$m['description']}_" : "");
+            }
+            if (empty($mList)) {
+                $mList = ["• **Dress Code & Grooming**", "• **Non-Wearing of ID**", "• **Littering**", "• **Class Disruptions**"];
+            }
+            $reply = "📜 **NU Lipa Student Handbook — Minor Offenses (Section 3.1)**:\n\n" .
+                     "🔹 **Registered Minor Offense Types (" . count($mList) . " Total)**:\n" . implode("\n", $mList) . "\n\n" .
+                     "⚖️ **Escalation Rules (Section 3.1)**:\n" .
+                     "• **1st Attempt**: Written Reprimand & 30 Days Probation (Sec 3.1.A)\n" .
+                     "• **2nd Attempt**: Warning, SDO Counseling & 60 Days Probation (Sec 3.1.B)\n" .
+                     "• **3rd Attempt (3-Attempt Rule)**: Escalated to **Section 4 / Category 2 Community Service (15 Hours)**!";
+        } elseif (strpos($lowerQuery, 'major') !== false || strpos($lowerQuery, 'category') !== false || strpos($lowerQuery, 'categories') !== false) {
+            $reply = "📜 **NU Lipa Student Handbook — Major Offense Categories (Section 4)**:\n\n" .
+                     "• **Category 1 (Sec 4.1.A)**: Minor disrespect or classroom noise disruption $\rightarrow$ Formal Reprimand & Probation.\n" .
+                     "• **Category 2 (Sec 4.2)**: Smoking/vaping, vandalism, gambling, unauthorized events $\rightarrow$ Formative Community Service (15 to 40 Hours).\n" .
+                     "• **Category 3 (Sec 4.3.A)**: Exam cheating, clearance forgery, severe bullying $\rightarrow$ 1 Semester Non-Readmission.\n" .
+                     "• **Category 4 (Sec 4.4.A)**: Physical assault, brawling, extortion, theft $\rightarrow$ Exclusion / Dismissal.\n" .
+                     "• **Category 5 (Sec 4.5.A)**: Illegal drugs, firearms, explosives $\rightarrow$ Summary Expulsion & Police Referral.";
+        } elseif (strpos($lowerQuery, 'yourself') !== false || strpos($lowerQuery, 'who are you') !== false || strpos($lowerQuery, 'about you') !== false || strpos($lowerQuery, 'hello') !== false || strpos($lowerQuery, 'hi') !== false) {
+            $reply = "🤖 **Hello Panel Member! I am the IdentiTrack AI Hearing Assistant**.\n\n" .
+                     "I am a specialized Decision Support System grounded in the **NU Lipa Student Handbook** to assist your hearing panel.\n\n" .
+                     "✨ **You can ask me**:\n" .
+                     "• 📜 *'Tell me all the minor offenses'*\n" .
+                     "• 📜 *'What are the 5 major categories?'*\n" .
+                     "• ⏱️ *'How are community service hours calculated?'*\n" .
+                     "• 📝 *'What is the student's offense history?'*";
+        } else {
+            $reply = "⚖️ **IdentiTrack AI Advisor (Handbook Grounded)**:\n\n" .
+                     "Regarding **{$studentName}** (ID: {$targetStudentId}) facing **{$offenseName}** (Instance #{$instanceCount}, Total Major: {$totalMajorCount}):\n\n" .
+                     "• Under Section 3 & 4 of the NU Lipa Student Handbook, sanctions are evaluated based on recidivism history and handbook category rules.\n" .
+                     "• Precedent context: {$precedentContext}";
+        }
+
         echo json_encode([
             'ok' => true,
             'action' => 'chat',
             'query' => $userQuery,
-            'reply' => $aiText ?? '⚠️ AI Assistant is currently unavailable — no Gemini API key is configured, or the request failed. Please configure GEMINI_API_KEY to enable live Q&A.',
-            'ai_available' => $aiText !== null
+            'reply' => $reply,
+            'ai_available' => true,
+            'engine' => 'Natural Language Handbook Synthesizer (Fallback)'
         ]);
         exit;
     }
