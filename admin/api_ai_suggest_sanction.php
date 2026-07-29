@@ -6,6 +6,113 @@ require_once __DIR__ . '/../database/database.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+/**
+ * ────────────────────────────────────────────────────────────────────
+ * HANDBOOK RULES — this is the single source of truth the AI is
+ * grounded against. Keep it here (or better: move it to a DB table
+ * you can edit without touching code) so both the precedent-based
+ * path and the AI path always cite the same real rules.
+ * ────────────────────────────────────────────────────────────────────
+ */
+const HANDBOOK_RULES = <<<TEXT
+NU LIPA STUDENT HANDBOOK — DISCIPLINARY RULES
+
+SECTION 3.1 — MINOR OFFENSES
+1st Attempt: Written Reprimand & 30 Days Probation (Sec 3.1.A)
+2nd Attempt: Warning, SDO Counseling & 60 Days Probation (Sec 3.1.B)
+3rd Attempt: Escalated to Section 4 / Category 2 Community Service (15 Hours)
+
+SECTION 4 — MAJOR OFFENSE CATEGORIES
+Category 1 (Sec 4.1.A): Minor disrespect to faculty/staff, classroom disruption.
+  Penalty: Formal Reprimand & Active Semester Probation.
+Category 2 (Sec 4.2): Smoking/vaping, vandalism, gambling, unauthorized events.
+  Penalty: Community Service, 15–40 hours (hard cap 40), + Active Probation.
+Category 3 (Sec 4.3.A): Major academic dishonesty, exam cheating, forgery, severe bullying.
+  Penalty: 1 Semester Non-Readmission / Suspension.
+Category 4 (Sec 4.4.A): Physical assault, brawling, extortion, major theft.
+  Penalty: Exclusion / Mandatory Dismissal.
+Category 5 (Sec 4.5.A): Illegal drugs, firearms, explosives, deadly weapons.
+  Penalty: Summary Expulsion & Police Referral.
+TEXT;
+
+/**
+ * Exact precedent: other students' CLOSED, DECIDED cases for the
+ * exact same offense_type_id. This is what makes "if a new student
+ * has the same record" bias-avoidance work — it searches across
+ * every student, not just this one.
+ */
+function getExactPrecedents(int $offenseTypeId, int $excludeCaseId, int $limit = 5): array
+{
+    if ($offenseTypeId <= 0) return [];
+    return db_all("SELECT uc.case_id, uc.student_id, uc.decided_category, uc.punishment_details, uc.probation_until,
+               o.date_committed
+        FROM upcc_case uc
+        JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
+        JOIN offense o ON o.offense_id = uco.offense_id
+        WHERE o.offense_type_id = :otid
+          AND uc.decided_category IS NOT NULL
+          AND uc.case_id != :ecid
+        ORDER BY o.date_committed DESC
+        LIMIT " . (int)$limit . "
+    ", [':otid' => $offenseTypeId, ':ecid' => $excludeCaseId]);
+}
+
+/**
+ * Broader precedent: decided cases within the same major_category
+ * but a DIFFERENT specific offense — used only when this exact
+ * offense type has never been decided before, so the AI still has
+ * something real to reason from besides raw handbook text.
+ */
+function getCategoryPrecedents(?int $majorCategory, int $offenseTypeId, int $excludeCaseId, int $limit = 5): array
+{
+    if ($majorCategory === null) return [];
+    return db_all(" SELECT uc.case_id, uc.student_id, uc.decided_category, uc.punishment_details,
+               ot.name AS offense_name, o.date_committed
+        FROM upcc_case uc
+        JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
+        JOIN offense o ON o.offense_id = uco.offense_id
+        JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+        WHERE ot.major_category = :cat
+          AND o.offense_type_id != :otid
+          AND uc.decided_category IS NOT NULL
+          AND uc.case_id != :ecid
+        ORDER BY o.date_committed DESC
+        LIMIT " . (int)$limit . "
+    ", [':cat' => $majorCategory, ':otid' => $offenseTypeId, ':ecid' => $excludeCaseId]);
+}
+
+/**
+ * Calls the real Gemini API. Returns null (not a fake answer) if
+ * it isn't configured or the call fails, so callers can be honest
+ * with the panel about whether this is AI-generated or not.
+ */
+function callGemini(string $systemPrompt, string $userPrompt): ?string
+{
+    $geminiKey = getenv('GEMINI_API_KEY') ?: (defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '');
+    if ($geminiKey === '') return null;
+
+    $ch = curl_init("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($geminiKey));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+        'contents' => [['parts' => [['text' => $systemPrompt . "\n\n" . $userPrompt]]]],
+        'generationConfig' => ['temperature' => 0.2, 'maxOutputTokens' => 600]
+    ]));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+
+    $res = curl_exec($ch);
+    $errNo = curl_errno($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($errNo !== 0 || $httpCode !== 200 || !$res) return null;
+
+    $json = json_decode($res, true);
+    $text = $json['candidates'][0]['content']['parts'][0]['text'] ?? null;
+    return $text !== null ? trim($text) : null;
+}
+
 try {
     $caseId = (int)($_GET['case_id'] ?? $_POST['case_id'] ?? 0);
     $studentId = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
@@ -19,9 +126,22 @@ try {
 
     $case = null;
     if ($caseId > 0) {
-        $case = db_one("
-            SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details,
-                   o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
+        $cStatusRow = db_one("SELECT status FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
+        if ($cStatusRow) {
+            $st = strtoupper((string)($cStatusRow['status'] ?? ''));
+            if (in_array($st, ['CLOSED', 'RESOLVED', 'FINALIZED'], true)) {
+                echo json_encode(['ok' => false, 'error' => '🔒 Hearing Concluded: Case is closed. AI Assistant is disabled.']);
+                exit;
+            }
+            if (in_array($st, ['PAUSED', 'ON_HOLD', 'INACTIVE'], true)) {
+                echo json_encode(['ok' => false, 'error' => '⏸️ Hearing Paused: AI Assistant is paused until hearing resumes.']);
+                exit;
+            }
+        }
+
+        $case = db_one("SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details,
+                   o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
+                   " . db_decrypt_col('description', 'ot') . " as offense_description
             FROM upcc_case uc
             LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
             LEFT JOIN offense o ON o.offense_id = uco.offense_id
@@ -32,9 +152,9 @@ try {
     }
 
     if (!$case && $studentId !== '') {
-        $case = db_one("
-            SELECT s.student_id,
-                   o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
+        $case = db_one(" SELECT s.student_id,
+                   o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
+                   " . db_decrypt_col('description', 'ot') . " as offense_description
             FROM student s
             LEFT JOIN offense o ON o.student_id = s.student_id
             LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -49,32 +169,22 @@ try {
     }
 
     $targetStudentId = (string)$case['student_id'];
-    $offenseLevel = (string)($case['offense_level'] ?? 'MAJOR');
+    $offenseLevel = strtoupper((string)($case['offense_level'] ?? 'MAJOR'));
     $majorCategory = $case['major_category'] !== null ? (int)$case['major_category'] : null;
+    $offenseTypeId = (int)($case['offense_type_id'] ?? 0);
     $offenseCode = (string)($case['offense_code'] ?? 'GENERAL_VIOLATION');
     $offenseName = (string)($case['offense_name'] ?? 'Student Handbook Violation');
 
-    // Fetch Student Info
     $studentInfo = db_one("SELECT " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student WHERE student_id = :sid", [':sid' => $targetStudentId]);
     $studentName = $studentInfo ? trim(($studentInfo['student_fn'] ?? '') . ' ' . ($studentInfo['student_ln'] ?? '')) : 'Student ' . $targetStudentId;
 
-    // Count how many times THIS student has committed this exact offense type
-    $instanceCountRow = db_one("
-        SELECT COUNT(*) as cnt FROM offense 
-        WHERE student_id = :sid AND offense_type_id = :otid
-    ", [
-        ':sid'  => $targetStudentId,
-        ':otid' => (int)($case['offense_type_id'] ?? 0)
-    ]);
+    $instanceCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND offense_type_id = :otid",
+        [':sid' => $targetStudentId, ':otid' => $offenseTypeId]);
     $instanceCount = max(1, (int)($instanceCountRow['cnt'] ?? 1));
 
-    // Count total prior offenses for this student
-    $totalPriorRow = db_one("
-        SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid
-    ", [':sid' => $targetStudentId]);
+    $totalPriorRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid", [':sid' => $targetStudentId]);
     $totalPrior = max(0, (int)($totalPriorRow['cnt'] ?? 1) - 1);
 
-    // Count total MAJOR offenses for this student
     $totalMajorRow = db_one("
         SELECT COUNT(*) as cnt FROM offense o
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -82,209 +192,155 @@ try {
     ", [':sid' => $targetStudentId]);
     $totalMajorCount = max(1, (int)($totalMajorRow['cnt'] ?? 1));
 
-    // Read E:\ Drive Dataset (with local fallback)
-    $datasetPath = 'E:\identitrack_ai_dataset\sanction_history_dataset.json';
-    if (!file_exists($datasetPath)) {
-        $datasetPath = __DIR__ . '/../storage/dataset/sanction_history_dataset.json';
-    }
+    // ────────────────────────────────────────────────────────────
+    // REAL PRECEDENT LOOKUP (replaces the fake static dataset)
+    // ────────────────────────────────────────────────────────────
+    $exactPrecedents = getExactPrecedents($offenseTypeId, $caseId);
+    $categoryPrecedents = empty($exactPrecedents)
+        ? getCategoryPrecedents($majorCategory, $offenseTypeId, $caseId)
+        : [];
+    $isNewOffenseType = empty($exactPrecedents);
 
-    $dataset = [];
-    if (file_exists($datasetPath)) {
-        $jsonContent = file_get_contents($datasetPath);
-        $dataset = json_decode((string)$jsonContent, true) ?: [];
-    }
+    // ── ACTION: suggest (default) — the actual sanction recommendation ──
+    if ($action === 'suggest') {
 
-    // 1. PRECEDENT SCAN ENGINE
-    $matchedPrecedents = [];
-    $exactMatch = null;
+        if (!empty($exactPrecedents)) {
+            // Path 1: real precedent exists. This is a DATABASE FACT,
+            // not an AI guess — the AI (if configured) is only used to
+            // phrase the fairness explanation, never to override the record.
+            $mostRecent = $exactPrecedents[0];
+            $suggestedCategory = (int)$mostRecent['decided_category'];
+            $punishmentText = (string)($mostRecent['punishment_details'] ?? '');
 
-    foreach ($dataset as $row) {
-        $score = 0.0;
-        if (($row['offense_code'] ?? '') === $offenseCode) $score += 40.0;
-        if (($row['offense_level'] ?? '') === $offenseLevel) $score += 20.0;
-        if ($majorCategory !== null && (int)($row['major_category'] ?? 0) === $majorCategory) $score += 20.0;
-        if ((int)($row['instance_number'] ?? 1) === $instanceCount) $score += 10.0;
-        if (abs((int)($row['prior_total_offenses'] ?? 0) - $totalPrior) <= 0) $score += 10.0;
+            $precedentSummary = array_map(fn($p) => sprintf(
+                "Case #%s: Category %s%s (%s)",
+                $p['case_id'], $p['decided_category'],
+                !empty($p['punishment_details']) ? " — " . $p['punishment_details'] : '',
+                $p['date_committed']
+            ), $exactPrecedents);
 
-        if ($score > 30.0) {
-            $row['_match_score'] = round($score, 1);
-            $matchedPrecedents[] = $row;
-            if ($score >= 99.0 && $exactMatch === null) {
-                $exactMatch = $row;
+            $biasNote = count($exactPrecedents) > 1
+                ? "⚖️ " . count($exactPrecedents) . " other students received a decision for this exact offense. For fairness, this student should generally receive comparable treatment unless the panel identifies specific aggravating or mitigating circumstances."
+                : "⚖️ One prior student received a decision for this exact offense. For fairness, consider comparable treatment unless circumstances differ.";
+
+            $aiRationale = null;
+            $sysPrompt = "You are assisting a university disciplinary panel. Do NOT invent a new punishment — precedent already exists and must be respected for fairness. Only explain, in 2-3 sentences, why consistency with the precedent below matters for this case.";
+            $userPrompt = "Student: {$studentName}\nOffense: {$offenseName}\nPrecedent decisions for this exact offense:\n" . implode("\n", $precedentSummary);
+            $aiText = callGemini($sysPrompt, $userPrompt);
+
+            echo json_encode([
+                'ok' => true,
+                'source' => 'live_precedent',
+                'is_new_offense_type' => false,
+                'student_id' => $targetStudentId,
+                'student_name' => $studentName,
+                'offense_name' => $offenseName,
+                'instance_count' => $instanceCount,
+                'total_prior_offenses' => $totalPrior,
+                'total_major_count' => $totalMajorCount,
+                'suggested_category' => $suggestedCategory,
+                'suggested_punishment' => $punishmentText,
+                'precedent_cases' => $exactPrecedents,
+                'bias_note' => $biasNote,
+                'ai_explanation' => $aiText, // null if Gemini not configured — be honest about that
+                'ai_available' => $aiText !== null
+            ]);
+            exit;
+        }
+
+        // Path 2: no exact precedent — genuinely new offense type/instance.
+        // The AI reasons from the handbook + closest category precedents,
+        // but this is clearly labeled as a suggestion, not a record.
+        $categorySummary = empty($categoryPrecedents) ? "None available."
+            : implode("\n", array_map(fn($p) => sprintf(
+                "%s → Category %s%s", $p['offense_name'], $p['decided_category'],
+                !empty($p['punishment_details']) ? " — " . $p['punishment_details'] : ''
+              ), $categoryPrecedents));
+
+        $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. This is a NEW offense type with no prior decided precedent. "
+            . "Base your suggestion strictly on the handbook rules provided. Do not invent penalties outside them. "
+            . "Respond ONLY with valid JSON: {\"suggested_category\": <1-5 or null>, \"suggested_hours\": <int or null>, \"rationale\": \"<2-4 sentences>\"}.\n\n"
+            . HANDBOOK_RULES;
+
+        $userPrompt = "Student: {$studentName}\nOffense: {$offenseName} (Level: {$offenseLevel})\n"
+            . "Prior offenses by this student: {$totalPrior} (Major: {$totalMajorCount})\n"
+            . "Closest related decided cases in this category:\n{$categorySummary}\n\n"
+            . "Suggest a punishment grounded in the handbook rules above.";
+
+        $aiText = callGemini($sysPrompt, $userPrompt);
+
+        $suggestedCategory = null;
+        $suggestedHours = null;
+        $rationale = null;
+
+        if ($aiText !== null) {
+            $parsed = json_decode($aiText, true);
+            if (is_array($parsed)) {
+                $suggestedCategory = isset($parsed['suggested_category']) ? (int)$parsed['suggested_category'] : null;
+                $suggestedHours = isset($parsed['suggested_hours']) ? (int)$parsed['suggested_hours'] : null;
+                $rationale = $parsed['rationale'] ?? null;
+            } else {
+                // Model didn't return clean JSON — still show its raw text honestly.
+                $rationale = $aiText;
             }
         }
+
+        echo json_encode([
+            'ok' => true,
+            'source' => $aiText !== null ? 'ai_new_offense_suggestion' : 'ai_unavailable',
+            'is_new_offense_type' => true,
+            'student_id' => $targetStudentId,
+            'student_name' => $studentName,
+            'offense_name' => $offenseName,
+            'instance_count' => $instanceCount,
+            'total_prior_offenses' => $totalPrior,
+            'total_major_count' => $totalMajorCount,
+            'suggested_category' => $suggestedCategory,
+            'suggested_hours' => $suggestedHours,
+            'ai_rationale' => $rationale,
+            'ai_available' => $aiText !== null,
+            'related_category_precedents' => $categoryPrecedents,
+            'note' => $aiText !== null
+                ? '🆕 No prior decision exists for this exact offense. This is an AI suggestion grounded in the handbook — the panel makes the final call, and that decision becomes precedent for future identical cases.'
+                : '⚠️ AI Assistant unavailable (no API key configured or Gemini request failed). No precedent exists for this offense — the panel must decide based on the handbook directly.'
+        ]);
+        exit;
     }
 
-    usort($matchedPrecedents, fn($a, $b) => $b['_match_score'] <=> $a['_match_score']);
-    $topPrecedents = array_slice($matchedPrecedents, 0, 3);
-    $bestMatchScore = !empty($topPrecedents) ? (float)$topPrecedents[0]['_match_score'] : 92.0;
-
-    // 2. SANCTION CALCULATION (Exact Precedent Priority -> Rule Engine Fallback)
-    $suggestedCategory = 1;
-    $suggestedHours = 0;
-    $probationDays = 30;
-    $handbookCitation = "NU Lipa Student Handbook Section 3.1";
-    $rationale = "";
-
-    if ($exactMatch !== null) {
-        // EXACT PRECEDENT INHERITANCE
-        $suggestedCategory = (int)($exactMatch['decided_category'] ?? 1);
-        $suggestedHours = (int)($exactMatch['recommended_hours'] ?? 0);
-        $probationDays = (int)($exactMatch['probation_days'] ?? 30);
-        $handbookCitation = (string)($exactMatch['handbook_citation'] ?? "NU Lipa Student Handbook");
-        $rationale = "🎯 Exact Campus Precedent Match (100% Match with Case #" . ($exactMatch['dataset_id'] ?? 1) . "): " . ($exactMatch['rationale'] ?? '');
-    } else {
-        // HANDBOOK RULE ENGINE FALLBACK
-        if ($offenseLevel === 'MAJOR' && $totalMajorCount >= 2) {
-            if ($totalMajorCount === 2) {
-                $suggestedCategory = 4;
-                $suggestedHours = 0;
-                $probationDays = 365;
-                $handbookCitation = "NU Lipa Student Handbook Section 4.4.B";
-                $rationale = "Cumulative Major Violations (Student has 2 Major Offenses on record): Escalated to Category 4 Exclusion / Dismissal.";
-            } else {
-                $suggestedCategory = 5;
-                $suggestedHours = 0;
-                $probationDays = 365;
-                $handbookCitation = "NU Lipa Student Handbook Section 4.5.B";
-                $rationale = "Chronic Major Violations (Student has {$totalMajorCount} Major Offenses on record): Escalated to Category 5 Summary Expulsion.";
-            }
-        } elseif ($offenseLevel === 'MINOR') {
-            if ($instanceCount === 1) {
-                $suggestedCategory = 1;
-                $suggestedHours = 0;
-                $probationDays = 30;
-                $handbookCitation = "NU Lipa Student Handbook Section 3.1.A";
-                $rationale = "1st Minor Offense: Formal written reprimand and 30 days disciplinary probation.";
-            } elseif ($instanceCount === 2) {
-                $suggestedCategory = 1;
-                $suggestedHours = 0;
-                $probationDays = 60;
-                $handbookCitation = "NU Lipa Student Handbook Section 3.1.B";
-                $rationale = "2nd Minor Offense (Repeat): Warning, mandatory SDO counseling, and 60 days probation.";
-            } else {
-                $suggestedCategory = 2;
-                $suggestedHours = 15;
-                $probationDays = 90;
-                $handbookCitation = "NU Lipa Student Handbook Section 4";
-                $rationale = "3rd Minor Offense (3 Attempt Escalation): Escalated to Section 4 / Category 2 Community Service (15 Hours) per chronic minor policy.";
-            }
-        } else {
-            $cat = $majorCategory ?? 1;
-            if ($cat === 1) {
-                $suggestedCategory = 1;
-                $suggestedHours = 0;
-                $probationDays = 90;
-                $handbookCitation = "NU Lipa Student Handbook Section 4.1.A";
-                $rationale = "Major Category 1: Formal Reprimand & Active Semester Probation.";
-            } elseif ($cat === 2) {
-                $suggestedCategory = 2;
-                $baseHours = 15;
-                $extraInstance = ($instanceCount - 1) * 15;
-                $extraPrior = $totalPrior * 5;
-                $suggestedHours = min(40, $baseHours + $extraInstance + $extraPrior);
-                $probationDays = 90;
-                $handbookCitation = "NU Lipa Student Handbook Section 4.2." . chr(64 + min(3, $instanceCount));
-                $rationale = "Major Category 2 (Instance #{$instanceCount}): Mandatory {$suggestedHours} Hours Community Service based on handbook escalation rules.";
-            } elseif ($cat === 3) {
-                $suggestedCategory = 3;
-                $suggestedHours = 0;
-                $probationDays = 180;
-                $handbookCitation = "NU Lipa Student Handbook Section 4.3.A";
-                $rationale = "Major Category 3: Mandatory Non-Readmission / 1 Semester Suspension.";
-            } elseif ($cat === 4) {
-                $suggestedCategory = 4;
-                $suggestedHours = 0;
-                $probationDays = 365;
-                $handbookCitation = "NU Lipa Student Handbook Section 4.4.A";
-                $rationale = "Major Category 4: Exclusion / Mandatory Dismissal from University.";
-            } else {
-                $suggestedCategory = 5;
-                $suggestedHours = 0;
-                $probationDays = 365;
-                $handbookCitation = "NU Lipa Student Handbook Section 4.5.A";
-                $rationale = "Major Category 5: Summary Expulsion and Police Referral.";
-            }
-        }
-    }
-
-    // HANDLE INTERACTIVE CHAT ACTION
+    // ── ACTION: chat — free-form Q&A, grounded in real case + precedent data ──
     if ($action === 'chat') {
         if ($userQuery === '') {
             echo json_encode(['ok' => false, 'error' => 'Please type a question for the AI Assistant.']);
             exit;
         }
 
-        $lowerQuery = strtolower($userQuery);
-        $outOfScopeKeywords = ['weather', 'recipe', 'game', 'movie', 'song', 'sports', 'crypto', 'president', 'math', 'code'];
-        $isOutOfScope = false;
-        foreach ($outOfScopeKeywords as $kw) {
-            if (strpos($lowerQuery, $kw) !== false && strpos($lowerQuery, 'handbook') === false && strpos($lowerQuery, 'offense') === false) {
-                $isOutOfScope = true;
-                break;
-            }
-        }
+        $precedentContext = !empty($exactPrecedents)
+            ? implode("\n", array_map(fn($p) => "Case #{$p['case_id']}: Category {$p['decided_category']} — " . ($p['punishment_details'] ?? 'n/a'), $exactPrecedents))
+            : "No prior decided cases for this exact offense.";
 
-        if ($isOutOfScope) {
-            echo json_encode([
-                'ok' => true,
-                'action' => 'chat',
-                'reply' => "⚠️ **Scope Restriction**: I am strictly configured as the **IdentiTrack AI Hearing Assistant**. I can only assist with questions regarding this specific hearing, student defense evidence, offense history, and the NU Lipa Student Handbook."
-            ]);
-            exit;
-        }
+        $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. Answer ONLY questions about this hearing, "
+            . "the student's record, offense precedents, or the handbook rules below. If asked something unrelated, say so and redirect. "
+            . "Never invent rules or penalties not in the handbook.\n\n" . HANDBOOK_RULES;
 
-        // CONVERSATIONAL DYNAMIC RESPONSE ENGINE
-        $reply = "";
-        if (in_array($lowerQuery, ['hi', 'hello', 'hey', 'sup', 'sup ai', 'yo', 'wassup', 'watsup', 'hi ai', 'hello ai', 'good morning', 'good afternoon', 'good evening', 'kamusta'])) {
-            $reply = "👋 **Hello Panel Member!** I am your IdentiTrack AI Hearing Assistant. I have loaded and analyzed **{$studentName}** (ID: {$targetStudentId})'s hearing file. How can I assist your panel today? You can ask about offense history, Student Handbook rules, or community service hours!";
-        } elseif (strpos($lowerQuery, 'created') !== false || strpos($lowerQuery, 'made') !== false || strpos($lowerQuery, 'built') !== false || strpos($lowerQuery, 'developer') !== false || strpos($lowerQuery, 'creator') !== false || strpos($lowerQuery, 'who are you') !== false) {
-            $reply = "🤖 **IdentiTrack AI Engine**: I was created and developed by the **NU Lipa IdentiTrack Capstone Research Team** as a specialized Data-Driven Decision Support System (DSS) for student disciplinary hearing analysis.";
-        } elseif (strpos($lowerQuery, 'defense') !== false || strpos($lowerQuery, 'explain') !== false || strpos($lowerQuery, 'paliwanag') !== false || strpos($lowerQuery, 'sinabi') !== false) {
-            $reply = "📝 **Student Defense Summary**: Student **{$studentName}** has submitted their formal explanation regarding `{$offenseName}`. The incident occurred on record with **{$instanceCount}** logged offense instance(s). You can review their attached defense files directly in the hearing panel.";
-        } elseif (strpos($lowerQuery, 'history') !== false || strpos($lowerQuery, 'prior') !== false || strpos($lowerQuery, 'past') !== false || strpos($lowerQuery, 'nakaraan') !== false) {
-            $reply = "📋 **Student Disciplinary History**: **{$studentName}** currently has **{$totalMajorCount}** Major Offense(s) and **{$totalPrior}** total prior violation(s) on file in the database. This current offense is Instance #**{$instanceCount}** for `{$offenseName}`.";
-        } elseif (strpos($lowerQuery, 'handbook') !== false || strpos($lowerQuery, 'section') !== false || strpos($lowerQuery, 'rule') !== false || strpos($lowerQuery, 'policy') !== false) {
-            $reply = "📜 **NU Lipa Student Handbook Policy**: Under **{$handbookCitation}**: *{$rationale}*";
-        } elseif (strpos($lowerQuery, 'hour') !== false || strpos($lowerQuery, 'service') !== false || strpos($lowerQuery, 'oras') !== false || strpos($lowerQuery, 'community') !== false) {
-            if ($suggestedHours > 0) {
-                $reply = "⏱️ **Community Service Calculation**: Recommended **{$suggestedHours} Hours** based on Base (15h) + Repeat Instance Escalation (#{$instanceCount}) + Prior Violations ({$totalPrior}). Maximum cap is 40 hours.";
-            } else {
-                $reply = "⏱️ **Community Service Hours**: Community service is assigned for Category 2 offenses. The current case status evaluates to **Category {$suggestedCategory}** ({$rationale}).";
-            }
-        } elseif (strpos($lowerQuery, 'suggest') !== false || strpos($lowerQuery, 'recommend') !== false || strpos($lowerQuery, 'sanction') !== false || strpos($lowerQuery, 'parusa') !== false || strpos($lowerQuery, 'category') !== false || strpos($lowerQuery, 'kategorya') !== false) {
-            $reply = "🎯 **AI Sanction Suggestion**: **Category {$suggestedCategory}** under **{$handbookCitation}**. Rationale: *{$rationale}*";
-        } else {
-            $reply = "⚖️ **AI Assistant Response**: Regarding your question about Student **{$studentName}** (ID: {$targetStudentId}): The offense on file is `{$offenseName}` (Instance #{$instanceCount}, Total Major: {$totalMajorCount}). Suggested handbook classification is **Category {$suggestedCategory}** under **{$handbookCitation}**. Let me know if you need specific details on their defense or offense history!";
-        }
+        $userPrompt = "ACTIVE HEARING:\nStudent: {$studentName} (ID: {$targetStudentId})\n"
+            . "Offense: {$offenseName} (Instance #{$instanceCount}, Total Major: {$totalMajorCount})\n"
+            . "Precedent for this exact offense:\n{$precedentContext}\n\n"
+            . "PANEL QUESTION: {$userQuery}";
+
+        $aiText = callGemini($sysPrompt, $userPrompt);
 
         echo json_encode([
             'ok' => true,
             'action' => 'chat',
             'query' => $userQuery,
-            'reply' => $reply
+            'reply' => $aiText ?? '⚠️ AI Assistant is currently unavailable — no Gemini API key is configured, or the request failed. Please configure GEMINI_API_KEY to enable live Q&A.',
+            'ai_available' => $aiText !== null
         ]);
         exit;
     }
 
-    echo json_encode([
-        'ok' => true,
-        'student_id' => $targetStudentId,
-        'student_name' => $studentName,
-        'offense_code' => $offenseCode,
-        'offense_name' => $offenseName,
-        'instance_count' => $instanceCount,
-        'total_prior_offenses' => $totalPrior,
-        'total_major_count' => $totalMajorCount,
-        'suggested_category' => $suggestedCategory,
-        'suggested_hours' => $suggestedHours,
-        'probation_days' => $probationDays,
-        'confidence_score' => $bestMatchScore,
-        'handbook_citation' => $handbookCitation,
-        'rationale' => $rationale,
-        'matched_precedents' => $topPrecedents,
-        'dataset_source' => file_exists('E:\identitrack_ai_dataset\sanction_history_dataset.json') ? 'E:\\ Drive Dataset' : 'Local Fallback Storage'
-    ]);
+    echo json_encode(['ok' => false, 'error' => 'Unknown action.']);
+
 } catch (\Throwable $e) {
     echo json_encode([
         'ok' => false,
