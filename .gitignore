@@ -1,0 +1,4 @@
+# Ignore composer dynamic files generated on deployment servers
+vendor/composer/installed.php
+vendor/composer/installed.json
+vendor/composer/autoload_real.php
