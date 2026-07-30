@@ -3047,29 +3047,98 @@ function initAiGreeting() {
       </div>
     `;
 }
-      if (!text) return '';
-      
-      // Clean raw JSON strings if any remain in text
-      let clean = text.replace(/\{"service_hours":([0-9.]+),"interventions":\[(.*?)\](,"completed":(true|false))?\}/gi, function(match, hours, interventions) {
-          let h = Math.round(parseFloat(hours));
-          let i = interventions.replace(/"/g, '').split(',').join(', ');
-          return `<b>${h} Hours Community Service</b> (${i})`;
-      });
 
-      // Format Markdown bold **text**
-      clean = clean.replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;font-weight:600;">$1</b>');
+function stopAiGeneration() {
+    isAiStreamingStopped = true;
+    if (activeAiAbortController) {
+        try { activeAiAbortController.abort(); } catch(e) {}
+        activeAiAbortController = null;
+    }
 
-      // Format Markdown italic *text*
-      clean = clean.replace(/\*(.*?)\*/g, '<i>$1</i>');
+    if (currentLoadingNodeId) {
+        const lNode = document.getElementById(currentLoadingNodeId);
+        if (lNode) lNode.remove();
+        currentLoadingNodeId = null;
+    }
 
-      // Format bullet points
-      clean = clean.replace(/^•\s*(.*)$/gm, '<span style="display:block;margin-left:10px;margin-top:3px;"><span style="color:#38bdf8;">•</span> $1</span>');
+    const thread = document.getElementById('aiChatThread');
+    if (thread) {
+        const stopTag = document.createElement('div');
+        stopTag.style.cssText = 'text-align:left;margin-top:4px;';
+        stopTag.innerHTML = `<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(239, 68, 68, 0.15);border:1px solid rgba(239, 68, 68, 0.3);color:#fca5a5;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;"><span style="font-size:12px;">⏹️</span> Response generation stopped by user</div>`;
+        thread.appendChild(stopTag);
+        thread.scrollTop = thread.scrollHeight;
+    }
 
-      // Convert line breaks
-      clean = clean.replace(/\n/g, '<br>');
+    setAiChatBusy(false);
+}
 
-      return clean;
-  }
+function setAiChatBusy(isBusy) {
+    const input = document.getElementById('aiChatInput');
+    const btn = document.getElementById('aiSendBtn');
+    if (input) {
+        input.disabled = isBusy;
+        if (isBusy) {
+            input.dataset.oldPlaceholder = input.placeholder || 'Ask AI about this hearing...';
+            input.placeholder = 'AI is responding...';
+            input.style.opacity = '0.55';
+            input.style.cursor = 'not-allowed';
+        } else {
+            input.placeholder = input.dataset.oldPlaceholder || 'Ask AI about this hearing...';
+            input.style.opacity = '1';
+            input.style.cursor = 'text';
+            setTimeout(() => input.focus(), 60);
+        }
+    }
+    if (btn) {
+        if (isBusy) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.style.pointerEvents = 'auto';
+            btn.style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
+            btn.style.boxShadow = '0 4px 14px rgba(239,68,68,0.5)';
+            btn.title = 'Stop Generating / Pause';
+            btn.onclick = stopAiGeneration;
+            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="3"></rect></svg>`;
+        } else {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.style.pointerEvents = 'auto';
+            btn.style.background = 'linear-gradient(135deg,#0ea5e9,#2563eb)';
+            btn.style.boxShadow = '0 4px 12px rgba(14,165,233,0.4)';
+            btn.title = 'Send Message';
+            btn.onclick = function() { sendAiChat(); };
+            btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
+        }
+    }
+}
+
+function formatAiMarkdown(text) {
+    if (!text) return '';
+    
+    // Clean raw JSON strings if any remain in text
+    let clean = text.replace(/\{"service_hours":([0-9.]+),"interventions":\[(.*?)\](,"completed":(true|false))?\}/gi, function(match, hours, interventions) {
+        let h = Math.round(parseFloat(hours));
+        let i = interventions.replace(/"/g, '').split(',').join(', ');
+        return `<b>${h} Hours Community Service</b> (${i})`;
+    });
+
+    // Format Markdown bold **text**
+    clean = clean.replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;font-weight:600;">$1</b>');
+
+    // Format Markdown italic *text*
+    clean = clean.replace(/\*(.*?)\*/g, '<i>$1</i>');
+
+    // Format bullet points
+    clean = clean.replace(/^•\s*(.*)$/gm, '<span style="display:block;margin-left:10px;margin-top:3px;"><span style="color:#38bdf8;">•</span> $1</span>');
+
+    // Convert line breaks
+    clean = clean.replace(/\n/g, '<br>');
+
+    return clean;
+}
 
   function typewriteAiReply(containerThread, rawText) {
       const replyWrapper = document.createElement('div');

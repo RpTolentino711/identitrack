@@ -165,7 +165,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
             ],
             'generationConfig' => [
                 'temperature' => 0.2,
-                'maxOutputTokens' => 800
+                'maxOutputTokens' => 3000
             ]
         ];
 
