@@ -3027,9 +3027,7 @@ function toggleAiDrawer(forceState) {
         drawer.style.visibility = 'visible';
         drawer.style.pointerEvents = 'auto';
         if (bubble) {
-            bubble.style.opacity = '0';
-            bubble.style.visibility = 'hidden';
-            bubble.style.pointerEvents = 'none';
+            bubble.style.display = 'none';
         }
         initAiGreeting();
     } else {
@@ -3038,9 +3036,7 @@ function toggleAiDrawer(forceState) {
         drawer.style.visibility = 'hidden';
         drawer.style.pointerEvents = 'none';
         if (bubble) {
-            bubble.style.opacity = '1';
-            bubble.style.visibility = 'visible';
-            bubble.style.pointerEvents = 'auto';
+            bubble.style.display = 'flex';
         }
     }
 }
