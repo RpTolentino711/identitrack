@@ -2996,9 +2996,9 @@ syncLive(); // immediate first call
   </div>
 
   <!-- BOTTOM INPUT BAR -->
-  <div style="padding:12px 14px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:center;">
-    <input type="text" id="aiChatInput" placeholder="Ask AI about this hearing..." style="flex:1;background:rgba(30, 41, 59, 0.7);border:1px solid rgba(255,255,255,0.1);color:#f8fafc;padding:10px 16px;border-radius:24px;font-size:13px;outline:none;transition:all .2s;" onfocus="if(!this.disabled){this.style.borderColor='rgba(56,189,248,0.5)';this.style.background='rgba(30,41,59,0.95)';}" onblur="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(30,41,59,0.7)';" onkeydown="if(event.key==='Enter' && !this.disabled) sendAiChat()">
-    <button id="aiSendBtn" onclick="sendAiChat()" title="Send Message" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.4);transition:all .2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+  <div style="padding:12px 14px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:flex-end;">
+    <textarea id="aiChatInput" rows="1" placeholder="Ask AI about this hearing..." style="flex:1;background:rgba(30, 41, 59, 0.7);border:1px solid rgba(255,255,255,0.1);color:#f8fafc;padding:10px 16px;border-radius:20px;font-size:13px;outline:none;resize:none;max-height:100px;line-height:1.4;transition:all .2s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;word-break:break-word;overflow-wrap:break-word;height:40px;" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';" onfocus="if(!this.disabled){this.style.borderColor='rgba(56,189,248,0.5)';this.style.background='rgba(30,41,59,0.95)';}" onblur="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(30,41,59,0.7)';" onkeydown="if(event.key==='Enter' && !event.shiftKey && !this.disabled){ event.preventDefault(); sendAiChat(); }"></textarea>
+    <button id="aiSendBtn" onclick="sendAiChat()" title="Send Message" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.4);transition:all .2s;flex-shrink:0;margin-bottom:1px;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
     </button>
   </div>
@@ -3231,14 +3231,18 @@ function typewriteAiReply(containerThread, rawText) {
       
       const query = presetText || (input ? input.value.trim() : '');
       if (!query) return;
-      if (input) input.value = '';
+      if (input) {
+          input.value = '';
+          input.style.height = '40px';
+      }
 
       setAiChatBusy(true); // Disable input, enter key, and send button while AI processes & replies
 
-      // 1. Append user message cleanly
+      // 1. Append user message cleanly with text wrapping
+      const safeQuery = query.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const userDiv = document.createElement('div');
       userDiv.style.cssText = 'text-align:right;margin-top:6px;';
-      userDiv.innerHTML = `<span style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;padding:8px 14px;border-radius:18px 18px 4px 18px;font-size:13px;display:inline-block;max-width:82%;box-shadow:0 3px 10px rgba(2,132,199,0.3);line-height:1.4;">${query}</span>`;
+      userDiv.innerHTML = `<span style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;padding:8px 14px;border-radius:18px 18px 4px 18px;font-size:13px;display:inline-block;max-width:82%;box-shadow:0 3px 10px rgba(2,132,199,0.3);line-height:1.4;word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap;text-align:left;">${safeQuery}</span>`;
       thread.appendChild(userDiv);
 
       // 2. Append AI Animated Loading Indicator
