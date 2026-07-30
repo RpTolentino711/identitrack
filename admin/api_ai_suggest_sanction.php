@@ -418,14 +418,40 @@ try {
             exit;
         }
 
-        $precedentContext = !empty($exactPrecedents)
-            ? implode("\n", array_map(fn($p) => "Case #{$p['case_id']}: Category {$p['decided_category']} — " . formatPunishmentDetails($p['punishment_details']), $exactPrecedents))
-            : "No prior decided cases for this exact offense.";
+        // Dynamic Cross-Student Database Lookup (if user asks about a different student ID in the database)
+        $otherStudentContext = "";
+        preg_match_all('/(?:student|id|#|\b)([0-9]{4}-[0-9]{4,6}|[0-9]{6,10})\b/i', $userQuery, $idMatches);
+        $searchedIds = array_unique($idMatches[1] ?? []);
+
+        if (!empty($searchedIds)) {
+            foreach ($searchedIds as $sId) {
+                if ($sId !== $targetStudentId) {
+                    $otherStudent = db_one("SELECT s.student_id, " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student s WHERE s.student_id = :sid", [':sid' => $sId]);
+                    if ($otherStudent) {
+                        $otherName = trim(($otherStudent['student_fn'] ?? '') . ' ' . ($otherStudent['student_ln'] ?? ''));
+                        $otherOffenses = db_all("
+                            SELECT o.date_committed, ot.name as offense_name, ot.level as offense_level
+                            FROM offense o
+                            JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+                            WHERE o.student_id = :sid
+                            ORDER BY o.date_committed DESC
+                        ", [':sid' => $sId]);
+                        
+                        $offList = array_map(fn($o) => "  - {$o['offense_name']} ({$o['offense_level']}) on {$o['date_committed']}", $otherOffenses);
+                        $otherStudentContext .= "\n\nREAL-TIME DATABASE LOOKUP FOR OTHER STUDENT REQUESTED:\n"
+                            . "• Student Name: {$otherName} (ID: {$sId})\n"
+                            . "• Total Recorded Offenses: " . count($otherOffenses) . "\n"
+                            . (!empty($offList) ? implode("\n", $offList) : "  - Clean disciplinary record (0 offenses on file).");
+                    }
+                }
+            }
+        }
 
         $sysPrompt = "IMPORTANT ROLE PERSPECTIVE:\n"
             . "You are an internal executive Decision-Support Advisor assisting the UPCC DISCIPLINARY PANEL MEMBERS (the board/hearing officers) of NU Lipa.\n"
             . "You are NOT talking to the student. Always address the user as 'Panel Member' or 'Board'.\n"
-            . "Refer to the accused student strictly in the 3rd person (e.g., 'The student, {$studentName}, has...'). Never address the panel member as 'you' in reference to the offense.\n\n"
+            . "Refer to the accused student strictly in the 3rd person (e.g., 'The student, {$studentName}, has...'). Never address the panel member as 'you' in reference to the offense.\n"
+            . "If asked about another student, use the REAL-TIME DATABASE LOOKUP context provided below.\n\n"
             . "Answer questions strictly grounded in the NU Lipa Student Handbook rules below and the active case data provided. "
             . "Format your responses with clean Markdown headers, bold highlights, and bullet points. Never make up facts outside the handbook or case file.\n\n"
             . $dynamicRules;
@@ -435,7 +461,8 @@ try {
             . "• Offense Charged: {$offenseName} (Level: {$offenseLevel}, Instance #{$instanceCount})\n"
             . "• Total Major Offenses: {$totalMajorCount}\n"
             . "• Total Prior Cases: {$totalPrior}\n"
-            . "• Precedent Record for this Offense:\n{$precedentContext}\n\n"
+            . "• Precedent Record for this Offense:\n{$precedentContext}"
+            . $otherStudentContext . "\n\n"
             . "PANEL QUESTION: {$userQuery}";
 
         $aiText = callGemini($sysPrompt, $userPrompt);
