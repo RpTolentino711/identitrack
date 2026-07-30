@@ -52,10 +52,8 @@ function getDynamicHandbookRules(): string
  */
 function getGeminiApiKey(): string
 {
-    $key = trim((string)($_POST['api_key'] ?? $_GET['api_key'] ?? $_SESSION['GEMINI_API_KEY'] ?? $_ENV['GEMINI_API_KEY'] ?? $_SERVER['GEMINI_API_KEY'] ?? getenv('GEMINI_API_KEY') ?: ''));
-    if ($key === '' && defined('GEMINI_API_KEY')) {
-        $key = (string)GEMINI_API_KEY;
-    }
+    $key = trim((string)($_POST['api_key'] ?? $_GET['api_key'] ?? ''));
+    
     if ($key === '') {
         try {
             $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'gemini_api_key' LIMIT 1");
@@ -66,6 +64,19 @@ function getGeminiApiKey(): string
             // Table not created yet
         }
     }
+
+    if ($key === '' && !empty($_SESSION['GEMINI_API_KEY'])) {
+        $key = trim((string)$_SESSION['GEMINI_API_KEY']);
+    }
+
+    if ($key === '' && defined('GEMINI_API_KEY')) {
+        $key = (string)GEMINI_API_KEY;
+    }
+
+    if ($key === '') {
+        $key = trim((string)($_ENV['GEMINI_API_KEY'] ?? $_SERVER['GEMINI_API_KEY'] ?? getenv('GEMINI_API_KEY') ?: ''));
+    }
+
     return $key;
 }
 
