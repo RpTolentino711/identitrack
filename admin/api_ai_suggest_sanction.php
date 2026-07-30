@@ -301,14 +301,8 @@ try {
 
         if ($cStatusRow) {
             $st = strtoupper((string)($cStatusRow['status'] ?? ''));
-            $isPaused = !empty($cStatusRow['is_paused']) || (isset($cStatusRow['is_open']) && (int)$cStatusRow['is_open'] === 0);
-
             if (in_array($st, ['CLOSED', 'RESOLVED', 'FINALIZED'], true)) {
                 echo json_encode(['ok' => false, 'error' => '🔒 Hearing Concluded: Case is closed. AI Assistant is disabled.', 'is_closed' => true]);
-                exit;
-            }
-            if ($isPaused || in_array($st, ['PAUSED', 'ON_HOLD', 'INACTIVE'], true)) {
-                echo json_encode(['ok' => false, 'error' => '⏸️ Hearing Paused: AI Assistant is paused until hearing resumes.', 'is_paused' => true]);
                 exit;
             }
         }

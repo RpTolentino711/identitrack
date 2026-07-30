@@ -2510,18 +2510,10 @@ function syncLive() {
             }
 
             if (data.hearing_open === false) {
-                if (aiInput) {
-                    aiInput.disabled = true;
-                    aiInput.placeholder = "⏸️ Hearing Paused — AI Assistant on standby";
-                }
                 if (aiStatusBadge) {
                     aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block;"></span> Paused (Standby)';
                 }
             } else {
-                if (aiInput) {
-                    aiInput.disabled = false;
-                    aiInput.placeholder = "Ask AI about this hearing...";
-                }
                 if (aiStatusBadge) {
                     aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span> Hearing Advisory System';
                 }
@@ -3285,7 +3277,7 @@ function typewriteAiReply(containerThread, rawText) {
                     setAiChatBusy(false); // Re-enable if error occurs
                     let errText = data.error || 'No reply generated.';
                     
-                    if (data.is_closed || data.is_paused) {
+                    if (data.is_closed) {
                         const input = document.getElementById('aiChatInput');
                         const btn = document.getElementById('aiSendBtn');
                         if (input) {
@@ -3298,7 +3290,7 @@ function typewriteAiReply(containerThread, rawText) {
                             btn.style.opacity = '0.5';
                             btn.style.cursor = 'not-allowed';
                         }
-                        return; // Remove error box from chat thread cleanly
+                        return;
                     }
 
                     const errDiv = document.createElement('div');
