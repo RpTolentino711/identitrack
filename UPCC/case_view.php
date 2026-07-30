@@ -3287,13 +3287,13 @@ function typewriteAiReply(containerThread, rawText) {
                     const errDiv = document.createElement('div');
                     errDiv.style.cssText = 'text-align:left;margin-top:6px;';
                     
-                    if (data.key_required) {
+                    if (data.key_required || errText.includes('Quota Exceeded') || errText.includes('429')) {
                         errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.95);border:1px solid rgba(234, 179, 8, 0.4);color:#fef08a;padding:12px 14px;border-radius:14px;font-size:12px;line-height:1.5;">
-                          <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">🔑</span> <span>Gemini API Key Required</span></div>
+                          <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">🔑</span> <span>Add Backup Gemini API Key</span></div>
                           <div style="color:#e2e8f0;margin-bottom:8px;">${errText}</div>
                           <div style="display:flex;gap:6px;">
-                            <input type="password" id="customApiKeyInput" placeholder="Paste AIzaSy... key here" style="flex:1;background:#0f172a;border:1px solid #334155;color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;outline:none;" />
-                            <button onclick="submitGeminiKey()" style="background:#2563eb;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Activate</button>
+                            <input type="password" id="customApiKeyInput" placeholder="Paste new AIzaSy... key here" style="flex:1;background:#0f172a;border:1px solid #334155;color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;outline:none;" />
+                            <button onclick="submitGeminiKey()" style="background:#2563eb;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">+ Add to Key Pool</button>
                           </div>
                         </div>`;
                     } else {

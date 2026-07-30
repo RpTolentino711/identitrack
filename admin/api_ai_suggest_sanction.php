@@ -48,36 +48,58 @@ function getDynamicHandbookRules(): string
 }
 
 /**
- * Helper to retrieve Gemini API Key from session, database config, environment, or constant
+ * Helper to retrieve all configured Gemini API Keys from request, session, database, environment, or constants
  */
-function getGeminiApiKey(): string
+function getGeminiApiKeys(): array
 {
-    $key = trim((string)($_POST['api_key'] ?? $_GET['api_key'] ?? ''));
-    
-    if ($key === '') {
-        try {
-            $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'gemini_api_key' LIMIT 1");
-            if ($cfg && !empty($cfg['config_value'])) {
-                $key = trim((string)$cfg['config_value']);
+    $keys = [];
+
+    // 1. Explicit request param key
+    $reqKey = trim((string)($_POST['api_key'] ?? $_GET['api_key'] ?? ''));
+    if ($reqKey !== '') {
+        $keys[] = $reqKey;
+    }
+
+    // 2. Database config key(s)
+    try {
+        $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'gemini_api_key' LIMIT 1");
+        if ($cfg && !empty($cfg['config_value'])) {
+            $raw = trim((string)$cfg['config_value']);
+            $split = preg_split('/[\s,;\n\r]+/', $raw);
+            foreach ($split as $k) {
+                $k = trim($k);
+                if ($k !== '') $keys[] = $k;
             }
-        } catch (\Throwable $e) {
-            // Table not created yet
+        }
+    } catch (\Throwable $e) {}
+
+    // 3. Session key
+    if (!empty($_SESSION['GEMINI_API_KEY'])) {
+        $rawSession = trim((string)$_SESSION['GEMINI_API_KEY']);
+        $splitS = preg_split('/[\s,;\n\r]+/', $rawSession);
+        foreach ($splitS as $sk) {
+            $sk = trim($sk);
+            if ($sk !== '') $keys[] = $sk;
         }
     }
 
-    if ($key === '' && !empty($_SESSION['GEMINI_API_KEY'])) {
-        $key = trim((string)$_SESSION['GEMINI_API_KEY']);
+    // 4. Environment or constant keys
+    if (defined('GEMINI_API_KEY')) {
+        $keys[] = (string)GEMINI_API_KEY;
     }
 
-    if ($key === '' && defined('GEMINI_API_KEY')) {
-        $key = (string)GEMINI_API_KEY;
+    $envKey = trim((string)($_ENV['GEMINI_API_KEY'] ?? $_SERVER['GEMINI_API_KEY'] ?? getenv('GEMINI_API_KEY') ?: ''));
+    if ($envKey !== '') {
+        $keys[] = $envKey;
     }
 
-    if ($key === '') {
-        $key = trim((string)($_ENV['GEMINI_API_KEY'] ?? $_SERVER['GEMINI_API_KEY'] ?? getenv('GEMINI_API_KEY') ?: ''));
-    }
+    return array_values(array_unique(array_filter($keys)));
+}
 
-    return $key;
+function getGeminiApiKey(): string
+{
+    $keys = getGeminiApiKeys();
+    return $keys[0] ?? '';
 }
 
 /**
@@ -143,62 +165,70 @@ function getCategoryPrecedents(?int $majorCategory, int $offenseTypeId, int $exc
 }
 
 /**
- * Calls Google Gemini API model (gemini-2.0-flash or gemini-1.5-flash)
+ * Calls Google Gemini API model with Multi-Key Failover Auto-Rotation
  */
 function callGemini(string $systemPrompt, string $userPrompt): ?string
 {
-    $geminiKey = getGeminiApiKey();
-    if ($geminiKey === '') {
-        $GLOBALS['LAST_GEMINI_ERROR'] = '🔑 Gemini API Key is required.';
+    $apiKeys = getGeminiApiKeys();
+    if (empty($apiKeys)) {
+        $GLOBALS['LAST_GEMINI_ERROR'] = '🔑 Gemini API Key is required. Please configure your Google Gemini API Key.';
         return null;
     }
 
     $models = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-pro-latest', 'gemini-2.0-flash'];
     $lastErr = '';
 
-    foreach ($models as $model) {
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
-        
-        $payload = [
-            'contents' => [
-                ['role' => 'user', 'parts' => [['text' => $systemPrompt . "\n\n" . $userPrompt]]]
-            ],
-            'generationConfig' => [
-                'temperature' => 0.2,
-                'maxOutputTokens' => 3000
-            ]
-        ];
+    foreach ($apiKeys as $keyIndex => $geminiKey) {
+        foreach ($models as $model) {
+            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
+            
+            $payload = [
+                'contents' => [
+                    ['role' => 'user', 'parts' => [['text' => $systemPrompt . "\n\n" . $userPrompt]]]
+                ],
+                'generationConfig' => [
+                    'temperature' => 0.2,
+                    'maxOutputTokens' => 3000
+                ]
+            ];
 
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 12);
 
-        $res = curl_exec($ch);
-        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+            $res = curl_exec($ch);
+            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr = curl_error($ch);
+            curl_close($ch);
 
-        if ($httpCode === 200 && $res) {
-            $json = json_decode($res, true);
-            $text = $json['candidates'][0]['content']['parts'][0]['text'] ?? null;
-            if ($text !== null && trim($text) !== '') {
-                return trim($text);
+            if ($httpCode === 200 && $res) {
+                $data = json_decode($res, true);
+                $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+                if ($text !== null && trim($text) !== '') {
+                    return trim($text);
+                }
             }
-        } elseif ($res) {
-            $json = json_decode($res, true);
-            $errMsg = $json['error']['message'] ?? "HTTP {$httpCode}";
+
             if ($httpCode === 429) {
-                $lastErr = "⚠️ Google Gemini API Quota Exceeded (429): Free tier quota limit reached for this API key. Please generate an API Key in Google AI Studio under the default project.";
+                $lastErr = "⚠️ Key #" . ($keyIndex + 1) . " Quota Exceeded (429): Free tier quota limit reached for this key. Automatically switching to backup keys in pool...";
+                break;
+            }
+
+            if ($res) {
+                $errData = json_decode($res, true);
+                $msg = $errData['error']['message'] ?? "HTTP {$httpCode}";
+                $lastErr = "Gemini API Error ({$model}): {$msg}";
             } else {
-                $lastErr = "⚠️ Google Gemini API Error ({$httpCode}): {$errMsg}";
+                $lastErr = "cURL Error: " . ($curlErr ?: 'HTTP failed');
             }
         }
     }
 
-    $GLOBALS['LAST_GEMINI_ERROR'] = $lastErr !== '' ? $lastErr : '⚠️ Google Gemini API request failed.';
+    $GLOBALS['LAST_GEMINI_ERROR'] = $lastErr !== '' ? $lastErr : '⚠️ Google Gemini API Quota Exceeded across all API keys. Please add a new API Key from Google AI Studio.';
     return null;
 }
 
@@ -209,14 +239,22 @@ try {
     if ($action === 'set_key') {
         $newKey = trim((string)($_POST['key'] ?? $_GET['key'] ?? ''));
         if ($newKey !== '') {
-            $_SESSION['GEMINI_API_KEY'] = $newKey;
+            $existingKeys = getGeminiApiKeys();
+            $splitNew = preg_split('/[\s,;\n\r]+/', $newKey);
+            $combined = array_values(array_unique(array_filter(array_merge($splitNew, $existingKeys))));
+            $saveVal = implode("\n", $combined);
+
+            $_SESSION['GEMINI_API_KEY'] = $saveVal;
             try {
                 db_exec("CREATE TABLE IF NOT EXISTS system_config (config_key VARCHAR(100) PRIMARY KEY, config_value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
-                db_exec("REPLACE INTO system_config (config_key, config_value) VALUES ('gemini_api_key', :k)", [':k' => $newKey]);
-            } catch (\Throwable $e) {
-                // Session fallback active
-            }
-            echo json_encode(['ok' => true, 'message' => '🔑 Gemini API Key configured and saved to database!']);
+                db_exec("REPLACE INTO system_config (config_key, config_value) VALUES ('gemini_api_key', :k)", [':k' => $saveVal]);
+            } catch (\Throwable $e) {}
+
+            echo json_encode([
+                'ok' => true, 
+                'total_keys' => count($combined),
+                'message' => '🔑 ' . count($combined) . ' Gemini API Key(s) active in key pool! Automatic failover enabled.'
+            ]);
         } else {
             echo json_encode(['ok' => false, 'error' => 'Please provide a valid Gemini API Key.']);
         }
