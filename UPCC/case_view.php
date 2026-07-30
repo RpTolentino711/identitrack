@@ -3009,6 +3009,7 @@ let isAiDrawerOpen = false;
 let activeAiAbortController = null;
 let isAiStreamingStopped = false;
 let currentLoadingNodeId = null;
+let currentTypewriterTimer = null;
 
 function toggleAiDrawer(forceState) {
     const drawer = document.getElementById('aiChatDrawer');
@@ -3059,6 +3060,10 @@ function initAiGreeting() {
 
 function stopAiGeneration() {
     isAiStreamingStopped = true;
+    if (currentTypewriterTimer) {
+        clearTimeout(currentTypewriterTimer);
+        currentTypewriterTimer = null;
+    }
     if (activeAiAbortController) {
         try { activeAiAbortController.abort(); } catch(e) {}
         activeAiAbortController = null;
@@ -3149,40 +3154,46 @@ function formatAiMarkdown(text) {
     return clean;
 }
 
-  function typewriteAiReply(containerThread, rawText) {
-      const replyWrapper = document.createElement('div');
-      replyWrapper.style.cssText = 'text-align:left;margin-top:6px;';
-      
-      const bubble = document.createElement('div');
-      bubble.style.cssText = 'background:rgba(30, 41, 59, 0.92);border:1px solid rgba(56, 189, 248, 0.3);color:#f1f5f9;padding:12px 16px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:90%;box-shadow:0 4px 18px rgba(0,0,0,0.3);position:relative;';
-      
-      replyWrapper.appendChild(bubble);
-      containerThread.appendChild(replyWrapper);
+function typewriteAiReply(containerThread, rawText) {
+    const replyWrapper = document.createElement('div');
+    replyWrapper.style.cssText = 'text-align:left;margin-top:6px;';
+    
+    const bubble = document.createElement('div');
+    bubble.style.cssText = 'background:rgba(30, 41, 59, 0.92);border:1px solid rgba(56, 189, 248, 0.3);color:#f1f5f9;padding:12px 16px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:90%;box-shadow:0 4px 18px rgba(0,0,0,0.3);position:relative;';
+    
+    replyWrapper.appendChild(bubble);
+    containerThread.appendChild(replyWrapper);
 
-      const formattedFinal = formatAiMarkdown(rawText);
+    const formattedFinal = formatAiMarkdown(rawText);
 
-      let idx = 0;
-      const speedMs = 22; // 22ms per char for realistic, smooth typewriter feel
-      const totalLen = rawText.length;
+    let idx = 0;
+    const speedMs = 22;
+    const totalLen = rawText.length;
 
-      function streamStep() {
-          if (idx < totalLen) {
-              let chunk = rawText.substring(0, idx + 1);
-              let chunkFormatted = formatAiMarkdown(chunk);
-              
-              bubble.innerHTML = chunkFormatted + '<span style="display:inline-block;width:8px;height:14px;background:#38bdf8;margin-left:3px;vertical-align:middle;border-radius:1px;box-shadow:0 0 10px #38bdf8;animation:aiGlowPulse 0.5s infinite alternate;"></span>';
-              
-              idx += 1;
-              containerThread.scrollTop = containerThread.scrollHeight;
-              setTimeout(streamStep, speedMs);
-          } else {
-              bubble.innerHTML = formattedFinal;
-              containerThread.scrollTop = containerThread.scrollHeight;
-              setAiChatBusy(false); // Re-enable input and enter key after reply is done!
-          }
-      }
-      streamStep();
-  }
+    function streamStep() {
+        if (isAiStreamingStopped) {
+            let chunk = rawText.substring(0, Math.max(0, idx));
+            bubble.innerHTML = formatAiMarkdown(chunk) + ' <span style="font-size:11px;color:#f87171;font-weight:600;">[Stopped]</span>';
+            return;
+        }
+
+        if (idx < totalLen) {
+            let chunk = rawText.substring(0, idx + 1);
+            let chunkFormatted = formatAiMarkdown(chunk);
+            
+            bubble.innerHTML = chunkFormatted + '<span style="display:inline-block;width:8px;height:14px;background:#38bdf8;margin-left:3px;vertical-align:middle;border-radius:1px;box-shadow:0 0 10px #38bdf8;animation:aiGlowPulse 0.5s infinite alternate;"></span>';
+            
+            idx += 1;
+            containerThread.scrollTop = containerThread.scrollHeight;
+            currentTypewriterTimer = setTimeout(streamStep, speedMs);
+        } else {
+            bubble.innerHTML = formattedFinal;
+            containerThread.scrollTop = containerThread.scrollHeight;
+            setAiChatBusy(false);
+        }
+    }
+    streamStep();
+}
 
   function submitGeminiKey() {
       const kInput = document.getElementById('customApiKeyInput');
