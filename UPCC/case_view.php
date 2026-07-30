@@ -3298,6 +3298,7 @@ function typewriteAiReply(containerThread, rawText) {
                             btn.style.opacity = '0.5';
                             btn.style.cursor = 'not-allowed';
                         }
+                        return; // Remove error box from chat thread cleanly
                     }
 
                     const errDiv = document.createElement('div');
