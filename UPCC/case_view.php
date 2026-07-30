@@ -3012,6 +3012,7 @@ let currentLoadingNodeId = null;
 
 function toggleAiDrawer(forceState) {
     const drawer = document.getElementById('aiChatDrawer');
+    const bubble = document.getElementById('aiFloatingBubble');
     if (!drawer) return;
     
     if (typeof forceState === 'boolean') {
@@ -3025,12 +3026,22 @@ function toggleAiDrawer(forceState) {
         drawer.style.opacity = '1';
         drawer.style.visibility = 'visible';
         drawer.style.pointerEvents = 'auto';
+        if (bubble) {
+            bubble.style.opacity = '0';
+            bubble.style.visibility = 'hidden';
+            bubble.style.pointerEvents = 'none';
+        }
         initAiGreeting();
     } else {
         drawer.style.transform = 'translateY(120%)';
         drawer.style.opacity = '0';
         drawer.style.visibility = 'hidden';
         drawer.style.pointerEvents = 'none';
+        if (bubble) {
+            bubble.style.opacity = '1';
+            bubble.style.visibility = 'visible';
+            bubble.style.pointerEvents = 'auto';
+        }
     }
 }
 
