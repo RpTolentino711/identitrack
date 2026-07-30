@@ -2995,31 +2995,52 @@ syncLive(); // immediate first call
     </div>
   </div>
 
-      const input = document.getElementById('aiChatInput');
-      const btn = document.getElementById('aiSendBtn');
-      if (input) {
-          input.disabled = isBusy;
-          if (isBusy) {
-              input.dataset.oldPlaceholder = input.placeholder || 'Ask AI about this hearing...';
-              input.placeholder = 'AI is responding...';
-              input.style.opacity = '0.55';
-              input.style.cursor = 'not-allowed';
-          } else {
-              input.placeholder = input.dataset.oldPlaceholder || 'Ask AI about this hearing...';
-              input.style.opacity = '1';
-              input.style.cursor = 'text';
-              setTimeout(() => input.focus(), 60);
-          }
-      }
-      if (btn) {
-          btn.disabled = isBusy;
-          btn.style.opacity = isBusy ? '0.4' : '1';
-          btn.style.cursor = isBusy ? 'not-allowed' : 'pointer';
-          btn.style.pointerEvents = isBusy ? 'none' : 'auto';
-      }
-  }
+  <!-- BOTTOM INPUT BAR -->
+  <div style="padding:12px 14px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:center;">
+    <input type="text" id="aiChatInput" placeholder="Ask AI about this hearing..." style="flex:1;background:rgba(30, 41, 59, 0.7);border:1px solid rgba(255,255,255,0.1);color:#f8fafc;padding:10px 16px;border-radius:24px;font-size:13px;outline:none;transition:all .2s;" onfocus="if(!this.disabled){this.style.borderColor='rgba(56,189,248,0.5)';this.style.background='rgba(30,41,59,0.95)';}" onblur="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(30,41,59,0.7)';" onkeydown="if(event.key==='Enter' && !this.disabled) sendAiChat()">
+    <button id="aiSendBtn" onclick="sendAiChat()" title="Send Message" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.4);transition:all .2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+    </button>
+  </div>
+</div>
 
-  function formatAiMarkdown(text) {
+<script>
+let isAiDrawerOpen = false;
+let activeAiAbortController = null;
+let isAiStreamingStopped = false;
+let currentLoadingNodeId = null;
+
+function toggleAiDrawer() {
+    const drawer = document.getElementById('aiChatDrawer');
+    const bubble = document.getElementById('aiFloatingBubble');
+    if (!drawer) return;
+    
+    isAiDrawerOpen = !isAiDrawerOpen;
+    if (isAiDrawerOpen) {
+        drawer.style.transform = 'translateY(0)';
+        if (bubble) bubble.style.display = 'none';
+        initAiGreeting();
+    } else {
+        drawer.style.transform = 'translateY(120%)';
+        if (bubble) bubble.style.display = 'flex';
+    }
+}
+
+function initAiGreeting() {
+    const thread = document.getElementById('aiChatThread');
+    if (!thread || thread.dataset.loaded === '1') return;
+    thread.dataset.loaded = '1';
+    
+    thread.innerHTML = `
+      <div style="background:rgba(30, 41, 59, 0.7);border:1px solid rgba(56, 189, 248, 0.2);border-radius:18px;padding:14px 16px;color:#f1f5f9;font-size:13px;line-height:1.6;box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+        <div style="font-weight:700;color:#38bdf8;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          <span>👋</span> <span>Hello Panel Member</span>
+        </div>
+        <div>I am your <b>IdentiTrack AI Hearing Assistant</b>. I have loaded and analyzed the student's case file against the <b>NU Lipa Student Handbook</b>.</div>
+        <div style="margin-top:8px;font-size:12px;color:#94a3b8;">Type any question below regarding offense history, handbook policy rules, or community service hours!</div>
+      </div>
+    `;
+}
       if (!text) return '';
       
       // Clean raw JSON strings if any remain in text
