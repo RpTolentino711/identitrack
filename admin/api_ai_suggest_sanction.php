@@ -294,15 +294,17 @@ try {
     // ── Hearing Status Locking ──
     $case = null;
     if ($caseId > 0) {
-        $cStatusRow = db_one("SELECT status FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
+        $cStatusRow = db_one("SELECT status, is_paused FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
         if ($cStatusRow) {
             $st = strtoupper((string)($cStatusRow['status'] ?? ''));
+            $isPaused = !empty($cStatusRow['is_paused']);
+
             if (in_array($st, ['CLOSED', 'RESOLVED', 'FINALIZED'], true)) {
-                echo json_encode(['ok' => false, 'error' => '🔒 Hearing Concluded: Case is closed. AI Assistant is disabled.']);
+                echo json_encode(['ok' => false, 'error' => '🔒 Hearing Concluded: Case is closed. AI Assistant is disabled.', 'is_closed' => true]);
                 exit;
             }
-            if (in_array($st, ['PAUSED', 'ON_HOLD', 'INACTIVE'], true)) {
-                echo json_encode(['ok' => false, 'error' => '⏸️ Hearing Paused: AI Assistant is paused until hearing resumes.']);
+            if ($isPaused || in_array($st, ['PAUSED', 'ON_HOLD', 'INACTIVE'], true)) {
+                echo json_encode(['ok' => false, 'error' => '⏸️ Hearing Paused: AI Assistant is paused until hearing resumes.', 'is_paused' => true]);
                 exit;
             }
         }

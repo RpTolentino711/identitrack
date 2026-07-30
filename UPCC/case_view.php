@@ -3284,6 +3284,22 @@ function typewriteAiReply(containerThread, rawText) {
                 } else {
                     setAiChatBusy(false); // Re-enable if error occurs
                     let errText = data.error || 'No reply generated.';
+                    
+                    if (data.is_closed || data.is_paused) {
+                        const input = document.getElementById('aiChatInput');
+                        const btn = document.getElementById('aiSendBtn');
+                        if (input) {
+                            input.disabled = true;
+                            input.placeholder = errText;
+                            input.style.opacity = '0.5';
+                        }
+                        if (btn) {
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                        }
+                    }
+
                     const errDiv = document.createElement('div');
                     errDiv.style.cssText = 'text-align:left;margin-top:6px;';
                     
@@ -3297,7 +3313,7 @@ function typewriteAiReply(containerThread, rawText) {
                           </div>
                         </div>`;
                     } else {
-                        errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ ${errText}</div>`;
+                        errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">${errText}</div>`;
                     }
                     thread.appendChild(errDiv);
                     thread.scrollTop = thread.scrollHeight;
