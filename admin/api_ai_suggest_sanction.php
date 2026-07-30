@@ -132,15 +132,19 @@ function getCategoryPrecedents(?int $majorCategory, int $offenseTypeId, int $exc
 }
 
 /**
- * Calls Google Gemini API model (gemini-1.5-flash or gemini-2.0-flash)
+ * Calls Google Gemini API model (gemini-2.0-flash or gemini-1.5-flash)
  */
 function callGemini(string $systemPrompt, string $userPrompt): ?string
 {
     $geminiKey = getGeminiApiKey();
-    if ($geminiKey === '') return null;
+    if ($geminiKey === '') {
+        $GLOBALS['LAST_GEMINI_ERROR'] = '🔑 Gemini API Key is required.';
+        return null;
+    }
 
-    $models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
-    
+    $models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    $lastErr = '';
+
     foreach ($models as $model) {
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
         
@@ -159,6 +163,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
         $res = curl_exec($ch);
@@ -171,9 +176,18 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
             if ($text !== null && trim($text) !== '') {
                 return trim($text);
             }
+        } elseif ($res) {
+            $json = json_decode($res, true);
+            $errMsg = $json['error']['message'] ?? "HTTP {$httpCode}";
+            if ($httpCode === 429) {
+                $lastErr = "⚠️ Google Gemini API Quota Exceeded (429): Free tier quota limit reached for this API key. Please generate an API Key in Google AI Studio under the default project.";
+            } else {
+                $lastErr = "⚠️ Google Gemini API Error ({$httpCode}): {$errMsg}";
+            }
         }
     }
 
+    $GLOBALS['LAST_GEMINI_ERROR'] = $lastErr !== '' ? $lastErr : '⚠️ Google Gemini API request failed.';
     return null;
 }
 
@@ -425,7 +439,7 @@ try {
             echo json_encode([
                 'ok' => false,
                 'ai_available' => false,
-                'error' => '⚠️ Request to Google Gemini API failed or returned an empty response. Please verify your Gemini API key.'
+                'error' => $GLOBALS['LAST_GEMINI_ERROR'] ?? '⚠️ Request to Google Gemini API failed or returned an empty response.'
             ]);
         }
         exit;
