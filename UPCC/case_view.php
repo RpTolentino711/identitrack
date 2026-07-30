@@ -2943,7 +2943,7 @@ syncLive(); // immediate first call
 </script>
 
 <!-- ULTRA-PREMIUM FLOATING AI CHAT DRAWER -->
-<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:99999;cursor:pointer;display:flex;align-items:center;gap:12px;background:rgba(15, 23, 42, 0.85);backdrop-filter:blur(12px);color:#fff;padding:10px 20px;border-radius:50px;box-shadow:0 12px 35px rgba(2, 132, 199, 0.35);border:1px solid rgba(56, 189, 248, 0.4);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-weight:600;font-size:13px;letter-spacing:0.3px;transition:all .3s cubic-bezier(0.16, 1, 0.3, 1);" onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='rgba(56, 189, 248, 0.8)';" onmouseout="this.style.transform='translateY(0)';this.style.borderColor='rgba(56, 189, 248, 0.4)';">
+<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:100005;cursor:pointer;display:flex;align-items:center;gap:12px;background:rgba(15, 23, 42, 0.85);backdrop-filter:blur(12px);color:#fff;padding:10px 20px;border-radius:50px;box-shadow:0 12px 35px rgba(2, 132, 199, 0.35);border:1px solid rgba(56, 189, 248, 0.4);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-weight:600;font-size:13px;letter-spacing:0.3px;transition:all .3s cubic-bezier(0.16, 1, 0.3, 1);pointer-events:auto;" onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='rgba(56, 189, 248, 0.8)';" onmouseout="this.style.transform='translateY(0)';this.style.borderColor='rgba(56, 189, 248, 0.4)';">
   <div style="position:relative;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 12px rgba(14,165,233,0.6);">
     ✨
     <span style="position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:#10b981;border:2px solid #0f172a;"></span>
@@ -2966,7 +2966,7 @@ syncLive(); // immediate first call
     }
 }
 </style>
-<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:390px;height:530px;max-height:85vh;background:rgba(9, 14, 26, 0.95);backdrop-filter:blur(20px);border:1px solid rgba(56, 189, 248, 0.25);border-radius:24px;box-shadow:0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(14, 165, 233, 0.15);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%);transition:transform .4s cubic-bezier(0.16, 1, 0.3, 1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:390px;height:530px;max-height:85vh;background:rgba(9, 14, 26, 0.95);backdrop-filter:blur(20px);border:1px solid rgba(56, 189, 248, 0.25);border-radius:24px;box-shadow:0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(14, 165, 233, 0.15);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%);opacity:0;visibility:hidden;pointer-events:none;transition:transform .4s cubic-bezier(0.16, 1, 0.3, 1), opacity .3s, visibility .3s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   
   <!-- DRAWER HEADER -->
   <div style="background:rgba(15, 23, 42, 0.9);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);">
@@ -3018,10 +3018,16 @@ function toggleAiDrawer() {
     isAiDrawerOpen = !isAiDrawerOpen;
     if (isAiDrawerOpen) {
         drawer.style.transform = 'translateY(0)';
+        drawer.style.opacity = '1';
+        drawer.style.visibility = 'visible';
+        drawer.style.pointerEvents = 'auto';
         if (bubble) bubble.style.display = 'none';
         initAiGreeting();
     } else {
         drawer.style.transform = 'translateY(120%)';
+        drawer.style.opacity = '0';
+        drawer.style.visibility = 'hidden';
+        drawer.style.pointerEvents = 'none';
         if (bubble) bubble.style.display = 'flex';
     }
 }
