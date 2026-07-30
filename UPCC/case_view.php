@@ -2982,8 +2982,8 @@ syncLive(); // immediate first call
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:4px;">
-      <button onclick="toggleAiDrawer()" title="Minimize" style="background:rgba(255,255,255,0.05);border:none;color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)';this.style.color='#fff';" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8';">─</button>
-      <button onclick="toggleAiDrawer()" title="Close" style="background:rgba(255,255,255,0.05);border:none;color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)';this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8';">✕</button>
+      <button onclick="toggleAiDrawer(false)" title="Minimize" style="background:rgba(255,255,255,0.05);border:none;color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)';this.style.color='#fff';" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8';">─</button>
+      <button onclick="toggleAiDrawer(false)" title="Close" style="background:rgba(255,255,255,0.05);border:none;color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)';this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8';">✕</button>
     </div>
   </div>
 
@@ -3010,25 +3010,27 @@ let activeAiAbortController = null;
 let isAiStreamingStopped = false;
 let currentLoadingNodeId = null;
 
-function toggleAiDrawer() {
+function toggleAiDrawer(forceState) {
     const drawer = document.getElementById('aiChatDrawer');
-    const bubble = document.getElementById('aiFloatingBubble');
     if (!drawer) return;
     
-    isAiDrawerOpen = !isAiDrawerOpen;
+    if (typeof forceState === 'boolean') {
+        isAiDrawerOpen = forceState;
+    } else {
+        isAiDrawerOpen = !isAiDrawerOpen;
+    }
+
     if (isAiDrawerOpen) {
         drawer.style.transform = 'translateY(0)';
         drawer.style.opacity = '1';
         drawer.style.visibility = 'visible';
         drawer.style.pointerEvents = 'auto';
-        if (bubble) bubble.style.display = 'none';
         initAiGreeting();
     } else {
         drawer.style.transform = 'translateY(120%)';
         drawer.style.opacity = '0';
         drawer.style.visibility = 'hidden';
         drawer.style.pointerEvents = 'none';
-        if (bubble) bubble.style.display = 'flex';
     }
 }
 
