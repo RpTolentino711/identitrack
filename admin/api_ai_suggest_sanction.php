@@ -294,15 +294,15 @@ try {
     // ── Hearing Status Locking ──
     $case = null;
     if ($caseId > 0) {
-        $cStatusRow = db_one("SELECT status,
-                              (CASE WHEN (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'upcc_case' AND COLUMN_NAME = 'hearing_is_paused' LIMIT 1) IS NOT NULL THEN hearing_is_paused ELSE 0 END) AS is_paused,
-                              (CASE WHEN (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'upcc_case' AND COLUMN_NAME = 'hearing_is_open' LIMIT 1) IS NOT NULL THEN hearing_is_open ELSE 1 END) AS is_open
-                       FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
-
+        $cStatusRow = db_one("SELECT status FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
         if ($cStatusRow) {
             $st = strtoupper((string)($cStatusRow['status'] ?? ''));
             if (in_array($st, ['CLOSED', 'RESOLVED', 'FINALIZED'], true)) {
-                echo json_encode(['ok' => false, 'error' => '🔒 Hearing Concluded: Case is closed. AI Assistant is disabled.', 'is_closed' => true]);
+                echo json_encode(['ok' => false, 'error' => '🔒 Hearing Concluded: Case is closed. AI Assistant is disabled.']);
+                exit;
+            }
+            if (in_array($st, ['PAUSED', 'ON_HOLD', 'INACTIVE'], true)) {
+                echo json_encode(['ok' => false, 'error' => '⏸️ Hearing Paused: AI Assistant is paused until hearing resumes.']);
                 exit;
             }
         }
