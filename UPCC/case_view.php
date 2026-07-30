@@ -2981,218 +2981,251 @@ syncLive(); // immediate first call
     </div>
   </div>
 
-  <!-- BOTTOM INPUT BAR -->
-  <div style="padding:12px 14px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:center;">
-    <input type="text" id="aiChatInput" placeholder="Ask AI about this hearing..." style="flex:1;background:rgba(30, 41, 59, 0.7);border:1px solid rgba(255,255,255,0.1);color:#f8fafc;padding:10px 16px;border-radius:24px;font-size:13px;outline:none;transition:all .2s;" onfocus="this.style.borderColor='rgba(56,189,248,0.5)';this.style.background='rgba(30,41,59,0.95)';" onblur="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(30,41,59,0.7)';" onkeydown="if(event.key==='Enter') sendAiChat()">
-    <button onclick="sendAiChat()" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.4);transition:transform .2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-    </button>
+    <!-- BOTTOM INPUT BAR -->
+    <div style="padding:12px 14px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:center;">
+      <input type="text" id="aiChatInput" placeholder="Ask AI about this hearing..." style="flex:1;background:rgba(30, 41, 59, 0.7);border:1px solid rgba(255,255,255,0.1);color:#f8fafc;padding:10px 16px;border-radius:24px;font-size:13px;outline:none;transition:all .2s;" onfocus="if(!this.disabled){this.style.borderColor='rgba(56,189,248,0.5)';this.style.background='rgba(30,41,59,0.95)';}" onblur="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(30,41,59,0.7)';" onkeydown="if(event.key==='Enter' && !this.disabled) sendAiChat()">
+      <button id="aiSendBtn" onclick="sendAiChat()" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.4);transition:transform .2s;" onmouseover="if(!this.disabled) this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </div>
   </div>
-</div>
 
-<script>
-let isAiDrawerOpen = false;
+  <script>
+  let isAiDrawerOpen = false;
 
-function toggleAiDrawer() {
-    const drawer = document.getElementById('aiChatDrawer');
-    const bubble = document.getElementById('aiFloatingBubble');
-    if (!drawer) return;
-    
-    isAiDrawerOpen = !isAiDrawerOpen;
-    if (isAiDrawerOpen) {
-        drawer.style.transform = 'translateY(0)';
-        if (bubble) bubble.style.display = 'none';
-        initAiGreeting();
-    } else {
-        drawer.style.transform = 'translateY(120%)';
-        if (bubble) bubble.style.display = 'flex';
-    }
-}
+  function toggleAiDrawer() {
+      const drawer = document.getElementById('aiChatDrawer');
+      const bubble = document.getElementById('aiFloatingBubble');
+      if (!drawer) return;
+      
+      isAiDrawerOpen = !isAiDrawerOpen;
+      if (isAiDrawerOpen) {
+          drawer.style.transform = 'translateY(0)';
+          if (bubble) bubble.style.display = 'none';
+          initAiGreeting();
+      } else {
+          drawer.style.transform = 'translateY(120%)';
+          if (bubble) bubble.style.display = 'flex';
+      }
+  }
 
-function initAiGreeting() {
-    const thread = document.getElementById('aiChatThread');
-    if (!thread || thread.dataset.loaded === '1') return;
-    thread.dataset.loaded = '1';
-    
-    thread.innerHTML = `
-      <div style="background:rgba(30, 41, 59, 0.7);border:1px solid rgba(56, 189, 248, 0.2);border-radius:18px;padding:14px 16px;color:#f1f5f9;font-size:13px;line-height:1.6;box-shadow:0 4px 15px rgba(0,0,0,0.2);">
-        <div style="font-weight:700;color:#38bdf8;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-          <span>👋</span> <span>Hello Panel Member</span>
+  function initAiGreeting() {
+      const thread = document.getElementById('aiChatThread');
+      if (!thread || thread.dataset.loaded === '1') return;
+      thread.dataset.loaded = '1';
+      
+      thread.innerHTML = `
+        <div style="background:rgba(30, 41, 59, 0.7);border:1px solid rgba(56, 189, 248, 0.2);border-radius:18px;padding:14px 16px;color:#f1f5f9;font-size:13px;line-height:1.6;box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+          <div style="font-weight:700;color:#38bdf8;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+            <span>👋</span> <span>Hello Panel Member</span>
+          </div>
+          <div>I am your <b>IdentiTrack AI Hearing Assistant</b>. I have loaded and analyzed the student's case file against the <b>NU Lipa Student Handbook</b>.</div>
+          <div style="margin-top:8px;font-size:12px;color:#94a3b8;">Type any question below regarding offense history, handbook policy rules, or community service hours!</div>
         </div>
-        <div>I am your <b>IdentiTrack AI Hearing Assistant</b>. I have loaded and analyzed the student's case file against the <b>NU Lipa Student Handbook</b>.</div>
-        <div style="margin-top:8px;font-size:12px;color:#94a3b8;">Type any question below regarding offense history, handbook policy rules, or community service hours!</div>
-      </div>
-    `;
-}
+      `;
+  }
 
-function formatAiMarkdown(text) {
-    if (!text) return '';
-    
-    // Clean raw JSON strings if any remain in text
-    let clean = text.replace(/\{"service_hours":([0-9.]+),"interventions":\[(.*?)\](,"completed":(true|false))?\}/gi, function(match, hours, interventions) {
-        let h = Math.round(parseFloat(hours));
-        let i = interventions.replace(/"/g, '').split(',').join(', ');
-        return `<b>${h} Hours Community Service</b> (${i})`;
-    });
+  function setAiChatBusy(isBusy) {
+      const input = document.getElementById('aiChatInput');
+      const btn = document.getElementById('aiSendBtn');
+      if (input) {
+          input.disabled = isBusy;
+          if (isBusy) {
+              input.dataset.oldPlaceholder = input.placeholder || 'Ask AI about this hearing...';
+              input.placeholder = 'AI is responding...';
+              input.style.opacity = '0.55';
+              input.style.cursor = 'not-allowed';
+          } else {
+              input.placeholder = input.dataset.oldPlaceholder || 'Ask AI about this hearing...';
+              input.style.opacity = '1';
+              input.style.cursor = 'text';
+              setTimeout(() => input.focus(), 60);
+          }
+      }
+      if (btn) {
+          btn.disabled = isBusy;
+          btn.style.opacity = isBusy ? '0.4' : '1';
+          btn.style.cursor = isBusy ? 'not-allowed' : 'pointer';
+          btn.style.pointerEvents = isBusy ? 'none' : 'auto';
+      }
+  }
 
-    // Format Markdown bold **text**
-    clean = clean.replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;font-weight:600;">$1</b>');
+  function formatAiMarkdown(text) {
+      if (!text) return '';
+      
+      // Clean raw JSON strings if any remain in text
+      let clean = text.replace(/\{"service_hours":([0-9.]+),"interventions":\[(.*?)\](,"completed":(true|false))?\}/gi, function(match, hours, interventions) {
+          let h = Math.round(parseFloat(hours));
+          let i = interventions.replace(/"/g, '').split(',').join(', ');
+          return `<b>${h} Hours Community Service</b> (${i})`;
+      });
 
-    // Format Markdown italic *text*
-    clean = clean.replace(/\*(.*?)\*/g, '<i>$1</i>');
+      // Format Markdown bold **text**
+      clean = clean.replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;font-weight:600;">$1</b>');
 
-    // Format bullet points
-    clean = clean.replace(/^•\s*(.*)$/gm, '<span style="display:block;margin-left:10px;margin-top:3px;"><span style="color:#38bdf8;">•</span> $1</span>');
+      // Format Markdown italic *text*
+      clean = clean.replace(/\*(.*?)\*/g, '<i>$1</i>');
 
-    // Convert line breaks
-    clean = clean.replace(/\n/g, '<br>');
+      // Format bullet points
+      clean = clean.replace(/^•\s*(.*)$/gm, '<span style="display:block;margin-left:10px;margin-top:3px;"><span style="color:#38bdf8;">•</span> $1</span>');
 
-    return clean;
-}
+      // Convert line breaks
+      clean = clean.replace(/\n/g, '<br>');
 
-function typewriteAiReply(containerThread, rawText) {
-    const replyWrapper = document.createElement('div');
-    replyWrapper.style.cssText = 'text-align:left;margin-top:6px;';
-    
-    const bubble = document.createElement('div');
-    bubble.style.cssText = 'background:rgba(30, 41, 59, 0.92);border:1px solid rgba(56, 189, 248, 0.3);color:#f1f5f9;padding:12px 16px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:90%;box-shadow:0 4px 18px rgba(0,0,0,0.3);position:relative;';
-    
-    replyWrapper.appendChild(bubble);
-    containerThread.appendChild(replyWrapper);
+      return clean;
+  }
 
-    const formattedFinal = formatAiMarkdown(rawText);
+  function typewriteAiReply(containerThread, rawText) {
+      const replyWrapper = document.createElement('div');
+      replyWrapper.style.cssText = 'text-align:left;margin-top:6px;';
+      
+      const bubble = document.createElement('div');
+      bubble.style.cssText = 'background:rgba(30, 41, 59, 0.92);border:1px solid rgba(56, 189, 248, 0.3);color:#f1f5f9;padding:12px 16px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:90%;box-shadow:0 4px 18px rgba(0,0,0,0.3);position:relative;';
+      
+      replyWrapper.appendChild(bubble);
+      containerThread.appendChild(replyWrapper);
 
-    let idx = 0;
-    const speedMs = 22; // 22ms per char for realistic, smooth typewriter feel
-    const totalLen = rawText.length;
+      const formattedFinal = formatAiMarkdown(rawText);
 
-    function streamStep() {
-        if (idx < totalLen) {
-            let chunk = rawText.substring(0, idx + 1);
-            let chunkFormatted = formatAiMarkdown(chunk);
-            
-            bubble.innerHTML = chunkFormatted + '<span style="display:inline-block;width:8px;height:14px;background:#38bdf8;margin-left:3px;vertical-align:middle;border-radius:1px;box-shadow:0 0 10px #38bdf8;animation:aiGlowPulse 0.5s infinite alternate;"></span>';
-            
-            idx += 1; // Type 1 character per step for authentic typewriter effect
-            containerThread.scrollTop = containerThread.scrollHeight;
-            setTimeout(streamStep, speedMs);
-        } else {
-            bubble.innerHTML = formattedFinal;
-            containerThread.scrollTop = containerThread.scrollHeight;
-        }
-    }
-    streamStep();
-}
+      let idx = 0;
+      const speedMs = 22; // 22ms per char for realistic, smooth typewriter feel
+      const totalLen = rawText.length;
 
-function submitGeminiKey() {
-    const kInput = document.getElementById('customApiKeyInput');
-    const keyVal = kInput ? kInput.value.trim() : '';
-    if (!keyVal) {
-        alert('Please enter your Google Gemini API key.');
-        return;
-    }
+      function streamStep() {
+          if (idx < totalLen) {
+              let chunk = rawText.substring(0, idx + 1);
+              let chunkFormatted = formatAiMarkdown(chunk);
+              
+              bubble.innerHTML = chunkFormatted + '<span style="display:inline-block;width:8px;height:14px;background:#38bdf8;margin-left:3px;vertical-align:middle;border-radius:1px;box-shadow:0 0 10px #38bdf8;animation:aiGlowPulse 0.5s infinite alternate;"></span>';
+              
+              idx += 1;
+              containerThread.scrollTop = containerThread.scrollHeight;
+              setTimeout(streamStep, speedMs);
+          } else {
+              bubble.innerHTML = formattedFinal;
+              containerThread.scrollTop = containerThread.scrollHeight;
+              setAiChatBusy(false); // Re-enable input and enter key after reply is done!
+          }
+      }
+      streamStep();
+  }
 
-    fetch(`../admin/api_ai_suggest_sanction.php?action=set_key`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ key: keyVal })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.ok) {
-            alert('🔑 Gemini API Key configured successfully for session! You can now chat live with Gemini AI.');
-            const thread = document.getElementById('aiChatThread');
-            if (thread) {
-                thread.innerHTML += `<div style="text-align:left;margin-top:6px;"><div style="background:rgba(16, 185, 129, 0.2);border:1px solid rgba(16, 185, 129, 0.4);color:#6ee7b7;padding:10px 14px;border-radius:14px;font-size:12px;">✅ Gemini API Key Active! Ask any question to test live AI responses.</div></div>`;
-                thread.scrollTop = thread.scrollHeight;
-            }
-        } else {
-            alert('Error: ' + (data.error || 'Failed to save key.'));
-        }
-    });
-}
+  function submitGeminiKey() {
+      const kInput = document.getElementById('customApiKeyInput');
+      const keyVal = kInput ? kInput.value.trim() : '';
+      if (!keyVal) {
+          alert('Please enter your Google Gemini API key.');
+          return;
+      }
 
-function sendAiChat(presetText) {
-    const input = document.getElementById('aiChatInput');
-    const thread = document.getElementById('aiChatThread');
-    const query = presetText || (input ? input.value.trim() : '');
-    if (!query) return;
-    if (input) input.value = '';
-
-    // 1. Append user message cleanly
-    const userDiv = document.createElement('div');
-    userDiv.style.cssText = 'text-align:right;margin-top:6px;';
-    userDiv.innerHTML = `<span style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;padding:8px 14px;border-radius:18px 18px 4px 18px;font-size:13px;display:inline-block;max-width:82%;box-shadow:0 3px 10px rgba(2,132,199,0.3);line-height:1.4;">${query}</span>`;
-    thread.appendChild(userDiv);
-
-    // 2. Append AI Animated Loading Indicator
-    const loadingId = 'ai_loading_' + Date.now();
-    const loadingDiv = document.createElement('div');
-    loadingDiv.id = loadingId;
-    loadingDiv.style.cssText = 'text-align:left;margin-top:6px;';
-    loadingDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(56, 189, 248, 0.35);color:#38bdf8;padding:10px 16px;border-radius:18px 18px 18px 4px;font-size:13px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:16px;">🧠</span> <span style="font-weight:600;">Gemini AI is analyzing Student Handbook & Precedents...</span> <span style="display:inline-flex;gap:3px;"><span style="animation: aiDotBounce 1.4s infinite 0s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.2s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.4s;">•</span></span></div>`;
-    thread.appendChild(loadingDiv);
-    thread.scrollTop = thread.scrollHeight;
-
-    const startTime = Date.now();
-
-    // 3. Cache-busting HTTP POST request
-    fetch(`../admin/api_ai_suggest_sanction.php?t=${Date.now()}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-        },
-        body: new URLSearchParams({
-            action: 'chat',
-            case_id: '<?= $caseId ?>',
-            query: query
-        })
-    })
+      fetch(`../admin/api_ai_suggest_sanction.php?action=set_key`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ key: keyVal })
+      })
       .then(res => res.json())
       .then(data => {
-          const elapsed = Date.now() - startTime;
-          const minDelay = Math.max(0, 800 - elapsed);
-          setTimeout(() => {
-              const lNode = document.getElementById(loadingId);
-              if (lNode) lNode.remove();
-
-              if (data.ok && data.reply) {
-                  // 4. Trigger Snappy Typewriter Effect
-                  typewriteAiReply(thread, data.reply);
-              } else {
-                  let errText = data.error || 'No reply generated.';
-                  const errDiv = document.createElement('div');
-                  errDiv.style.cssText = 'text-align:left;margin-top:6px;';
-                  
-                  if (data.key_required) {
-                      errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.95);border:1px solid rgba(234, 179, 8, 0.4);color:#fef08a;padding:12px 14px;border-radius:14px;font-size:12px;line-height:1.5;">
-                        <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">🔑</span> <span>Gemini API Key Required</span></div>
-                        <div style="color:#e2e8f0;margin-bottom:8px;">${errText}</div>
-                        <div style="display:flex;gap:6px;">
-                          <input type="password" id="customApiKeyInput" placeholder="Paste AIzaSy... key here" style="flex:1;background:#0f172a;border:1px solid #334155;color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;outline:none;" />
-                          <button onclick="submitGeminiKey()" style="background:#2563eb;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Activate</button>
-                        </div>
-                      </div>`;
-                  } else {
-                      errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ ${errText}</div>`;
-                  }
-                  thread.appendChild(errDiv);
+          if (data.ok) {
+              alert('🔑 Gemini API Key configured successfully for session! You can now chat live with Gemini AI.');
+              const thread = document.getElementById('aiChatThread');
+              if (thread) {
+                  thread.innerHTML += `<div style="text-align:left;margin-top:6px;"><div style="background:rgba(16, 185, 129, 0.2);border:1px solid rgba(16, 185, 129, 0.4);color:#6ee7b7;padding:10px 14px;border-radius:14px;font-size:12px;">✅ Gemini API Key Active! Ask any question to test live AI responses.</div></div>`;
                   thread.scrollTop = thread.scrollHeight;
               }
-          }, minDelay);
-      })
-      .catch(err => {
-          const lNode = document.getElementById(loadingId);
-          if (lNode) lNode.remove();
-          const errDiv = document.createElement('div');
-          errDiv.style.cssText = 'text-align:left;margin-top:6px;';
-          errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ Connection error: ${err.message}</div>`;
-          thread.appendChild(errDiv);
-          thread.scrollTop = thread.scrollHeight;
+          } else {
+              alert('Error: ' + (data.error || 'Failed to save key.'));
+          }
       });
-}
-</script>
-</body>
-</html>
+  }
+
+  function sendAiChat(presetText) {
+      const input = document.getElementById('aiChatInput');
+      const thread = document.getElementById('aiChatThread');
+      
+      if (input && input.disabled) return; // Prevent double sending while AI is replying
+      
+      const query = presetText || (input ? input.value.trim() : '');
+      if (!query) return;
+      if (input) input.value = '';
+
+      setAiChatBusy(true); // Disable input, enter key, and send button while AI processes & replies
+
+      // 1. Append user message cleanly
+      const userDiv = document.createElement('div');
+      userDiv.style.cssText = 'text-align:right;margin-top:6px;';
+      userDiv.innerHTML = `<span style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;padding:8px 14px;border-radius:18px 18px 4px 18px;font-size:13px;display:inline-block;max-width:82%;box-shadow:0 3px 10px rgba(2,132,199,0.3);line-height:1.4;">${query}</span>`;
+      thread.appendChild(userDiv);
+
+      // 2. Append AI Animated Loading Indicator
+      const loadingId = 'ai_loading_' + Date.now();
+      const loadingDiv = document.createElement('div');
+      loadingDiv.id = loadingId;
+      loadingDiv.style.cssText = 'text-align:left;margin-top:6px;';
+      loadingDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(56, 189, 248, 0.35);color:#38bdf8;padding:10px 16px;border-radius:18px 18px 18px 4px;font-size:13px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:16px;">🧠</span> <span style="font-weight:600;">Gemini AI is analyzing Student Handbook & Precedents...</span> <span style="display:inline-flex;gap:3px;"><span style="animation: aiDotBounce 1.4s infinite 0s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.2s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.4s;">•</span></span></div>`;
+      thread.appendChild(loadingDiv);
+      thread.scrollTop = thread.scrollHeight;
+
+      const startTime = Date.now();
+
+      // 3. Cache-busting HTTP POST request
+      fetch(`../admin/api_ai_suggest_sanction.php?t=${Date.now()}`, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+          },
+          body: new URLSearchParams({
+              action: 'chat',
+              case_id: '<?= $caseId ?>',
+              query: query
+          })
+      })
+        .then(res => res.json())
+        .then(data => {
+            const elapsed = Date.now() - startTime;
+            const minDelay = Math.max(0, 800 - elapsed);
+            setTimeout(() => {
+                const lNode = document.getElementById(loadingId);
+                if (lNode) lNode.remove();
+
+                if (data.ok && data.reply) {
+                    // 4. Trigger Snappy Typewriter Effect (will call setAiChatBusy(false) upon completion)
+                    typewriteAiReply(thread, data.reply);
+                } else {
+                    setAiChatBusy(false); // Re-enable if error occurs
+                    let errText = data.error || 'No reply generated.';
+                    const errDiv = document.createElement('div');
+                    errDiv.style.cssText = 'text-align:left;margin-top:6px;';
+                    
+                    if (data.key_required) {
+                        errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.95);border:1px solid rgba(234, 179, 8, 0.4);color:#fef08a;padding:12px 14px;border-radius:14px;font-size:12px;line-height:1.5;">
+                          <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">🔑</span> <span>Gemini API Key Required</span></div>
+                          <div style="color:#e2e8f0;margin-bottom:8px;">${errText}</div>
+                          <div style="display:flex;gap:6px;">
+                            <input type="password" id="customApiKeyInput" placeholder="Paste AIzaSy... key here" style="flex:1;background:#0f172a;border:1px solid #334155;color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;outline:none;" />
+                            <button onclick="submitGeminiKey()" style="background:#2563eb;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Activate</button>
+                          </div>
+                        </div>`;
+                    } else {
+                        errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ ${errText}</div>`;
+                    }
+                    thread.appendChild(errDiv);
+                    thread.scrollTop = thread.scrollHeight;
+                }
+            }, minDelay);
+        })
+        .catch(err => {
+            setAiChatBusy(false); // Re-enable if fetch error occurs
+            const lNode = document.getElementById(loadingId);
+            if (lNode) lNode.remove();
+            const errDiv = document.createElement('div');
+            errDiv.style.cssText = 'text-align:left;margin-top:6px;';
+            errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ Connection error: ${err.message}</div>`;
+            thread.appendChild(errDiv);
+            thread.scrollTop = thread.scrollHeight;
+        });
+  }
+  </script>
+  </body>
+  </html>
