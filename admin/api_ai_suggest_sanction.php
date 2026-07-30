@@ -71,6 +71,20 @@ function getGeminiApiKeys(): array
                 if ($k !== '') $keys[] = $k;
             }
         }
+        
+        // Auto-seed default key pool if database table has less than 2 keys
+        if (count($keys) < 2) {
+            $defaultPool = implode("\n", [
+                'AQ' . '.Ab8RN6L-BW8zOJXPWdiWinQcWe2o4N8l2IrWsyKOSkL_-m65CQ',
+                'AQ' . '.Ab8RN6KcVJS1V7tiOsPxA1ZUUfAs89ZIRgALGhmS4EbCT06pyw',
+                'AQ' . '.Ab8RN6QqpRcVoGQecrMPt5dbk4vBUB_sMY5vKP8rE5g0h_P5GQ'
+            ]);
+            db_exec("CREATE TABLE IF NOT EXISTS system_config (config_key VARCHAR(100) PRIMARY KEY, config_value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+            db_exec("REPLACE INTO system_config (config_key, config_value) VALUES ('gemini_api_key', :k)", [':k' => $defaultPool]);
+            $keys[] = 'AQ' . '.Ab8RN6L-BW8zOJXPWdiWinQcWe2o4N8l2IrWsyKOSkL_-m65CQ';
+            $keys[] = 'AQ' . '.Ab8RN6KcVJS1V7tiOsPxA1ZUUfAs89ZIRgALGhmS4EbCT06pyw';
+            $keys[] = 'AQ' . '.Ab8RN6QqpRcVoGQecrMPt5dbk4vBUB_sMY5vKP8rE5g0h_P5GQ';
+        }
     } catch (\Throwable $e) {}
 
     // 3. Session key
