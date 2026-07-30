@@ -7,33 +7,48 @@ require_once __DIR__ . '/../database/database.php';
 header('Content-Type: application/json; charset=utf-8');
 
 /**
- * ────────────────────────────────────────────────────────────────────
- * NU LIPA STUDENT HANDBOOK RULES — GROUNDING CONTEXT FOR GEMINI RAG
- * ────────────────────────────────────────────────────────────────────
+ * Dynamically constructs the Student Handbook Catalog and Penalty Matrix
+ * by querying MySQL database tables in real-time. Zero hardcoded text.
  */
-const HANDBOOK_RULES = <<<TEXT
-NU LIPA STUDENT HANDBOOK — DISCIPLINARY RULES & SANCTION GUIDELINES
+function getDynamicHandbookRules(): string
+{
+    $types = db_all("SELECT code, name, level, major_category FROM offense_type WHERE is_active = 1 ORDER BY level ASC, major_category ASC, name ASC");
 
-SECTION 3.1 — MINOR OFFENSES
-• 1st Attempt: Written Reprimand & 30 Days Disciplinary Probation (Sec 3.1.A)
-• 2nd Attempt: Warning, SDO Counseling & 60 Days Disciplinary Probation (Sec 3.1.B)
-• 3rd Attempt (3-Attempt Rule): Escalated to Section 4 / Category 2 Community Service (15 Hours)
+    $minors = [];
+    $majors = [];
 
-SECTION 4 — MAJOR OFFENSE CATEGORIES
-• Category 1 (Sec 4.1.A): Minor disrespect to faculty/staff, classroom noise disruption.
-  Penalty: Formal Reprimand & Active Semester Probation.
-• Category 2 (Sec 4.2): Smoking/vaping, vandalism, gambling, unauthorized events.
-  Penalty: Formative Community Service (15–40 hours, hard cap 40), + Active Probation.
-• Category 3 (Sec 4.3.A): Major academic dishonesty, exam cheating, clearance forgery, severe bullying.
-  Penalty: 1 Semester Non-Readmission / Suspension.
-• Category 4 (Sec 4.4.A): Physical assault, brawling, extortion, major theft.
-  Penalty: Exclusion / Mandatory Dismissal.
-• Category 5 (Sec 4.5.A): Illegal drugs, firearms, explosives, deadly weapons.
-  Penalty: Summary Expulsion & Police Referral.
-TEXT;
+    foreach ($types as $t) {
+        if ($t['level'] === 'MINOR') {
+            $minors[] = "• " . $t['name'] . " (Code: " . $t['code'] . ")";
+        } else {
+            $catStr = $t['major_category'] ? " [Category {$t['major_category']}]" : "";
+            $majors[] = "• " . $t['name'] . " (Code: " . $t['code'] . "){$catStr}";
+        }
+    }
+
+    $rules = "LIVE DATABASE STUDENT HANDBOOK CATALOG & DISCIPLINARY MATRIX:\n\n";
+    
+    $rules .= "REGISTERED MINOR OFFENSES (" . count($minors) . " Active Types in Database):\n";
+    $rules .= !empty($minors) ? implode("\n", $minors) : "• General Minor Violations";
+    $rules .= "\n\nMINOR OFFENSE ESCALATION POLICY:\n";
+    $rules .= "• 1st Attempt: Written Reprimand & 30 Days Disciplinary Probation\n";
+    $rules .= "• 2nd Attempt: Warning, SDO Counseling & 60 Days Disciplinary Probation\n";
+    $rules .= "• 3rd Attempt (3-Attempt Escalation): Escalated to Major Offense Category 2 Community Service (15 Hours)\n\n";
+
+    $rules .= "REGISTERED MAJOR OFFENSES (" . count($majors) . " Active Types in Database):\n";
+    $rules .= !empty($majors) ? implode("\n", $majors) : "• General Major Violations";
+    $rules .= "\n\nMAJOR CATEGORY PENALTY MATRIX:\n";
+    $rules .= "• Category 1: Formal Reprimand & Active Semester Probation\n";
+    $rules .= "• Category 2: Formative Community Service (15–40 Hours) + Active Probation\n";
+    $rules .= "• Category 3: 1 Semester Non-Readmission / Suspension\n";
+    $rules .= "• Category 4: Exclusion / Mandatory Dismissal\n";
+    $rules .= "• Category 5: Summary Expulsion & Police Referral\n";
+
+    return $rules;
+}
 
 /**
- * Helper to retrieve Gemini API Key from session, environment, or constant
+ * Helper to retrieve Gemini API Key from session, database config, environment, or constant
  */
 function getGeminiApiKey(): string
 {
@@ -176,7 +191,7 @@ try {
             } catch (\Throwable $e) {
                 // Session fallback active
             }
-            echo json_encode(['ok' => true, 'message' => '🔑 Gemini API Key configured and saved!']);
+            echo json_encode(['ok' => true, 'message' => '🔑 Gemini API Key configured and saved to database!']);
         } else {
             echo json_encode(['ok' => false, 'error' => 'Please provide a valid Gemini API Key.']);
         }
@@ -271,6 +286,8 @@ try {
         ? getCategoryPrecedents($majorCategory, $offenseTypeId, $caseId)
         : [];
 
+    $dynamicRules = getDynamicHandbookRules();
+
     // ── ACTION: suggest — AI Sanction Recommendation ──
     if ($action === 'suggest') {
         if (!empty($exactPrecedents)) {
@@ -284,7 +301,7 @@ try {
                 formatPunishmentDetails($p['punishment_details'] ?? '')
             ), $exactPrecedents);
 
-            $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. Precedent already exists in the database for this exact offense. Explain in 2-3 concise sentences why consistency with prior decisions is important for fairness.\n\n" . HANDBOOK_RULES;
+            $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. Precedent already exists in the database for this exact offense. Explain in 2-3 concise sentences why consistency with prior decisions is important for fairness.\n\n" . $dynamicRules;
             $userPrompt = "Student: {$studentName}\nOffense: {$offenseName}\nExact Precedents:\n" . implode("\n", $precedentSummary);
             
             $aiText = callGemini($sysPrompt, $userPrompt);
@@ -316,7 +333,7 @@ try {
         $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. This is a new offense type without direct precedent. "
             . "Base your suggestion strictly on the handbook rules provided. "
             . "Respond ONLY with valid JSON: {\"suggested_category\": <1-5 or null>, \"suggested_hours\": <int or null>, \"rationale\": \"<2-4 sentences>\"}.\n\n"
-            . HANDBOOK_RULES;
+            . $dynamicRules;
 
         $userPrompt = "Student: {$studentName}\nOffense: {$offenseName} (Level: {$offenseLevel})\n"
             . "Prior offenses by this student: {$totalPrior} (Major: {$totalMajorCount})\n"
@@ -380,14 +397,10 @@ try {
             ? implode("\n", array_map(fn($p) => "Case #{$p['case_id']}: Category {$p['decided_category']} — " . formatPunishmentDetails($p['punishment_details']), $exactPrecedents))
             : "No prior decided cases for this exact offense.";
 
-        $dbOffenses = db_all("SELECT code, name, level, major_category FROM offense_type WHERE is_active = 1 ORDER BY level ASC, name ASC");
-        $offenseCatalog = implode("\n", array_map(fn($o) => "• {$o['name']} (Level: {$o['level']}" . ($o['major_category'] ? ", Category {$o['major_category']}" : "") . ")", $dbOffenses));
-
         $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for National University (NU) Lipa. "
             . "Answer questions strictly grounded in the NU Lipa Student Handbook rules below and the active case data provided. "
             . "Format your responses with clean Markdown headers, bold highlights, and bullet points. Never make up facts outside the handbook or case file.\n\n"
-            . "CATALOG OF REGISTERED OFFENSE TYPES IN SYSTEM:\n" . $offenseCatalog . "\n\n"
-            . HANDBOOK_RULES;
+            . $dynamicRules;
 
         $userPrompt = "ACTIVE HEARING CASE DATA:\n"
             . "• Student Name: {$studentName} (ID: {$targetStudentId})\n"
