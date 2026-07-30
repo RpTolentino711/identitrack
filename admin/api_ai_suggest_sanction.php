@@ -41,6 +41,16 @@ function getGeminiApiKey(): string
     if ($key === '' && defined('GEMINI_API_KEY')) {
         $key = (string)GEMINI_API_KEY;
     }
+    if ($key === '') {
+        try {
+            $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'gemini_api_key' LIMIT 1");
+            if ($cfg && !empty($cfg['config_value'])) {
+                $key = trim((string)$cfg['config_value']);
+            }
+        } catch (\Throwable $e) {
+            // Table not created yet
+        }
+    }
     return $key;
 }
 
@@ -155,12 +165,18 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
 try {
     $action = trim((string)($_GET['action'] ?? $_POST['action'] ?? 'suggest'));
 
-    // ── ACTION: set_key — dynamically set session Gemini API Key from UI ──
+    // ── ACTION: set_key — dynamically set session & database Gemini API Key from UI ──
     if ($action === 'set_key') {
         $newKey = trim((string)($_POST['key'] ?? $_GET['key'] ?? ''));
         if ($newKey !== '') {
             $_SESSION['GEMINI_API_KEY'] = $newKey;
-            echo json_encode(['ok' => true, 'message' => '🔑 Gemini API Key configured for this session!']);
+            try {
+                db_exec("CREATE TABLE IF NOT EXISTS system_config (config_key VARCHAR(100) PRIMARY KEY, config_value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+                db_exec("REPLACE INTO system_config (config_key, config_value) VALUES ('gemini_api_key', :k)", [':k' => $newKey]);
+            } catch (\Throwable $e) {
+                // Session fallback active
+            }
+            echo json_encode(['ok' => true, 'message' => '🔑 Gemini API Key configured and saved!']);
         } else {
             echo json_encode(['ok' => false, 'error' => 'Please provide a valid Gemini API Key.']);
         }
