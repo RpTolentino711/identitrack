@@ -1145,8 +1145,9 @@ hr{border-color:var(--border-glass);margin:16px 0}
             <div class="empty">No panel members mapped yet.</div>
         <?php endif; ?>
     </div>
-    <div class="side-group" style="margin-top:auto">
-        <a id="backToDashboardBtn" class="btn btn-secondary" href="upccdashboard.php" style="width:100%">← Back</a>
+    <div class="side-group" style="margin-top:auto; display:flex; flex-direction:column; gap:8px;">
+        <a class="btn btn-secondary" href="../admin/print_nte.php?case_id=<?= $caseId ?>" target="_blank" style="width:100%; background:rgba(30,58,138,0.3); border:1px solid rgba(59,130,246,0.4); color:#93c5fd; text-align:center;">📄 Notice To Explain (F-005)</a>
+        <a id="backToDashboardBtn" class="btn btn-secondary" href="upccdashboard.php" style="width:100%; text-align:center;">← Back</a>
     </div>
 </aside>
 
