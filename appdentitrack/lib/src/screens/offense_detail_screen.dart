@@ -440,10 +440,10 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'The UPCC panel requires your explanation before the hearing can proceed. You may provide a written statement and attach supporting documents (Photo/PDF).',
+            '⚠️ Notice to Explain (Form F-005): Per NU Lipa SDO Policy, you are required to submit your written explanation within five (5) days upon receipt. Failure to respond within 5 days will be construed as a waiver of your right to be heard.',
             style: TextStyle(
               color: Color(0xFFBF360C),
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               fontSize: 12.5,
               height: 1.4,
             ),

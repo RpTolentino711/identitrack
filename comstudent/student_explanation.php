@@ -65,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
     <div class="card">
-        <h1>Submit Explanation</h1>
-        <p>Provide your statement and supporting documents for your pending UPCC case.</p>
+        <h1>Submit Explanation (Form F-005 Response)</h1>
+        <p><strong>Notice to Explain (Form F-005):</strong> Per NU Lipa SDO Policy, please submit your written explanation statement and supporting documents within five (5) days upon receipt of notice.</p>
         
         <?php if ($error): ?><div class="alert alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
         
