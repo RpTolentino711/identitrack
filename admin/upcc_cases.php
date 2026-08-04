@@ -1397,7 +1397,6 @@ function fmt_case_id(int $id, string $created): string {
                                     Access the live hearing portal to start voting, chat, and record decisions.
                                 </div>
                                 <a href="#" id="btn-manage-full" class="btn-assign" style="display:block;text-align:center;width:100%;background:#10b981;border-color:#10b981;color:#fff;">▶️ Open Hearing Portal</a>
-                                <a href="#" id="btn-print-nte" target="_blank" class="btn-assign" style="display:block;text-align:center;width:100%;margin-top:8px;background:#1b2b6b;border-color:#1b2b6b;color:#fff;">📄 Print Notice to Explain (Form F-005)</a>
                             </div>
                             <div id="decision-form" style="display:none; margin-top:14px;">
                                 <div class="divider-label">Resolve Case</div>
@@ -2004,10 +2003,6 @@ function selectCase(row) {
         if (manageLink) {
             manageLink.href = 'upcc_case_view.php?id=' + caseId;
             manageLink.onclick = null;
-        }
-        const printNteLink = document.getElementById('btn-print-nte');
-        if (printNteLink) {
-            printNteLink.href = 'print_nte.php?case_id=' + caseId;
         }
     } else if (showDecide) {
         document.getElementById('resolve_case_id').value = caseId;
