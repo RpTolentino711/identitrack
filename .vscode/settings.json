@@ -1,0 +1,5 @@
+{
+  "git.autofetch": false,
+  "git.confirmSync": false,
+  "github.gitAuthentication": true
+}
