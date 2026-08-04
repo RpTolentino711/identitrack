@@ -384,6 +384,28 @@ try {
         $csStatusText = "YES, ONGOING — Task: {$csReq['task_name']} | Hours Required: {$hrsReq}h | Hours Completed: {$hrsComp}h | Hours Remaining: {$hrsRem}h | Currently Clocked In: {$isClockedIn}";
     }
 
+    // ── Detailed Prior Cases & Categories Breakdown for AI Assistant ──────────
+    $priorCasesWithCat = db_all("
+        SELECT c.case_id, c.decided_category, c.status, c.created_at, ot.name AS offense_name, ot.level AS offense_level
+        FROM upcc_case c
+        LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
+        LEFT JOIN offense o ON o.offense_id = uco.offense_id
+        LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+        WHERE c.student_id = :sid AND c.case_id != :cid
+        ORDER BY c.case_id DESC
+    ", [':sid' => $targetStudentId, ':cid' => $caseId]);
+
+    $priorCasesBreakdownText = "No prior UPCC cases on file for this student.";
+    if (!empty($priorCasesWithCat)) {
+        $lines = [];
+        foreach ($priorCasesWithCat as $pc) {
+            $catStr = !empty($pc['decided_category']) ? "Category {$pc['decided_category']}" : "No Category Assigned";
+            $offName = !empty($pc['offense_name']) ? $pc['offense_name'] : "Disciplinary Offense";
+            $lines[] = "  • Case #{$pc['case_id']}: {$offName} — Decided Sanction: {$catStr} [Status: {$pc['status']}]";
+        }
+        $priorCasesBreakdownText = implode("\n", $lines);
+    }
+
     $exactPrecedents = getExactPrecedents($offenseTypeId, $caseId);
     $categoryPrecedents = empty($exactPrecedents)
         ? getCategoryPrecedents($majorCategory, $offenseTypeId, $caseId)
@@ -540,6 +562,7 @@ try {
             . "• Offense Charged: {$offenseName} (Level: {$offenseLevel}, Instance #{$instanceCount})\n"
             . "• Total Major Offenses: {$totalMajorCount}\n"
             . "• Total Prior Cases: {$totalPrior}\n"
+            . "• Prior Cases & Categories Breakdown:\n{$priorCasesBreakdownText}\n"
             . "• Community Service Status: {$csStatusText}\n"
             . "• Precedent Record for this Offense:\n{$precedentContext}"
             . $otherStudentContext . "\n\n"
