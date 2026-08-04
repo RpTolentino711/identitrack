@@ -1,5 +1,5 @@
 <?php
-// Reusable admin sidebar.
+// Reusable admin sidebar v2.0 - Cache Busted: 2026-08-04
 $activeSidebar = isset($activeSidebar) ? (string)$activeSidebar : 'dashboard';
 $pendingGuardReports = 0;
 $pendingAppeals = 0;
