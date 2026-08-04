@@ -395,13 +395,13 @@ try {
         ORDER BY c.case_id DESC
     ", [':sid' => $targetStudentId, ':cid' => $caseId]);
 
-    $priorCasesBreakdownText = "No prior UPCC cases on file for this student.";
+    $priorCasesBreakdownText = "No prior UPCC cases on file for {$studentName}.";
     if (!empty($priorCasesWithCat)) {
         $lines = [];
         foreach ($priorCasesWithCat as $pc) {
             $catStr = !empty($pc['decided_category']) ? "Category {$pc['decided_category']}" : "No Category Assigned";
             $offName = !empty($pc['offense_name']) ? $pc['offense_name'] : "Disciplinary Offense";
-            $lines[] = "  • Case #{$pc['case_id']}: {$offName} — Decided Sanction: {$catStr} [Status: {$pc['status']}]";
+            $lines[] = "  • Case #{$pc['case_id']} (Committed by {$studentName}): {$offName} — Decided Sanction: {$catStr} [Status: {$pc['status']}]";
         }
         $priorCasesBreakdownText = implode("\n", $lines);
     }
@@ -520,11 +520,15 @@ try {
 
         $precedentContext = "No prior campus-wide precedent cases on file for this specific offense type.";
         if (!empty($exactPrecedents)) {
-            $precedentContext = implode("\n", array_map(fn($p) => sprintf(
-                "• Case #%s (Student ID: %s): Decided Sanction: Category %s (%s)",
-                $p['case_id'], $p['student_id'], $p['decided_category'],
-                formatPunishmentDetails($p['punishment_details'] ?? '')
-            ), $exactPrecedents));
+            $precedentContext = implode("\n", array_map(function($p) use ($targetStudentId, $studentName) {
+                $isSame = (string)$p['student_id'] === (string)$targetStudentId;
+                $identityLabel = $isSame ? "Committed by {$studentName} (SAME STUDENT ON TRIAL)" : "Committed by OTHER STUDENT (Anonymized)";
+                return sprintf(
+                    "• Case #%s [%s]: Decided Sanction: Category %s (%s)",
+                    $p['case_id'], $identityLabel, $p['decided_category'],
+                    formatPunishmentDetails($p['punishment_details'] ?? '')
+                );
+            }, $exactPrecedents));
         }
 
         // Dynamic Cross-Student Database Lookup (if user asks about a different student ID in the database)
