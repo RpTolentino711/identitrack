@@ -27,17 +27,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) {
     }
 
     $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $_SESSION['login_otp'] = [
-        'code' => $otp,
-        'expires' => time() + 300, // 5 minutes validity
-        'last_sent' => time()      // Track when it was sent
-    ];
-    
-    // Send OTP to the admin's actual email address
     $targetEmail = $adminPre['email'];
     
     try {
         if (send_admin_otp_email($targetEmail, $adminPre['full_name'], 'Admin Login', $otp)) {
+            $_SESSION['login_otp'] = [
+                'code' => $otp,
+                'expires' => time() + 300, // 5 minutes validity
+                'last_sent' => time()      // Track when it was sent
+            ];
             $success = "A verification code has been sent to " . substr($targetEmail, 0, 3) . "..." . substr($targetEmail, strpos($targetEmail, '@'));
         } else {
             $error = "Failed to send OTP. Please try again.";

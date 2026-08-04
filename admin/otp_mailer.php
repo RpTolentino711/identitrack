@@ -9,9 +9,11 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
     $mail->CharSet = 'UTF-8';
     $mail->isSMTP();
     $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
-    $mail->Port = 587;
+    $mail->Port = (int)($_ENV['SMTP_PORT'] ?? 465);
     $mail->SMTPAuth = true;
-    $mail->SMTPSecure = 'tls';
+    $mail->SMTPSecure = $_ENV['SMTP_SECURE'] ?? 'ssl';
+    $mail->SMTPAutoTLS = false;
+    $mail->Timeout = 20;
 
     // ✅ SDO SMTP Credentials
     $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
