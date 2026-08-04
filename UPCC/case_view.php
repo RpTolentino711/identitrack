@@ -3227,6 +3227,13 @@ function typewriteAiReply(containerThread, rawText) {
       const input = document.getElementById('aiChatInput');
       const thread = document.getElementById('aiChatThread');
       
+      // Reset streaming flags for new message
+      isAiStreamingStopped = false;
+      if (currentTypewriterTimer) {
+          clearTimeout(currentTypewriterTimer);
+          currentTypewriterTimer = null;
+      }
+      
       if (input && input.disabled) return; // Prevent double sending while AI is replying
       
       const query = presetText || (input ? input.value.trim() : '');
@@ -3247,6 +3254,7 @@ function typewriteAiReply(containerThread, rawText) {
 
       // 2. Append AI Animated Loading Indicator
       const loadingId = 'ai_loading_' + Date.now();
+      currentLoadingNodeId = loadingId;
       const loadingDiv = document.createElement('div');
       loadingDiv.id = loadingId;
       loadingDiv.style.cssText = 'text-align:left;margin-top:6px;';
@@ -3255,10 +3263,12 @@ function typewriteAiReply(containerThread, rawText) {
       thread.scrollTop = thread.scrollHeight;
 
       const startTime = Date.now();
+      activeAiAbortController = new AbortController();
 
       // 3. Cache-busting HTTP POST request
       fetch(`../admin/api_ai_suggest_sanction.php?t=${Date.now()}`, {
           method: 'POST',
+          signal: activeAiAbortController.signal,
           headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
               'Cache-Control': 'no-cache, no-store, must-revalidate',
