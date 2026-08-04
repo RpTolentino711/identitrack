@@ -5,13 +5,22 @@
 require_once __DIR__ . '/../../database/database.php';
 require_admin();
 
-$month = trim((string)($_GET['month'] ?? date('Y-m')));
-if (!preg_match('/^\d{4}-\d{2}$/', $month)) $month = date('Y-m');
+$month = trim((string)($_GET['month'] ?? ''));
+if (strtoupper($month) === 'ALL') {
+  $monthStart = '1970-01-01 00:00:00';
+  $monthEnd = '2099-12-31 23:59:59';
+  $titleMonthStr = 'ALL TIME';
+} else {
+  if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+    $month = date('Y-m');
+  }
+  $monthStart = $month . '-01 00:00:00';
+  $monthEnd = date('Y-m-t 23:59:59', strtotime($monthStart));
+  $titleMonthStr = strtoupper(date('F Y', strtotime($monthStart)));
+}
+
 $audience = strtoupper(trim((string)($_GET['audience'] ?? 'ALL')));
 if (!in_array($audience, ['ALL', 'COLLEGE', 'SHS'], true)) $audience = 'ALL';
-
-$monthStart = $month . '-01 00:00:00';
-$monthEnd = date('Y-m-t 23:59:59', strtotime($monthStart));
 
 $segmentExpr = "(CASE WHEN (LOWER(COALESCE(s.school,'')) LIKE '%senior high%' OR UPPER(COALESCE(s.school,'')) = 'SHS' OR UPPER(COALESCE(s.program,'')) LIKE '%SHS%') THEN 'SHS' ELSE 'COLLEGE' END)";
 $audienceClause = '';
@@ -153,7 +162,7 @@ try {
   ];
 
   // Header
-  $sheet->setCellValue('A1', 'MONTHLY DISCIPLINE REPORT - ' . strtoupper(date('F Y', strtotime($month . '-01'))));
+  $sheet->setCellValue('A1', 'MONTHLY DISCIPLINE REPORT - ' . $titleMonthStr);
   $sheet->mergeCells('A1:K1');
   $sheet->getStyle('A1:K1')->applyFromArray($styleHeader);
   $sheet->getRowDimension(1)->setRowHeight(30);
