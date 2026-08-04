@@ -518,6 +518,15 @@ try {
             exit;
         }
 
+        $precedentContext = "No prior campus-wide precedent cases on file for this specific offense type.";
+        if (!empty($exactPrecedents)) {
+            $precedentContext = implode("\n", array_map(fn($p) => sprintf(
+                "• Case #%s (Student ID: %s): Decided Sanction: Category %s (%s)",
+                $p['case_id'], $p['student_id'], $p['decided_category'],
+                formatPunishmentDetails($p['punishment_details'] ?? '')
+            ), $exactPrecedents));
+        }
+
         // Dynamic Cross-Student Database Lookup (if user asks about a different student ID in the database)
         $otherStudentContext = "";
         preg_match_all('/(?:student|id|#|\b)([0-9]{4}-[0-9]{4,6}|[0-9]{6,10})\b/i', $userQuery, $idMatches);
