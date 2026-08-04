@@ -61,8 +61,9 @@ $totalCount = (int)($totalRow['cnt'] ?? 0);
 $minorCount = (int)($minorRow['cnt'] ?? 0);
 $majorCount = (int)($majorRow['cnt'] ?? 0);
 
-// Active cases placeholder (no schema yet)
-$activeCases = 0;
+// Active UPCC cases count
+$upccActiveRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE status IN ('PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL')");
+$activeCases = (int)($upccActiveRow['cnt'] ?? 0);
 
 // -------------------- Breakdown (this month) --------------------
 $breakdownRows = db_all(

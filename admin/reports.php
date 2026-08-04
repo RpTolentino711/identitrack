@@ -13,18 +13,34 @@ $fullName = trim((string)($admin['full_name'] ?? ''));
 if ($fullName === '') $fullName = (string)($admin['username'] ?? 'User');
 
 // Month selector (YYYY-MM)
-$selectedMonth = trim((string)($_GET['month'] ?? date('Y-m')));
+if (!isset($_GET['month'])) {
+  $latestRow = db_one("SELECT DATE_FORMAT(date_committed, '%Y-%m') AS ym FROM offense WHERE date_committed IS NOT NULL ORDER BY date_committed DESC LIMIT 1");
+  $selectedMonth = !empty($latestRow['ym']) ? $latestRow['ym'] : date('Y-m');
+} else {
+  $selectedMonth = trim((string)($_GET['month'] ?? ''));
+}
 if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) $selectedMonth = date('Y-m');
 
 $selectedAudience = strtoupper(trim((string)($_GET['audience'] ?? 'ALL')));
 if (!in_array($selectedAudience, ['ALL', 'COLLEGE', 'SHS'], true)) $selectedAudience = 'ALL';
 
-// Month options (last 12 months)
+// Month options (months with data + last 12 months)
 $monthOptions = [];
+$distinctMonths = db_all("SELECT DISTINCT DATE_FORMAT(date_committed, '%Y-%m') AS ym FROM offense WHERE date_committed IS NOT NULL ORDER BY ym DESC LIMIT 12");
+if (!empty($distinctMonths)) {
+  foreach ($distinctMonths as $dm) {
+    if (!empty($dm['ym']) && !in_array($dm['ym'], $monthOptions, true)) {
+      $monthOptions[] = $dm['ym'];
+    }
+  }
+}
 for ($i = 0; $i < 12; $i++) {
   $ym = date('Y-m', strtotime(date('Y-m-01') . " -$i months"));
-  $monthOptions[] = $ym;
+  if (!in_array($ym, $monthOptions, true)) {
+    $monthOptions[] = $ym;
+  }
 }
+usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
 ?>
 <!doctype html>
 <html lang="en">
