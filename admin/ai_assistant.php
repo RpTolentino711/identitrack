@@ -170,7 +170,7 @@ $activeSidebar = 'ai_assistant';
       const loadingDiv = document.createElement('div');
       loadingDiv.id = loadingId;
       loadingDiv.style.cssText = 'text-align:left;margin-top:6px;';
-      loadingDiv.innerHTML = `<div class="ai-bubble" style="display:inline-flex;align-items:center;gap:10px;"><span class="fs-5">🧠</span> <span class="fw-semibold text-info">Searching 1,886 Campus Records & Handbook Precedents...</span> <span style="display:inline-flex;gap:4px;"><span style="animation: aiDotBounce 1.4s infinite 0s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.2s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.4s;">•</span></span></div>`;
+      loadingDiv.innerHTML = `<div class="ai-bubble" style="display:inline-flex;align-items:center;gap:10px;"><span class="fs-5">🧠</span> <span class="fw-semibold text-info">Identi is thinking...</span> <span style="display:inline-flex;gap:4px;"><span style="animation: aiDotBounce 1.4s infinite 0s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.2s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.4s;">•</span></span></div>`;
       thread.appendChild(loadingDiv);
       thread.scrollTop = thread.scrollHeight;
 

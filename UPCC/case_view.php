@@ -3250,7 +3250,7 @@ function typewriteAiReply(containerThread, rawText) {
       const loadingDiv = document.createElement('div');
       loadingDiv.id = loadingId;
       loadingDiv.style.cssText = 'text-align:left;margin-top:6px;';
-      loadingDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(56, 189, 248, 0.35);color:#38bdf8;padding:10px 16px;border-radius:18px 18px 18px 4px;font-size:13px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:16px;">🧠</span> <span style="font-weight:600;">Gemini AI is analyzing Student Handbook & Precedents...</span> <span style="display:inline-flex;gap:3px;"><span style="animation: aiDotBounce 1.4s infinite 0s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.2s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.4s;">•</span></span></div>`;
+      loadingDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(56, 189, 248, 0.35);color:#38bdf8;padding:10px 16px;border-radius:18px 18px 18px 4px;font-size:13px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:16px;">🧠</span> <span style="font-weight:600;">Identi is thinking...</span> <span style="display:inline-flex;gap:3px;"><span style="animation: aiDotBounce 1.4s infinite 0s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.2s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.4s;">•</span></span></div>`;
       thread.appendChild(loadingDiv);
       thread.scrollTop = thread.scrollHeight;
 
