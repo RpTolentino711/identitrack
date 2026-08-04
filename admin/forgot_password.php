@@ -57,7 +57,7 @@ if ($step == 2 && $_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) 
         $elapsed = time() - $_SESSION['forgot_pw']['last_sent'];
         if ($elapsed < 180) {
             $wait = 180 - $elapsed;
-            $error = "Please wait {$wait} seconds before requesting a new code.";
+            $error = "Please wait <strong id=\"topTimer\">{$wait}</strong> seconds before requesting a new code.";
             goto render;
         }
     }
@@ -298,7 +298,7 @@ $step = $_SESSION['forgot_pw']['step'] ?? 1;
       </p>
 
       <?php if ($error): ?>
-        <div class="msg msg-error"><?php echo htmlspecialchars($error); ?></div>
+        <div class="msg msg-error" id="topMsgError"><?php echo $error; ?></div>
       <?php endif; ?>
       <?php if ($success): ?>
         <div class="msg msg-success"><?php echo htmlspecialchars($success); ?></div>
@@ -391,15 +391,19 @@ $step = $_SESSION['forgot_pw']['step'] ?? 1;
               let t = <?php echo $cooldown; ?>;
               if (t > 0) {
                   const timer = document.getElementById('timer');
+                  const topTimer = document.getElementById('topTimer');
                   const wrap = document.getElementById('cooldownWrap');
                   const link = document.getElementById('resendLink');
                   const itv = setInterval(() => {
                       t--;
-                      timer.textContent = t;
+                      if (timer) timer.textContent = t;
+                      if (topTimer) topTimer.textContent = t;
                       if (t <= 0) {
                           clearInterval(itv);
-                          wrap.style.display = 'none';
-                          link.style.display = 'inline';
+                          if (wrap) wrap.style.display = 'none';
+                          if (link) link.style.display = 'inline';
+                          const topMsg = document.getElementById('topMsgError');
+                          if (topMsg) topMsg.style.display = 'none';
                       }
                   }, 1000);
               }

@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) {
         $elapsed = time() - $_SESSION['login_otp']['last_sent'];
         if ($elapsed < 180) {
             $wait = 180 - $elapsed;
-            $error = "Please wait {$wait} seconds before requesting a new code.";
+            $error = "Please wait <strong id=\"topTimer\">{$wait}</strong> seconds before requesting a new code.";
             goto render_page; // Skip sending
         }
     }
@@ -164,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <p>Please enter the 6-digit code sent to your registered email address to continue.</p>
 
     <?php if ($error): ?>
-      <div class="msg msg-error"><?php echo $error; ?></div>
+      <div class="msg msg-error" id="topMsgError"><?php echo $error; ?></div>
     <?php endif; ?>
     <?php if ($success): ?>
       <div class="msg msg-success"><?php echo $success; ?></div>
@@ -200,6 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     (function() {
         let timeLeft = <?php echo $cooldown; ?>;
         const timerSpan = document.getElementById('timer');
+        const topTimerSpan = document.getElementById('topTimer');
         const cooldownText = document.getElementById('cooldownText');
         const resendLink = document.getElementById('resendLink');
 
@@ -207,11 +208,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const interval = setInterval(() => {
                 timeLeft--;
                 if (timerSpan) timerSpan.textContent = timeLeft;
+                if (topTimerSpan) topTimerSpan.textContent = timeLeft;
 
                 if (timeLeft <= 0) {
                     clearInterval(interval);
                     if (cooldownText) cooldownText.style.display = 'none';
                     if (resendLink) resendLink.style.display = 'inline';
+                    const topMsg = document.getElementById('topMsgError');
+                    if (topMsg) topMsg.style.display = 'none';
                 }
             }, 1000);
         }
