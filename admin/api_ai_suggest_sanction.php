@@ -286,7 +286,7 @@ try {
     $studentId = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
     $userQuery = trim((string)($_GET['query'] ?? $_POST['query'] ?? ''));
 
-    if ($caseId <= 0 && $studentId === '') {
+    if ($caseId <= 0 && $studentId === '' && $action !== 'global_chat') {
         echo json_encode(['ok' => false, 'error' => 'Case ID or Student ID required.']);
         exit;
     }
@@ -524,6 +524,70 @@ try {
             echo json_encode([
                 'ok' => true,
                 'action' => 'chat',
+                'query' => $userQuery,
+                'reply' => trim($aiText),
+                'ai_available' => true,
+                'engine' => 'Google Gemini AI Model'
+            ]);
+        } else {
+            echo json_encode([
+                'ok' => false,
+                'ai_available' => false,
+                'error' => $GLOBALS['LAST_GEMINI_ERROR'] ?? '⚠️ Request to Google Gemini API failed or returned an empty response.'
+            ]);
+        }
+        exit;
+    }
+
+    // ── ACTION: global_chat — Standalone Global AI Precedent & Analytics Hub ──
+    if ($action === 'global_chat') {
+        if ($userQuery === '') {
+            echo json_encode(['ok' => false, 'error' => 'Please type a question for the AI Assistant.']);
+            exit;
+        }
+
+        $apiKey = getGeminiApiKey();
+        if ($apiKey === '') {
+            echo json_encode([
+                'ok' => false,
+                'ai_available' => false,
+                'key_required' => true,
+                'error' => '🔑 Gemini API Key is required. Please configure your Google Gemini API Key to enable live Gemini AI model answers.'
+            ]);
+            exit;
+        }
+
+        $datasetSummary = "";
+        $jsonPath = __DIR__ . '/../storage/dataset/sanction_history_dataset.json';
+        if (file_exists($jsonPath)) {
+            $rawJson = @file_get_contents($jsonPath);
+            if ($rawJson) {
+                $datasetArr = json_decode($rawJson, true);
+                if (isset($datasetArr['summary'])) {
+                    $datasetSummary = "GLOBAL NU LIPA CAMPUS DATASET SUMMARY:\n"
+                        . "• Total Major Disciplinary Cases: " . ($datasetArr['summary']['total_major_cases'] ?? 204) . "\n"
+                        . "• Total Combined Campus Infraction Records: " . ($datasetArr['summary']['total_campus_records'] ?? 1886) . "\n\n";
+                }
+            }
+        }
+
+        $sysPrompt = "IMPORTANT ROLE PERSPECTIVE & DATA PRIVACY:\n"
+            . "You are the Standalone Executive AI Precedent & Analytics Hub Assistant for NU Lipa Disciplinary Administrators & Board Members.\n"
+            . "You assist admins with general precedent queries, handbook rules, campus disciplinary statistics, and cross-student lookup.\n"
+            . "DATA PRIVACY MANDATE (RA 10173): For student privacy protection, NEVER mention or reveal full names of past student offenders. Always refer to past cases using Case Numbers (e.g. Case #DO-24-25-001 or Case #101) or Academic Programs (e.g. BSIT Student).\n\n"
+            . $datasetSummary
+            . "Answer questions strictly grounded in the NU Lipa Student Handbook rules below and campus precedent data. "
+            . "Format your responses with clean Markdown headers, bold highlights, and bullet points. Never make up facts outside the handbook or case file.\n\n"
+            . $dynamicRules;
+
+        $userPrompt = "ADMIN/PANEL GLOBAL QUESTION: {$userQuery}";
+
+        $aiText = callGemini($sysPrompt, $userPrompt);
+
+        if ($aiText !== null && trim($aiText) !== '') {
+            echo json_encode([
+                'ok' => true,
+                'action' => 'global_chat',
                 'query' => $userQuery,
                 'reply' => trim($aiText),
                 'ai_available' => true,

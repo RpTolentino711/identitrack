@@ -436,6 +436,17 @@ if (function_exists('db_one')) {
     </li>
 
     <li>
+      <a class="admin-sidebar-link <?php echo $activeSidebar === 'ai_assistant' ? 'active' : ''; ?>" href="ai_assistant.php">
+        <span class="admin-sidebar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a2 2 0 1 1 2-2 2 2 0 0 1-2 2zm1-5.5a1.5 1.5 0 0 0-1-1.5 3 3 0 1 1 3-3 3 3 0 0 1-2.5 2.9v1.1z"></path>
+          </svg>
+        </span>
+        <span>🧠 AI Precedent Hub</span>
+      </a>
+    </li>
+
+    <li>
       <a class="admin-sidebar-link <?php echo $activeSidebar === 'appeals' ? 'active' : ''; ?>" href="appeals.php">
         <span class="admin-sidebar-icon">
           <svg viewBox="0 0 24 24">
