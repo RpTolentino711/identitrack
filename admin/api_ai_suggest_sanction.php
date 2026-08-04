@@ -358,6 +358,32 @@ try {
     ", [':sid' => $targetStudentId]);
     $totalMajorCount = max(1, (int)($totalMajorRow['cnt'] ?? 1));
 
+    // ── Community Service Lookup for AI Assistant ──────────────────────────────
+    $csReq = db_one("
+        SELECT csr.task_name, csr.hours_required, csr.status,
+        (
+            SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, time_out)/3600.0), 0.0)
+            FROM community_service_session css
+            WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NOT NULL
+        ) AS hours_completed,
+        (
+            SELECT COUNT(*) FROM community_service_session css
+            WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
+        ) AS active_session_count
+        FROM community_service_requirement csr
+        WHERE csr.student_id = :sid AND csr.status = 'ACTIVE'
+        ORDER BY csr.requirement_id DESC LIMIT 1
+    ", [':sid' => $targetStudentId]);
+
+    $csStatusText = "No active/ongoing community service requirement on file.";
+    if ($csReq) {
+        $hrsReq = (float)($csReq['hours_required'] ?? 0);
+        $hrsComp = round((float)($csReq['hours_completed'] ?? 0), 1);
+        $hrsRem = max(0.0, round($hrsReq - $hrsComp, 1));
+        $isClockedIn = (int)($csReq['active_session_count'] ?? 0) > 0 ? "YES (Currently Clocked In)" : "NO (Not currently clocked in)";
+        $csStatusText = "YES, ONGOING — Task: {$csReq['task_name']} | Hours Required: {$hrsReq}h | Hours Completed: {$hrsComp}h | Hours Remaining: {$hrsRem}h | Currently Clocked In: {$isClockedIn}";
+    }
+
     $exactPrecedents = getExactPrecedents($offenseTypeId, $caseId);
     $categoryPrecedents = empty($exactPrecedents)
         ? getCategoryPrecedents($majorCategory, $offenseTypeId, $caseId)
@@ -514,6 +540,7 @@ try {
             . "• Offense Charged: {$offenseName} (Level: {$offenseLevel}, Instance #{$instanceCount})\n"
             . "• Total Major Offenses: {$totalMajorCount}\n"
             . "• Total Prior Cases: {$totalPrior}\n"
+            . "• Community Service Status: {$csStatusText}\n"
             . "• Precedent Record for this Offense:\n{$precedentContext}"
             . $otherStudentContext . "\n\n"
             . "PANEL QUESTION: {$userQuery}";
