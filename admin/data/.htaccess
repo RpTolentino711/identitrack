@@ -1,0 +1,6 @@
+# Deny all direct web HTTP requests to raw Excel dataset files
+Order Deny,Allow
+Deny from all
+<FilesMatch ".*">
+    Require all denied
+</FilesMatch>

@@ -2,3 +2,10 @@
 vendor/composer/installed.php
 vendor/composer/installed.json
 vendor/composer/autoload_real.php
+
+# Security & Data Privacy Act (RA 10173): Ignore raw Excel files & sensitive JSON datasets
+admin/data/*.xlsx
+admin/data/*.xls
+admin/data/*.csv
+storage/dataset/
+
