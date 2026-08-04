@@ -57,5 +57,20 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
     </div>
     ";
 
-    return $mail->send();
+    try {
+        return $mail->send();
+    } catch (\Exception $e) {
+        // Fallback 1: Try Port 587 TLS if Port 465 SSL failed
+        try {
+            $mail->Port = 587;
+            $mail->SMTPSecure = 'tls';
+            return $mail->send();
+        } catch (\Exception $e2) {
+            // Fallback 2: Native PHP server mail() fallback
+            $headers  = "MIME-Version: 1.0\r\n";
+            $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+            $headers .= "From: IdentiTrack Admin Security <identitrack@identitrack.site>\r\n";
+            return @mail($toEmail, "Security Code: {$otp} for IdentiTrack Admin", $mail->Body, $headers);
+        }
+    }
 }
