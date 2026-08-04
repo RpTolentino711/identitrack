@@ -378,7 +378,7 @@ try {
                 formatPunishmentDetails($p['punishment_details'] ?? '')
             ), $exactPrecedents);
 
-            $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. Precedent already exists in the database for this exact offense. Explain in 2-3 concise sentences why consistency with prior decisions is important for fairness.\n\n" . $dynamicRules;
+            $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. Precedent already exists in the database for this exact offense. Explain in 2-3 concise sentences why consistency with prior decisions is important for fairness. DATA PRIVACY MANDATE: For student privacy protection, NEVER mention or reveal full names of past student offenders. Always refer to past cases using Case Numbers (e.g. Case #DO-24-25-001 or Case #101) or Academic Programs.\n\n" . $dynamicRules;
             $userPrompt = "Student: {$studentName}\nOffense: {$offenseName}\nExact Precedents:\n" . implode("\n", $precedentSummary);
             
             $aiText = callGemini($sysPrompt, $userPrompt);
@@ -499,10 +499,11 @@ try {
             }
         }
 
-        $sysPrompt = "IMPORTANT ROLE PERSPECTIVE:\n"
+        $sysPrompt = "IMPORTANT ROLE PERSPECTIVE & DATA PRIVACY:\n"
             . "You are an internal executive Decision-Support Advisor assisting the UPCC DISCIPLINARY PANEL MEMBERS (the board/hearing officers) of NU Lipa.\n"
             . "You are NOT talking to the student. Always address the user as 'Panel Member' or 'Board'.\n"
             . "Refer to the accused student strictly in the 3rd person (e.g., 'The student, {$studentName}, has...'). Never address the panel member as 'you' in reference to the offense.\n"
+            . "DATA PRIVACY MANDATE (RA 10173): For student privacy protection, NEVER mention or reveal full names of past student offenders. Always refer to past cases using Case Numbers (e.g. Case #DO-24-25-001 or Case #101) or Academic Programs (e.g. BSIT Student).\n"
             . "If asked about another student, use the REAL-TIME DATABASE LOOKUP context provided below.\n\n"
             . "Answer questions strictly grounded in the NU Lipa Student Handbook rules below and the active case data provided. "
             . "Format your responses with clean Markdown headers, bold highlights, and bullet points. Never make up facts outside the handbook or case file.\n\n"
