@@ -261,10 +261,14 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
             if ($res) {
                 $errData = json_decode($res, true);
                 $msg = $errData['error']['message'] ?? "Model {$model} returned status {$httpCode}";
-                $lastErr = "Gemini API Error ({$model}): {$msg}";
-                if (strpos($msg, 'OAuth2') !== false || strpos($msg, 'not supported') !== false) {
+                
+                // If this key/model requires OAuth2 or is restricted by GCP API Key settings, skip to next
+                if (stristr($msg, 'OAuth2') || stristr($msg, 'not supported') || stristr($msg, 'API keys') || stristr($msg, 'credentials') || stristr($msg, 'principal')) {
+                    $lastErr = '🔑 GCP Cloud API Key restriction detected. Enable "Generative Language API" in Google Cloud Console or create a free key at https://aistudio.google.com/app/apikey';
                     continue;
                 }
+
+                $lastErr = "Gemini API Error ({$model}): {$msg}";
             } else {
                 $lastErr = "cURL Error: " . ($curlErr ?: "HTTP {$httpCode} failed");
             }
@@ -272,7 +276,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         }
     }
 
-    $GLOBALS['LAST_GEMINI_ERROR'] = $lastErr !== '' ? $lastErr : '⚠️ Google Gemini API Quota Exceeded across all API keys. Please add a new API Key from Google AI Studio.';
+    $GLOBALS['LAST_GEMINI_ERROR'] = $lastErr !== '' ? $lastErr : '⚠️ Google Gemini API Key required. Create a free key at https://aistudio.google.com/app/apikey and click "🔑 + Add to Key Pool" in the AI drawer.';
     return null;
 }
 
