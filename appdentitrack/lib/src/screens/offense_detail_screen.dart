@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart' as fp;
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import 'services/offense_api.dart';
 
 class OffenseDetailScreen extends StatefulWidget {
@@ -446,6 +447,27 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
               fontWeight: FontWeight.w700,
               fontSize: 12.5,
               height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1B2B6B),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+              ),
+              icon: const Icon(Icons.picture_as_pdf, size: 18, color: Colors.amber),
+              label: const Text(
+                '📄 View / Download Form F-005 (Notice to Explain)',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                final nteUrl = 'https://identitrack.site/admin/print_nte.php?${o.upccCaseId != null ? "case_id=${o.upccCaseId}" : "offense_id=${o.offenseId}"}';
+                url_launcher.launchUrl(Uri.parse(nteUrl), mode: url_launcher.LaunchMode.externalApplication);
+              },
             ),
           ),
           const SizedBox(height: 14),
