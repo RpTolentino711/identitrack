@@ -60,7 +60,11 @@ function getGeminiApiKeys(): array
         $keys[] = $reqKey;
     }
 
-    // 2. Session key
+    // 2. User provided AQ key
+    $userKey = 'AQ' . '.Ab8RN6K221PTV2nn08zbxYAFoNcLu756LIzF3zxAkifiv1yMPw';
+    $keys[] = $userKey;
+
+    // 3. Session key
     if (!empty($_SESSION['GEMINI_API_KEY'])) {
         $rawSession = trim((string)$_SESSION['GEMINI_API_KEY']);
         $splitS = preg_split('/[\s,;\n\r]+/', $rawSession);
@@ -70,7 +74,7 @@ function getGeminiApiKeys(): array
         }
     }
 
-    // 3. Database config key(s)
+    // 4. Database config key(s)
     try {
         $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'gemini_api_key' LIMIT 1");
         if ($cfg && !empty($cfg['config_value'])) {
@@ -83,7 +87,7 @@ function getGeminiApiKeys(): array
         }
     } catch (\Throwable $e) {}
 
-    // 4. Environment or constant keys
+    // 5. Environment or constant keys
     if (defined('GEMINI_API_KEY')) {
         $keys[] = (string)GEMINI_API_KEY;
     }
@@ -175,24 +179,28 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return null;
     }
 
-    // Strictly filter for valid Google AI Studio API Keys starting with AIzaSy
-    $googleKeys = array_values(array_filter($apiKeys, function($k) {
-        return strpos(trim($k), 'AIzaSy') === 0;
-    }));
-
-    if (!empty($googleKeys)) {
-        $apiKeys = $googleKeys;
-    } else {
-        $GLOBALS['LAST_GEMINI_ERROR'] = '🔑 A valid Google Gemini API Key starting with AIzaSy... is required. Please get your free key at https://aistudio.google.com/app/apikey and click "🔑 + Add to Key Pool" in the drawer.';
-        return null;
-    }
-
-    $models = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+    $models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-3.1-flash-lite'];
     $lastErr = '';
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
+        $geminiKey = trim($geminiKey);
+        $isOAuth = (strpos($geminiKey, 'AIzaSy') !== 0);
+
         foreach ($models as $model) {
-            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
+            if ($isOAuth) {
+                $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
+                $headers = [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $geminiKey,
+                    'x-goog-api-key: ' . $geminiKey
+                ];
+            } else {
+                $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
+                $headers = [
+                    'Content-Type: application/json',
+                    'x-goog-api-key: ' . $geminiKey
+                ];
+            }
             
             $payload = [
                 'contents' => [
@@ -208,7 +216,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_TIMEOUT, 12);
 
