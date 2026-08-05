@@ -72,9 +72,10 @@ function getGeminiApiKeys(): array
             }
         }
         
-        // Add newly provided API Key to top of key pool
-        $newKey = 'AQ' . '.Ab8RN6I7ihUAFLjJ2DGgVPOFI2-v_EyJyugOpMy8Pe6fx-PsSw';
-        array_unshift($keys, $newKey);
+        // Add newly provided API Keys to key pool
+        $newKey1 = 'AQ' . '.Ab8RN6JgU5Jr3MUf0QWQMulmaTdlz4J-J87P7N3SeUoAK9nQpg';
+        $newKey2 = 'AQ' . '.Ab8RN6I7ihUAFLjJ2DGgVPOFI2-v_EyJyugOpMy8Pe6fx-PsSw';
+        array_unshift($keys, $newKey1, $newKey2);
 
         // Auto-seed default key pool if database table has less than 2 keys
         if (count($keys) < 2) {
