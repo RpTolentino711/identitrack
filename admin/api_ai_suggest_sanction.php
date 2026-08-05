@@ -185,36 +185,17 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return null;
     }
 
-    $models = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+    $models = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
     $lastErr = '';
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
         $geminiKey = trim($geminiKey);
 
-        $authVariants = [
-            // Variant A: query string + x-goog-api-key header
-            [
-                'url' => "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=" . urlencode($geminiKey),
-                'headers' => [
-                    'Content-Type: application/json',
-                    'x-goog-api-key: ' . $geminiKey
-                ]
-            ],
-            // Variant B: Bearer token + x-goog-api-key header
-            [
-                'url' => "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent",
-                'headers' => [
-                    'Content-Type: application/json',
-                    'Authorization: Bearer ' . $geminiKey,
-                    'x-goog-api-key: ' . $geminiKey
-                ]
-            ]
-        ];
-
         foreach ($models as $model) {
-            foreach ($authVariants as $variant) {
-                $url = sprintf($variant['url'], $model);
-                $headers = $variant['headers'];
+            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
+            $headers = [
+                'Content-Type: application/json'
+            ];
             
             $payload = [
                 'contents' => [
@@ -275,7 +256,6 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
                 $lastErr = "Gemini API Error ({$model}): {$msg}";
             } else {
                 $lastErr = "cURL Error: " . ($curlErr ?: "HTTP {$httpCode} failed");
-            }
             }
         }
     }
