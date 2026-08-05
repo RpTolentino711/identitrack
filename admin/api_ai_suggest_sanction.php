@@ -182,6 +182,9 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
 
     if (!empty($googleKeys)) {
         $apiKeys = $googleKeys;
+    } else {
+        $GLOBALS['LAST_GEMINI_ERROR'] = '🔑 A valid Google Gemini API Key starting with AIzaSy... is required. Please get your free key at https://aistudio.google.com/app/apikey and click "🔑 + Add to Key Pool" in the drawer.';
+        return null;
     }
 
     $models = ['gemini-1.5-flash', 'gemini-1.5-pro'];
