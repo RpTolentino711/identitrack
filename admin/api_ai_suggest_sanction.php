@@ -239,7 +239,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
             }
 
             if ($httpCode === 429) {
-                $lastErr = "⚠️ Key #" . ($keyIndex + 1) . " Quota Exceeded (429): Free tier limit reached.";
+                $lastErr = "⚠️ Key #" . ($keyIndex + 1) . " Free Tier Quota Limit Exceeded (429). New GCP Projects have a temporary 0-request limit. Please add an active Google AI Studio key starting with AIzaSy...";
                 continue;
             }
 
@@ -247,9 +247,9 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
                 $errData = json_decode($res, true);
                 $msg = $errData['error']['message'] ?? "Model {$model} returned status {$httpCode}";
                 
-                // If this key requires OAuth2 (e.g. AQ... GCP token instead of AIzaSy Developer API key), skip to next
-                if (stristr($msg, 'OAuth2') || stristr($msg, 'not supported') || stristr($msg, 'API keys') || stristr($msg, 'credentials') || stristr($msg, 'principal')) {
-                    $lastErr = '🔑 Google AI Studio Developer Key required (starts with "AIzaSy..."). Please generate an API Key at https://aistudio.google.com/app/apikey and click "🔑 + Add to Key Pool" in the AI drawer.';
+                // Only skip invalid credential / unauthenticated keys
+                if ($httpCode === 401 || stristr($msg, 'OAuth2') || stristr($msg, 'UNAUTHENTICATED') || stristr($msg, 'ACCESS_TOKEN_TYPE_UNSUPPORTED')) {
+                    $lastErr = '🔑 Key #' . ($keyIndex + 1) . ' Invalid Credentials. Please add an active Google AI Studio Developer Key (starts with "AIzaSy...")';
                     continue;
                 }
 
