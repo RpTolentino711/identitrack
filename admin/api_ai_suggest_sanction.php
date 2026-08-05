@@ -185,7 +185,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return null;
     }
 
-    $models = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+    $models = ['gemini-2.0-flash', 'gemini-2.0-flash-lite'];
     $lastErr = '';
     $hasQuotaLimit = false;
 
@@ -237,6 +237,10 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
                     $lastErr = "Gemini API ({$model}) response blocked: " . ($blockReason ?: "Finish Reason: {$finishReason}");
                     continue;
                 }
+            }
+
+            if ($httpCode === 404) {
+                continue;
             }
 
             if ($httpCode === 429) {
