@@ -194,7 +194,16 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return null;
     }
 
-    $models = ['gemini-3.1-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp', 'gemini-flash-latest'];
+    // Prioritize AIzaSy formatted Google Gemini API keys first
+    usort($apiKeys, function($a, $b) {
+        $aIsGoogle = strpos($a, 'AIzaSy') === 0;
+        $bIsGoogle = strpos($b, 'AIzaSy') === 0;
+        if ($aIsGoogle && !$bIsGoogle) return -1;
+        if (!$aIsGoogle && $bIsGoogle) return 1;
+        return 0;
+    });
+
+    $models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
     $lastErr = '';
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
