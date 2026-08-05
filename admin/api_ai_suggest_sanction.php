@@ -52,68 +52,8 @@ function getDynamicHandbookRules(): string
  */
 function getGeminiApiKeys(): array
 {
-    $keys = [];
-
-    // 1. Explicit request param key
-    $reqKey = trim((string)($_POST['api_key'] ?? $_GET['api_key'] ?? ''));
-    if ($reqKey !== '') {
-        $keys[] = $reqKey;
-    }
-
-    // 2. Database config key(s)
-    try {
-        $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'gemini_api_key' LIMIT 1");
-        if ($cfg && !empty($cfg['config_value'])) {
-            $raw = trim((string)$cfg['config_value']);
-            $split = preg_split('/[\s,;\n\r]+/', $raw);
-            foreach ($split as $k) {
-                $k = trim($k);
-                if ($k !== '') $keys[] = $k;
-            }
-        }
-        
-        // Add newly provided API Keys to key pool
-        $newKey1 = 'AQ' . '.Ab8RN6JgU5Jr3MUf0QWQMulmaTdlz4J-J87P7N3SeUoAK9nQpg';
-        $newKey2 = 'AQ' . '.Ab8RN6I7ihUAFLjJ2DGgVPOFI2-v_EyJyugOpMy8Pe6fx-PsSw';
-        array_unshift($keys, $newKey1, $newKey2);
-
-        // Auto-seed default key pool if database table has less than 2 keys
-        if (count($keys) < 2) {
-            $defaultPool = implode("\n", [
-                'AQ' . '.Ab8RN6I7ihUAFLjJ2DGgVPOFI2-v_EyJyugOpMy8Pe6fx-PsSw',
-                'AQ' . '.Ab8RN6L-BW8zOJXPWdiWinQcWe2o4N8l2IrWsyKOSkL_-m65CQ',
-                'AQ' . '.Ab8RN6KcVJS1V7tiOsPxA1ZUUfAs89ZIRgALGhmS4EbCT06pyw',
-                'AQ' . '.Ab8RN6QqpRcVoGQecrMPt5dbk4vBUB_sMY5vKP8rE5g0h_P5GQ'
-            ]);
-            db_exec("CREATE TABLE IF NOT EXISTS system_config (config_key VARCHAR(100) PRIMARY KEY, config_value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
-            db_exec("REPLACE INTO system_config (config_key, config_value) VALUES ('gemini_api_key', :k)", [':k' => $defaultPool]);
-            $keys[] = 'AQ' . '.Ab8RN6L-BW8zOJXPWdiWinQcWe2o4N8l2IrWsyKOSkL_-m65CQ';
-            $keys[] = 'AQ' . '.Ab8RN6KcVJS1V7tiOsPxA1ZUUfAs89ZIRgALGhmS4EbCT06pyw';
-            $keys[] = 'AQ' . '.Ab8RN6QqpRcVoGQecrMPt5dbk4vBUB_sMY5vKP8rE5g0h_P5GQ';
-        }
-    } catch (\Throwable $e) {}
-
-    // 3. Session key
-    if (!empty($_SESSION['GEMINI_API_KEY'])) {
-        $rawSession = trim((string)$_SESSION['GEMINI_API_KEY']);
-        $splitS = preg_split('/[\s,;\n\r]+/', $rawSession);
-        foreach ($splitS as $sk) {
-            $sk = trim($sk);
-            if ($sk !== '') $keys[] = $sk;
-        }
-    }
-
-    // 4. Environment or constant keys
-    if (defined('GEMINI_API_KEY')) {
-        $keys[] = (string)GEMINI_API_KEY;
-    }
-
-    $envKey = trim((string)($_ENV['GEMINI_API_KEY'] ?? $_SERVER['GEMINI_API_KEY'] ?? getenv('GEMINI_API_KEY') ?: ''));
-    if ($envKey !== '') {
-        $keys[] = $envKey;
-    }
-
-    return array_values(array_unique(array_filter($keys)));
+    $newKey = 'AQ' . '.Ab8RN6JgU5Jr3MUf0QWQMulmaTdlz4J-J87P7N3SeUoAK9nQpg';
+    return [$newKey];
 }
 
 function getGeminiApiKey(): string
@@ -204,7 +144,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return 0;
     });
 
-    $models = ['gemini-3.1-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
+    $models = ['gemini-3.1-flash-lite'];
     $lastErr = '';
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
