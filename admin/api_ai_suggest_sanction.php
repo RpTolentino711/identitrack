@@ -251,7 +251,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
                 
                 // Only skip invalid credential / unauthenticated keys
                 if ($httpCode === 401 || stristr($msg, 'OAuth2') || stristr($msg, 'UNAUTHENTICATED') || stristr($msg, 'ACCESS_TOKEN_TYPE_UNSUPPORTED')) {
-                    $lastErr = '🔑 Key #' . ($keyIndex + 1) . ' Invalid Credentials. Please add an active Google AI Studio Developer Key (starts with "AIzaSy...")';
+                    $lastErr = '🔑 Google REST API requires a Developer Key starting with "AIzaSy...". Tokens starting with "AQ..." are GCP Service Tokens. Please copy an "AIzaSy..." key from Google AI Studio and click "🔑 + Add to Key Pool" in the AI drawer.';
                     continue;
                 }
 
