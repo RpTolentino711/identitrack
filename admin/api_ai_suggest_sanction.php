@@ -203,7 +203,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return 0;
     });
 
-    $models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
+    $models = ['gemini-3.1-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
     $lastErr = '';
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
