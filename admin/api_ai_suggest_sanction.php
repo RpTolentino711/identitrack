@@ -52,8 +52,48 @@ function getDynamicHandbookRules(): string
  */
 function getGeminiApiKeys(): array
 {
-    $newKey = 'AQ' . '.Ab8RN6JgU5Jr3MUf0QWQMulmaTdlz4J-J87P7N3SeUoAK9nQpg';
-    return [$newKey];
+    $keys = [];
+
+    // 1. Explicit request param key
+    $reqKey = trim((string)($_POST['api_key'] ?? $_GET['api_key'] ?? ''));
+    if ($reqKey !== '') {
+        $keys[] = $reqKey;
+    }
+
+    // 2. Session key
+    if (!empty($_SESSION['GEMINI_API_KEY'])) {
+        $rawSession = trim((string)$_SESSION['GEMINI_API_KEY']);
+        $splitS = preg_split('/[\s,;\n\r]+/', $rawSession);
+        foreach ($splitS as $sk) {
+            $sk = trim($sk);
+            if ($sk !== '') $keys[] = $sk;
+        }
+    }
+
+    // 3. Database config key(s)
+    try {
+        $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'gemini_api_key' LIMIT 1");
+        if ($cfg && !empty($cfg['config_value'])) {
+            $raw = trim((string)$cfg['config_value']);
+            $split = preg_split('/[\s,;\n\r]+/', $raw);
+            foreach ($split as $k) {
+                $k = trim($k);
+                if ($k !== '') $keys[] = $k;
+            }
+        }
+    } catch (\Throwable $e) {}
+
+    // 4. Environment or constant keys
+    if (defined('GEMINI_API_KEY')) {
+        $keys[] = (string)GEMINI_API_KEY;
+    }
+
+    $envKey = trim((string)($_ENV['GEMINI_API_KEY'] ?? $_SERVER['GEMINI_API_KEY'] ?? getenv('GEMINI_API_KEY') ?: ''));
+    if ($envKey !== '') {
+        $keys[] = $envKey;
+    }
+
+    return array_values(array_unique(array_filter($keys)));
 }
 
 function getGeminiApiKey(): string
@@ -144,7 +184,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return 0;
     });
 
-    $models = ['gemini-3.1-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
+    $models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'];
     $lastErr = '';
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
