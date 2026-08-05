@@ -1227,11 +1227,8 @@ hr{border-color:var(--border-glass);margin:16px 0}
                            </div>
                         </div>
 
-                        <!-- Offense List Header & Form F-005 -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
-                           <div style="font-size: 14px; font-weight: 700; color: var(--text-main);">Case Offenses & Details</div>
-                           <a class="btn btn-secondary" href="../admin/print_nte.php?case_id=<?= $caseId ?>" target="_blank" style="padding: 6px 14px; background: rgba(30,58,138,0.5); border: 1px solid rgba(59,130,246,0.6); color: #93c5fd; text-decoration: none; border-radius: 8px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">📄 Notice To Explain (Form F-005)</a>
-                        </div>
+                        <!-- Offense List Header -->
+                        <div style="font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 14px;">Case Offenses & Details</div>
                         <div class="offense-list">
                             <?php if (empty($offenses)): ?>
                                 <div class="empty">No linked offenses found.</div>
