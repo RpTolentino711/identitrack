@@ -179,7 +179,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return null;
     }
 
-    $models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-3.1-flash-lite'];
+    $models = ['gemini-1.5-flash', 'gemini-1.5-pro'];
     $lastErr = '';
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
@@ -252,6 +252,9 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
                 $errData = json_decode($res, true);
                 $msg = $errData['error']['message'] ?? "Model {$model} returned status {$httpCode}";
                 $lastErr = "Gemini API Error ({$model}): {$msg}";
+                if (strpos($msg, 'OAuth2') !== false || strpos($msg, 'not supported') !== false) {
+                    continue;
+                }
             } else {
                 $lastErr = "cURL Error: " . ($curlErr ?: "HTTP {$httpCode} failed");
             }
