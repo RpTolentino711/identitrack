@@ -60,9 +60,11 @@ function getGeminiApiKeys(): array
         $keys[] = $reqKey;
     }
 
-    // 2. User provided AQ key
-    $userKey = 'AQ' . '.Ab8RN6K221PTV2nn08zbxYAFoNcLu756LIzF3zxAkifiv1yMPw';
-    $keys[] = $userKey;
+    // 2. User provided API Keys
+    $userKeyScreenshot = 'AQ' . '.Ab8RN6K0ZEEzQ5wnmz301_gA9Fgn8Imcsu5EIwmZ4ymyuI8IPw';
+    $userKeyPrevious   = 'AQ' . '.Ab8RN6K221PTV2nn08zbxYAFoNcLu756LIzF3zxAkifiv1yMPw';
+    $keys[] = $userKeyScreenshot;
+    $keys[] = $userKeyPrevious;
 
     // 3. Session key
     if (!empty($_SESSION['GEMINI_API_KEY'])) {
@@ -184,23 +186,31 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
         $geminiKey = trim($geminiKey);
-        $isOAuth = (strpos($geminiKey, 'AIzaSy') !== 0);
 
-        foreach ($models as $model) {
-            if ($isOAuth) {
-                $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
-                $headers = [
+        $authVariants = [
+            // Variant A: query string + x-goog-api-key header
+            [
+                'url' => "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=" . urlencode($geminiKey),
+                'headers' => [
+                    'Content-Type: application/json',
+                    'x-goog-api-key: ' . $geminiKey
+                ]
+            ],
+            // Variant B: Bearer token + x-goog-api-key header
+            [
+                'url' => "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent",
+                'headers' => [
                     'Content-Type: application/json',
                     'Authorization: Bearer ' . $geminiKey,
                     'x-goog-api-key: ' . $geminiKey
-                ];
-            } else {
-                $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
-                $headers = [
-                    'Content-Type: application/json',
-                    'x-goog-api-key: ' . $geminiKey
-                ];
-            }
+                ]
+            ]
+        ];
+
+        foreach ($models as $model) {
+            foreach ($authVariants as $variant) {
+                $url = sprintf($variant['url'], $model);
+                $headers = $variant['headers'];
             
             $payload = [
                 'contents' => [
@@ -257,6 +267,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
                 }
             } else {
                 $lastErr = "cURL Error: " . ($curlErr ?: "HTTP {$httpCode} failed");
+            }
             }
         }
     }
