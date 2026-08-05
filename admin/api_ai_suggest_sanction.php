@@ -65,14 +65,10 @@ function getGeminiApiKeys(): array
     $keyFromScreenshot = 'AQ' . '.Ab8RN6IRIIyDC3mwlcKn3I9KMMJsptMGwm0WIKXbLqaiCBSYRQ';
     $newProjectKey     = 'AQ' . '.Ab8RN6Kar-iEoys0LZpEaXO78hia5z7jmcPAMgtkDppFluaNkQ';
     $latestKey         = 'AQ' . '.Ab8RN6J0y-84QO3DwHdOvcnyo3rc0ctPqKjc9H6NJ3Q5ocknZQ';
-    $userKeyScreenshot = 'AQ' . '.Ab8RN6K0ZEEzQ5wnmz301_gA9Fgn8Imcsu5EIwmZ4ymyuI8IPw';
-    $userKeyPrevious   = 'AQ' . '.Ab8RN6K221PTV2nn08zbxYAFoNcLu756LIzF3zxAkifiv1yMPw';
     $keys[] = $userNewKey;
     $keys[] = $keyFromScreenshot;
     $keys[] = $newProjectKey;
     $keys[] = $latestKey;
-    $keys[] = $userKeyScreenshot;
-    $keys[] = $userKeyPrevious;
 
     // 3. Session key
     if (!empty($_SESSION['GEMINI_API_KEY'])) {
@@ -191,6 +187,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
 
     $models = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
     $lastErr = '';
+    $hasQuotaLimit = false;
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
         $geminiKey = trim($geminiKey);
@@ -243,7 +240,8 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
             }
 
             if ($httpCode === 429) {
-                $lastErr = "⚠️ Key #" . ($keyIndex + 1) . " Free Tier Quota Limit Exceeded (429). New GCP Projects have a temporary 0-request limit. Please add an active Google AI Studio key starting with AIzaSy...";
+                $hasQuotaLimit = true;
+                $lastErr = "⚠️ Google Gemini Free Tier Rate Limit Active (HTTP 429). Please wait ~30-45 seconds for Google quota reset, or add a fresh key in the AI drawer.";
                 continue;
             }
 
@@ -251,9 +249,10 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
                 $errData = json_decode($res, true);
                 $msg = $errData['error']['message'] ?? "Model {$model} returned status {$httpCode}";
                 
-                // Only skip invalid credential / unauthenticated keys
                 if ($httpCode === 401 || stristr($msg, 'OAuth2') || stristr($msg, 'UNAUTHENTICATED') || stristr($msg, 'ACCESS_TOKEN_TYPE_UNSUPPORTED')) {
-                    $lastErr = '🔑 Google REST API requires a Developer Key starting with "AIzaSy...". Tokens starting with "AQ..." are GCP Service Tokens. Please copy an "AIzaSy..." key from Google AI Studio and click "🔑 + Add to Key Pool" in the AI drawer.';
+                    if (!$hasQuotaLimit) {
+                        $lastErr = '🔑 Google REST API requires an active Developer Key (starts with "AIzaSy..."). Please generate a key at https://aistudio.google.com/app/apikey and click "🔑 + Add to Key Pool" in the AI drawer.';
+                    }
                     continue;
                 }
 
