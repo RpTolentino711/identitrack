@@ -72,9 +72,14 @@ function getGeminiApiKeys(): array
             }
         }
         
+        // Add newly provided API Key to top of key pool
+        $newKey = 'AQ' . '.Ab8RN6I7ihUAFLjJ2DGgVPOFI2-v_EyJyugOpMy8Pe6fx-PsSw';
+        array_unshift($keys, $newKey);
+
         // Auto-seed default key pool if database table has less than 2 keys
         if (count($keys) < 2) {
             $defaultPool = implode("\n", [
+                'AQ' . '.Ab8RN6I7ihUAFLjJ2DGgVPOFI2-v_EyJyugOpMy8Pe6fx-PsSw',
                 'AQ' . '.Ab8RN6L-BW8zOJXPWdiWinQcWe2o4N8l2IrWsyKOSkL_-m65CQ',
                 'AQ' . '.Ab8RN6KcVJS1V7tiOsPxA1ZUUfAs89ZIRgALGhmS4EbCT06pyw',
                 'AQ' . '.Ab8RN6QqpRcVoGQecrMPt5dbk4vBUB_sMY5vKP8rE5g0h_P5GQ'
@@ -189,7 +194,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return null;
     }
 
-    $models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp', 'gemini-flash-latest'];
+    $models = ['gemini-3.1-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp', 'gemini-flash-latest'];
     $lastErr = '';
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
