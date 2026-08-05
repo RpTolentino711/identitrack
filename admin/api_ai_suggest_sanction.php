@@ -60,17 +60,11 @@ function getGeminiApiKeys(): array
         $keys[] = $reqKey;
     }
 
-    // 2. User provided API Keys
+    // 2. User provided API Keys (Verified HTTP 200 Active Keys)
     $userPastedKey     = 'AQ' . '.Ab8RN6K1D3ilTKaDLeayHYVrzFQioUmzJaqaGcQXkEpFP9AtVw';
     $userNewKey        = 'AQ' . '.Ab8RN6IrcmdtUELKTOKASr5Rk19c1g4ur88gO6jMBFjotbAdSA';
-    $keyFromScreenshot = 'AQ' . '.Ab8RN6IRIIyDC3mwlcKn3I9KMMJsptMGwm0WIKXbLqaiCBSYRQ';
-    $newProjectKey     = 'AQ' . '.Ab8RN6Kar-iEoys0LZpEaXO78hia5z7jmcPAMgtkDppFluaNkQ';
-    $latestKey         = 'AQ' . '.Ab8RN6J0y-84QO3DwHdOvcnyo3rc0ctPqKjc9H6NJ3Q5ocknZQ';
     $keys[] = $userPastedKey;
     $keys[] = $userNewKey;
-    $keys[] = $keyFromScreenshot;
-    $keys[] = $newProjectKey;
-    $keys[] = $latestKey;
 
     // 3. Session key
     if (!empty($_SESSION['GEMINI_API_KEY'])) {
@@ -229,9 +223,17 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
                     $lastErr = "Gemini API Error ({$model}): " . $data['error']['message'];
                     continue;
                 }
-                $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
-                if ($text !== null && trim($text) !== '') {
-                    return trim($text);
+                $extractedText = '';
+                if (isset($data['candidates'][0]['content']['parts']) && is_array($data['candidates'][0]['content']['parts'])) {
+                    foreach ($data['candidates'][0]['content']['parts'] as $part) {
+                        if (!empty($part['text'])) {
+                            $extractedText .= $part['text'] . "\n";
+                        }
+                    }
+                }
+                $extractedText = trim($extractedText);
+                if ($extractedText !== '') {
+                    return $extractedText;
                 }
                 $finishReason = $data['candidates'][0]['finishReason'] ?? null;
                 $blockReason = $data['promptFeedback']['blockReason'] ?? null;
