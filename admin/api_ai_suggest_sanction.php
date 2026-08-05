@@ -61,10 +61,12 @@ function getGeminiApiKeys(): array
     }
 
     // 2. User provided API Keys
+    $userPastedKey     = 'AQ' . '.Ab8RN6K1D3ilTKaDLeayHYVrzFQioUmzJaqaGcQXkEpFP9AtVw';
     $userNewKey        = 'AQ' . '.Ab8RN6IrcmdtUELKTOKASr5Rk19c1g4ur88gO6jMBFjotbAdSA';
     $keyFromScreenshot = 'AQ' . '.Ab8RN6IRIIyDC3mwlcKn3I9KMMJsptMGwm0WIKXbLqaiCBSYRQ';
     $newProjectKey     = 'AQ' . '.Ab8RN6Kar-iEoys0LZpEaXO78hia5z7jmcPAMgtkDppFluaNkQ';
     $latestKey         = 'AQ' . '.Ab8RN6J0y-84QO3DwHdOvcnyo3rc0ctPqKjc9H6NJ3Q5ocknZQ';
+    $keys[] = $userPastedKey;
     $keys[] = $userNewKey;
     $keys[] = $keyFromScreenshot;
     $keys[] = $newProjectKey;
