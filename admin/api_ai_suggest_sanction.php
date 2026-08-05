@@ -144,7 +144,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return 0;
     });
 
-    $models = ['gemini-3.1-flash-lite'];
+    $models = ['gemini-3.1-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
     $lastErr = '';
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
@@ -176,23 +176,33 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
 
             if ($httpCode === 200 && $res) {
                 $data = json_decode($res, true);
+                if (isset($data['error']['message'])) {
+                    $lastErr = "Gemini API Error ({$model}): " . $data['error']['message'];
+                    continue;
+                }
                 $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
                 if ($text !== null && trim($text) !== '') {
                     return trim($text);
                 }
+                $finishReason = $data['candidates'][0]['finishReason'] ?? null;
+                $blockReason = $data['promptFeedback']['blockReason'] ?? null;
+                if ($blockReason || ($finishReason && $finishReason !== 'STOP')) {
+                    $lastErr = "Gemini API ({$model}) response blocked: " . ($blockReason ?: "Finish Reason: {$finishReason}");
+                    continue;
+                }
             }
 
             if ($httpCode === 429) {
-                $lastErr = "⚠️ Key #" . ($keyIndex + 1) . " Quota Exceeded (429): Free tier quota limit reached for this key. Automatically switching to backup keys in pool...";
-                break;
+                $lastErr = "⚠️ Key #" . ($keyIndex + 1) . " Quota Exceeded (429): Free tier limit reached.";
+                continue;
             }
 
             if ($res) {
                 $errData = json_decode($res, true);
-                $msg = $errData['error']['message'] ?? "HTTP {$httpCode}";
+                $msg = $errData['error']['message'] ?? "Model {$model} returned status {$httpCode}";
                 $lastErr = "Gemini API Error ({$model}): {$msg}";
             } else {
-                $lastErr = "cURL Error: " . ($curlErr ?: 'HTTP failed');
+                $lastErr = "cURL Error: " . ($curlErr ?: "HTTP {$httpCode} failed");
             }
         }
     }
