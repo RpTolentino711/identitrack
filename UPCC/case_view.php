@@ -1146,7 +1146,6 @@ hr{border-color:var(--border-glass);margin:16px 0}
         <?php endif; ?>
     </div>
     <div class="side-group" style="margin-top:auto; display:flex; flex-direction:column; gap:8px;">
-        <a class="btn btn-secondary" href="../admin/print_nte.php?case_id=<?= $caseId ?>" target="_blank" style="width:100%; background:rgba(30,58,138,0.3); border:1px solid rgba(59,130,246,0.4); color:#93c5fd; text-align:center;">📄 Notice To Explain (F-005)</a>
         <a id="backToDashboardBtn" class="btn btn-secondary" href="upccdashboard.php" style="width:100%; text-align:center;">← Back</a>
     </div>
 </aside>
@@ -1207,14 +1206,15 @@ hr{border-color:var(--border-glass);margin:16px 0}
                             </form>
                         </div>
                     <?php else: ?>
-                        <!-- Student Explanation -->
-                        <div id="studentExplanationBlock" style="<?= !empty($case['student_explanation_at']) ? 'display:block' : 'display:none' ?>; margin-bottom: 24px; background: rgba(79, 123, 255, 0.08); border: 1px solid rgba(79, 123, 255, 0.2); border-radius: 12px; padding: 16px;">
-                           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                              <span style="font-size: 11px; font-weight: 800; color: #a5b4fc; text-transform: uppercase; letter-spacing: 1px;">Student Explanation</span>
-                              <span id="explanationTime" style="font-size: 11px; color: var(--text-muted);"><?= $case['student_explanation_at'] ? 'Submitted ' . date('M j, Y g:i A', strtotime($case['student_explanation_at'])) : '' ?></span>
+                        <!-- Student Explanation & Notice to Explain (Form F-005) -->
+                        <div id="studentExplanationBlock" style="margin-bottom: 24px; background: rgba(79, 123, 255, 0.08); border: 1px solid rgba(79, 123, 255, 0.2); border-radius: 12px; padding: 16px;">
+                           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                              <span style="font-size: 11px; font-weight: 800; color: #a5b4fc; text-transform: uppercase; letter-spacing: 1px;">Student Explanation & Notice To Explain</span>
+                              <span id="explanationTime" style="font-size: 11px; color: var(--text-muted);"><?= $case['student_explanation_at'] ? 'Submitted ' . date('M j, Y g:i A', strtotime($case['student_explanation_at'])) : 'Pending Written Response' ?></span>
                            </div>
-                           <div id="explanationText" style="font-size: 13px; line-height: 1.6; color: var(--text-main); white-space: pre-wrap; margin-bottom: 12px;"><?= htmlspecialchars($case['student_explanation_text'] ?? '') ?></div>
-                           <div id="explanationAttachments" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                           <div id="explanationText" style="font-size: 13px; line-height: 1.6; color: var(--text-main); white-space: pre-wrap; margin-bottom: 12px;"><?= htmlspecialchars($case['student_explanation_text'] ?? 'No student written statement submitted yet.') ?></div>
+                           <div id="explanationAttachments" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 8px;">
+                              <a class="btn btn-secondary" href="../admin/print_nte.php?case_id=<?= $caseId ?>" target="_blank" style="padding: 6px 14px; background: rgba(30,58,138,0.5); border: 1px solid rgba(59,130,246,0.6); color: #93c5fd; text-decoration: none; border-radius: 8px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">📄 Print / View Notice To Explain (Form F-005)</a>
                               <?php if (!empty($case['student_explanation_image'])): ?>
                                 <a href="../<?= htmlspecialchars($case['student_explanation_image']) ?>" target="_blank" style="display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-glass);">
                                    <img src="../<?= htmlspecialchars($case['student_explanation_image']) ?>" style="max-width: 80px; max-height: 80px; display: block; object-fit: cover;">
@@ -1222,7 +1222,7 @@ hr{border-color:var(--border-glass);margin:16px 0}
                               <?php endif; ?>
                               <?php if (!empty($case['student_explanation_pdf'])): ?>
                                 <a href="../<?= htmlspecialchars($case['student_explanation_pdf']) ?>" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; text-decoration: none; color: #fca5a5; font-size: 11px; font-weight: 600;">
-                                   <span>📄 View PDF Explanation</span>
+                                   <span>📄 View PDF Attachment</span>
                                 </a>
                               <?php endif; ?>
                            </div>
