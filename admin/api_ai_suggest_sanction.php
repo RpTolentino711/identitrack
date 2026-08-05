@@ -266,9 +266,9 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
                 $errData = json_decode($res, true);
                 $msg = $errData['error']['message'] ?? "Model {$model} returned status {$httpCode}";
                 
-                // If this key/model requires OAuth2 or is restricted by GCP API Key settings, skip to next
+                // If this key requires OAuth2 (e.g. AQ... GCP token instead of AIzaSy Developer API key), skip to next
                 if (stristr($msg, 'OAuth2') || stristr($msg, 'not supported') || stristr($msg, 'API keys') || stristr($msg, 'credentials') || stristr($msg, 'principal')) {
-                    $lastErr = '🔑 GCP Cloud API Key restriction detected. Enable "Generative Language API" in Google Cloud Console or create a free key at https://aistudio.google.com/app/apikey';
+                    $lastErr = '🔑 Google AI Studio Developer Key required (starts with "AIzaSy..."). Please generate an API Key at https://aistudio.google.com/app/apikey and click "🔑 + Add to Key Pool" in the AI drawer.';
                     continue;
                 }
 
