@@ -175,16 +175,16 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return null;
     }
 
-    // Prioritize AIzaSy formatted Google Gemini API keys first
-    usort($apiKeys, function($a, $b) {
-        $aIsGoogle = strpos($a, 'AIzaSy') === 0;
-        $bIsGoogle = strpos($b, 'AIzaSy') === 0;
-        if ($aIsGoogle && !$bIsGoogle) return -1;
-        if (!$aIsGoogle && $bIsGoogle) return 1;
-        return 0;
-    });
+    // Strictly filter for valid Google AI Studio API Keys starting with AIzaSy
+    $googleKeys = array_values(array_filter($apiKeys, function($k) {
+        return strpos(trim($k), 'AIzaSy') === 0;
+    }));
 
-    $models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'];
+    if (!empty($googleKeys)) {
+        $apiKeys = $googleKeys;
+    }
+
+    $models = ['gemini-1.5-flash', 'gemini-1.5-pro'];
     $lastErr = '';
 
     foreach ($apiKeys as $keyIndex => $geminiKey) {
