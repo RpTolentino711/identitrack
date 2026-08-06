@@ -292,8 +292,9 @@ $liveOffenses        = [];
 if ($postStudentId !== '') {
   $params = [':sid' => $postStudentId];
   db_add_encryption_key($params);
+  ensure_student_privacy_columns();
   $studentInfo = db_one(
-    "SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number']) . ", year_level, section, school, program
+    "SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number']) . ", year_level, section, school, program, privacy_accepted, privacy_accepted_at, app_registered_at
      FROM student WHERE student_id = :sid LIMIT 1",
     $params
   );
@@ -532,8 +533,8 @@ function renderMajorAlert(int $majorCount, array $upccCases): string {
     <div class="ap-body">
       <div class="ap-title">⚠️ Major Offense – UPCC Case Required</div>
       <div class="ap-stat-row">
-        <div class="ap-stat"><div class="ap-stat-val" style="color:var(--red)">' . $majorCount . '</div><div class="ap-stat-lbl">Major Offenses</div></div>
-        <div class="ap-stat"><div class="ap-stat-val" style="color:var(--amber)">' . $caseCount . '</div><div class="ap-stat-lbl">Active Cases</div></div>
+        <div class="ap-stat"><div class="ap-stat-val" style="color:var(--red);">' . $majorCount . '</div><div class="ap-stat-lbl">Major Offenses</div></div>
+        <div class="ap-stat"><div class="ap-stat-val" style="color:var(--amber);">' . $caseCount . '</div><div class="ap-stat-lbl">Active Cases</div></div>
       </div>
       <div class="ap-desc">Saving will auto-create a UPCC case and generate a guardian letter.</div>
       <div style="font-size:11px;font-weight:800;color:var(--red);text-transform:uppercase;margin-bottom:6px;">Active Cases</div>
@@ -541,7 +542,6 @@ function renderMajorAlert(int $majorCount, array $upccCases): string {
     </div>
   </div>';
 }
-
 function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $majorCount = 0, $activeCases = [], $offenses = []) {
   if (!$student) return '';
   $fullName    = htmlspecialchars($student['student_fn'] . ' ' . $student['student_ln']);
@@ -551,6 +551,28 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   $school      = htmlspecialchars($student['school'] ?? 'NU Lipa');
   $email       = htmlspecialchars($student['student_email'] ?? '');
   $guardian    = $guardianEmail ? htmlspecialchars($guardianEmail) : '<span class="text-muted">Not provided</span>';
+
+  $isAppRegistered = (!empty($student['privacy_accepted']) || !empty($student['app_registered_at']) || !empty($student['privacy_accepted_at']));
+  $privacyDateStr = '';
+  if (!empty($student['privacy_accepted_at'])) {
+      $privacyDateStr = date('M d, Y g:i A', strtotime($student['privacy_accepted_at']));
+  } elseif (!empty($student['app_registered_at'])) {
+      $privacyDateStr = date('M d, Y g:i A', strtotime($student['app_registered_at']));
+  }
+
+  $starBadge = '';
+  if ($isAppRegistered) {
+      $tooltipText = "This student downloaded the app and agreed to the Privacy Policy" . ($privacyDateStr ? " on " . $privacyDateStr : "");
+      $starBadge = '
+        <span class="privacy-star-tooltip-wrap" style="position: relative; display: inline-flex; align-items: center; margin-left: 6px; cursor: pointer;">
+          <span style="font-size: 16px; color: #f59e0b; filter: drop-shadow(0 1px 2px rgba(245,158,11,0.4));">⭐</span>
+          <style>
+            .privacy-star-tooltip-wrap:hover .privacy-tooltip-box { display: block; }
+            .privacy-tooltip-box { display: none; position: absolute; left: 20px; top: -5px; background: #334155; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; width: 220px; z-index: 100; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }
+          </style>
+          <span class="privacy-tooltip-box">' . htmlspecialchars($tooltipText) . '</span>
+        </span>';
+  }
 
   $minorText = $minorCount === 1 ? '1 Minor Offense' : $minorCount . ' Minor Offenses';
   $section4Count = floor($minorCount / 3);
@@ -590,7 +612,6 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
         if ($o['level'] === 'MINOR') $totalMinors++;
     }
     
-    // Determine how many minors belong to completed Section 4 groups (multiples of 3)
     $completedSection4Minors = floor($totalMinors / 3) * 3;
     
     $chronological = array_reverse($offenses);
@@ -598,21 +619,20 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
     $processed = [];
     
     foreach ($chronological as $o) {
+      $isMajor = ($o['level'] === 'MAJOR');
       $isSection4 = false;
-      if ($o['level'] === 'MINOR') {
+      if (!$isMajor) {
           $minorCounter++;
           if ($minorCounter <= $completedSection4Minors) {
               $isSection4 = true;
           }
       }
-      $isMajor = $o['level'] === 'MAJOR';
       
       $o['isRed'] = $isMajor || $isSection4;
       $o['isSection4Label'] = $isSection4;
       $processed[] = $o;
     }
     
-    // Reverse back to newest first for display
     $displayOffenses = array_reverse($processed);
 
     foreach ($displayOffenses as $o) {
@@ -702,7 +722,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       <div class="sic-title">Student Information</div>
     </div>
     <div class="sic-body">
-      <div class="sic-row"><span class="sic-label">Full Name:</span><span class="sic-value">' . $fullName . '</span></div>
+      <div class="sic-row"><span class="sic-label">Full Name:</span><span class="sic-value">' . $fullName . $starBadge . '</span></div>
       <div class="sic-row"><span class="sic-label">Student ID:</span><span class="sic-value">' . $studentId . '</span></div>
       <div class="sic-row"><span class="sic-label">Year &amp; Section:</span><span class="sic-value">' . $yearSection . '</span></div>
       <div class="sic-row"><span class="sic-label">Program:</span><span class="sic-value">' . $program . '</span></div>

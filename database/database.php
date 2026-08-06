@@ -1648,5 +1648,14 @@ function ensure_notice_to_explain_table(): void {
         $created = true;
     } catch (\Throwable $e) {}
 }
+
+function ensure_student_privacy_columns(): void {
+    static $done = false;
+    if ($done) return;
+    try { db_exec("ALTER TABLE student ADD COLUMN privacy_accepted INT DEFAULT 0;"); } catch (\Throwable $e) {}
+    try { db_exec("ALTER TABLE student ADD COLUMN privacy_accepted_at DATETIME DEFAULT NULL;"); } catch (\Throwable $e) {}
+    try { db_exec("ALTER TABLE student ADD COLUMN app_registered_at DATETIME DEFAULT NULL;"); } catch (\Throwable $e) {}
+    $done = true;
+}
 ensure_notice_to_explain_table();
 ?>

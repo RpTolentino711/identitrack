@@ -99,6 +99,17 @@ db_exec(
   [':id' => (int)$otpRow['otp_id']]
 );
 
+// Record Privacy Policy acceptance & App Registration
+ensure_student_privacy_columns();
+db_exec(
+  "UPDATE student 
+   SET privacy_accepted = 1, 
+       privacy_accepted_at = IF(privacy_accepted_at IS NULL, NOW(), privacy_accepted_at),
+       app_registered_at = IF(app_registered_at IS NULL, NOW(), app_registered_at)
+   WHERE student_id = :sid",
+  [':sid' => (string)$student['student_id']]
+);
+
 // Create auth session token
 $token     = bin2hex(random_bytes(32));
 $tokenHash = password_hash($token, PASSWORD_DEFAULT);
