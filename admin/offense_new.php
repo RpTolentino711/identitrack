@@ -564,13 +564,14 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   if ($isAppRegistered) {
       $tooltipText = "This student downloaded the app and agreed to the Privacy Policy" . ($privacyDateStr ? " on " . $privacyDateStr : "");
       $starBadge = '
-        <span class="privacy-star-tooltip-wrap" style="position: relative; display: inline-flex; align-items: center; margin-left: 6px; cursor: pointer;">
+        <span class="privacy-star-tooltip-wrap" style="position: relative; display: inline-flex; align-items: center; margin-left: 6px; cursor: pointer;" title="' . htmlspecialchars($tooltipText) . '">
           <span style="font-size: 16px; color: #f59e0b; filter: drop-shadow(0 1px 2px rgba(245,158,11,0.4));">⭐</span>
           <style>
-            .privacy-star-tooltip-wrap:hover .privacy-tooltip-box { display: block; }
-            .privacy-tooltip-box { display: none; position: absolute; left: 20px; top: -5px; background: #334155; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; width: 220px; z-index: 100; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }
+            .privacy-star-tooltip-wrap:hover .privacy-tooltip-box { display: block !important; }
           </style>
-          <span class="privacy-tooltip-box">' . htmlspecialchars($tooltipText) . '</span>
+          <span class="privacy-tooltip-box" style="display: none; position: absolute; right: 0; top: 24px; background: #1e293b; color: #ffffff; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; width: 250px; z-index: 9999; box-shadow: 0 10px 20px rgba(0,0,0,0.3); line-height: 1.45; text-align: left; word-break: break-word;">
+            🔒 ' . htmlspecialchars($tooltipText) . '
+          </span>
         </span>';
   }
 
