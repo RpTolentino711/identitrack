@@ -1911,21 +1911,22 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </div>
   </div>
 
-  <!-- MODAL: Success after sending email -->
-  <div id="emailSuccessModal" class="modal">
-    <div class="modal-content" style="text-align: center; max-width: 400px; border-radius: 12px; overflow: hidden; position: relative;">
+  <!-- MODAL: Final Process Success Modal (after Guardian Email AND Form F-005 sent) -->
+  <div id="finalProcessSuccessModal" class="modal">
+    <div class="modal-content" style="text-align: center; max-width: 420px; border-radius: 16px; overflow: hidden; position: relative;">
       <div class="modal-body" style="padding: 40px 30px;">
-        <button class="modal-close" onclick="closeEmailSuccessModal()" style="position: absolute; top: 15px; right: 15px;">&times;</button>
+        <button class="modal-close" onclick="closeFinalSuccessModal()" style="position: absolute; top: 15px; right: 15px;">&times;</button>
         <img src="../assets/logo.png" alt="IdentiTrack Logo" style="height: 64px; margin-bottom: 24px;">
-        <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #10b981;">Email Sent Successfully</h3>
+        <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #10b981;">Process Completed</h3>
         <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
-          The guardian notification letter has been dispatched to the parent/guardian.
+          ✅ Guardian notification email sent.<br>
+          ✅ Form F-005 Notice to Explain issued to student app.
         </p>
-        <div style="display:flex; flex-direction:column; gap: 10px;">
-            <button class="btn btn-primary" type="button" onclick="closeEmailSuccessModal(); openNteEditorModal();" style="width: 100%; justify-content: center; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b);">📄 Proceed to Form F-005 Notice To Explain</button>
-            <a href="offenses.php" class="btn" style="width: 100%; justify-content: center;">Go to Offenses</a>
+        <div style="display:flex; gap: 10px;">
+            <button class="btn" type="button" onclick="closeFinalSuccessModal()" style="flex: 1; justify-content: center;">Stay on page</button>
+            <a href="offenses.php" class="btn btn-primary" style="flex: 1; justify-content: center;">Go to Offenses</a>
         </div>
-        <div id="emailSuccessProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: #10b981; width: 100%;"></div>
+        <div id="finalSuccessProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: #10b981; width: 100%;"></div>
       </div>
     </div>
   </div>
@@ -2542,7 +2543,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         msg.textContent = '✅ Email sent successfully.'; 
         msg.style.color = 'var(--green)'; 
         
-        // Hide the guardian letter modal
+        // Hide the guardian letter modal and transition DIRECTLY to Form F-005 Editor
         const letterModal = document.getElementById('modal-guardian-letter');
         if (letterModal) letterModal.classList.remove('active');
         
@@ -2555,7 +2556,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           }
         });
 
-        // Strip letter parameters from the URL so refreshing doesn't trigger the modal again
+        // Strip letter parameters from the URL
         if (window.history && window.history.replaceState) {
             const url = new URL(window.location.href);
             url.searchParams.delete('letter');
@@ -2565,23 +2566,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             window.history.replaceState(null, '', url.pathname + url.search);
         }
 
-        // Show the email success modal
-        const emailSuccessModal = document.getElementById('emailSuccessModal');
-        if (emailSuccessModal) {
-            emailSuccessModal.classList.add('active');
-            var bar = document.getElementById('emailSuccessProgress');
-            if (bar) {
-                bar.style.transition = 'none';
-                bar.style.width = '100%';
-                setTimeout(() => {
-                    bar.style.transition = 'width 5s linear';
-                    bar.style.width = '0%';
-                }, 50);
-            }
-            window.emailSuccessModalTimer = setTimeout(() => {
-                closeEmailSuccessModal();
-            }, 5000);
-        }
+        // Open Modal #2 (Form F-005 Notice to Explain Editor) immediately
+        openNteEditorModal();
       }
       else { 
         msg.textContent = '❌ Failed: ' + (r.json?.message || 'Unknown error'); 
@@ -2590,6 +2576,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
     }
   }
+
   function openNteEditorModal() {
     const letterModal = document.getElementById('modal-guardian-letter');
     if (letterModal) letterModal.classList.remove('active');
@@ -2649,14 +2636,39 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
     const res = await postForm('api_send_nte_form.php', formData);
     if (res.ok && res.json?.ok) {
-        alert('✅ Form F-005 Notice to Explain sent to student successfully!');
         const nteModal = document.getElementById('modal-nte-editor');
         if (nteModal) nteModal.classList.remove('active');
-        window.location.href = 'offenses.php?msg=Major+Offense+recorded+and+Form+F-005+sent+to+student.';
+        showFinalSuccessModal();
     } else {
         alert('❌ Error: ' + (res.json?.error || 'Failed to send Form F-005.'));
         if (btn) { btn.disabled = false; btn.textContent = '📄 Send Form F-005 to Student'; }
     }
+  }
+
+  function showFinalSuccessModal() {
+      const modal = document.getElementById('finalProcessSuccessModal');
+      if (modal) {
+          modal.classList.add('active');
+          var bar = document.getElementById('finalSuccessProgress');
+          if (bar) {
+              bar.style.transition = 'none';
+              bar.style.width = '100%';
+              setTimeout(() => {
+                  bar.style.transition = 'width 5s linear';
+                  bar.style.width = '0%';
+              }, 50);
+          }
+          window.finalSuccessModalTimer = setTimeout(() => {
+              closeFinalSuccessModal();
+          }, 5000);
+      }
+  }
+
+  function closeFinalSuccessModal() {
+      if (window.finalSuccessModalTimer) clearTimeout(window.finalSuccessModalTimer);
+      const m = document.getElementById('finalProcessSuccessModal');
+      if (m) m.classList.remove('active');
+      window.location.href = 'offenses.php?msg=Major+Offense+recorded+and+Form+F-005+sent+to+student.';
   }
 
   let previewDebounce = null;
