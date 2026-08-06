@@ -139,6 +139,14 @@ $rows = db_all(
   $query_params
 );
 
+ensure_notice_to_explain_table();
+$sentNteMap = [];
+$nteRows = db_all("SELECT case_id, offense_id FROM notice_to_explain WHERE student_id = :sid AND status = 'SENT'", [':sid' => $studentId]);
+foreach ($nteRows as $nte) {
+    if (!empty($nte['case_id'])) $sentNteMap['case_' . $nte['case_id']] = true;
+    if (!empty($nte['offense_id'])) $sentNteMap['offense_' . $nte['offense_id']] = true;
+}
+
 $minorList = [];
 $majorList = [];
 
@@ -398,6 +406,7 @@ foreach ($majorList as $r) {
     'is_bundle' => false,
     'appeal_status' => $appealStatus,
     'upcc_case_id' => $caseId,
+    'has_nte_sent' => (!empty($sentNteMap['case_' . $caseId]) || !empty($sentNteMap['offense_' . $oid])),
     'explanation_text' => $explanation,
     'explanation_image' => $expImage,
     'explanation_pdf' => $expPdf,

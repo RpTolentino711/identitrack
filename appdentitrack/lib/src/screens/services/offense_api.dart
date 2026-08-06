@@ -62,6 +62,7 @@ class OffenseApi {
           upccCaseId: m['upcc_case_id'] != null
               ? int.tryParse(m['upcc_case_id'].toString())
               : null,
+          hasNteSent: m['has_nte_sent'] == true,
           explanationText: m['explanation_text']?.toString(),
           explanationImage: m['explanation_image']?.toString(),
           explanationPdf: m['explanation_pdf']?.toString(),
@@ -350,6 +351,7 @@ class OffenseItem {
   final bool isBundle;
   final String appealStatus;
   final int? upccCaseId;
+  final bool hasNteSent;
   final String? explanationText;
   final String? explanationImage;
   final String? explanationPdf;
@@ -367,6 +369,7 @@ class OffenseItem {
     this.isBundle = false,
     this.appealStatus = '',
     this.upccCaseId,
+    this.hasNteSent = false,
     this.explanationText,
     this.explanationImage,
     this.explanationPdf,
