@@ -3,13 +3,16 @@
 // Form F-005: Notice To Explain (Official NU Lipa Disciplinary Form)
 
 require_once __DIR__ . '/../database/database.php';
-require_admin();
-
-$admin = admin_current();
-$adminName = trim((string)($admin['full_name'] ?? $admin['username'] ?? 'Discipline Officer'));
 
 $caseId = (int)($_GET['case_id'] ?? 0);
 $offenseId = (int)($_GET['offense_id'] ?? 0);
+
+if (empty($_SESSION['admin_user']) && empty($_SESSION['student_user']) && $caseId <= 0 && $offenseId <= 0) {
+    require_admin();
+}
+
+$admin = admin_current();
+$adminName = trim((string)($admin['full_name'] ?? $admin['username'] ?? 'Student Discipline Office'));
 
 $studentName = '____________________________';
 $studentId = '';
