@@ -21,6 +21,29 @@ if ($headerProfilePhoto === '') {
   $headerProfilePhoto = trim((string)($admin['photo_path'] ?? $admin['photo'] ?? $admin['profile_photo'] ?? ''));
 }
 
+// Global Enforcement: Redirect admin if a Major Offense Form F-005 is unsent
+if (function_exists('db_one') && function_exists('ensure_notice_to_explain_table')) {
+    ensure_notice_to_explain_table();
+    $pendingNteCheck = db_one("
+        SELECT o.offense_id
+        FROM offense o
+        LEFT JOIN notice_to_explain nte ON nte.offense_id = o.offense_id AND nte.status = 'SENT'
+        WHERE o.level = 'MAJOR' AND nte.nte_id IS NULL
+        ORDER BY o.offense_id DESC
+        LIMIT 1
+    ");
+    if ($pendingNteCheck) {
+        $pId = (int)$pendingNteCheck['offense_id'];
+        $curr = strtolower(basename((string)($_SERVER['PHP_SELF'] ?? '')));
+        $currId = (int)($_GET['id'] ?? $_GET['offense_id'] ?? 0);
+        $isLetter = (int)($_GET['letter'] ?? 0);
+        if ($curr !== 'offense_new.php' || $currId !== $pId || $isLetter !== 1) {
+            header('Location: offense_new.php?id=' . $pId . '&letter=1');
+            exit;
+        }
+    }
+}
+
 // Initial unread count (same logic as poll)
 $unreadCount = 0;
 if (function_exists('db_one')) {

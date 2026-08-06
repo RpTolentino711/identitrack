@@ -1931,16 +1931,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </div>
   </div>
 
-  <!-- MODAL 2: Form F-005 Notice To Explain Editor Modal for Student -->
-  <div id="modal-nte-editor" class="modal">
-    <div class="modal-content" style="max-width: 650px; border-radius: 16px; overflow: hidden; position: relative;">
+  <!-- MODAL 2: Form F-005 Notice To Explain Editor Modal for Student (MANDATORY - CANNOT BE CLOSED) -->
+  <div id="modal-nte-editor" class="modal" data-static="true">
+    <div class="modal-content" style="max-width: 650px; border-radius: 16px; overflow: hidden; position: relative; border: 2px solid var(--navy, #1b2b6b);">
       <div class="modal-header" style="background: var(--navy, #1b2b6b); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
-        <h3 style="margin:0; font-size: 18px; font-weight: 800; color: white;">📄 Form F-005: Notice To Explain (Student View Editor)</h3>
-        <button class="modal-close" onclick="document.getElementById('modal-nte-editor').classList.remove('active')" style="color: white; font-size: 24px; background: none; border: none; cursor: pointer;">&times;</button>
+        <h3 style="margin:0; font-size: 18px; font-weight: 800; color: white;">📄 Form F-005: Notice To Explain (Mandatory Step)</h3>
+        <span style="background:#ef4444; color:white; font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px; text-transform:uppercase; letter-spacing:0.5px;">REQUIRED STEP</span>
       </div>
       <div class="modal-body" style="padding: 20px; max-height: 80vh; overflow-y: auto;">
         <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; color: #b78103; font-weight: 600;">
-          ⚠️ <strong>Form F-005 Notice To Explain</strong> will be sent to the student's <strong>Submit Explanation</strong> section on their app/portal. Review & edit the fields below before sending.
+          ⚠️ <strong>Form F-005 Notice To Explain is MANDATORY for Major Offenses.</strong> You must attach the official Form F-005 file and send it to the student. You cannot bypass or skip this modal.
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -1988,9 +1988,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           <small style="color:var(--text-3); font-size:11px; margin-top: 4px; display: block;">Attach the official signed Form F-005 document file for the student. The form cannot be submitted if this field is empty.</small>
         </div>
 
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-          <button class="btn" onclick="document.getElementById('modal-nte-editor').classList.remove('active')">Cancel</button>
-          <button class="btn btn-primary" id="btn_send_nte" onclick="sendNteFormToStudent()" style="background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b);">📄 Send Form F-005 to Student</button>
+        <div style="display: flex; justify-content: center;">
+          <button class="btn btn-primary" id="btn_send_nte" onclick="sendNteFormToStudent()" style="width: 100%; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b); padding: 12px; font-weight: 800; font-size: 14px;">📄 Attach File & Send Form F-005 to Student</button>
         </div>
       </div>
     </div>
