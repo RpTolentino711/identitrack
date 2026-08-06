@@ -1980,6 +1980,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           <input type="text" id="nte_admin_signature" class="form-control" value="<?= htmlspecialchars(trim((string)($admin['full_name'] ?? $admin['username'] ?? 'Student Discipline Office'))) ?>" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-weight: 600;">
         </div>
 
+        <div style="margin-bottom: 16px; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1;">
+          <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--navy, #1b2b6b); display: block; margin-bottom: 4px;">
+            Attach Official Form F-005 Notice File / PDF <span style="color:var(--red);">* (REQUIRED)</span>
+          </label>
+          <input type="file" id="nte_file_attachment" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" class="form-control" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; background: white;">
+          <small style="color:var(--text-3); font-size:11px; margin-top: 4px; display: block;">Attach the official signed Form F-005 document file for the student. The form cannot be submitted if this field is empty.</small>
+        </div>
+
         <div style="display: flex; gap: 10px; justify-content: flex-end;">
           <button class="btn" onclick="document.getElementById('modal-nte-editor').classList.remove('active')">Cancel</button>
           <button class="btn btn-primary" id="btn_send_nte" onclick="sendNteFormToStudent()" style="background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b);">📄 Send Form F-005 to Student</button>
@@ -2008,53 +2016,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     if (hasActiveSection4) {
       const postProjected = postSection4Minors + 1;
       const postPct       = (Math.min(postProjected, 3) / 3) * 100;
-      const remaining     = 3 - postProjected;
-      const warningNote   = (postProjected >= 3)
-        ? `<div class="ap-warning">⚠️ This will be the 3rd offense since Section 4 — consider escalating to the panel.</div>`
-        : `<div class="ap-subdesc">${remaining} more offense(s) recorded here will prompt another panel review.</div>`;
-
       return `
       <div class="alert-panel alert-panel--critical">
-        <div class="ap-icon">
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-          </svg>
-        </div>
+        <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
         <div class="ap-body">
-          <div class="ap-title">Active Section 4 Investigation</div>
-          <div class="ap-desc">
-            This student already has an open Section 4 case. This offense will <strong>not</strong> open a new case — it is tracked separately below.
-          </div>
-
-          <div class="ap-track-label">Original trigger</div>
-          <div class="ap-progress" style="margin-bottom:14px;padding:10px 12px;background:rgba(0,0,0,.04);border-radius:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <span style="font-size:11px;font-weight:600;">Section 4 triggered</span>
-              <span style="font-size:11px;font-weight:800;color:var(--pink);">3 / 3 — Under Investigation</span>
-            </div>
-            <div class="ap-progress-track">
-              <div class="ap-progress-fill ap-progress--critical" style="width:100%"></div>
-            </div>
-          </div>
-
-          <div class="ap-track-label">Since Section 4 opened</div>
-          <div class="ap-progress" style="padding:10px 12px;background:rgba(0,0,0,.04);border-radius:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <span style="font-size:11px;font-weight:600;">New minor offenses</span>
-              <span style="font-size:11px;font-weight:800;">${postProjected} / 3</span>
-            </div>
-            <div class="ap-progress-track">
-              <div class="ap-progress-fill ap-progress--critical" style="width:${postPct}%"></div>
-            </div>
-          </div>
-          ${warningNote}
+          <div class="ap-title">⚖️ Section 4 Active – Additional Minor</div>
+          <div class="ap-projected-badge ap-projected--critical">📋 Currently ${currentCount} Minors → <strong>Section 4 Active</strong></div>
+          <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--critical" style="width:${postPct}%"></div></div><span class="ap-progress-label">Section 4 Investigation Ongoing (${postProjected}/3 post-trigger)</span></div>
+          <div class="ap-desc">Student is under Section 4 UPCC investigation. This additional minor will be appended to their case file.</div>
         </div>
       </div>`;
     }
-
-    if (currentCount === undefined) currentCount = projectedCount - 1;
-    const pctMap = {1:33, 2:66, 3:100};
-    const pct    = pctMap[Math.min(projectedCount, 3)] || 100;
 
     if (projectedCount === 1) {
       return `
@@ -2063,7 +2035,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <div class="ap-body">
           <div class="ap-title">1st Minor – Warning</div>
           <div class="ap-projected-badge ap-projected--info">📋 Currently ${currentCount} → becomes <strong>1/3</strong></div>
-          <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--info" style="width:${pct}%"></div></div><span class="ap-progress-label">1/3 – 2 more to Section 4</span></div>
+          <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--info" style="width:${(1/3)*100}%"></div></div><span class="ap-progress-label">1/3 – 2 more to Section 4</span></div>
           <div class="ap-desc">Warning only. No letter required.</div>
           <div class="ap-steps">
             <div class="ap-step ap-step--next">1st Minor ⬅ Warning</div>
@@ -2084,7 +2056,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <div class="ap-body">
           <div class="ap-title">2nd Minor – Letter to Guardian</div>
           <div class="ap-projected-badge ap-projected--warning">📋 Currently ${currentCount} → becomes <strong>2/3</strong></div>
-          <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:${pct}%"></div></div><span class="ap-progress-label">2/3 – 1 more to Section 4</span></div>
+          <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:${(2/3)*100}%"></div></div><span class="ap-progress-label">2/3 – 1 more to Section 4</span></div>
           <div class="ap-desc">A formal notice will be sent to the guardian after saving.</div>
           ${emailHtml}
           <div class="ap-steps">
@@ -2161,6 +2133,84 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </div>`;
   }
 
+  function openNteEditorModal() {
+    const letterModal = document.getElementById('modal-guardian-letter');
+    if (letterModal) letterModal.classList.remove('active');
+    
+    const nteModal = document.getElementById('modal-nte-editor');
+    if (nteModal) nteModal.classList.add('active');
+  }
+
+  async function sendNteFormToStudent() {
+    const studentId = '<?= htmlspecialchars($postStudentId) ?>';
+    const offenseId = OFFENSE_ID;
+    const irNo = document.getElementById('nte_ir_no')?.value.trim() || '';
+    const alleged = document.getElementById('nte_alleged_details')?.value.trim() || '';
+    const sec = document.getElementById('nte_handbook_section')?.value.trim() || '';
+    const page = document.getElementById('nte_handbook_page')?.value.trim() || '';
+    const inst = document.getElementById('nte_custom_instructions')?.value.trim() || '';
+    const sig = document.getElementById('nte_admin_signature')?.value.trim() || '';
+
+    const fileInput = document.getElementById('nte_file_attachment');
+    const file = fileInput?.files ? fileInput.files[0] : null;
+
+    // Strict validation
+    if (!irNo) {
+        alert('⚠️ Incident Report No. is required.');
+        document.getElementById('nte_ir_no')?.focus();
+        return;
+    }
+    if (!alleged) {
+        alert('⚠️ Alleged Violation Details are required.');
+        document.getElementById('nte_alleged_details')?.focus();
+        return;
+    }
+    if (!sec) {
+        alert('⚠️ Handbook Section Code is required.');
+        document.getElementById('nte_handbook_section')?.focus();
+        return;
+    }
+    if (!sig) {
+        alert('⚠️ Discipline Officer Signature Name is required.');
+        document.getElementById('nte_admin_signature')?.focus();
+        return;
+    }
+
+    // STRICT FILE ATTACHMENT VALIDATION: CANNOT SUBMIT IF FILE IS EMPTY!
+    if (!file) {
+        alert('⚠️ CANNOT SUBMIT: Form F-005 file attachment is required! Please select/attach the Form F-005 document file before sending to student.');
+        fileInput?.focus();
+        return; // PREVENTS SUBMISSION & KEEPS MODAL OPEN!
+    }
+
+    if (!confirm('Are you sure you want to send this Notice to Explain (Form F-005) to the student?')) {
+        return;
+    }
+
+    const btn = document.getElementById('btn_send_nte');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending Form F-005...'; }
+
+    const formData = new FormData();
+    formData.append('student_id', studentId);
+    formData.append('offense_id', offenseId);
+    formData.append('incident_report_no', irNo);
+    formData.append('alleged_details', alleged);
+    formData.append('handbook_section', sec);
+    formData.append('handbook_page', page);
+    formData.append('custom_instructions', inst);
+    formData.append('admin_signature', sig);
+    formData.append('nte_file', file);
+
+    const res = await postForm('api_send_nte_form.php', formData);
+    if (res.ok && res.json?.ok) {
+        const nteModal = document.getElementById('modal-nte-editor');
+        if (nteModal) nteModal.classList.remove('active');
+        showFinalSuccessModal();
+    } else {
+        alert('❌ Error: ' + (res.json?.error || 'Failed to send Form F-005.'));
+        if (btn) { btn.disabled = false; btn.textContent = '📄 Send Form F-005 to Student'; }
+    }
+  }
 
   const studentIdInput    = document.getElementById('studentIdInput');
   const levelSelect       = document.getElementById('levelSelect');

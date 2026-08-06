@@ -95,6 +95,11 @@ if ($caseId > 0) {
 }
 
 if ($customNte) {
+    if (!empty($customNte['attachment_path']) && file_exists(__DIR__ . '/../' . $customNte['attachment_path'])) {
+        $fileUrl = '../' . $customNte['attachment_path'];
+        header('Location: ' . $fileUrl);
+        exit;
+    }
     if (!empty($customNte['incident_report_no'])) $incidentReportNo = $customNte['incident_report_no'];
     if (!empty($customNte['alleged_details'])) $allegedDetails = $customNte['alleged_details'];
     if (!empty($customNte['handbook_section'])) $sectionStr = $customNte['handbook_section'];

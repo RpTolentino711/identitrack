@@ -1633,6 +1633,7 @@ function ensure_notice_to_explain_table(): void {
                 handbook_page VARCHAR(50) DEFAULT NULL,
                 custom_instructions TEXT DEFAULT NULL,
                 admin_signature VARCHAR(255) DEFAULT NULL,
+                attachment_path VARCHAR(255) DEFAULT NULL,
                 status VARCHAR(50) DEFAULT 'SENT',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -1641,6 +1642,9 @@ function ensure_notice_to_explain_table(): void {
                 INDEX idx_nte_offense (offense_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ");
+        try {
+            db_exec("ALTER TABLE notice_to_explain ADD COLUMN attachment_path VARCHAR(255) DEFAULT NULL;");
+        } catch (\Throwable $e) {}
         $created = true;
     } catch (\Throwable $e) {}
 }

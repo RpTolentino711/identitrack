@@ -29,15 +29,36 @@ $page = trim((string)($_POST['handbook_page'] ?? ''));
 $instructions = trim((string)($_POST['custom_instructions'] ?? ''));
 $signature = trim((string)($_POST['admin_signature'] ?? $adminName));
 
+$attachmentPath = null;
+if (isset($_FILES['nte_file']) && $_FILES['nte_file']['error'] === UPLOAD_ERR_OK) {
+    $fileTmp = $_FILES['nte_file']['tmp_name'];
+    $fileName = basename($_FILES['nte_file']['name']);
+    $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+    
+    $uploadDir = __DIR__ . '/../uploads/nte/';
+    if (!is_dir($uploadDir)) {
+        @mkdir($uploadDir, 0777, true);
+    }
+    
+    $newFileName = 'nte_' . time() . '_' . uniqid() . '.' . $ext;
+    $targetPath = $uploadDir . $newFileName;
+    
+    if (move_uploaded_file($fileTmp, $targetPath)) {
+        $attachmentPath = 'uploads/nte/' . $newFileName;
+    }
+}
+
 ensure_notice_to_explain_table();
 
 // Save or Replace Form F-005 record
 $existing = null;
 if ($caseId > 0) {
-    $existing = db_one("SELECT nte_id FROM notice_to_explain WHERE case_id = :cid LIMIT 1", [':cid' => $caseId]);
+    $existing = db_one("SELECT nte_id, attachment_path FROM notice_to_explain WHERE case_id = :cid LIMIT 1", [':cid' => $caseId]);
 } else if ($offenseId > 0) {
-    $existing = db_one("SELECT nte_id FROM notice_to_explain WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
+    $existing = db_one("SELECT nte_id, attachment_path FROM notice_to_explain WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
 }
+
+$finalAttachment = $attachmentPath ?: ($existing['attachment_path'] ?? null);
 
 if ($existing) {
     db_exec("
@@ -48,6 +69,7 @@ if ($existing) {
             handbook_page = :page,
             custom_instructions = :inst,
             admin_signature = :sig,
+            attachment_path = :att,
             status = 'SENT',
             updated_at = NOW()
         WHERE nte_id = :nid
@@ -58,13 +80,14 @@ if ($existing) {
         ':page' => $page,
         ':inst' => $instructions,
         ':sig' => $signature,
+        ':att' => $finalAttachment,
         ':nid' => (int)$existing['nte_id']
     ]);
     $nteId = (int)$existing['nte_id'];
 } else {
     db_exec("
-        INSERT INTO notice_to_explain (case_id, offense_id, student_id, incident_report_no, alleged_details, handbook_section, handbook_page, custom_instructions, admin_signature, status, created_at, updated_at)
-        VALUES (:cid, :oid, :sid, :ir, :alleged, :sec, :page, :inst, :sig, 'SENT', NOW(), NOW())
+        INSERT INTO notice_to_explain (case_id, offense_id, student_id, incident_report_no, alleged_details, handbook_section, handbook_page, custom_instructions, admin_signature, attachment_path, status, created_at, updated_at)
+        VALUES (:cid, :oid, :sid, :ir, :alleged, :sec, :page, :inst, :sig, :att, 'SENT', NOW(), NOW())
     ", [
         ':cid' => $caseId > 0 ? $caseId : null,
         ':oid' => $offenseId > 0 ? $offenseId : null,
@@ -74,7 +97,8 @@ if ($existing) {
         ':sec' => $section,
         ':page' => $page,
         ':inst' => $instructions,
-        ':sig' => $signature
+        ':sig' => $signature,
+        ':att' => $finalAttachment
     ]);
     $nteId = (int)db_last_id();
 }
