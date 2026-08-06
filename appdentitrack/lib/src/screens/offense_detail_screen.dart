@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
+import '../config.dart';
 import 'services/offense_api.dart';
 
 class OffenseDetailScreen extends StatefulWidget {
@@ -464,9 +465,16 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
                 '📄 View / Download Form F-005 PDF',
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
               ),
-              onPressed: () {
-                final nteUrl = 'https://identitrack.site/admin/print_nte.php?${o.upccCaseId != null ? "case_id=${o.upccCaseId}" : "offense_id=${o.offenseId}"}';
-                url_launcher.launchUrl(Uri.parse(nteUrl), mode: url_launcher.LaunchMode.externalApplication);
+              onPressed: () async {
+                final nteUrl = '${AppConfig.baseUrl}/admin/print_nte.php?${o.upccCaseId != null ? "case_id=${o.upccCaseId}" : "offense_id=${o.offenseId}"}';
+                final uri = Uri.parse(nteUrl);
+                try {
+                  if (!await url_launcher.launchUrl(uri, mode: url_launcher.LaunchMode.externalApplication)) {
+                    await url_launcher.launchUrl(uri, mode: url_launcher.LaunchMode.inAppBrowserView);
+                  }
+                } catch (e) {
+                  debugPrint('Error launching NTE URL: $e');
+                }
               },
             ),
           ),

@@ -95,10 +95,25 @@ if ($caseId > 0) {
 }
 
 if ($customNte) {
-    if (!empty($customNte['attachment_path']) && file_exists(__DIR__ . '/../' . $customNte['attachment_path'])) {
-        $fileUrl = '../' . $customNte['attachment_path'];
-        header('Location: ' . $fileUrl);
-        exit;
+    if (!empty($customNte['attachment_path'])) {
+        $filePath = __DIR__ . '/../' . ltrim((string)$customNte['attachment_path'], '/');
+        if (file_exists($filePath)) {
+            $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+            $mimeTypes = [
+                'pdf'  => 'application/pdf',
+                'png'  => 'image/png',
+                'jpg'  => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'doc'  => 'application/msword',
+                'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ];
+            $mime = $mimeTypes[$ext] ?? 'application/octet-stream';
+            header('Content-Type: ' . $mime);
+            header('Content-Disposition: inline; filename="' . basename($filePath) . '"');
+            header('Content-Length: ' . filesize($filePath));
+            readfile($filePath);
+            exit;
+        }
     }
     if (!empty($customNte['incident_report_no'])) $incidentReportNo = $customNte['incident_report_no'];
     if (!empty($customNte['alleged_details'])) $allegedDetails = $customNte['alleged_details'];
