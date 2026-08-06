@@ -234,59 +234,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // DPO/DPS Keyhole Badge Graphic
-                      Container(
-                        width: 90,
-                        height: 110,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E3A8A),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(40),
-                            topRight: Radius.circular(40),
-                            bottomLeft: Radius.circular(20),
-                            bottomRight: Radius.circular(20),
-                          ),
-                          border: Border.all(color: const Color(0xFF1D4ED8), width: 3),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 8,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              color: const Color(0xFF0284C7),
-                              child: const Text(
-                                'REGISTERED',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Icon(
-                              Icons.security_rounded,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'DPO / DPS',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        ),
+                      // IdentiTrack Logo Asset
+                      Image.asset(
+                        'lib/assets/identilogo.png',
+                        height: 90,
+                        fit: BoxFit.contain,
                       ),
                       const SizedBox(height: 18),
                       // Privacy Policy Statement
