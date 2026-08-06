@@ -1613,4 +1613,36 @@ function activate_or_merge_community_service_requirement(string $studentId, int 
         );
     }
 }
+
+/**
+ * Ensures notice_to_explain table exists in database
+ */
+function ensure_notice_to_explain_table(): void {
+    static $created = false;
+    if ($created) return;
+    try {
+        db_exec("
+            CREATE TABLE IF NOT EXISTS notice_to_explain (
+                nte_id INT AUTO_INCREMENT PRIMARY KEY,
+                case_id INT DEFAULT NULL,
+                offense_id INT DEFAULT NULL,
+                student_id VARCHAR(50) NOT NULL,
+                incident_report_no VARCHAR(100) DEFAULT NULL,
+                alleged_details TEXT DEFAULT NULL,
+                handbook_section VARCHAR(100) DEFAULT NULL,
+                handbook_page VARCHAR(50) DEFAULT NULL,
+                custom_instructions TEXT DEFAULT NULL,
+                admin_signature VARCHAR(255) DEFAULT NULL,
+                status VARCHAR(50) DEFAULT 'SENT',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_nte_student (student_id),
+                INDEX idx_nte_case (case_id),
+                INDEX idx_nte_offense (offense_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        ");
+        $created = true;
+    } catch (\Throwable $e) {}
+}
+ensure_notice_to_explain_table();
 ?>

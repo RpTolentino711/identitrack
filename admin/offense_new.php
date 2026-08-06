@@ -1921,11 +1921,68 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
           The guardian notification letter has been dispatched to the parent/guardian.
         </p>
-        <div style="display:flex; gap: 10px;">
-            <button class="btn" id="emailSuccessStayBtn" type="button" onclick="closeEmailSuccessModal()" style="flex: 1; justify-content: center;">Stay on page</button>
-            <a href="offenses.php" class="btn btn-primary" id="emailSuccessGoBtn" style="flex: 1; justify-content: center;">Go to Offenses</a>
+        <div style="display:flex; flex-direction:column; gap: 10px;">
+            <button class="btn btn-primary" type="button" onclick="closeEmailSuccessModal(); openNteEditorModal();" style="width: 100%; justify-content: center; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b);">📄 Proceed to Form F-005 Notice To Explain</button>
+            <a href="offenses.php" class="btn" style="width: 100%; justify-content: center;">Go to Offenses</a>
         </div>
         <div id="emailSuccessProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: #10b981; width: 100%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Form F-005 Notice To Explain Editor Modal for Student -->
+  <div id="modal-nte-editor" class="modal">
+    <div class="modal-content" style="max-width: 650px; border-radius: 16px; overflow: hidden; position: relative;">
+      <div class="modal-header" style="background: var(--navy, #1b2b6b); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="margin:0; font-size: 18px; font-weight: 800; color: white;">📄 Form F-005: Notice To Explain (Student View Editor)</h3>
+        <button class="modal-close" onclick="document.getElementById('modal-nte-editor').classList.remove('active')" style="color: white; font-size: 24px; background: none; border: none; cursor: pointer;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px; max-height: 80vh; overflow-y: auto;">
+        <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; color: #b78103; font-weight: 600;">
+          ⚠️ <strong>Form F-005 Notice To Explain</strong> will be sent to the student's <strong>Submit Explanation</strong> section on their app/portal. Review & edit the fields below before sending.
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Incident Report No.</label>
+            <input type="text" id="nte_ir_no" class="form-control" value="IR-<?= date('Y') ?>-<?= str_pad((string)$letterOffenseId, 4, '0', STR_PAD_LEFT) ?>" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-weight: 600;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Student Name / ID</label>
+            <input type="text" readonly class="form-control" value="<?= htmlspecialchars($studentInfo ? ($studentInfo['student_fn'] . ' ' . $studentInfo['student_ln'] . ' (' . $studentInfo['student_id'] . ')') : $postStudentId) ?>" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #eee; background: #f8fafc; font-weight: 600;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Alleged Violation Details (Editable)</label>
+          <textarea id="nte_alleged_details" rows="3" class="form-control" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 13px; font-family: inherit;"><?= htmlspecialchars($postDesc !== '' ? $postDesc : 'Academic dishonesty or violation of Student Handbook policy.') ?></textarea>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Handbook Section Code</label>
+            <input type="text" id="nte_handbook_section" class="form-control" value="MAJ-001" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-weight: 600;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Handbook Page No.</label>
+            <input type="text" id="nte_handbook_page" class="form-control" value="Page 45" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-weight: 600;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Custom Admin Instructions for Student</label>
+          <textarea id="nte_custom_instructions" rows="2" class="form-control" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 13px; font-family: inherit;">Per NU Lipa SDO Policy, you are required to submit your written explanation within five (5) days upon receipt. Failure to respond within 5 days will be construed as a waiver of your right to be heard.</textarea>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Discipline Officer Signature Name</label>
+          <input type="text" id="nte_admin_signature" class="form-control" value="<?= htmlspecialchars(trim((string)($admin['full_name'] ?? $admin['username'] ?? 'Student Discipline Office'))) ?>" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-weight: 600;">
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button class="btn" onclick="document.getElementById('modal-nte-editor').classList.remove('active')">Cancel</button>
+          <button class="btn btn-primary" id="btn_send_nte" onclick="sendNteFormToStudent()" style="background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b);">📄 Send Form F-005 to Student</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2533,6 +2590,53 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
     }
   }
+  function openNteEditorModal() {
+    const letterModal = document.getElementById('modal-guardian-letter');
+    if (letterModal) letterModal.classList.remove('active');
+    
+    const nteModal = document.getElementById('modal-nte-editor');
+    if (nteModal) nteModal.classList.add('active');
+  }
+
+  async function sendNteFormToStudent() {
+    const studentId = '<?= htmlspecialchars($postStudentId) ?>';
+    const offenseId = OFFENSE_ID;
+    const irNo = document.getElementById('nte_ir_no')?.value.trim() || '';
+    const alleged = document.getElementById('nte_alleged_details')?.value.trim() || '';
+    const sec = document.getElementById('nte_handbook_section')?.value.trim() || '';
+    const page = document.getElementById('nte_handbook_page')?.value.trim() || '';
+    const inst = document.getElementById('nte_custom_instructions')?.value.trim() || '';
+    const sig = document.getElementById('nte_admin_signature')?.value.trim() || '';
+
+    if (!confirm('Are you sure you want to send this Notice to Explain (Form F-005) to the student?')) {
+        return;
+    }
+
+    const btn = document.getElementById('btn_send_nte');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending Form F-005...'; }
+
+    const formData = new FormData();
+    formData.append('student_id', studentId);
+    formData.append('offense_id', offenseId);
+    formData.append('incident_report_no', irNo);
+    formData.append('alleged_details', alleged);
+    formData.append('handbook_section', sec);
+    formData.append('handbook_page', page);
+    formData.append('custom_instructions', inst);
+    formData.append('admin_signature', sig);
+
+    const res = await postForm('api_send_nte_form.php', formData);
+    if (res.ok && res.json?.ok) {
+        alert('✅ Form F-005 Notice to Explain sent to student successfully!');
+        const nteModal = document.getElementById('modal-nte-editor');
+        if (nteModal) nteModal.classList.remove('active');
+        window.location.href = 'offenses.php?msg=Major+Offense+recorded+and+Form+F-005+sent+to+student.';
+    } else {
+        alert('❌ Error: ' + (res.json?.error || 'Failed to send Form F-005.'));
+        if (btn) { btn.disabled = false; btn.textContent = '📄 Send Form F-005 to Student'; }
+    }
+  }
+
   let previewDebounce = null;
   function checkEmailRequired() {
     const btn = document.getElementById('btn_send_letter');

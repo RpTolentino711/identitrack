@@ -84,6 +84,23 @@ if ($caseId > 0) {
         $incidentReportNo = 'IR-' . date('Y', strtotime($off['created_at'])) . '-' . str_pad((string)$off['offense_id'], 4, '0', STR_PAD_LEFT);
     }
 }
+
+// Check for custom edited Form F-005 Notice To Explain from Admin
+ensure_notice_to_explain_table();
+$customNte = null;
+if ($caseId > 0) {
+    $customNte = db_one("SELECT * FROM notice_to_explain WHERE case_id = :cid LIMIT 1", [':cid' => $caseId]);
+} else if ($offenseId > 0) {
+    $customNte = db_one("SELECT * FROM notice_to_explain WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
+}
+
+if ($customNte) {
+    if (!empty($customNte['incident_report_no'])) $incidentReportNo = $customNte['incident_report_no'];
+    if (!empty($customNte['alleged_details'])) $allegedDetails = $customNte['alleged_details'];
+    if (!empty($customNte['handbook_section'])) $sectionStr = $customNte['handbook_section'];
+    if (!empty($customNte['handbook_page'])) $pageStr = $customNte['handbook_page'];
+    if (!empty($customNte['admin_signature'])) $adminName = $customNte['admin_signature'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
