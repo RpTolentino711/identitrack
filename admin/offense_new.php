@@ -2608,6 +2608,28 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const inst = document.getElementById('nte_custom_instructions')?.value.trim() || '';
     const sig = document.getElementById('nte_admin_signature')?.value.trim() || '';
 
+    // Strict validation
+    if (!irNo) {
+        alert('⚠️ Incident Report No. is required.');
+        document.getElementById('nte_ir_no')?.focus();
+        return;
+    }
+    if (!alleged) {
+        alert('⚠️ Alleged Violation Details are required.');
+        document.getElementById('nte_alleged_details')?.focus();
+        return;
+    }
+    if (!sec) {
+        alert('⚠️ Handbook Section Code is required.');
+        document.getElementById('nte_handbook_section')?.focus();
+        return;
+    }
+    if (!sig) {
+        alert('⚠️ Discipline Officer Signature Name is required.');
+        document.getElementById('nte_admin_signature')?.focus();
+        return;
+    }
+
     if (!confirm('Are you sure you want to send this Notice to Explain (Form F-005) to the student?')) {
         return;
     }
