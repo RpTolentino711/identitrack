@@ -316,6 +316,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('student not found') ||
+          errStr.contains('not active') ||
+          errStr.contains('deleted') ||
+          errStr.contains('404') ||
+          errStr.contains('401') ||
+          errStr.contains('unauthorized')) {
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Account not found or removed. Automatically logging out...'),
+            ),
+          );
+        await _logout();
+        return;
+      }
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
