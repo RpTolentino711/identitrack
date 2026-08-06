@@ -1931,65 +1931,28 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </div>
   </div>
 
-  <!-- MODAL 2: Form F-005 Notice To Explain Editor Modal for Student (MANDATORY - CANNOT BE CLOSED) -->
+  <!-- MODAL 2: Form F-005 Notice To Explain File Attachment Modal for Student (MANDATORY) -->
   <div id="modal-nte-editor" class="modal" data-static="true">
-    <div class="modal-content" style="max-width: 650px; border-radius: 16px; overflow: hidden; position: relative; border: 2px solid var(--navy, #1b2b6b);">
+    <div class="modal-content" style="max-width: 520px; border-radius: 16px; overflow: hidden; position: relative; border: 2px solid var(--navy, #1b2b6b);">
       <div class="modal-header" style="background: var(--navy, #1b2b6b); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
-        <h3 style="margin:0; font-size: 18px; font-weight: 800; color: white;">📄 Form F-005: Notice To Explain (Mandatory Step)</h3>
+        <h3 style="margin:0; font-size: 18px; font-weight: 800; color: white;">📄 Form F-005: Notice To Explain</h3>
         <span style="background:#ef4444; color:white; font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px; text-transform:uppercase; letter-spacing:0.5px;">REQUIRED STEP</span>
       </div>
-      <div class="modal-body" style="padding: 20px; max-height: 80vh; overflow-y: auto;">
-        <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; color: #b78103; font-weight: 600;">
-          ⚠️ <strong>Form F-005 Notice To Explain is MANDATORY for Major Offenses.</strong> You must attach the official Form F-005 file and send it to the student. You cannot bypass or skip this modal.
+      <div class="modal-body" style="padding: 24px;">
+        <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; color: #b78103; font-weight: 600;">
+          ⚠️ <strong>Form F-005 Notice To Explain is MANDATORY for Major Offenses.</strong> Please attach the official Form F-005 document file below to send it to the student.
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-          <div>
-            <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Incident Report No.</label>
-            <input type="text" id="nte_ir_no" class="form-control" value="IR-<?= date('Y') ?>-<?= str_pad((string)$letterOffenseId, 4, '0', STR_PAD_LEFT) ?>" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-weight: 600;">
-          </div>
-          <div>
-            <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Student Name / ID</label>
-            <input type="text" readonly class="form-control" value="<?= htmlspecialchars($studentInfo ? ($studentInfo['student_fn'] . ' ' . $studentInfo['student_ln'] . ' (' . $studentInfo['student_id'] . ')') : $postStudentId) ?>" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #eee; background: #f8fafc; font-weight: 600;">
-          </div>
-        </div>
-
-        <div style="margin-bottom: 12px;">
-          <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Alleged Violation Details (Editable)</label>
-          <textarea id="nte_alleged_details" rows="3" class="form-control" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 13px; font-family: inherit;"><?= htmlspecialchars($postDesc !== '' ? $postDesc : 'Academic dishonesty or violation of Student Handbook policy.') ?></textarea>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-          <div>
-            <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Handbook Section Code</label>
-            <input type="text" id="nte_handbook_section" class="form-control" value="MAJ-001" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-weight: 600;">
-          </div>
-          <div>
-            <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Handbook Page No.</label>
-            <input type="text" id="nte_handbook_page" class="form-control" value="Page 45" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-weight: 600;">
-          </div>
-        </div>
-
-        <div style="margin-bottom: 12px;">
-          <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Custom Admin Instructions for Student</label>
-          <textarea id="nte_custom_instructions" rows="2" class="form-control" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 13px; font-family: inherit;">Per NU Lipa SDO Policy, you are required to submit your written explanation within five (5) days upon receipt. Failure to respond within 5 days will be construed as a waiver of your right to be heard.</textarea>
-        </div>
-
-        <div style="margin-bottom: 16px;">
-          <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-2);">Discipline Officer Signature Name</label>
-          <input type="text" id="nte_admin_signature" class="form-control" value="<?= htmlspecialchars(trim((string)($admin['full_name'] ?? $admin['username'] ?? 'Student Discipline Office'))) ?>" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-weight: 600;">
-        </div>
-
-        <div style="margin-bottom: 16px; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1;">
-          <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--navy, #1b2b6b); display: block; margin-bottom: 4px;">
+        <div style="margin-bottom: 24px; background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px dashed var(--navy, #1b2b6b);">
+          <label style="font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--navy, #1b2b6b); display: block; margin-bottom: 8px;">
             Attach Official Form F-005 Notice File / PDF <span style="color:var(--red);">* (REQUIRED)</span>
           </label>
-          <input type="file" id="nte_file_attachment" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" class="form-control" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; background: white;">
-          <small style="color:var(--text-3); font-size:11px; margin-top: 4px; display: block;">Attach the official signed Form F-005 document file for the student. The form cannot be submitted if this field is empty.</small>
+          <input type="file" id="nte_file_attachment" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" class="form-control" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: white; font-size: 13px;">
+          <small style="color:var(--text-3); font-size:11px; margin-top: 6px; display: block;">Select the official signed Form F-005 file (PDF, Doc, or Image) for the student. Submission is blocked if empty.</small>
         </div>
 
         <div style="display: flex; justify-content: center;">
-          <button class="btn btn-primary" id="btn_send_nte" onclick="sendNteFormToStudent()" style="width: 100%; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b); padding: 12px; font-weight: 800; font-size: 14px;">📄 Attach File & Send Form F-005 to Student</button>
+          <button class="btn btn-primary" id="btn_send_nte" onclick="sendNteFormToStudent()" style="width: 100%; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b); padding: 12px; font-weight: 800; font-size: 14px;">📄 Upload & Send Form F-005 to Student</button>
         </div>
       </div>
     </div>
@@ -2143,37 +2106,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   async function sendNteFormToStudent() {
     const studentId = '<?= htmlspecialchars($postStudentId) ?>';
     const offenseId = OFFENSE_ID;
-    const irNo = document.getElementById('nte_ir_no')?.value.trim() || '';
-    const alleged = document.getElementById('nte_alleged_details')?.value.trim() || '';
-    const sec = document.getElementById('nte_handbook_section')?.value.trim() || '';
-    const page = document.getElementById('nte_handbook_page')?.value.trim() || '';
-    const inst = document.getElementById('nte_custom_instructions')?.value.trim() || '';
-    const sig = document.getElementById('nte_admin_signature')?.value.trim() || '';
 
     const fileInput = document.getElementById('nte_file_attachment');
     const file = fileInput?.files ? fileInput.files[0] : null;
-
-    // Strict validation
-    if (!irNo) {
-        alert('⚠️ Incident Report No. is required.');
-        document.getElementById('nte_ir_no')?.focus();
-        return;
-    }
-    if (!alleged) {
-        alert('⚠️ Alleged Violation Details are required.');
-        document.getElementById('nte_alleged_details')?.focus();
-        return;
-    }
-    if (!sec) {
-        alert('⚠️ Handbook Section Code is required.');
-        document.getElementById('nte_handbook_section')?.focus();
-        return;
-    }
-    if (!sig) {
-        alert('⚠️ Discipline Officer Signature Name is required.');
-        document.getElementById('nte_admin_signature')?.focus();
-        return;
-    }
 
     // STRICT FILE ATTACHMENT VALIDATION: CANNOT SUBMIT IF FILE IS EMPTY!
     if (!file) {
@@ -2182,22 +2117,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         return; // PREVENTS SUBMISSION & KEEPS MODAL OPEN!
     }
 
-    if (!confirm('Are you sure you want to send this Notice to Explain (Form F-005) to the student?')) {
+    if (!confirm('Are you sure you want to send this Form F-005 file to the student?')) {
         return;
     }
 
     const btn = document.getElementById('btn_send_nte');
-    if (btn) { btn.disabled = true; btn.textContent = 'Sending Form F-005...'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Uploading & Sending Form F-005...'; }
 
     const formData = new FormData();
     formData.append('student_id', studentId);
     formData.append('offense_id', offenseId);
-    formData.append('incident_report_no', irNo);
-    formData.append('alleged_details', alleged);
-    formData.append('handbook_section', sec);
-    formData.append('handbook_page', page);
-    formData.append('custom_instructions', inst);
-    formData.append('admin_signature', sig);
     formData.append('nte_file', file);
 
     const res = await postForm('api_send_nte_form.php', formData);
@@ -2207,7 +2136,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         showFinalSuccessModal();
     } else {
         alert('❌ Error: ' + (res.json?.error || 'Failed to send Form F-005.'));
-        if (btn) { btn.disabled = false; btn.textContent = '📄 Send Form F-005 to Student'; }
+        if (btn) { btn.disabled = false; btn.textContent = '📄 Upload & Send Form F-005 to Student'; }
     }
   }
 
