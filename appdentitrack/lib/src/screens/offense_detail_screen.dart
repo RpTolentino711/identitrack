@@ -449,27 +449,6 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B2B6B),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-              ),
-              icon: const Icon(Icons.picture_as_pdf, size: 18, color: Colors.amber),
-              label: const Text(
-                '📄 View / Download Form F-005 (Notice to Explain)',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-              onPressed: () {
-                final nteUrl = 'https://identitrack.site/admin/print_nte.php?${o.upccCaseId != null ? "case_id=${o.upccCaseId}" : "offense_id=${o.offenseId}"}';
-                url_launcher.launchUrl(Uri.parse(nteUrl), mode: url_launcher.LaunchMode.externalApplication);
-              },
-            ),
-          ),
           const SizedBox(height: 14),
           TextField(
             controller: _explanationCtrl,
