@@ -2576,73 +2576,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
   }
 
-  function openNteEditorModal() {
-    const letterModal = document.getElementById('modal-guardian-letter');
-    if (letterModal) letterModal.classList.remove('active');
-    
-    const nteModal = document.getElementById('modal-nte-editor');
-    if (nteModal) nteModal.classList.add('active');
-  }
 
-  async function sendNteFormToStudent() {
-    const studentId = '<?= htmlspecialchars($postStudentId) ?>';
-    const offenseId = OFFENSE_ID;
-    const irNo = document.getElementById('nte_ir_no')?.value.trim() || '';
-    const alleged = document.getElementById('nte_alleged_details')?.value.trim() || '';
-    const sec = document.getElementById('nte_handbook_section')?.value.trim() || '';
-    const page = document.getElementById('nte_handbook_page')?.value.trim() || '';
-    const inst = document.getElementById('nte_custom_instructions')?.value.trim() || '';
-    const sig = document.getElementById('nte_admin_signature')?.value.trim() || '';
-
-    // Strict validation
-    if (!irNo) {
-        alert('⚠️ Incident Report No. is required.');
-        document.getElementById('nte_ir_no')?.focus();
-        return;
-    }
-    if (!alleged) {
-        alert('⚠️ Alleged Violation Details are required.');
-        document.getElementById('nte_alleged_details')?.focus();
-        return;
-    }
-    if (!sec) {
-        alert('⚠️ Handbook Section Code is required.');
-        document.getElementById('nte_handbook_section')?.focus();
-        return;
-    }
-    if (!sig) {
-        alert('⚠️ Discipline Officer Signature Name is required.');
-        document.getElementById('nte_admin_signature')?.focus();
-        return;
-    }
-
-    if (!confirm('Are you sure you want to send this Notice to Explain (Form F-005) to the student?')) {
-        return;
-    }
-
-    const btn = document.getElementById('btn_send_nte');
-    if (btn) { btn.disabled = true; btn.textContent = 'Sending Form F-005...'; }
-
-    const formData = new FormData();
-    formData.append('student_id', studentId);
-    formData.append('offense_id', offenseId);
-    formData.append('incident_report_no', irNo);
-    formData.append('alleged_details', alleged);
-    formData.append('handbook_section', sec);
-    formData.append('handbook_page', page);
-    formData.append('custom_instructions', inst);
-    formData.append('admin_signature', sig);
-
-    const res = await postForm('api_send_nte_form.php', formData);
-    if (res.ok && res.json?.ok) {
-        const nteModal = document.getElementById('modal-nte-editor');
-        if (nteModal) nteModal.classList.remove('active');
-        showFinalSuccessModal();
-    } else {
-        alert('❌ Error: ' + (res.json?.error || 'Failed to send Form F-005.'));
-        if (btn) { btn.disabled = false; btn.textContent = '📄 Send Form F-005 to Student'; }
-    }
-  }
 
   function showFinalSuccessModal() {
       const modal = document.getElementById('finalProcessSuccessModal');
