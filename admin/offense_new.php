@@ -1982,6 +1982,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   <script>
   const OFFENSE_ID  = <?php echo (int)$letterOffenseId; ?>;
   const LETTER_MODE = <?php echo json_encode($letterMode && $letterOffenseId > 0); ?>;
+  const LETTER_TYPE = <?php echo json_encode($letterType); ?>;
   const SUCCESS_MODE = <?php echo json_encode($successMode); ?>;
   const INIT_LEVEL  = <?php echo json_encode($level); ?>;
   const SHOW_STUDENT_RECORD_MODAL = <?php echo json_encode($studentInfo && ($liveMinorCount + $liveMajorCount > 0 || count($liveActiveUpccCases) > 0)); ?>;
@@ -2565,8 +2566,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             window.history.replaceState(null, '', url.pathname + url.search);
         }
 
-        // Open Modal #2 (Form F-005 Notice to Explain Editor) immediately
-        openNteEditorModal();
+        // Open Modal #2 (Form F-005 Notice to Explain Editor) ONLY for Major or Section 4 Escalation!
+        if (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation')) {
+            openNteEditorModal();
+        } else {
+            showFinalSuccessModal();
+        }
       }
       else { 
         msg.textContent = '❌ Failed: ' + (r.json?.message || 'Unknown error'); 
