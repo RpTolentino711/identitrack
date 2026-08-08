@@ -450,34 +450,36 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B2B6B),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              icon: const Icon(Icons.picture_as_pdf, color: Colors.amber, size: 20),
-              label: const Text(
-                '📄 View / Download Form F-005 PDF',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-              ),
-              onPressed: () async {
-                final nteUrl = '${AppConfig.baseUrl}/admin/print_nte.php?${o.upccCaseId != null ? "case_id=${o.upccCaseId}" : "offense_id=${o.offenseId}"}';
-                final uri = Uri.parse(nteUrl);
-                try {
-                  if (!await url_launcher.launchUrl(uri, mode: url_launcher.LaunchMode.externalApplication)) {
-                    await url_launcher.launchUrl(uri, mode: url_launcher.LaunchMode.inAppBrowserView);
+          if (o.hasNteSent) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B2B6B),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.picture_as_pdf, color: Colors.amber, size: 20),
+                label: const Text(
+                  '📄 View / Download Form F-005 PDF',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                ),
+                onPressed: () async {
+                  final nteUrl = '${AppConfig.baseUrl}/admin/print_nte.php?${o.upccCaseId != null ? "case_id=${o.upccCaseId}" : "offense_id=${o.offenseId}"}';
+                  final uri = Uri.parse(nteUrl);
+                  try {
+                    if (!await url_launcher.launchUrl(uri, mode: url_launcher.LaunchMode.externalApplication)) {
+                      await url_launcher.launchUrl(uri, mode: url_launcher.LaunchMode.inAppBrowserView);
+                    }
+                  } catch (e) {
+                    debugPrint('Error launching NTE URL: $e');
                   }
-                } catch (e) {
-                  debugPrint('Error launching NTE URL: $e');
-                }
-              },
+                },
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 14),
           TextField(
             controller: _explanationCtrl,
