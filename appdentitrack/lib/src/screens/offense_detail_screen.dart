@@ -362,7 +362,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
 
   Widget _explanationSection() {
     final o = widget.offense;
-    if (o.upccCaseId == null || !o.hasNteSent) return const SizedBox.shrink();
+    if (o.upccCaseId == null) return const SizedBox.shrink();
 
     // If already submitted
     if (o.explanationAt != null) {

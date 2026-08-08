@@ -294,6 +294,7 @@ for ($i = 0; $i < count($minorList); $i++) {
       'is_bundle' => true,
       'appeal_status' => $appealStatus,
       'upcc_case_id' => $caseId,
+      'has_nte_sent' => ($caseId !== null),
       'explanation_text' => $explanation,
       'explanation_image' => $expImage,
       'explanation_pdf' => $expPdf,
