@@ -1952,12 +1952,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </div>
   </div>
 
-  <!-- MODAL 2: Form F-005 Notice To Explain File Attachment Modal for Student (MANDATORY) -->
+  <!-- MODAL 2: Form F-005 Notice To Explain File Attachment Modal for Student -->
   <div id="modal-nte-editor" class="modal" data-static="true">
     <div class="modal-content" style="max-width: 520px; border-radius: 16px; overflow: hidden; position: relative; border: 2px solid var(--navy, #1b2b6b);">
       <div class="modal-header" style="background: var(--navy, #1b2b6b); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
-        <h3 style="margin:0; font-size: 18px; font-weight: 800; color: white;">📄 Form F-005: Notice To Explain</h3>
-        <span style="background:#ef4444; color:white; font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px; text-transform:uppercase; letter-spacing:0.5px;">REQUIRED STEP</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <h3 style="margin:0; font-size: 18px; font-weight: 800; color: white;">📄 Form F-005: Notice To Explain</h3>
+          <span style="background:#ef4444; color:white; font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px; text-transform:uppercase; letter-spacing:0.5px;">REQUIRED STEP</span>
+        </div>
+        <button class="modal-close" onclick="promptSkipNteFile()" style="color: white; font-size: 22px; background: none; border: none; cursor: pointer; line-height: 1;" title="Close">&times;</button>
       </div>
       <div class="modal-body" style="padding: 24px;">
         <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; color: #b78103; font-weight: 600;">
@@ -1972,9 +1975,27 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           <small style="color:var(--text-3); font-size:11px; margin-top: 6px; display: block;">Select the official signed Form F-005 file (PDF, Doc, or Image) for the student. Submission is blocked if empty.</small>
         </div>
 
-        <div style="display: flex; justify-content: center;">
-          <button class="btn btn-primary" id="btn_send_nte" onclick="sendNteFormToStudent()" style="width: 100%; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b); padding: 12px; font-weight: 800; font-size: 14px;">📄 Upload & Send Form F-005 to Student</button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn" type="button" onclick="promptSkipNteFile()" style="flex: 1; justify-content: center; font-weight: 700; color: var(--text-2);">Do Not Send File</button>
+          <button class="btn btn-primary" id="btn_send_nte" onclick="sendNteFormToStudent()" style="flex: 2; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b); padding: 12px; font-weight: 800; font-size: 14px;">📄 Upload &amp; Send File</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Confirm Skip Form F-005 File -->
+  <div id="confirmSkipNteModal" class="modal">
+    <div class="modal-content" style="max-width: 420px; text-align: center; border-radius: 16px; overflow: hidden; padding: 24px;">
+      <div style="color: #f59e0b; margin-bottom: 16px;">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 48px; height: 48px; margin: 0 auto;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #1e293b;">Skip Form F-005 File?</h3>
+      <p style="color: var(--text-2); font-size: 14px; line-height: 1.5; margin-bottom: 24px;">
+        Are you sure you don't want to send the official Form F-005 document file to the student?
+      </p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button class="btn" onclick="closeConfirmSkipNteModal()" style="flex: 1; justify-content: center; font-weight: 700;">No, Back to Upload</button>
+        <button class="btn btn-primary" onclick="confirmSkipNteFile()" style="flex: 1; justify-content: center; font-weight: 700; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b);">Yes, Skip File</button>
       </div>
     </div>
   </div>
@@ -2115,6 +2136,23 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <div class="ap-cases">${casesHtml}</div>
       </div>
     </div>`;
+  }
+
+  function promptSkipNteFile() {
+    const confirmModal = document.getElementById('confirmSkipNteModal');
+    if (confirmModal) confirmModal.classList.add('active');
+  }
+
+  function closeConfirmSkipNteModal() {
+    const confirmModal = document.getElementById('confirmSkipNteModal');
+    if (confirmModal) confirmModal.classList.remove('active');
+  }
+
+  function confirmSkipNteFile() {
+    closeConfirmSkipNteModal();
+    const nteModal = document.getElementById('modal-nte-editor');
+    if (nteModal) nteModal.classList.remove('active');
+    showFinalSuccessModal();
   }
 
   function openNteEditorModal() {
