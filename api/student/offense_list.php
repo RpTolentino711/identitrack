@@ -141,10 +141,16 @@ $rows = db_all(
 
 ensure_notice_to_explain_table();
 $sentNteMap = [];
-$nteRows = db_all("SELECT case_id, offense_id FROM notice_to_explain WHERE student_id = :sid AND status = 'SENT'", [':sid' => $studentId]);
+$nteRows = db_all("SELECT case_id, offense_id, attachment_path FROM notice_to_explain WHERE student_id = :sid AND status = 'SENT'", [':sid' => $studentId]);
+$protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+$host = $_SERVER['HTTP_HOST'] ?? 'identitrack.site';
+$baseUrl = $protocol . "://" . $host;
+
 foreach ($nteRows as $nte) {
-    if (!empty($nte['case_id'])) $sentNteMap['case_' . $nte['case_id']] = true;
-    if (!empty($nte['offense_id'])) $sentNteMap['offense_' . $nte['offense_id']] = true;
+    $att = !empty($nte['attachment_path']) ? $baseUrl . '/' . ltrim((string)$nte['attachment_path'], '/') : null;
+    $info = ['has_sent' => true, 'url' => $att];
+    if (!empty($nte['case_id'])) $sentNteMap['case_' . $nte['case_id']] = $info;
+    if (!empty($nte['offense_id'])) $sentNteMap['offense_' . $nte['offense_id']] = $info;
 }
 
 $minorList = [];
@@ -295,6 +301,9 @@ for ($i = 0; $i < count($minorList); $i++) {
       'appeal_status' => $appealStatus,
       'upcc_case_id' => $caseId,
       'has_nte_sent' => (!empty($sentNteMap['case_' . $caseId])),
+      'nte_file_url' => !empty($sentNteMap['case_' . $caseId]['url']) 
+          ? $sentNteMap['case_' . $caseId]['url'] 
+          : ($caseId > 0 ? $baseUrl . '/admin/print_nte.php?case_id=' . $caseId : null),
       'explanation_text' => $explanation,
       'explanation_image' => $expImage,
       'explanation_pdf' => $expPdf,
@@ -408,6 +417,11 @@ foreach ($majorList as $r) {
     'appeal_status' => $appealStatus,
     'upcc_case_id' => $caseId,
     'has_nte_sent' => (!empty($sentNteMap['case_' . $caseId]) || !empty($sentNteMap['offense_' . $oid])),
+    'nte_file_url' => !empty($sentNteMap['case_' . $caseId]['url']) 
+        ? $sentNteMap['case_' . $caseId]['url'] 
+        : (!empty($sentNteMap['offense_' . $oid]['url']) 
+            ? $sentNteMap['offense_' . $oid]['url'] 
+            : ($caseId > 0 ? $baseUrl . '/admin/print_nte.php?case_id=' . $caseId : ($oid > 0 ? $baseUrl . '/admin/print_nte.php?offense_id=' . $oid : null))),
     'explanation_text' => $explanation,
     'explanation_image' => $expImage,
     'explanation_pdf' => $expPdf,
