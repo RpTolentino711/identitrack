@@ -1939,9 +1939,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <button class="modal-close" onclick="closeFinalSuccessModal()" style="position: absolute; top: 15px; right: 15px;">&times;</button>
         <img src="../assets/logo.png" alt="IdentiTrack Logo" style="height: 64px; margin-bottom: 24px;">
         <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #10b981;">Process Completed</h3>
-        <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
+        <p id="finalSuccessMsgText" style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
           ✅ Guardian notification email sent.<br>
-          ✅ Form F-005 Notice to Explain issued to student app.
+          <span id="finalNteStatusText">✅ Form F-005 Notice to Explain issued to student app.</span>
         </p>
         <div style="display:flex; gap: 10px;">
             <button class="btn" type="button" onclick="closeFinalSuccessModal()" style="flex: 1; justify-content: center;">Stay on page</button>
@@ -2151,7 +2151,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     closeConfirmSkipNteModal();
     const nteModal = document.getElementById('modal-nte-editor');
     if (nteModal) nteModal.classList.remove('active');
-    showFinalSuccessModal();
+    showFinalSuccessModal(false);
   }
 
   function openNteEditorModal() {
@@ -2192,7 +2192,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     if (res.ok && res.json?.ok) {
         const nteModal = document.getElementById('modal-nte-editor');
         if (nteModal) nteModal.classList.remove('active');
-        showFinalSuccessModal();
+        showFinalSuccessModal(true);
     } else {
         alert('❌ Error: ' + (res.json?.error || 'Failed to send Form F-005.'));
         if (btn) { btn.disabled = false; btn.textContent = '📄 Upload & Send Form F-005 to Student'; }
@@ -2620,8 +2620,18 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
 
 
-  function showFinalSuccessModal() {
+  function showFinalSuccessModal(nteSent = false) {
       const modal = document.getElementById('finalProcessSuccessModal');
+      const nteText = document.getElementById('finalNteStatusText');
+      if (nteText) {
+          if (nteSent) {
+              nteText.innerHTML = '✅ Form F-005 Notice to Explain issued to student app.';
+              nteText.style.color = '#10b981';
+          } else {
+              nteText.innerHTML = 'ℹ️ Form F-005 file skipped (not sent to student).';
+              nteText.style.color = 'var(--text-3)';
+          }
+      }
       if (modal) {
           modal.classList.add('active');
           var bar = document.getElementById('finalSuccessProgress');
