@@ -101,6 +101,13 @@ if ($is_verified) {
                 $student_activities[$sid][] = $act;
             }
         }
+
+        ensure_notice_to_explain_table();
+        $nte_map = [];
+        $nteRows = db_all("SELECT * FROM notice_to_explain WHERE case_id IN ($inClause) AND status = 'SENT'");
+        foreach ($nteRows as $nte) {
+            $nte_map[(int)$nte['case_id']] = $nte;
+        }
     }
 }
 
@@ -284,6 +291,13 @@ function formatCaseActivity(array $act): string {
             $cat = (int)($payload['category'] ?? 0);
             return "<strong>[$dateStr]</strong> UPCC Decision Finalized: Category <strong>$cat</strong>.";
             
+        case 'FORM_F005_SENT':
+            $by = htmlspecialchars((string)($payload['by'] ?? 'Admin'));
+            $email = htmlspecialchars((string)($payload['student_email'] ?? 'Student Outlook'));
+            $dateFmt = htmlspecialchars((string)($payload['date_formatted'] ?? date('M d, Y', strtotime($act['created_at']))));
+            $timeFmt = htmlspecialchars((string)($payload['time_formatted'] ?? date('g:i A', strtotime($act['created_at']))));
+            return "<strong>[$dateStr]</strong> 📄 <strong>Form F-005 Notice to Explain</strong> submitted and sent to <strong>$email</strong> by <strong>$by</strong> on $dateFmt at <strong>$timeFmt</strong>.";
+
         default:
             $prettyAction = ucwords(strtolower(str_replace('_', ' ', $action)));
             return "<strong>[$dateStr]</strong> $prettyAction.";
@@ -1479,6 +1493,25 @@ function formatCaseActivity(array $act): string {
                             <div class="detail-label">Case Status</div>
                             <div class="detail-value"><?php echo e(str_replace('_', ' ', $c['case_status'])); ?></div>
                           </div>
+                          <div class="detail-item" style="grid-column: span 2;">
+                            <div class="detail-label">Form F-005 Notice To Explain</div>
+                            <div class="detail-value" style="font-size: 13px;">
+                              <?php 
+                                $c_nte = $nte_map[(int)$c['case_id']] ?? null;
+                                if ($c_nte): 
+                              ?>
+                                <span style="color: #166534; font-weight: 700;">✅ Sent to Outlook Email</span><br>
+                                <span style="font-size: 11.5px; color: #64748b;">
+                                  Submitted on <strong><?php echo date('M j, Y', strtotime($c_nte['created_at'])); ?></strong> at <strong><?php echo date('h:i:s A', strtotime($c_nte['created_at'])); ?></strong>
+                                </span>
+                                <?php if (!empty($c_nte['attachment_path'])): ?>
+                                  <br><a href="../<?php echo htmlspecialchars($c_nte['attachment_path']); ?>" target="_blank" style="color: #1e40af; font-size: 11.5px; font-weight: 700; text-decoration: underline;">📄 View Form F-005 File</a>
+                                <?php endif; ?>
+                              <?php else: ?>
+                                <span style="color: #92400e; font-weight: 700;">⚠️ Skipped / Not Sent</span>
+                              <?php endif; ?>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1499,6 +1532,12 @@ function formatCaseActivity(array $act): string {
                           </svg>
                           Edit Sanction
                         </button>
+                        <?php if (empty($c_nte)): ?>
+                          <button class="btn-edit" style="background: #1b2b6b; color: #fff; border-color: #1b2b6b; margin-top: 6px;" onclick="openDirectNteUploadModal(<?php echo (int)$c['case_id']; ?>, '<?php echo htmlspecialchars($c['student_id']); ?>')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Upload Form F-005
+                          </button>
+                        <?php endif; ?>
                       </div>
                       <?php 
                         $case_acts = $activities[(int)$c['case_id']] ?? [];
@@ -1603,6 +1642,25 @@ function formatCaseActivity(array $act): string {
                               <?php echo !empty($c['req_completed_at']) ? date('M j, Y g:i A', strtotime($c['req_completed_at'])) : ($is_ongoing ? 'In Progress' : 'Completed'); ?>
                             </div>
                           </div>
+                          <div class="detail-item" style="grid-column: span 2;">
+                            <div class="detail-label">Form F-005 Notice To Explain</div>
+                            <div class="detail-value" style="font-size: 13px;">
+                              <?php 
+                                $c_nte = $nte_map[(int)$c['case_id']] ?? null;
+                                if ($c_nte): 
+                              ?>
+                                <span style="color: #166534; font-weight: 700;">✅ Sent to Outlook Email</span><br>
+                                <span style="font-size: 11.5px; color: #64748b;">
+                                  Submitted on <strong><?php echo date('M j, Y', strtotime($c_nte['created_at'])); ?></strong> at <strong><?php echo date('h:i:s A', strtotime($c_nte['created_at'])); ?></strong>
+                                </span>
+                                <?php if (!empty($c_nte['attachment_path'])): ?>
+                                  <br><a href="../<?php echo htmlspecialchars($c_nte['attachment_path']); ?>" target="_blank" style="color: #1e40af; font-size: 11.5px; font-weight: 700; text-decoration: underline;">📄 View Form F-005 File</a>
+                                <?php endif; ?>
+                              <?php else: ?>
+                                <span style="color: #92400e; font-weight: 700;">⚠️ Skipped / Not Sent</span>
+                              <?php endif; ?>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1642,6 +1700,12 @@ function formatCaseActivity(array $act): string {
                               <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                             Edit Sanction
+                          </button>
+                        <?php endif; ?>
+                        <?php if (empty($c_nte)): ?>
+                          <button class="btn-edit" style="background: #1b2b6b; color: #fff; border-color: #1b2b6b; margin-top: 6px;" onclick="openDirectNteUploadModal(<?php echo (int)$c['case_id']; ?>, '<?php echo htmlspecialchars($c['student_id']); ?>')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Upload Form F-005
                           </button>
                         <?php endif; ?>
                       </div>
@@ -1728,6 +1792,25 @@ function formatCaseActivity(array $act): string {
                             <div class="detail-label">Punishment Status Note</div>
                             <div class="detail-value" style="color: #ef4444; font-weight: 700;">Account will be blocked from readmission next semester.</div>
                           </div>
+                          <div class="detail-item" style="grid-column: span 2;">
+                            <div class="detail-label">Form F-005 Notice To Explain</div>
+                            <div class="detail-value" style="font-size: 13px;">
+                              <?php 
+                                $c_nte = $nte_map[(int)$c['case_id']] ?? null;
+                                if ($c_nte): 
+                              ?>
+                                <span style="color: #166534; font-weight: 700;">✅ Sent to Outlook Email</span><br>
+                                <span style="font-size: 11.5px; color: #64748b;">
+                                  Submitted on <strong><?php echo date('M j, Y', strtotime($c_nte['created_at'])); ?></strong> at <strong><?php echo date('h:i:s A', strtotime($c_nte['created_at'])); ?></strong>
+                                </span>
+                                <?php if (!empty($c_nte['attachment_path'])): ?>
+                                  <br><a href="../<?php echo htmlspecialchars($c_nte['attachment_path']); ?>" target="_blank" style="color: #1e40af; font-size: 11.5px; font-weight: 700; text-decoration: underline;">📄 View Form F-005 File</a>
+                                <?php endif; ?>
+                              <?php else: ?>
+                                <span style="color: #92400e; font-weight: 700;">⚠️ Skipped / Not Sent</span>
+                              <?php endif; ?>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1748,6 +1831,12 @@ function formatCaseActivity(array $act): string {
                           </svg>
                           Edit Sanction
                         </button>
+                        <?php if (empty($c_nte)): ?>
+                          <button class="btn-edit" style="background: #1b2b6b; color: #fff; border-color: #1b2b6b; margin-top: 6px;" onclick="openDirectNteUploadModal(<?php echo (int)$c['case_id']; ?>, '<?php echo htmlspecialchars($c['student_id']); ?>')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Upload Form F-005
+                          </button>
+                        <?php endif; ?>
                       </div>
                       <?php 
                         $case_acts = $activities[(int)$c['case_id']] ?? [];
@@ -1846,6 +1935,25 @@ function formatCaseActivity(array $act): string {
                               <?php echo $is_expulsion ? 'Expelled from the University. Registration and login disabled.' : 'Excluded from the University. Registration and login disabled.'; ?>
                             </div>
                           </div>
+                          <div class="detail-item" style="grid-column: span 2;">
+                            <div class="detail-label">Form F-005 Notice To Explain</div>
+                            <div class="detail-value" style="font-size: 13px;">
+                              <?php 
+                                $c_nte = $nte_map[(int)$c['case_id']] ?? null;
+                                if ($c_nte): 
+                              ?>
+                                <span style="color: #166534; font-weight: 700;">✅ Sent to Outlook Email</span><br>
+                                <span style="font-size: 11.5px; color: #64748b;">
+                                  Submitted on <strong><?php echo date('M j, Y', strtotime($c_nte['created_at'])); ?></strong> at <strong><?php echo date('h:i:s A', strtotime($c_nte['created_at'])); ?></strong>
+                                </span>
+                                <?php if (!empty($c_nte['attachment_path'])): ?>
+                                  <br><a href="../<?php echo htmlspecialchars($c_nte['attachment_path']); ?>" target="_blank" style="color: #1e40af; font-size: 11.5px; font-weight: 700; text-decoration: underline;">📄 View Form F-005 File</a>
+                                <?php endif; ?>
+                              <?php else: ?>
+                                <span style="color: #92400e; font-weight: 700;">⚠️ Skipped / Not Sent</span>
+                              <?php endif; ?>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1866,6 +1974,12 @@ function formatCaseActivity(array $act): string {
                           </svg>
                           Edit Sanction
                         </button>
+                        <?php if (empty($c_nte)): ?>
+                          <button class="btn-edit" style="background: #1b2b6b; color: #fff; border-color: #1b2b6b; margin-top: 6px;" onclick="openDirectNteUploadModal(<?php echo (int)$c['case_id']; ?>, '<?php echo htmlspecialchars($c['student_id']); ?>')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Upload Form F-005
+                          </button>
+                        <?php endif; ?>
                       </div>
                       <?php 
                         $case_acts = $activities[(int)$c['case_id']] ?? [];
@@ -3499,8 +3613,82 @@ function formatCaseActivity(array $act): string {
             });
           }
         }, 300);
+   function openDirectNteUploadModal(caseId, studentId) {
+      document.getElementById('directNteCaseId').value = caseId;
+      document.getElementById('directNteStudentId').value = studentId;
+      document.getElementById('directNteUploadMsg').innerHTML = '';
+      const modal = document.getElementById('directNteUploadModal');
+      if (modal) modal.style.display = 'flex';
+  }
+
+  function closeDirectNteUploadModal() {
+      const modal = document.getElementById('directNteUploadModal');
+      if (modal) modal.style.display = 'none';
+  }
+
+  async function submitDirectNteUpload(e) {
+      e.preventDefault();
+      const form = document.getElementById('directNteUploadForm');
+      const formData = new FormData(form);
+      const msg = document.getElementById('directNteUploadMsg');
+      const btn = document.getElementById('btnSubmitDirectNte');
+      
+      if (msg) { msg.innerHTML = '⌛ Uploading & sending email to student Outlook…'; msg.style.color = '#334155'; }
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+      
+      try {
+          const res = await fetch('api_send_nte_form.php', { method: 'POST', body: formData });
+          const data = await res.json();
+          
+          if (data.ok) {
+              if (msg) { msg.innerHTML = '✅ Form F-005 uploaded & sent to student Outlook!'; msg.style.color = '#166534'; }
+              setTimeout(() => {
+                  closeDirectNteUploadModal();
+                  window.location.reload();
+              }, 1200);
+          } else {
+              if (msg) { msg.innerHTML = '❌ Failed: ' + (data.error || data.message || 'Error occurred'); msg.style.color = '#b91c1c'; }
+              if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+          }
+      } catch (err) {
+          if (msg) { msg.innerHTML = '❌ Upload error: ' + err.message; msg.style.color = '#b91c1c'; }
+          if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
       }
-    });
+  }
   </script>
+
+  <!-- MODAL: Direct Upload & Send Form F-005 -->
+  <div id="directNteUploadModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#fff; width:100%; max-width:480px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">📤 Upload Form F-005 Notice to Explain</h3>
+        <button type="button" onclick="closeDirectNteUploadModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
+      </div>
+      <form id="directNteUploadForm" onsubmit="submitDirectNteUpload(event)">
+        <input type="hidden" name="case_id" id="directNteCaseId" value="0">
+        <input type="hidden" name="student_id" id="directNteStudentId" value="">
+        
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Select Form F-005 Document (PDF or Image)</label>
+          <input type="file" name="nte_file" id="directNteFileInput" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" required style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;">
+          <div style="font-size:11px; color:#64748b; margin-top:4px;">Supported files: PDF, DOCX, PNG, JPG (Max 10MB)</div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Custom Instructions (Optional)</label>
+          <textarea name="custom_instructions" rows="2" placeholder="e.g. Submit written explanation within 5 days to SDO..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;"></textarea>
+        </div>
+
+        <div id="directNteUploadMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button type="button" class="btn" onclick="closeDirectNteUploadModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
+          <button type="submit" id="btnSubmitDirectNte" class="btn btn-primary" style="background:#1b2b6b; border-color:#1b2b6b; padding:8px 20px; border-radius:8px; font-weight:700;">
+            📧 Upload & Send to Student Outlook
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </body>
 </html>

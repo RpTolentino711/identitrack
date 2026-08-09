@@ -230,10 +230,34 @@ try {
     ]);
 } catch (\Throwable $e) {}
 
+// Log Activity into upcc_case_activity for History Log
+if ($caseId > 0) {
+    try {
+        db_exec("
+            INSERT INTO upcc_case_activity (case_id, actor_type, actor_id, action, payload_json, created_at)
+            VALUES (:cid, 'ADMIN', :aid, 'FORM_F005_SENT', :json, NOW())
+        ", [
+            ':cid'  => $caseId,
+            ':aid'  => (int)($admin['admin_id'] ?? 0),
+            ':json' => json_encode([
+                'by' => $adminName,
+                'student_email' => $studentEmail,
+                'attachment' => $finalAttachment,
+                'date_formatted' => date('F j, Y'),
+                'time_formatted' => date('h:i:s A')
+            ])
+        ]);
+    } catch (\Throwable $e) {}
+}
+
 echo json_encode([
     'ok' => true,
     'nte_id' => $nteId,
     'email_sent' => $emailSent,
     'student_email' => $studentEmail,
+    'submitted_at' => date('Y-m-d H:i:s'),
+    'formatted_date' => date('F j, Y'),
+    'formatted_time' => date('h:i:s A'),
+    'attachment_path' => $finalAttachment,
     'message' => 'Notice to Explain (Form F-005) sent to student Outlook email successfully!'
 ]);
