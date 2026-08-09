@@ -1497,11 +1497,22 @@ function formatCaseActivity(array $act): string {
                       </div>
 
                       <div class="sanction-card-middle">
-                        <div class="status-badge-container">
+                        <div class="status-badge-container" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                           <?php if ($c_nte): ?>
                             <span class="status-badge completed" style="background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; font-weight: 700;">✅ Form F-005 Sent to Outlook</span>
                           <?php else: ?>
                             <span class="status-badge frozen" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 700;">⚠️ Form F-005 Skipped / Not Sent</span>
+                          <?php endif; ?>
+
+                          <?php if (!empty($c['decided_category'])): ?>
+                            <?php
+                              $catNum = (int)$c['decided_category'];
+                              $tabTarget = ($catNum === 4 || $catNum === 5) ? 'cat4_5' : 'cat' . $catNum;
+                            ?>
+                            <a href="?tab=<?= $tabTarget ?>&highlight_student_id=<?= urlencode($c['student_id']) ?>" class="status-badge" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                              <span>🏷️ Category <?= $catNum ?> Finalized</span>
+                              <span style="font-size: 10px;">➔</span>
+                            </a>
                           <?php endif; ?>
                         </div>
                         <div class="details-grid">
@@ -1559,14 +1570,24 @@ function formatCaseActivity(array $act): string {
                         </div>
                       </div>
 
-                      <div class="sanction-card-right">
+                      <div class="sanction-card-right" style="display: flex; flex-direction: column; gap: 6px;">
                         <?php if (empty($c_nte)): ?>
                           <button class="btn-edit" style="background: #1b2b6b; color: #fff; border-color: #1b2b6b;" onclick="openDirectNteUploadModal(<?php echo (int)$c['case_id']; ?>, '<?php echo htmlspecialchars($c['student_id']); ?>')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                             Upload & Send Form F-005
                           </button>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($c['decided_category'])): ?>
+                          <?php
+                            $catNum = (int)$c['decided_category'];
+                            $tabTarget = ($catNum === 4 || $catNum === 5) ? 'cat4_5' : 'cat' . $catNum;
+                          ?>
+                          <a href="?tab=<?= $tabTarget ?>&highlight_student_id=<?= urlencode($c['student_id']) ?>" class="btn-edit" style="background: #f1f5f9; color: #1e293b; border-color: #cbd5e1; text-decoration: none; text-align: center;">
+                            🛡️ View Category <?= $catNum ?> Sanction
+                          </a>
                         <?php else: ?>
-                          <a href="../admin/upcc_case_view.php?id=<?php echo (int)$c['case_id']; ?>" class="btn-edit" style="background: #f1f5f9; color: #1e293b; border-color: #cbd5e1; text-decoration: none; text-align: center; display: inline-block;">
+                          <a href="../admin/upcc_case_view.php?id=<?php echo (int)$c['case_id']; ?>" class="btn-edit" style="background: #f1f5f9; color: #1e293b; border-color: #cbd5e1; text-decoration: none; text-align: center;">
                             🔍 View Full Case
                           </a>
                         <?php endif; ?>
