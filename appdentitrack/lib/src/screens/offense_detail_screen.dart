@@ -442,7 +442,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            '⚠️ Notice to Explain (Form F-005): Per NU Lipa SDO Policy, you are required to submit your written explanation within five (5) days upon receipt. Failure to respond within 5 days will be construed as a waiver of your right to be heard.',
+            '⚠️ Notice to Explain (Form F-005): An official Form F-005 document has been sent to your student Outlook email. Please check your Outlook inbox for the attached document file.\n\nPer NU Lipa SDO Policy, you are required to submit your written explanation below within five (5) days upon receipt.',
             style: TextStyle(
               color: Color(0xFFBF360C),
               fontWeight: FontWeight.w700,
@@ -450,36 +450,6 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
               height: 1.4,
             ),
           ),
-          if (o.hasNteSent) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B2B6B),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                icon: const Icon(Icons.picture_as_pdf, color: Colors.amber, size: 20),
-                label: const Text(
-                  '📄 View / Download Form F-005 PDF',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                ),
-                onPressed: () async {
-                  final nteUrl = '${AppConfig.baseUrl}/admin/print_nte.php?${o.upccCaseId != null ? "case_id=${o.upccCaseId}" : "offense_id=${o.offenseId}"}';
-                  final uri = Uri.parse(nteUrl);
-                  try {
-                    if (!await url_launcher.launchUrl(uri, mode: url_launcher.LaunchMode.externalApplication)) {
-                      await url_launcher.launchUrl(uri, mode: url_launcher.LaunchMode.inAppBrowserView);
-                    }
-                  } catch (e) {
-                    debugPrint('Error launching NTE URL: $e');
-                  }
-                },
-              ),
-            ),
-          ],
           const SizedBox(height: 14),
           TextField(
             controller: _explanationCtrl,

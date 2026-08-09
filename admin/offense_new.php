@@ -2639,7 +2639,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       const nteText = document.getElementById('finalNteStatusText');
       if (nteText) {
           if (nteSent) {
-              nteText.innerHTML = '✅ Form F-005 Notice to Explain issued to student app.';
+              nteText.innerHTML = '✅ Form F-005 Notice to Explain sent to student\'s Outlook email.';
               nteText.style.color = '#10b981';
               nteText.style.display = 'block';
           } else if (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation')) {

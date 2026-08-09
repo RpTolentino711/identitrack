@@ -30,10 +30,11 @@ $instructions = trim((string)($_POST['custom_instructions'] ?? ''));
 $signature = trim((string)($_POST['admin_signature'] ?? $adminName));
 
 $attachmentPath = null;
+$uploadedFileName = null;
 if (isset($_FILES['nte_file']) && $_FILES['nte_file']['error'] === UPLOAD_ERR_OK) {
     $fileTmp = $_FILES['nte_file']['tmp_name'];
-    $fileName = basename($_FILES['nte_file']['name']);
-    $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+    $uploadedFileName = basename($_FILES['nte_file']['name']);
+    $ext = strtolower(pathinfo($uploadedFileName, PATHINFO_EXTENSION));
     
     $uploadDir = __DIR__ . '/../uploads/nte/';
     if (!is_dir($uploadDir)) {
@@ -103,11 +104,125 @@ if ($existing) {
     $nteId = (int)db_last_id();
 }
 
-// Send Notification to Student
+// ── FETCH STUDENT EMAIL & NAME FOR OUTLOOK EMAIL DIRECT DELIVERY ──────────────
+$studentParams = [':sid' => $studentId];
+db_add_encryption_key($studentParams);
+$studentRow = db_one("SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email']) . " FROM student WHERE student_id = :sid LIMIT 1", $studentParams);
+
+$studentName  = 'Student';
+$studentEmail = '';
+if ($studentRow) {
+    $studentName  = trim(($studentRow['student_fn'] ?? '') . ' ' . ($studentRow['student_ln'] ?? ''));
+    $studentEmail = trim((string)($studentRow['student_email'] ?? ''));
+}
+if (empty($studentEmail)) {
+    $studentEmail = $studentId . '@national-u.edu.ph'; // Default NU Outlook email
+}
+
+// ── SEND FORM F-005 FILE ATTACHMENT VIA EMAIL DIRECTLY TO STUDENT'S OUTLOOK ──
+$emailSent = false;
+$emailError = null;
+
+if (!empty($finalAttachment)) {
+    $fullAbsPath = __DIR__ . '/../' . ltrim((string)$finalAttachment, '/');
+    if (file_exists($fullAbsPath)) {
+        require_once __DIR__ . '/class.phpmailer.php';
+        require_once __DIR__ . '/class.smtp.php';
+
+        try {
+            $mail = new PHPMailer(true);
+            $mail->CharSet = 'UTF-8';
+            $mail->isSMTP();
+
+            $getEnv = function($key, $default) {
+                return (string)($_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: $default);
+            };
+
+            $mail->Host = $getEnv('SMTP_HOST', 'smtp.hostinger.com');
+            $mail->Port = 587;
+            $mail->SMTPAuth = true;
+            $mail->SMTPSecure = 'tls';
+            $mail->Username = $getEnv('SMTP_USER', 'identitrack@identitrack.site');
+            $mail->Password = $getEnv('SMTP_PASS', 'Pogilameg@10');
+
+            $mail->setFrom($mail->Username, 'Student Discipline Office - NU Lipa');
+            $mail->addAddress($studentEmail, $studentName);
+            $mail->addReplyTo('no-reply@identitrack.site', 'IdentiTrack SDO');
+
+            $mail->isHTML(true);
+            $mail->Subject = '[NU Lipa SDO] Notice to Explain (Form F-005) - Action Required';
+
+            $logoPath = realpath(__DIR__ . '/../assets/logo.png');
+            $hasLogo = ($logoPath && is_readable($logoPath));
+            $cid = 'identitracklogo';
+            if ($hasLogo) {
+                $mail->addEmbeddedImage($logoPath, $cid, 'logo.png');
+            }
+            $logoSrc = $hasLogo ? "cid:$cid" : "https://identitrack.site/assets/logo.png";
+
+            $mail->Body = "
+            <!DOCTYPE html>
+            <html lang='en'>
+            <head>
+              <meta charset='UTF-8'>
+              <style>
+                body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Inter', -apple-system, sans-serif; }
+                .wrapper { width: 100%; table-layout: fixed; background-color: #f1f5f9; padding: 40px 0; }
+                .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
+                .header { background-image: linear-gradient(135deg, #1b2b6b 0%, #1e40af 100%); padding: 40px 30px; text-align: center; color: white; }
+                .logo-img { display: block; width: 75px; height: auto; margin: 0 auto 15px auto; }
+                .content { padding: 36px 40px; color: #334155; font-size: 15px; line-height: 1.6; }
+                .notice-box { background-color: #fff8e1; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 20px 0; font-size: 14px; color: #92400e; }
+                .footer { padding: 24px; text-align: center; background-color: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; }
+              </style>
+            </head>
+            <body>
+              <div class='wrapper'>
+                <div class='email-container'>
+                  <div class='header'>
+                    <img src='{$logoSrc}' alt='IdentiTrack Logo' class='logo-img'>
+                    <h2 style='margin:0;font-size:22px;font-weight:800;'>Student Discipline Office</h2>
+                    <p style='margin:4px 0 0 0;font-size:13px;opacity:0.9;'>National University Lipa</p>
+                  </div>
+                  <div class='content'>
+                    <p style='font-size:16px;font-weight:700;color:#0f172a;margin-top:0;'>Dear {$studentName} ({$studentId}),</p>
+                    <p>You have been issued an official <strong>Notice to Explain (Form F-005)</strong> by the Student Discipline Office regarding a disciplinary matter.</p>
+                    <div class='notice-box'>
+                      📄 <strong>Form F-005 Document Attached</strong><br>
+                      Please inspect the official Form F-005 file attached to this email for full details of the reported incident and instructions.
+                    </div>
+                    <p>Per NU Lipa Student Handbook Policy, you are required to submit your written explanation within <strong>five (5) days</strong> upon receipt of this notice.</p>
+                    <p>You can submit your written explanation and supporting evidence through the <strong>IdentiTrack Student Mobile App</strong>.</p>
+                    <p style='margin-bottom:0;'>Failure to respond within 5 days will be construed as a waiver of your right to be heard.</p>
+                  </div>
+                  <div class='footer'>
+                    &copy; " . date('Y') . " IdentiTrack System - National University Lipa<br>
+                    This is an official automated notification sent to your student email.
+                  </div>
+                </div>
+              </div>
+            </body>
+            </html>
+            ";
+
+            $mail->AltBody = "Dear {$studentName} ({$studentId}),\n\nYou have been issued an official Notice to Explain (Form F-005) by the Student Discipline Office (SDO).\n\nPlease inspect the attached official Form F-005 file for details. Per NU Lipa policy, you are required to submit your written explanation within five (5) days upon receipt through the IdentiTrack Student Mobile App.\n\nSincerely,\nStudent Discipline Office";
+
+            $attachName = $uploadedFileName ?: ('Form_F005_Notice_To_Explain_' . $studentId . '.pdf');
+            $mail->addAttachment($fullAbsPath, $attachName);
+
+            $mail->send();
+            $emailSent = true;
+        } catch (\Throwable $e) {
+            $emailError = $e->getMessage();
+        }
+    }
+}
+
+// Send Notification to Student in Database
 try {
     db_exec("
         INSERT INTO notification (type, title, message, student_id, admin_id, related_table, related_id, is_read, is_deleted, created_at)
-        VALUES ('FORM_F005', 'Notice To Explain Issued (Form F-005)', 'Per NU Lipa SDO Policy, you have been issued a Notice to Explain (Form F-005). Please submit your written explanation within 5 days.', :sid, :aid, 'notice_to_explain', :nid, 0, 0, NOW())
+        VALUES ('FORM_F005', 'Notice To Explain Issued (Form F-005)', 'Per NU Lipa SDO Policy, an official Form F-005 Notice to Explain has been sent to your student Outlook email. Please check your inbox and submit your written explanation within 5 days.', :sid, :aid, 'notice_to_explain', :nid, 0, 0, NOW())
     ", [
         ':sid' => $studentId,
         ':aid' => (int)($admin['admin_id'] ?? 0),
@@ -118,5 +233,7 @@ try {
 echo json_encode([
     'ok' => true,
     'nte_id' => $nteId,
-    'message' => 'Notice to Explain (Form F-005) sent to student successfully!'
+    'email_sent' => $emailSent,
+    'student_email' => $studentEmail,
+    'message' => 'Notice to Explain (Form F-005) sent to student Outlook email successfully!'
 ]);
