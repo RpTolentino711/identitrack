@@ -764,11 +764,15 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           $acid = (int)$acase['case_id'];
           if (empty($nteCaseMap[$acid])) {
               $totalNteDisplay++;
+              $caseDateStr = !empty($acase['created_at']) ? date('M j, Y \a\t h:i:s A', strtotime($acase['created_at'])) : 'During Offense Registration';
               $nteHistoryHtml .= '
               <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
                   <span style="font-size:11px; font-weight:800; color:#92400e;">⚠️ Form F-005 Skipped / Not Sent</span>
                   <span style="font-size:10px; color:#b45309; font-weight:600;">Case #' . $acid . '</span>
+                </div>
+                <div style="font-size:11px; color:#334155; margin-bottom:4px;">
+                  Skipped On: <strong>' . $caseDateStr . '</strong>
                 </div>
                 <div style="font-size:11px; color:#475569; margin-bottom:6px;">
                   Form F-005 was not sent during offense registration.
