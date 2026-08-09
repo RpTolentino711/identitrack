@@ -379,6 +379,15 @@ $minorCount      = $totalOffenses - $rawMajorCount;
 $allMinors = array_values(array_filter($history, fn($h) => $h['level'] === 'MINOR'));
 $allMajors = array_filter($history, fn($h) => $h['level'] === 'MAJOR');
 
+// Fetch notice_to_explain records for history log timestamp display
+ensure_notice_to_explain_table();
+$nteRows = db_all("SELECT * FROM notice_to_explain WHERE student_id = :sid AND status = 'SENT'", [':sid' => $studentId]);
+$nteMap = [];
+foreach ($nteRows as $nte) {
+    if (!empty($nte['case_id'])) $nteMap['case_' . $nte['case_id']] = $nte;
+    if (!empty($nte['offense_id'])) $nteMap['offense_' . $nte['offense_id']] = $nte;
+}
+
 // Create escalation groups: every 3 minors (in order) becomes one major escalation card
 $escalationGroups = [];
 for ($i = 0; $i < count($allMinors); $i += 3) {
@@ -388,7 +397,7 @@ for ($i = 0; $i < count($allMinors); $i += 3) {
         $escParams = [':oid' => $lastMinorId];
         db_add_encryption_key($escParams);
         $caseRow = db_one(
-            "SELECT uc.status, uc.decided_category, uc.resolution_date, uc.probation_until,
+            "SELECT uc.case_id, uc.status, uc.decided_category, uc.resolution_date, uc.probation_until,
                     " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ",
                     (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
              FROM upcc_case uc
@@ -399,6 +408,7 @@ for ($i = 0; $i < count($allMinors); $i += 3) {
         );
         $escalationGroups[] = [
             'minors' => $group,
+            'case_id' => $caseRow ? (int)$caseRow['case_id'] : 0,
             'case_status' => $caseRow ? strtoupper((string)$caseRow['status']) : 'PENDING',
             'case_category' => $caseRow ? $caseRow['decided_category'] : null,
             'case_decision' => $caseRow ? $caseRow['final_decision'] : null,
@@ -1676,6 +1686,32 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                           <?php endif; ?>
                         </div>
                       <?php endif; ?>
+                      <?php
+                        $caseIdForNte = (int)($groupData['case_id'] ?? 0);
+                        $nteInfo = !empty($nteMap['case_' . $caseIdForNte]) ? $nteMap['case_' . $caseIdForNte] : null;
+                      ?>
+                      <div style="margin-top:12px; margin-bottom:12px; padding:12px; border-radius:8px; font-size:12.5px; <?= $nteInfo ? 'background:#f0fdf4; border:1px solid #bbf7d0;' : 'background:#fffbeb; border:1px solid #fef3c7;' ?>">
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                          <div>
+                            <?php if ($nteInfo): ?>
+                              <div style="font-weight:700; color:#166534;">✅ Form F-005 Notice to Explain Sent to Outlook</div>
+                              <div style="font-size:11.5px; color:#15803d; margin-top:2px;">
+                                Submitted: <strong><?= date('M j, Y', strtotime($nteInfo['created_at'])) ?> at <?= date('h:i:s A', strtotime($nteInfo['created_at'])) ?></strong>
+                              </div>
+                            <?php else: ?>
+                              <div style="font-weight:700; color:#92400e;">⚠️ Form F-005 Skipped / Not Sent</div>
+                              <div style="font-size:11.5px; color:#b45309; margin-top:2px;">Form F-005 document was not sent during offense creation.</div>
+                            <?php endif; ?>
+                          </div>
+                          <div>
+                            <?php if ($nteInfo && !empty($nteInfo['attachment_path'])): ?>
+                              <a href="../<?= htmlspecialchars($nteInfo['attachment_path']) ?>" target="_blank" class="btn btn-sm" style="background:#166534; color:#fff; font-weight:700; font-size:11px; padding:4px 10px; border-radius:6px; text-decoration:none;">📄 View Form F-005 File</a>
+                            <?php elseif ($caseIdForNte > 0): ?>
+                              <button type="button" class="btn btn-sm" onclick="openDirectNteUploadModal(<?= $caseIdForNte ?>, '<?= htmlspecialchars($studentId) ?>')" style="background:#1b2b6b; color:#fff; font-weight:700; font-size:11px; padding:4px 10px; border-radius:6px; border:none; cursor:pointer;">📤 Upload Form F-005</button>
+                            <?php endif; ?>
+                          </div>
+                        </div>
+                      </div>
 
                       <div class="off-footer" style="border-top-color:#fca5a5;">
                         <span class="off-code" style="color:var(--red);border-color:#fca5a5;background:var(--red-soft);">
@@ -2112,7 +2148,84 @@ $majorCount = $rawMajorCount + count($escalationGroups);
       }
     });
   })();
+
+  function openDirectNteUploadModal(caseId, studentId) {
+      document.getElementById('directNteCaseId').value = caseId;
+      document.getElementById('directNteStudentId').value = studentId;
+      document.getElementById('directNteUploadMsg').innerHTML = '';
+      const modal = document.getElementById('directNteUploadModal');
+      if (modal) modal.style.display = 'flex';
+  }
+
+  function closeDirectNteUploadModal() {
+      const modal = document.getElementById('directNteUploadModal');
+      if (modal) modal.style.display = 'none';
+  }
+
+  async function submitDirectNteUpload(e) {
+      e.preventDefault();
+      const form = document.getElementById('directNteUploadForm');
+      const formData = new FormData(form);
+      const msg = document.getElementById('directNteUploadMsg');
+      const btn = document.getElementById('btnSubmitDirectNte');
+      
+      if (msg) { msg.innerHTML = '⌛ Uploading & sending email to student Outlook…'; msg.style.color = '#334155'; }
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+      
+      try {
+          const res = await fetch('api_send_nte_form.php', { method: 'POST', body: formData });
+          const data = await res.json();
+          
+          if (data.ok) {
+              if (msg) { msg.innerHTML = '✅ Form F-005 uploaded & sent to student Outlook!'; msg.style.color = '#166534'; }
+              setTimeout(() => {
+                  closeDirectNteUploadModal();
+                  window.location.reload();
+              }, 1200);
+          } else {
+              if (msg) { msg.innerHTML = '❌ Failed: ' + (data.error || data.message || 'Error occurred'); msg.style.color = '#b91c1c'; }
+              if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+          }
+      } catch (err) {
+          if (msg) { msg.innerHTML = '❌ Upload error: ' + err.message; msg.style.color = '#b91c1c'; }
+          if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+      }
+  }
   </script>
+
+  <!-- MODAL: Direct Upload & Send Form F-005 -->
+  <div id="directNteUploadModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#fff; width:100%; max-width:480px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">📤 Upload Form F-005 Notice to Explain</h3>
+        <button type="button" onclick="closeDirectNteUploadModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
+      </div>
+      <form id="directNteUploadForm" onsubmit="submitDirectNteUpload(event)">
+        <input type="hidden" name="case_id" id="directNteCaseId" value="0">
+        <input type="hidden" name="student_id" id="directNteStudentId" value="<?= htmlspecialchars($studentId) ?>">
+        
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Select Form F-005 Document (PDF or Image)</label>
+          <input type="file" name="nte_file" id="directNteFileInput" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" required style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;">
+          <div style="font-size:11px; color:#64748b; margin-top:4px;">Supported files: PDF, DOCX, PNG, JPG (Max 10MB)</div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Custom Instructions (Optional)</label>
+          <textarea name="custom_instructions" rows="2" placeholder="e.g. Submit written explanation within 5 days to SDO..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;"></textarea>
+        </div>
+
+        <div id="directNteUploadMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button type="button" class="btn" onclick="closeDirectNteUploadModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
+          <button type="submit" id="btnSubmitDirectNte" class="btn btn-primary" style="background:#1b2b6b; border-color:#1b2b6b; padding:8px 20px; border-radius:8px; font-weight:700;">
+            📧 Upload & Send to Student Outlook
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </body>
 </html>
 
