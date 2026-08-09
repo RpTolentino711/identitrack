@@ -1997,6 +1997,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <button class="btn btn-primary" onclick="confirmSkipNteFile()" style="flex: 1; justify-content: center; font-weight: 700; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b);">Yes, Skip File</button>
       </div>
     </div>
+  <!-- MODAL: Email Sending Loading Modal -->
+  <div id="emailSendingModal" class="modal" data-static="true">
+    <div class="modal-content" style="max-width: 360px; text-align: center; border-radius: 16px; padding: 32px 24px;">
+      <div style="margin-bottom: 16px; color: var(--navy, #1b2b6b);">
+        <svg class="spin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 48px; height: 48px; margin: 0 auto; animation: spin 1s linear infinite;"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+      </div>
+      <h4 style="margin: 0 0 8px 0; font-size: 18px; color: #1e293b; font-weight: 800;">Sending Guardian Email...</h4>
+      <p style="margin: 0; color: var(--text-2); font-size: 13px;">Please wait while the official warning notice is dispatched.</p>
+    </div>
   </div>
 
   <script>
@@ -2566,6 +2575,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const btn = document.getElementById('btn_send_letter');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; }
 
+    const sendingModal = document.getElementById('emailSendingModal');
+    if (sendingModal) sendingModal.classList.add('active');
+
     const formData = new FormData();
     formData.append('offense_id', OFFENSE_ID);
     formData.append('subject', subject);
@@ -2575,6 +2587,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     if (msg) { msg.textContent = 'Sending email with attachments…'; msg.style.color = 'var(--text-3)'; }
     const r = await postForm('AJAX/offense_letter_send.php', formData);
     
+    if (sendingModal) sendingModal.classList.remove('active');
+
     if (msg) {
       if (r.ok && r.json?.ok) { 
         msg.textContent = '✅ Email sent successfully.'; 
@@ -2627,9 +2641,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           if (nteSent) {
               nteText.innerHTML = '✅ Form F-005 Notice to Explain issued to student app.';
               nteText.style.color = '#10b981';
-          } else {
+              nteText.style.display = 'block';
+          } else if (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation')) {
               nteText.innerHTML = 'ℹ️ Form F-005 file skipped (not sent to student).';
               nteText.style.color = 'var(--text-3)';
+              nteText.style.display = 'block';
+          } else {
+              nteText.style.display = 'none';
           }
       }
       if (modal) {
