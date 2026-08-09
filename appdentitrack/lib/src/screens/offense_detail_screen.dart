@@ -440,16 +440,29 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text(
-            '⚠️ Notice to Explain (Form F-005): An official Form F-005 document has been sent to your student Outlook email. Please check your Outlook inbox for the attached document file.\n\nPer NU Lipa SDO Policy, you are required to submit your written explanation below within five (5) days upon receipt.',
-            style: TextStyle(
-              color: Color(0xFFBF360C),
-              fontWeight: FontWeight.w700,
-              fontSize: 12.5,
-              height: 1.4,
+          if (o.hasNteSent) ...[
+            const SizedBox(height: 8),
+            const Text(
+              '📧 Notice to Explain (Form F-005): An official Form F-005 document has been sent to your student Outlook email. Please check your Outlook inbox for the attached document file.\n\nPer NU Lipa SDO Policy, you are required to submit your written explanation below within five (5) days upon receipt.',
+              style: TextStyle(
+                color: Color(0xFFBF360C),
+                fontWeight: FontWeight.w700,
+                fontSize: 12.5,
+                height: 1.4,
+              ),
             ),
-          ),
+          ] else ...[
+            const SizedBox(height: 8),
+            const Text(
+              '📝 Written Explanation: You may submit your written explanation and any supporting documents/evidence below for review by the Student Discipline Office.',
+              style: TextStyle(
+                color: Color(0xFF475569),
+                fontWeight: FontWeight.w600,
+                fontSize: 12.5,
+                height: 1.4,
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           TextField(
             controller: _explanationCtrl,
