@@ -713,17 +713,23 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
     }
   }
 
-  ensure_notice_to_explain_table();
   $nteRows = [];
   if (!empty($student['student_id'])) {
-      $nteRows = db_all("
-          SELECT nte.*, 
-                 COALESCE(nte.case_id, uo.case_id) AS resolved_case_id
-          FROM notice_to_explain nte
-          LEFT JOIN upcc_offense uo ON uo.offense_id = nte.offense_id
-          WHERE nte.student_id = :sid 
-          ORDER BY nte.created_at DESC
-      ", [':sid' => $student['student_id']]);
+      try {
+          if (function_exists('ensure_notice_to_explain_table')) {
+              ensure_notice_to_explain_table();
+          }
+          $nteRows = db_all("
+              SELECT nte.*, 
+                     COALESCE(nte.case_id, uo.case_id) AS resolved_case_id
+              FROM notice_to_explain nte
+              LEFT JOIN upcc_offense uo ON uo.offense_id = nte.offense_id
+              WHERE nte.student_id = :sid 
+              ORDER BY nte.created_at DESC
+          ", [':sid' => $student['student_id']]) ?: [];
+      } catch (Throwable $ex) {
+          $nteRows = [];
+      }
   }
 
   $nteCaseMap = [];
@@ -1651,7 +1657,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 <!-- Student info summary appears here if a student is loaded -->
                 <?php if ($postStudentId !== '' && $studentInfo): ?>
                   <div style="margin-bottom: 20px;">
-                    <?php echo renderStudentInfoCard($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $liveOffenses); ?>
+                    <?php 
+                      try {
+                        echo renderStudentInfoCard($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $liveOffenses);
+                      } catch (Throwable $ex) {
+                        echo '<div style="background: var(--blue-soft); border-left: 4px solid var(--blue); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">';
+                        echo '<div><strong style="font-size: 14px;">' . htmlspecialchars($studentInfo['student_fn'] . ' ' . $studentInfo['student_ln']) . '</strong><span style="margin-left: 12px; font-size: 13px; color: var(--text-3);">' . htmlspecialchars($studentInfo['student_id']) . '</span><span style="margin-left: 12px; font-size: 12px; color: var(--text-3);">' . htmlspecialchars($studentInfo['program'] ?? '') . '</span></div>';
+                        echo '<div style="font-size: 13px; font-weight: 600; color: var(--blue);">' . $liveMinorCount . ' minor · ' . $liveMajorCount . ' major</div>';
+                        echo '</div>';
+                      }
+                    ?>
                   </div>
                 <?php else: ?>
                   <div style="background: var(--surface-2); border: 1px dashed var(--border); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 18px; text-align: center; color: var(--text-4);">
