@@ -754,29 +754,31 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       if (!empty($nte['attachment_path'])) {
           $fileUrl = '../' . htmlspecialchars($nte['attachment_path']);
           $fileLink = '
-          <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
-            <a href="' . $fileUrl . '" target="_blank" download style="color:var(--blue); font-weight:700; font-size:11px; text-decoration:underline; display:inline-flex; align-items:center; gap:4px;">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download Form F-005
-            </a>
-          </div>';
+          <a href="' . $fileUrl . '" target="_blank" download style="color:var(--blue); font-weight:700; font-size:11px; text-decoration:underline; display:inline-flex; align-items:center; gap:4px;">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Form F-005
+          </a>';
       }
 
-      $reuploadBtn = '<button type="button" onclick="openDirectNteUploadModal(' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\')" style="background:none; border:none; color:#64748b; font-size:16px; font-weight:700; cursor:pointer; padding:0 2px; line-height:1; transition:color 0.15s;" title="Re-upload / Replace Form F-005" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#64748b\'">✕</button>';
+      $reuploadBtn = '
+      <button type="button" onclick="openDirectNteUploadModal(' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\')" style="background:#fff; border:1px solid #cbd5e1; color:#334155; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s; box-shadow:0 1px 2px rgba(0,0,0,0.05);" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#fee2e2\'; this.style.borderColor=\'#fca5a5\'; this.style.color=\'#dc2626\';" onmouseout="this.style.background=\'#fff\'; this.style.borderColor=\'#cbd5e1\'; this.style.color=\'#334155\';">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:12px;height:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Re-upload
+      </button>';
 
       $nteHistoryHtml .= '
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
           <span style="font-size:11px; font-weight:800; color:#166534;">✅ Form F-005 Sent to Outlook</span>
-          <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-            <span style="font-size:10px; color:#15803d; font-weight:600; white-space:nowrap;">' . $irNo . '</span>
-            ' . $reuploadBtn . '
-          </div>
+          <span style="font-size:10px; color:#15803d; font-weight:600; white-space:nowrap;">' . $irNo . '</span>
         </div>
-        <div style="font-size:11px; color:#334155;">
+        <div style="font-size:11px; color:#334155; margin-bottom:6px;">
           Submitted: <strong>' . $nteDate . ' at ' . $nteTime . '</strong>
         </div>
-        ' . $fileLink . '
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+          ' . ($fileLink ?: '<div></div>') . '
+          ' . $reuploadBtn . '
+        </div>
       </div>';
   }
 
@@ -3002,16 +3004,25 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     });
 
   function openDirectNteUploadModal(caseId, studentId) {
-      document.getElementById('directNteCaseId').value = caseId;
-      document.getElementById('directNteStudentId').value = studentId;
-      document.getElementById('directNteUploadMsg').innerHTML = '';
+      const cid = document.getElementById('directNteCaseId');
+      const sid = document.getElementById('directNteStudentId');
+      const msg = document.getElementById('directNteUploadMsg');
+      if (cid) cid.value = caseId || 0;
+      if (sid) sid.value = studentId || '';
+      if (msg) msg.innerHTML = '';
       const modal = document.getElementById('directNteUploadModal');
-      if (modal) modal.style.display = 'flex';
+      if (modal) {
+          modal.classList.add('active');
+          modal.style.setProperty('display', 'flex', 'important');
+      }
   }
 
   function closeDirectNteUploadModal() {
       const modal = document.getElementById('directNteUploadModal');
-      if (modal) modal.style.display = 'none';
+      if (modal) {
+          modal.classList.remove('active');
+          modal.style.setProperty('display', 'none', 'important');
+      }
   }
 
   async function submitDirectNteUpload(e) {
