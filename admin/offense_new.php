@@ -719,8 +719,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           if (function_exists('ensure_notice_to_explain_table')) {
               ensure_notice_to_explain_table();
           }
-          $nteRows = db_all("
-              SELECT nte.*, 
+          $nteRows = db_all("SELECT nte.*, 
                      COALESCE(nte.case_id, uco.case_id) AS resolved_case_id
               FROM notice_to_explain nte
               LEFT JOIN upcc_case_offense uco ON uco.offense_id = nte.offense_id
