@@ -96,7 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
       ':desc'  => ($description === '' ? null : $description),
       ':dt'    => $date_committed,
     ];
-    db_add_encryption_key($params);
 
     db_exec(
       "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, date_committed, status, created_at, updated_at)
@@ -290,31 +289,12 @@ $studentInfo         = null;
 $liveOffenses        = [];
 
 if ($postStudentId !== '') {
-  // FIX: Retrieve student data with fallback if decryption fails.
-  try {
-    $params = [':sid' => $postStudentId];
-    db_add_encryption_key($params);
-    // Ensure privacy columns exist (if function exists)
-    if (function_exists('ensure_student_privacy_columns')) {
-      ensure_student_privacy_columns();
-    }
-    // Build decryption part or fallback to plain columns if function not defined
-    $decryptCols = '';
-    if (function_exists('db_decrypt_cols')) {
-      $decryptCols = db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number']);
-    } else {
-      // Fallback to plain column names (if no encryption)
-      $decryptCols = 'student_fn, student_ln, student_email, phone_number';
-    }
-    $sql = "SELECT student_id, $decryptCols, year_level, section, school, program, privacy_accepted, privacy_accepted_at, app_registered_at
-            FROM student WHERE student_id = :sid LIMIT 1";
-    $studentInfo = db_one($sql, $params);
-  } catch (Exception $e) {
-    // If error, try a simpler query without decryption (for debugging)
-    error_log('Student info fetch error: ' . $e->getMessage());
-    $studentInfo = db_one("SELECT student_id, student_fn, student_ln, student_email, phone_number, year_level, section, school, program, privacy_accepted, privacy_accepted_at, app_registered_at
-                           FROM student WHERE student_id = :sid LIMIT 1", [':sid' => $postStudentId]);
-  }
+  ensure_student_privacy_columns();
+  $studentInfo = db_one(
+    "SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number']) . ", year_level, section, school, program, privacy_accepted, privacy_accepted_at, app_registered_at
+     FROM student WHERE student_id = :sid LIMIT 1",
+    [':sid' => $postStudentId]
+  );
 
   // If studentInfo is still null, we cannot show info
   if ($studentInfo) {
@@ -363,13 +343,11 @@ if ($postStudentId !== '') {
       $postSection4Minors = (int)($countRow['cnt'] ?? 0);
     }
     
-    $liveOffensesParams = [':sid' => $postStudentId];
-    db_add_encryption_key($liveOffensesParams);
     $liveOffenses = db_all(
      "SELECT o.offense_id, o.date_committed, o.level, ot.code, ot.name, 
             uc.decided_category, uc.status AS case_status,
             uc.probation_until,
-            " . (function_exists('db_decrypt_cols') ? db_decrypt_col('punishment_details', 'uc') : 'uc.punishment_details') . " AS punishment_details,
+            " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
             (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
      FROM offense o
      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -377,7 +355,7 @@ if ($postStudentId !== '') {
      LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id AND uc.status <> 'VOID'
      WHERE o.student_id = :sid
      ORDER BY o.date_committed DESC",
-      $liveOffensesParams
+      [':sid' => $postStudentId]
     ) ?: [];
   }
 }
