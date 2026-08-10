@@ -68,7 +68,22 @@ if ($is_verified) {
                SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
                FROM community_service_session sess
                WHERE sess.requirement_id = csr.requirement_id AND sess.time_out IS NOT NULL
-             ) AS hours_completed
+             ) AS hours_completed,
+             (
+               SELECT css.session_id FROM community_service_session css
+               WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
+               ORDER BY css.time_in DESC LIMIT 1
+             ) AS active_session_id,
+             (
+               SELECT css.status FROM community_service_session css
+               WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
+               ORDER BY css.time_in DESC LIMIT 1
+             ) AS active_session_status,
+             (
+               SELECT css.pause_reason FROM community_service_session css
+               WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
+               ORDER BY css.time_in DESC LIMIT 1
+             ) AS active_session_pause_reason
       FROM upcc_case uc
       JOIN student s ON s.student_id = uc.student_id
       LEFT JOIN community_service_requirement csr ON csr.related_case_id = uc.case_id
@@ -1577,7 +1592,12 @@ function formatCaseActivity(array $act): string {
 
                       <div class="sanction-card-middle">
                         <div class="status-badge-container">
-                          <?php if (!$is_ongoing): ?>
+                          <?php if (($c['active_session_status'] ?? '') === 'PAUSED'): ?>
+                            <span class="status-badge" style="background: #fff3cd; color: #856404; border: 1px solid #ffe8a1; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+                              <span style="font-size: 13px;">⏸️</span>
+                              PAUSED (No Movement 5 Mins)
+                            </span>
+                          <?php elseif (!$is_ongoing): ?>
                             <span class="status-badge completed">Completed</span>
                           <?php elseif ($has_finished_hours): ?>
                             <span class="status-badge completed-pending" style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
@@ -1607,7 +1627,11 @@ function formatCaseActivity(array $act): string {
                       </div>
 
                       <div class="sanction-card-right">
-                        <?php if (!$is_completed && $has_finished_hours): ?>
+                        <?php if (($c['active_session_status'] ?? '') === 'PAUSED'): ?>
+                          <button class="btn" type="button" onclick="openResumeCSModal(<?php echo (int)$c['active_session_id']; ?>, '<?php echo e($c['student_id']); ?>', '<?php echo e($student_name); ?>')" style="background: #193B8C; color: #ffffff; font-weight: 800; border: none; padding: 10px 18px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(25,59,140,0.3); font-size: 13px;">
+                            ▶️ Resume Student Service
+                          </button>
+                        <?php elseif (!$is_completed && $has_finished_hours): ?>
                           <button class="btn-acknowledge-glowing" onclick="openEditModal(<?php echo htmlspecialchars(json_encode([
                             'case_id' => $c['case_id'],
                             'student_id' => $c['student_id'],
@@ -3501,6 +3525,80 @@ function formatCaseActivity(array $act): string {
         }, 300);
       }
     });
+
+  let currentResumeSessionId = 0;
+  let currentResumeStudentId = '';
+
+  function openResumeCSModal(sessionId, studentId, studentName) {
+      currentResumeSessionId = sessionId;
+      currentResumeStudentId = studentId;
+      const nameEl = document.getElementById('resumeCSStudentName');
+      if (nameEl) nameEl.textContent = studentName;
+      const msg = document.getElementById('resumeCSMsg');
+      if (msg) msg.innerHTML = '';
+      const modal = document.getElementById('resumeCSModal');
+      if (modal) modal.style.display = 'flex';
+  }
+
+  function closeResumeCSModal() {
+      const modal = document.getElementById('resumeCSModal');
+      if (modal) modal.style.display = 'none';
+  }
+
+  async function confirmResumeCS() {
+      if (currentResumeSessionId <= 0) return;
+      const msg = document.getElementById('resumeCSMsg');
+      const btn = document.getElementById('btnConfirmResumeCS');
+      if (msg) { msg.innerHTML = '⌛ Resuming student service session…'; msg.style.color = '#334155'; }
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+
+      try {
+          const res = await fetch('api_resume_cs_session.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ session_id: currentResumeSessionId, student_id: currentResumeStudentId })
+          });
+          const data = await res.json();
+          if (data.ok) {
+              if (msg) { msg.innerHTML = '✅ Student session resumed! Notifying app…'; msg.style.color = '#166534'; }
+              setTimeout(() => {
+                  closeResumeCSModal();
+                  window.location.reload();
+              }, 1000);
+          } else {
+              if (msg) { msg.innerHTML = '❌ ' + (data.message || 'Failed to resume session'); msg.style.color = '#b91c1c'; }
+              if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+          }
+      } catch (err) {
+          if (msg) { msg.innerHTML = '❌ Error: ' + err.message; msg.style.color = '#b91c1c'; }
+          if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+      }
+  }
   </script>
+
+  <!-- MODAL: Confirm Resume Student Service -->
+  <div id="resumeCSModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#fff; width:100%; max-width:460px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;">
+          <span>▶️</span> Resume Community Service Session
+        </h3>
+        <button type="button" onclick="closeResumeCSModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
+      </div>
+      <div style="margin-bottom:20px; font-size:14px; color:#334155; line-height:1.5;">
+        Are you sure you want to resume the community service clock-in for <strong id="resumeCSStudentName" style="color:#193B8C;">Student</strong>?
+        <div style="font-size:12px; color:#64748b; margin-top:10px; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+          ℹ️ Resuming will notify the student on their app and restart location tracking and active service hours calculation.
+        </div>
+      </div>
+      <div id="resumeCSMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn" onclick="closeResumeCSModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
+        <button type="button" id="btnConfirmResumeCS" onclick="confirmResumeCS()" class="btn btn-primary" style="background:#193B8C; border-color:#193B8C; padding:8px 20px; border-radius:8px; font-weight:800; color:#fff;">
+          ▶️ Yes, Resume Session
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

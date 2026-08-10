@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'services/community_service_api.dart';
 
@@ -34,6 +35,12 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
   PendingManualRequest? _pendingManualRequest;
 
   Timer? _ticker;
+  Timer? _locationTimer;
+  Timer? _pausedPollTimer;
+  Position? _lastPosition;
+  int _stationarySeconds = 0;
+  bool _shownPauseDialog = false;
+  String? _previousSessionStatus;
   Duration _elapsed = Duration.zero;
 
   static const blue = Color(0xFF193B8C);
@@ -48,6 +55,8 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _locationTimer?.cancel();
+    _pausedPollTimer?.cancel();
     super.dispose();
   }
 
@@ -90,12 +99,46 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
 
   void _syncTimer() {
     _ticker?.cancel();
+    _locationTimer?.cancel();
+    _pausedPollTimer?.cancel();
 
     final s = _activeSession;
     if (s == null) {
       if (mounted) setState(() => _elapsed = Duration.zero);
+      _previousSessionStatus = null;
+      _shownPauseDialog = false;
       return;
     }
+
+    // Check if session was resumed by Admin
+    if (_previousSessionStatus == 'PAUSED' && s.sessionStatus == 'ACTIVE') {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('▶️ Your community service session has been resumed by the Admin!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+      _shownPauseDialog = false;
+    }
+    _previousSessionStatus = s.sessionStatus;
+
+    if (s.sessionStatus == 'PAUSED') {
+      // Session paused - do not tick timer!
+      _startPausedPolling();
+      if (!_shownPauseDialog && mounted) {
+        _shownPauseDialog = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showPauseAlertModal(s.pauseReason);
+        });
+      }
+      return;
+    }
+
+    // Session ACTIVE -> start location tracking
+    _startLocationMonitoring();
 
     final start = _parseServerDateTime(s.timeIn);
     if (start == null) {
@@ -104,7 +147,8 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
     }
 
     void tick() {
-      final diff = DateTime.now().difference(start);
+      final now = DateTime.now();
+      final diff = now.difference(start) - Duration(seconds: s.accumPausedSeconds);
       if (!mounted) return;
       setState(() {
         _elapsed = diff.isNegative ? Duration.zero : diff;
@@ -113,6 +157,126 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
 
     tick();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => tick());
+  }
+
+  void _startPausedPolling() {
+    _pausedPollTimer?.cancel();
+    _pausedPollTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      if (!mounted) return;
+      try {
+        final res = await _api.getOverview(widget.studentId);
+        if (!mounted) return;
+        if (res.activeSession?.sessionStatus == 'ACTIVE') {
+          setState(() {
+            _activeSession = res.activeSession;
+          });
+          _syncTimer();
+        }
+      } catch (_) {}
+    });
+  }
+
+  Future<void> _startLocationMonitoring() async {
+    _locationTimer?.cancel();
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+      if (permission == LocationPermission.deniedForever) return;
+
+      _locationTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+        if (_activeSession == null || _activeSession?.sessionStatus == 'PAUSED') return;
+
+        try {
+          Position pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+          );
+
+          if (_lastPosition != null) {
+            double distMeters = Geolocator.distanceBetween(
+              _lastPosition!.latitude,
+              _lastPosition!.longitude,
+              pos.latitude,
+              pos.longitude,
+            );
+
+            if (distMeters < 4.0) {
+              _stationarySeconds += 15;
+              if (_stationarySeconds >= 300) { // 5 minutes of no movement!
+                _triggerStationaryPause();
+              }
+            } else {
+              _stationarySeconds = 0;
+              _lastPosition = pos;
+            }
+          } else {
+            _lastPosition = pos;
+          }
+        } catch (_) {}
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _triggerStationaryPause() async {
+    _locationTimer?.cancel();
+    _ticker?.cancel();
+
+    final s = _activeSession;
+    if (s == null) return;
+
+    try {
+      await _api.pauseSession(
+        studentId: widget.studentId,
+        sessionId: s.sessionId,
+        reason: 'Stationary for 5 minutes',
+      );
+    } catch (_) {}
+
+    await _load();
+  }
+
+  void _showPauseAlertModal(String reason) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.pause_circle_filled_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Clock-In Paused',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          reason.isNotEmpty
+              ? 'Your clock-in has been paused ($reason).\n\nPlease contact the Admin if you want to resume your community service.'
+              : 'Your clock-in has been paused. The system sensed you stopped moving for 5 minutes.\n\nPlease contact the Admin if you want to resume your community service.',
+          style: const TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF193B8C),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   String _durationText(Duration d) {
@@ -478,11 +642,49 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
                         ),
                         const SizedBox(height: 10),
                         _statCard(
-                          title: _activeSession != null ? 'Service timer (running)' : 'Service timer (frozen)',
+                          title: _activeSession != null
+                              ? (_activeSession!.sessionStatus == 'PAUSED' ? 'Service timer (PAUSED)' : 'Service timer (running)')
+                              : 'Service timer (frozen)',
                           value: _activeSession != null ? _durationText(_elapsed) : '00:00:00',
                           icon: Icons.timer_outlined,
-                          color: _activeSession != null ? const Color(0xFF2E7D32) : Colors.grey,
+                          color: _activeSession != null
+                              ? (_activeSession!.sessionStatus == 'PAUSED' ? Colors.orange.shade800 : const Color(0xFF2E7D32))
+                              : Colors.grey,
                         ),
+                        if (_activeSession != null && _activeSession!.sessionStatus == 'PAUSED') ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF3E0),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFFFB74D)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.pause_circle_filled, color: Color(0xFFE65100), size: 24),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'PAUSED (No Movement Detected)',
+                                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE65100), fontSize: 13),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'The system sensed you stopped moving for 5 minutes. Please contact the Admin to resume your service.',
+                                        style: TextStyle(color: Colors.orange.shade900, fontSize: 12, height: 1.3),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         if (_pendingManualRequest != null) ...[
                           const SizedBox(height: 10),
                           Container(

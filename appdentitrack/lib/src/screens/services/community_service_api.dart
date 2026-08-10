@@ -46,6 +46,25 @@ class CommunityServiceApi {
       message: (decoded['message'] ?? '').toString(),
     );
   }
+
+  Future<String> pauseSession({
+    required String studentId,
+    required int sessionId,
+    String reason = 'Stationary for 5 minutes',
+  }) async {
+    final headers = await StudentApiAuth.jsonHeaders();
+    final res = await http.post(
+      Uri.parse(AppConfig.pauseCommunityServiceUrl),
+      headers: headers,
+      body: jsonEncode({
+        'student_id': studentId,
+        'session_id': sessionId,
+        'reason': reason,
+      }),
+    );
+    final decoded = jsonDecode(res.body);
+    return (decoded['message'] ?? 'Session paused.').toString();
+  }
 }
 
 class CommunityServiceOverview {
@@ -106,6 +125,10 @@ class ActiveServiceSession {
   final String loginMethod;
   final String taskName;
   final String location;
+  final String sessionStatus;
+  final String pauseReason;
+  final String pausedAt;
+  final int accumPausedSeconds;
 
   ActiveServiceSession({
     required this.sessionId,
@@ -114,6 +137,10 @@ class ActiveServiceSession {
     required this.loginMethod,
     required this.taskName,
     required this.location,
+    required this.sessionStatus,
+    required this.pauseReason,
+    required this.pausedAt,
+    required this.accumPausedSeconds,
   });
 
   factory ActiveServiceSession.fromJson(Map<String, dynamic> json) =>
@@ -125,6 +152,11 @@ class ActiveServiceSession {
         loginMethod: (json['login_method'] ?? '').toString(),
         taskName: (json['task_name'] ?? '').toString(),
         location: (json['location'] ?? '').toString(),
+        sessionStatus: (json['session_status'] ?? 'ACTIVE').toString(),
+        pauseReason: (json['pause_reason'] ?? '').toString(),
+        pausedAt: (json['paused_at'] ?? '').toString(),
+        accumPausedSeconds:
+            int.tryParse((json['accum_paused_seconds'] ?? 0).toString()) ?? 0,
       );
 }
 

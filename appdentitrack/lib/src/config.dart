@@ -22,6 +22,7 @@ class AppConfig {
   static String get offenseListUrl => '$baseUrl/api/student/offense_list.php';
   static String get communityServiceOverviewUrl => '$baseUrl/api/student/community_service_overview.php';
   static String get communityServiceLoginUrl => '$baseUrl/api/student/community_service_login.php';
+  static String get pauseCommunityServiceUrl => '$baseUrl/api/student/pause_community_service.php';
   static String get submitAppealUrl => '$baseUrl/api/student/submit_appeal.php';
   static String get acceptOffenseUrl => '$baseUrl/api/student/accept_offense.php';
   static String get acceptUpccCaseUrl => '$baseUrl/api/student/accept_upcc_case.php';

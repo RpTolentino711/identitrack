@@ -712,6 +712,8 @@ function ensure_hearing_workflow_schema(): void
       db_exec("ALTER TABLE community_service_requirement MODIFY status ENUM('ACTIVE','COMPLETED','CANCELLED','PENDING_ACCEPTANCE') NOT NULL DEFAULT 'ACTIVE'");
   }
 
+  ensure_community_service_pause_schema();
+
   db_exec("CREATE TABLE IF NOT EXISTS upcc_hearing_presence (
       session_id BIGINT NOT NULL AUTO_INCREMENT,
       case_id BIGINT NOT NULL,
@@ -823,6 +825,19 @@ function upcc_case_panel_ids(int $caseId): array
     }
   }
   return array_values(array_unique($ids));
+}
+
+function ensure_community_service_pause_schema(): void
+{
+  try {
+    $hasStatus = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'community_service_session' AND COLUMN_NAME = 'status'");
+    if (!$hasStatus) {
+      db_exec("ALTER TABLE community_service_session ADD COLUMN status ENUM('ACTIVE', 'PAUSED', 'COMPLETED') NOT NULL DEFAULT 'ACTIVE'");
+      db_exec("ALTER TABLE community_service_session ADD COLUMN pause_reason VARCHAR(255) DEFAULT NULL");
+      db_exec("ALTER TABLE community_service_session ADD COLUMN paused_at DATETIME DEFAULT NULL");
+      db_exec("ALTER TABLE community_service_session ADD COLUMN accum_paused_seconds INT NOT NULL DEFAULT 0");
+    }
+  } catch (\Throwable $e) {}
 }
 
 function upcc_log_case_activity(int $caseId, string $actorType, int $actorId, string $action, array $payload = []): void
