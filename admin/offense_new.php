@@ -718,16 +718,20 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   $nteRows = [];
   if (!empty($student['student_id'])) {
       $nteRows = db_all("
-          SELECT * FROM notice_to_explain 
-          WHERE student_id = :sid 
-          ORDER BY created_at DESC
+          SELECT nte.*, 
+                 COALESCE(nte.case_id, uo.case_id) AS resolved_case_id
+          FROM notice_to_explain nte
+          LEFT JOIN upcc_offense uo ON uo.offense_id = nte.offense_id
+          WHERE nte.student_id = :sid 
+          ORDER BY nte.created_at DESC
       ", [':sid' => $student['student_id']]);
   }
 
   $nteCaseMap = [];
   foreach ($nteRows as $nte) {
-      if (!empty($nte['case_id'])) {
-          $nteCaseMap[(int)$nte['case_id']] = $nte;
+      $cid = !empty($nte['resolved_case_id']) ? (int)$nte['resolved_case_id'] : (!empty($nte['case_id']) ? (int)$nte['case_id'] : 0);
+      if ($cid > 0) {
+          $nteCaseMap[$cid] = $nte;
       }
   }
 
