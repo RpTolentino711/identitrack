@@ -761,7 +761,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       }
 
       $reuploadBtn = '
-      <button type="button" onclick="if(event)event.stopPropagation(); window.openDirectNteUploadModal(' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
+      <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . htmlspecialchars($student['student_id']) . '" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
 
       $nteHistoryHtml .= '
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
@@ -798,7 +798,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
                 <div style="font-size:11px; color:#475569; margin-bottom:6px;">
                   Form F-005 was not sent during offense registration.
                 </div>
-                <button type="button" onclick="if(event)event.stopPropagation(); window.openDirectNteUploadModal(' . $acid . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#1b2b6b; color:#fff; font-size:11px; font-weight:700; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">
+                <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $acid . '" data-student-id="' . htmlspecialchars($student['student_id']) . '" style="background:#1b2b6b; color:#fff; font-size:11px; font-weight:700; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">
                   📤 Upload & Send Form F-005
                 </button>
               </div>';
@@ -3023,6 +3023,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           modal.style.cssText = 'display:none !important;';
       }
   };
+
+  document.addEventListener('click', function(e) {
+      const btn = e.target.closest('.btn-trigger-nte-upload');
+      if (btn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const cid = btn.getAttribute('data-case-id') || 0;
+          const sid = btn.getAttribute('data-student-id') || '';
+          window.openDirectNteUploadModal(cid, sid);
+      }
+  }, true);
 
   async function submitDirectNteUpload(e) {
       e.preventDefault();
