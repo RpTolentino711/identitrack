@@ -1666,19 +1666,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               </div>
               <div class="card-body">
 
-                <!-- Student info summary appears here if a student is loaded -->
+                <!-- Student info summary banner -->
                 <?php if ($postStudentId !== '' && $studentInfo): ?>
-                  <div style="margin-bottom: 20px;">
-                    <?php 
-                      try {
-                        echo renderStudentInfoCard($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $liveOffenses);
-                      } catch (Throwable $ex) {
-                        echo '<div style="background: var(--blue-soft); border-left: 4px solid var(--blue); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">';
-                        echo '<div><strong style="font-size: 14px;">' . htmlspecialchars($studentInfo['student_fn'] . ' ' . $studentInfo['student_ln']) . '</strong><span style="margin-left: 12px; font-size: 13px; color: var(--text-3);">' . htmlspecialchars($studentInfo['student_id']) . '</span><span style="margin-left: 12px; font-size: 12px; color: var(--text-3);">' . htmlspecialchars($studentInfo['program'] ?? '') . '</span></div>';
-                        echo '<div style="font-size: 13px; font-weight: 600; color: var(--blue);">' . $liveMinorCount . ' minor · ' . $liveMajorCount . ' major</div>';
-                        echo '</div>';
-                      }
-                    ?>
+                  <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                      <strong style="font-size: 14px; color: #1e3a8a;"><?php echo htmlspecialchars($studentInfo['student_fn'] . ' ' . $studentInfo['student_ln']); ?></strong>
+                      <span style="margin-left: 10px; font-size: 13px; color: #2563eb; font-weight: 700;"><?php echo htmlspecialchars($studentInfo['student_id']); ?></span>
+                      <span style="margin-left: 10px; font-size: 12px; color: #475569;"><?php echo htmlspecialchars(($studentInfo['year_level'] ?? '') . ' ' . ($studentInfo['section'] ?? '') . ' (' . ($studentInfo['program'] ?? '') . ')'); ?></span>
+                    </div>
+                    <div style="font-size: 12px; font-weight: 700; color: #1d4ed8; background: #dbeafe; padding: 4px 10px; border-radius: 20px;">
+                      Selected Student
+                    </div>
                   </div>
                 <?php else: ?>
                   <div style="background: var(--surface-2); border: 1px dashed var(--border); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 18px; text-align: center; color: var(--text-4);">
