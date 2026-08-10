@@ -2019,7 +2019,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <?php if ($letterMode): ?>
           <button class="btn btn-primary" id="successCloseBtn" type="button" onclick="closeSuccessModal()" style="width: 100%; justify-content: center; padding: 12px; <?php echo ($letterType === 'escalation' || $letterType === 'major') ? 'background: var(--red); border-color: var(--red); box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);' : ''; ?>">Compose Guardian Email</button>
         <?php else: ?>
-          <a href="offenses.php" class="btn btn-primary" id="successCloseBtn" style="width: 100%; justify-content: center; padding: 12px;">Go to Offenses</a>
+          <div style="display:flex; gap: 10px;">
+            <button class="btn" type="button" onclick="dismissSuccessModal()" style="flex: 1; justify-content: center; padding: 12px;">Stay on page</button>
+            <a href="offenses.php" class="btn btn-primary" id="successCloseBtn" style="flex: 1; justify-content: center; padding: 12px;">Go to Offenses</a>
+          </div>
         <?php endif; ?>
         <div id="successModalProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: <?php echo ($letterType === 'escalation' || $letterType === 'major') ? 'var(--red)' : 'var(--blue, #2563eb)'; ?>; width: 100%;"></div>
       </div>
@@ -2030,7 +2033,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   <div id="finalProcessSuccessModal" class="modal">
     <div class="modal-content" style="text-align: center; max-width: 420px; border-radius: 16px; overflow: hidden; position: relative;">
       <div class="modal-body" style="padding: 40px 30px;">
-        <button class="modal-close" onclick="closeFinalSuccessModal()" style="position: absolute; top: 15px; right: 15px;">&times;</button>
+        <button class="modal-close" onclick="dismissFinalSuccessModal()" style="position: absolute; top: 15px; right: 15px;">&times;</button>
         <img src="../assets/logo.png" alt="IdentiTrack Logo" style="height: 64px; margin-bottom: 24px;">
         <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #10b981;">Process Completed</h3>
         <p id="finalSuccessMsgText" style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
@@ -2038,7 +2041,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           <span id="finalNteStatusText">✅ Form F-005 Notice to Explain issued to student app.</span>
         </p>
         <div style="display:flex; gap: 10px;">
-            <button class="btn" type="button" onclick="closeFinalSuccessModal()" style="flex: 1; justify-content: center;">Stay on page</button>
+            <button class="btn" type="button" onclick="dismissFinalSuccessModal()" style="flex: 1; justify-content: center;">Stay on page</button>
             <a href="offenses.php" class="btn btn-primary" style="flex: 1; justify-content: center;">Go to Offenses</a>
         </div>
         <div id="finalSuccessProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: #10b981; width: 100%;"></div>
@@ -2374,8 +2377,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   const modal = document.getElementById('offenseTypeModal');
   const successModal = document.getElementById('successModal');
   function closeModal() { modal.classList.remove('active'); document.getElementById('modalError').innerText = ''; }
+  function dismissSuccessModal() {
+    if (window.successModalTimer) clearTimeout(window.successModalTimer);
+    const bar = document.getElementById('successModalProgress');
+    if (bar) bar.style.transition = 'none';
+    if (successModal) successModal.classList.remove('active');
+  }
   function closeSuccessModal() {
-    if (window.successModalTimer) clearInterval(window.successModalTimer);
+    if (window.successModalTimer) clearTimeout(window.successModalTimer);
     if (successModal) successModal.classList.remove('active'); 
     if (typeof LETTER_MODE !== 'undefined' && LETTER_MODE) {
       const letterModal = document.getElementById('modal-guardian-letter');
@@ -2761,11 +2770,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
   }
 
-  function closeFinalSuccessModal() {
+  function dismissFinalSuccessModal() {
       if (window.finalSuccessModalTimer) clearTimeout(window.finalSuccessModalTimer);
+      const bar = document.getElementById('finalSuccessProgress');
+      if (bar) bar.style.transition = 'none';
       const m = document.getElementById('finalProcessSuccessModal');
       if (m) m.classList.remove('active');
-      window.location.href = 'offenses.php?msg=Major+Offense+recorded+and+Form+F-005+sent+to+student.';
+  }
+
+  function closeFinalSuccessModal() {
+      dismissFinalSuccessModal();
+      window.location.href = 'offenses.php?msg=Process+completed+successfully.';
   }
 
   let previewDebounce = null;
