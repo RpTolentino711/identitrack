@@ -1649,14 +1649,24 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               </div>
               <div class="card-body">
 
-                <!-- Student info summary appears here if a student is loaded -->
-                <?php if ($postStudentId !== '' && $studentInfo): ?>
-                  <div style="margin-bottom: 20px;">
-                    <?php echo renderStudentInfoCard($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $liveOffenses); ?>
+                <!-- Student info summary (compact) appears here if a student is loaded -->
+                <?php if ($studentInfo): ?>
+                  <div style="background: var(--blue-soft); border-left: 4px solid var(--blue); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                      <strong style="font-size: 14px;"><?php echo htmlspecialchars($studentInfo['student_fn'] . ' ' . $studentInfo['student_ln']); ?></strong>
+                      <span style="margin-left: 12px; font-size: 13px; color: var(--text-3);"><?php echo htmlspecialchars($studentInfo['student_id']); ?></span>
+                      <span style="margin-left: 12px; font-size: 12px; color: var(--text-3);"><?php echo htmlspecialchars($studentInfo['program'] ?? ''); ?></span>
+                    </div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--blue);">
+                      <?php echo $liveMinorCount; ?> minor · <?php echo $liveMajorCount; ?> major
+                      <?php if ($hasActiveSection4): ?>
+                        <span style="background: var(--red); color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 6px;">Section 4</span>
+                      <?php endif; ?>
+                    </div>
                   </div>
                 <?php else: ?>
                   <div style="background: var(--surface-2); border: 1px dashed var(--border); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 18px; text-align: center; color: var(--text-4);">
-                    Enter a Student ID below to load student information.
+                    Enter a Student ID above to load student information.
                   </div>
                 <?php endif; ?>
 
@@ -2596,13 +2606,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         e.preventDefault();
         suggestionsBox.classList.remove('show');
         lookupStudentId();
-      }
-    });
-
-    studentIdInput.addEventListener('blur', () => {
-      const val = studentIdInput.value.trim();
-      if (val && val !== '<?php echo htmlspecialchars($postStudentId); ?>') {
-        setTimeout(() => lookupStudentId(val), 200);
       }
     });
   }
