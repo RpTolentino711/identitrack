@@ -39,6 +39,9 @@ $activeSessions = db_all(
       css.requirement_id,
       css.time_in,
       css.login_method,
+      css.status AS session_status,
+      css.pause_reason,
+      css.paused_at,
       csr.task_name,
       csr.hours_required,
       s.student_id,
@@ -628,9 +631,18 @@ if ($q !== '') {
                       <circle cx="12" cy="7" r="4"></circle>
                     </svg>
                   </div>
-                  <div class="session-info">
-                    <div class="session-name"><?php echo e($session['student_name']); ?></div>
-                    <div class="session-id"><?php echo e($session['student_id']); ?></div>
+                  <div class="session-info" style="flex:1;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                      <div>
+                        <div class="session-name"><?php echo e($session['student_name']); ?></div>
+                        <div class="session-id"><?php echo e($session['student_id']); ?></div>
+                      </div>
+                      <?php if (($session['session_status'] ?? '') === 'PAUSED'): ?>
+                        <span style="background: #fff3cd; color: #856404; border: 1px solid #ffe8a1; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                          <span>⏸️</span> PAUSED (No Movement 5 Mins)
+                        </span>
+                      <?php endif; ?>
+                    </div>
                     <span class="session-badge"><?php echo e($session['login_method'] ?: 'NFC'); ?></span>
                     <div class="session-details">
 
@@ -659,8 +671,18 @@ if ($q !== '') {
                         </div>
                       </div>
                     </div>
+
+                    <?php if (($session['session_status'] ?? '') === 'PAUSED'): ?>
+                      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <div style="font-size: 12px; color: #856404; font-weight: 600;">
+                          Reason: <?php echo e($session['pause_reason'] ?: 'Stationary for 5 minutes'); ?>
+                        </div>
+                        <button type="button" onclick="openResumeCSModal(<?php echo (int)$session['session_id']; ?>, '<?php echo e($session['student_id']); ?>', '<?php echo e($session['student_name']); ?>')" style="background: #193B8C; color: #ffffff; font-weight: 800; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 12px;">
+                          ▶️ Resume Student Service
+                        </button>
+                      </div>
+                    <?php endif; ?>
                   </div>
-                  <!-- Action button removed for testing -->
                 </div>
               <?php endforeach; ?>
             <?php endif; ?>
@@ -789,7 +811,81 @@ if ($q !== '') {
     
     updateCountdownTimers();
     setInterval(updateCountdownTimers, 1000);
+
+    let currentResumeSessionId = 0;
+    let currentResumeStudentId = '';
+
+    function openResumeCSModal(sessionId, studentId, studentName) {
+        currentResumeSessionId = sessionId;
+        currentResumeStudentId = studentId;
+        const nameEl = document.getElementById('resumeCSStudentName');
+        if (nameEl) nameEl.textContent = studentName;
+        const msg = document.getElementById('resumeCSMsg');
+        if (msg) msg.innerHTML = '';
+        const modal = document.getElementById('resumeCSModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeResumeCSModal() {
+        const modal = document.getElementById('resumeCSModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    async function confirmResumeCS() {
+        if (currentResumeSessionId <= 0) return;
+        const msg = document.getElementById('resumeCSMsg');
+        const btn = document.getElementById('btnConfirmResumeCS');
+        if (msg) { msg.innerHTML = '⌛ Resuming student service session…'; msg.style.color = '#334155'; }
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+
+        try {
+            const res = await fetch('api_resume_cs_session.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: currentResumeSessionId, student_id: currentResumeStudentId })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                if (msg) { msg.innerHTML = '✅ Student session resumed! Notifying app…'; msg.style.color = '#166534'; }
+                setTimeout(() => {
+                    closeResumeCSModal();
+                    window.location.reload();
+                }, 1000);
+            } else {
+                if (msg) { msg.innerHTML = '❌ ' + (data.message || 'Failed to resume session'); msg.style.color = '#b91c1c'; }
+                if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+            }
+        } catch (err) {
+            if (msg) { msg.innerHTML = '❌ Error: ' + err.message; msg.style.color = '#b91c1c'; }
+            if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        }
+    }
   </script>
+
+  <!-- MODAL: Confirm Resume Student Service -->
+  <div id="resumeCSModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#fff; width:100%; max-width:460px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;">
+          <span>▶️</span> Resume Community Service Session
+        </h3>
+        <button type="button" onclick="closeResumeCSModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
+      </div>
+      <div style="margin-bottom:20px; font-size:14px; color:#334155; line-height:1.5;">
+        Are you sure you want to resume the community service clock-in for <strong id="resumeCSStudentName" style="color:#193B8C;">Student</strong>?
+        <div style="font-size:12px; color:#64748b; margin-top:10px; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+          ℹ️ Resuming will notify the student on their app and restart location tracking and active service hours calculation.
+        </div>
+      </div>
+      <div id="resumeCSMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn" onclick="closeResumeCSModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
+        <button type="button" id="btnConfirmResumeCS" onclick="confirmResumeCS()" class="btn btn-primary" style="background:#193B8C; border-color:#193B8C; padding:8px 20px; border-radius:8px; font-weight:800; color:#fff;">
+          ▶️ Yes, Resume Session
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 
