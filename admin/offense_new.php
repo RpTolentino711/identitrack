@@ -744,20 +744,34 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
 
   // Render SENT Form F-005 records
   foreach ($nteRows as $nte) {
+      $nteId = (int)$nte['nte_id'];
+      $caseIdForNte = !empty($nte['resolved_case_id']) ? (int)$nte['resolved_case_id'] : (!empty($nte['case_id']) ? (int)$nte['case_id'] : 0);
       $nteDate = ph_date('M j, Y', $nte['created_at']);
       $nteTime = ph_date('h:i:s A', $nte['created_at']);
-      $irNo = htmlspecialchars($nte['incident_report_no'] ?: ('IR-' . ph_date('Y', $nte['created_at']) . '-' . (int)$nte['nte_id']));
+      $irNo = htmlspecialchars($nte['incident_report_no'] ?: ('IR-' . ph_date('Y', $nte['created_at']) . '-' . $nteId));
       
       $fileLink = '';
       if (!empty($nte['attachment_path'])) {
-          $fileLink = '<div style="margin-top:6px;"><a href="../' . htmlspecialchars($nte['attachment_path']) . '" target="_blank" style="color:var(--blue); font-weight:700; font-size:11px; text-decoration:underline; display:inline-flex; align-items:center; gap:4px;">📄 View Attached Form F-005 Document</a></div>';
+          $fileUrl = '../' . htmlspecialchars($nte['attachment_path']);
+          $fileLink = '
+          <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+            <a href="' . $fileUrl . '" target="_blank" download style="color:var(--blue); font-weight:700; font-size:11px; text-decoration:underline; display:inline-flex; align-items:center; gap:4px;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Form F-005
+            </a>
+          </div>';
       }
+
+      $reuploadBtn = '<button type="button" onclick="openDirectNteUploadModal(' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\')" style="background:#fee2e2; border:1px solid #fca5a5; color:#991b1b; font-size:10px; font-weight:800; padding:2px 7px; border-radius:4px; cursor:pointer;" title="Re-upload Form F-005">✕ Re-upload</button>';
 
       $nteHistoryHtml .= '
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
           <span style="font-size:11px; font-weight:800; color:#166534;">✅ Form F-005 Sent to Outlook</span>
-          <span style="font-size:10px; color:#15803d; font-weight:600;">' . $irNo . '</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:10px; color:#15803d; font-weight:600;">' . $irNo . '</span>
+            ' . $reuploadBtn . '
+          </div>
         </div>
         <div style="font-size:11px; color:#334155;">
           Submitted: <strong>' . $nteDate . ' at ' . $nteTime . '</strong>
