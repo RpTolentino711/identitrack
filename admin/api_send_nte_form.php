@@ -18,7 +18,7 @@ $offenseId = (int)($_POST['offense_id'] ?? 0);
 $studentId = trim((string)($_POST['student_id'] ?? ''));
 
 if ($caseId <= 0 && $offenseId > 0) {
-    $offRow = db_one("SELECT case_id FROM upcc_offense WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
+    $offRow = db_one("SELECT case_id FROM upcc_case_offense WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
     if (!empty($offRow['case_id'])) {
         $caseId = (int)$offRow['case_id'];
     }
