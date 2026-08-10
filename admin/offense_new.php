@@ -761,10 +761,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       }
 
       $reuploadBtn = '
-      <button type="button" onclick="openDirectNteUploadModal(' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\')" style="background:#fff; border:1px solid #cbd5e1; color:#334155; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s; box-shadow:0 1px 2px rgba(0,0,0,0.05);" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#fee2e2\'; this.style.borderColor=\'#fca5a5\'; this.style.color=\'#dc2626\';" onmouseout="this.style.background=\'#fff\'; this.style.borderColor=\'#cbd5e1\'; this.style.color=\'#334155\';">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:12px;height:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Re-upload
-      </button>';
+      <button type="button" onclick="window.openDirectNteUploadModal(' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
 
       $nteHistoryHtml .= '
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
