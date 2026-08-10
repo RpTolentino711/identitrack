@@ -5,9 +5,20 @@
 declare(strict_types=1);
 date_default_timezone_set('Asia/Manila');
 
-// ini_set('display_errors', '1');
-// ini_set('display_startup_errors', '1');
-// error_reporting(E_ALL);
+/**
+ * Format a date/time string explicitly in Philippine Standard Time (Asia/Manila).
+ */
+function ph_date(string $format, int|string|null $timestamp = null): string {
+    date_default_timezone_set('Asia/Manila');
+    if ($timestamp === null) {
+        $ts = time();
+    } elseif (is_string($timestamp)) {
+        $ts = strtotime($timestamp);
+    } else {
+        $ts = (int)$timestamp;
+    }
+    return date($format, $ts);
+}
 
 if (session_status() === PHP_SESSION_NONE) {
   session_start();

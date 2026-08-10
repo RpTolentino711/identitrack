@@ -740,9 +740,9 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
 
   // Render SENT Form F-005 records
   foreach ($nteRows as $nte) {
-      $nteDate = date('M j, Y', strtotime($nte['created_at']));
-      $nteTime = date('h:i:s A', strtotime($nte['created_at']));
-      $irNo = htmlspecialchars($nte['incident_report_no'] ?: ('IR-' . date('Y', strtotime($nte['created_at'])) . '-' . (int)$nte['nte_id']));
+      $nteDate = ph_date('M j, Y', $nte['created_at']);
+      $nteTime = ph_date('h:i:s A', $nte['created_at']);
+      $irNo = htmlspecialchars($nte['incident_report_no'] ?: ('IR-' . ph_date('Y', $nte['created_at']) . '-' . (int)$nte['nte_id']));
       
       $fileLink = '';
       if (!empty($nte['attachment_path'])) {
@@ -768,7 +768,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           $acid = (int)$acase['case_id'];
           if (empty($nteCaseMap[$acid])) {
               $totalNteDisplay++;
-              $caseDateStr = !empty($acase['created_at']) ? date('M j, Y \a\t h:i:s A', strtotime($acase['created_at'])) : 'During Offense Registration';
+              $caseDateStr = !empty($acase['created_at']) ? ph_date('M j, Y \a\t h:i:s A', $acase['created_at']) : 'During Offense Registration';
               $nteHistoryHtml .= '
               <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
