@@ -762,7 +762,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           </div>';
       }
 
-      $reuploadBtn = '<button type="button" onclick="openDirectNteUploadModal(' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\')" style="background:#fee2e2; border:1px solid #fca5a5; color:#991b1b; font-size:10px; font-weight:800; padding:2px 7px; border-radius:4px; cursor:pointer;" title="Re-upload Form F-005">✕ Re-upload</button>';
+      $reuploadBtn = '<button type="button" onclick="openDirectNteUploadModal(' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\')" style="background:none; border:none; color:#64748b; font-size:16px; font-weight:700; cursor:pointer; padding:0 2px; line-height:1; transition:color 0.15s;" title="Re-upload / Replace Form F-005" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#64748b\'">✕</button>';
 
       $nteHistoryHtml .= '
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
