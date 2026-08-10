@@ -761,7 +761,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       }
 
       $reuploadBtn = '
-      <button type="button" onclick="window.openDirectNteUploadModal(' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
+      <button type="button" onclick="if(event)event.stopPropagation(); window.openDirectNteUploadModal(' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
 
       $nteHistoryHtml .= '
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
@@ -798,7 +798,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
                 <div style="font-size:11px; color:#475569; margin-bottom:6px;">
                   Form F-005 was not sent during offense registration.
                 </div>
-                <button type="button" onclick="openDirectNteUploadModal(' . $acid . ', \'' . htmlspecialchars($student['student_id']) . '\')" style="background:#1b2b6b; color:#fff; font-size:11px; font-weight:700; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">
+                <button type="button" onclick="if(event)event.stopPropagation(); window.openDirectNteUploadModal(' . $acid . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#1b2b6b; color:#fff; font-size:11px; font-weight:700; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">
                   📤 Upload & Send Form F-005
                 </button>
               </div>';
@@ -3000,7 +3000,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         }
     });
 
-  function openDirectNteUploadModal(caseId, studentId) {
+  window.openDirectNteUploadModal = function(caseId, studentId) {
+      if (window.event && window.event.stopPropagation) {
+          window.event.stopPropagation();
+      }
       const cid = document.getElementById('directNteCaseId');
       const sid = document.getElementById('directNteStudentId');
       const msg = document.getElementById('directNteUploadMsg');
@@ -3010,17 +3013,18 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       const modal = document.getElementById('directNteUploadModal');
       if (modal) {
           modal.classList.add('active');
-          modal.style.setProperty('display', 'flex', 'important');
+          modal.style.cssText = 'display:flex !important; position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; background:rgba(15,23,42,0.7) !important; z-index:999999 !important; align-items:center !important; justify-content:center !important;';
       }
-  }
+      return false;
+  };
 
-  function closeDirectNteUploadModal() {
+  window.closeDirectNteUploadModal = function() {
       const modal = document.getElementById('directNteUploadModal');
       if (modal) {
           modal.classList.remove('active');
-          modal.style.setProperty('display', 'none', 'important');
+          modal.style.cssText = 'display:none !important;';
       }
-  }
+  };
 
   async function submitDirectNteUpload(e) {
       e.preventDefault();
