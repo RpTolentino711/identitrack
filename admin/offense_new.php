@@ -768,8 +768,8 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
           <span style="font-size:11px; font-weight:800; color:#166534;">✅ Form F-005 Sent to Outlook</span>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:10px; color:#15803d; font-weight:600;">' . $irNo . '</span>
+          <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+            <span style="font-size:10px; color:#15803d; font-weight:600; white-space:nowrap;">' . $irNo . '</span>
             ' . $reuploadBtn . '
           </div>
         </div>
