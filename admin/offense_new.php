@@ -261,7 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
 
 // ── Sticky / prefill values ──────────────────────────────────────────────────
 $postStudentId = (string)($_POST['student_id'] ?? $studentIdPrefill);
-$defaultDate   = date('Y-m-d\TH:i');
+$defaultDate   = ph_date('Y-m-d\TH:i');
 $postDate      = (string)($_POST['date_committed'] ?? $defaultDate);
 $postDesc      = (string)($_POST['description']    ?? '');
 
