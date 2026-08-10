@@ -290,66 +290,86 @@ $studentInfo         = null;
 $liveOffenses        = [];
 
 if ($postStudentId !== '') {
-  $params = [':sid' => $postStudentId];
-  db_add_encryption_key($params);
-  ensure_student_privacy_columns();
-  $studentInfo = db_one(
-    "SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number']) . ", year_level, section, school, program, privacy_accepted, privacy_accepted_at, app_registered_at
-     FROM student WHERE student_id = :sid LIMIT 1",
-    $params
-  );
-
-  $mRow = db_one(
-    "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MINOR'",
-    [':sid' => $postStudentId]
-  );
-  $liveMinorCount = (int)($mRow['cnt'] ?? 0);
-
-  $mjRow = db_one(
-    "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MAJOR'",
-    [':sid' => $postStudentId]
-  );
-  $liveMajorCount = (int)($mjRow['cnt'] ?? 0);
-
-  $gRow = db_one(
-    "SELECT guardian_email FROM guardian WHERE student_id = :sid LIMIT 1",
-    [':sid' => $postStudentId]
-  );
-  $liveGuardianEmail = (string)($gRow['guardian_email'] ?? '');
-
-  $liveActiveUpccCases = db_all(
-    "SELECT case_id, status, case_kind, case_summary, created_at FROM upcc_case
-     WHERE student_id = :sid AND status IN ('PENDING','UNDER_APPEAL')
-     ORDER BY created_at DESC",
-    [':sid' => $postStudentId]
-  ) ?: [];
-
-  foreach ($liveActiveUpccCases as $case) {
-    if (($case['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION') {
-      $hasActiveSection4 = true;
-      $section4StartDate = $case['created_at'];
-      break;
+  // FIX: Retrieve student data with fallback if decryption fails.
+  try {
+    $params = [':sid' => $postStudentId];
+    db_add_encryption_key($params);
+    // Ensure privacy columns exist (if function exists)
+    if (function_exists('ensure_student_privacy_columns')) {
+      ensure_student_privacy_columns();
     }
+    // Build decryption part or fallback to plain columns if function not defined
+    $decryptCols = '';
+    if (function_exists('db_decrypt_cols')) {
+      $decryptCols = db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number']);
+    } else {
+      // Fallback to plain column names (if no encryption)
+      $decryptCols = 'student_fn, student_ln, student_email, phone_number';
+    }
+    $sql = "SELECT student_id, $decryptCols, year_level, section, school, program, privacy_accepted, privacy_accepted_at, app_registered_at
+            FROM student WHERE student_id = :sid LIMIT 1";
+    $studentInfo = db_one($sql, $params);
+  } catch (Exception $e) {
+    // If error, try a simpler query without decryption (for debugging)
+    error_log('Student info fetch error: ' . $e->getMessage());
+    $studentInfo = db_one("SELECT student_id, student_fn, student_ln, student_email, phone_number, year_level, section, school, program, privacy_accepted, privacy_accepted_at, app_registered_at
+                           FROM student WHERE student_id = :sid LIMIT 1", [':sid' => $postStudentId]);
   }
 
-  if ($hasActiveSection4 && $section4StartDate) {
-    $countRow = db_one(
-      "SELECT COUNT(*) AS cnt FROM offense
-       WHERE student_id = :sid
-         AND level = 'MINOR'
-         AND date_committed > :start_date",
-      [':sid' => $postStudentId, ':start_date' => $section4StartDate]
+  // If studentInfo is still null, we cannot show info
+  if ($studentInfo) {
+    // fetch minor count, major count, guardian email, etc.
+    $mRow = db_one(
+      "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MINOR'",
+      [':sid' => $postStudentId]
     );
-    $postSection4Minors = (int)($countRow['cnt'] ?? 0);
-  }
-  
-  $liveOffensesParams = [':sid' => $postStudentId];
-  db_add_encryption_key($liveOffensesParams);
-  $liveOffenses = db_all(
- "SELECT o.offense_id, o.date_committed, o.level, ot.code, ot.name, 
+    $liveMinorCount = (int)($mRow['cnt'] ?? 0);
+
+    $mjRow = db_one(
+      "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MAJOR'",
+      [':sid' => $postStudentId]
+    );
+    $liveMajorCount = (int)($mjRow['cnt'] ?? 0);
+
+    $gRow = db_one(
+      "SELECT guardian_email FROM guardian WHERE student_id = :sid LIMIT 1",
+      [':sid' => $postStudentId]
+    );
+    $liveGuardianEmail = (string)($gRow['guardian_email'] ?? '');
+
+    $liveActiveUpccCases = db_all(
+      "SELECT case_id, status, case_kind, case_summary, created_at FROM upcc_case
+       WHERE student_id = :sid AND status IN ('PENDING','UNDER_APPEAL')
+       ORDER BY created_at DESC",
+      [':sid' => $postStudentId]
+    ) ?: [];
+
+    foreach ($liveActiveUpccCases as $case) {
+      if (($case['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION') {
+        $hasActiveSection4 = true;
+        $section4StartDate = $case['created_at'];
+        break;
+      }
+    }
+
+    if ($hasActiveSection4 && $section4StartDate) {
+      $countRow = db_one(
+        "SELECT COUNT(*) AS cnt FROM offense
+         WHERE student_id = :sid
+           AND level = 'MINOR'
+           AND date_committed > :start_date",
+        [':sid' => $postStudentId, ':start_date' => $section4StartDate]
+      );
+      $postSection4Minors = (int)($countRow['cnt'] ?? 0);
+    }
+    
+    $liveOffensesParams = [':sid' => $postStudentId];
+    db_add_encryption_key($liveOffensesParams);
+    $liveOffenses = db_all(
+     "SELECT o.offense_id, o.date_committed, o.level, ot.code, ot.name, 
             uc.decided_category, uc.status AS case_status,
             uc.probation_until,
-            " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
+            " . (function_exists('db_decrypt_cols') ? db_decrypt_col('punishment_details', 'uc') : 'uc.punishment_details') . " AS punishment_details,
             (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
      FROM offense o
      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -357,8 +377,9 @@ if ($postStudentId !== '') {
      LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id AND uc.status <> 'VOID'
      WHERE o.student_id = :sid
      ORDER BY o.date_committed DESC",
-    $liveOffensesParams
-  ) ?: [];
+      $liveOffensesParams
+    ) ?: [];
+  }
 }
 
 // ── Success message from query params ──────────────────────────────────────
