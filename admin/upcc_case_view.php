@@ -1274,26 +1274,29 @@ body {
                       <div style="display:flex; align-items:center; gap:12px;">
                         <div class="avatar <?= $avClass ?>"><?= htmlspecialchars(initials($pm['name'])) ?></div>
                         <div>
-                          <div class="member-name"><?= htmlspecialchars($pm['name']) ?></div>
-                          <div class="member-role"><?= htmlspecialchars($pm['role']) ?></div>
-                        </div>
-                      </div>
-                      <div id="panel-presence-<?= $pm['id'] ?>" data-accepted="<?= $pm['accepted'] ? '1' : '0' ?>" style="text-align:right;">
-                        <?php if ($pm['accepted']): ?>
-                          <?php 
-                            $accDate = !empty($pm['accepted_at']) ? date('M j, Y \a\t h:i A', strtotime($pm['accepted_at'])) : '';
-                            $tooltipText = "⭐ Panelist Agreed & Accepted Confidentiality Policy" . ($accDate ? " on " . $accDate : "");
-                          ?>
-                          <div style="display:flex; flex-direction:column; align-items:flex-end;">
-                            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:#fef3c7; border:1px solid #fde68a; font-size:15px; box-shadow:0 2px 6px rgba(245,158,11,0.25); cursor:pointer;" title="<?= htmlspecialchars($tooltipText) ?>">⭐</span>
-                            <?php if ($accDate): ?>
-                              <div style="font-size:10px; color:#15803d; font-weight:700; margin-top:3px; white-space:nowrap;">
-                                Agreed <?= htmlspecialchars($accDate) ?>
-                              </div>
+                          <div class="member-name" style="display:flex; align-items:center; gap:6px;">
+                            <span><?= htmlspecialchars($pm['name']) ?></span>
+                            <?php if ($pm['accepted']): ?>
+                              <?php 
+                                $accDate = !empty($pm['accepted_at']) ? date('M j, Y \a\t h:i A', strtotime($pm['accepted_at'])) : '';
+                                $tooltipText = "⭐ Panelist Agreed & Accepted Confidentiality Policy" . ($accDate ? " on " . $accDate : "");
+                              ?>
+                              <span style="font-size:15px; color:#f59e0b; filter:drop-shadow(0 1px 2px rgba(245,158,11,0.4)); cursor:pointer;" title="<?= htmlspecialchars($tooltipText) ?>">⭐</span>
                             <?php endif; ?>
                           </div>
+                          <div class="member-role"><?= htmlspecialchars($pm['role']) ?></div>
+                          <?php if ($pm['accepted'] && !empty($accDate)): ?>
+                            <div style="font-size:10px; color:#15803d; font-weight:700; margin-top:2px;">
+                              Agreed <?= htmlspecialchars($accDate) ?>
+                            </div>
+                          <?php endif; ?>
+                        </div>
+                      </div>
+                      <div id="panel-presence-<?= $pm['id'] ?>" data-accepted="<?= $pm['accepted'] ? '1' : '0' ?>">
+                        <?php if ($pm['accepted']): ?>
+                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dcfce7; color:#16a34a; font-weight:bold; font-size:13px;" title="Accepted">✓</span>
                         <?php else: ?>
-                          <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:#fef3c7; border:1px solid #fde68a; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">⌛</span>
+                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fef3c7; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">⌛</span>
                         <?php endif; ?>
                       </div>
                     </div>
