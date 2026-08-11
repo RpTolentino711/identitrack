@@ -65,6 +65,9 @@ if ($caseId > 0) {
 } else if ($offenseId > 0) {
     $existing = db_one("SELECT nte_id, attachment_path FROM notice_to_explain WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
 }
+if (!$existing && !empty($studentId)) {
+    $existing = db_one("SELECT nte_id, attachment_path FROM notice_to_explain WHERE student_id = :sid ORDER BY created_at DESC LIMIT 1", [':sid' => $studentId]);
+}
 
 $finalAttachment = $attachmentPath ?: ($existing['attachment_path'] ?? null);
 
@@ -113,7 +116,6 @@ if ($existing) {
 
 // ── FETCH STUDENT EMAIL & NAME FOR OUTLOOK EMAIL DIRECT DELIVERY ──────────────
 $studentParams = [':sid' => $studentId];
-db_add_encryption_key($studentParams);
 $studentRow = db_one("SELECT student_id, " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email']) . " FROM student WHERE student_id = :sid LIMIT 1", $studentParams);
 
 $studentName  = 'Student';
