@@ -1202,66 +1202,7 @@ body {
               }
               ?>
 
-              <!-- Form F-005 Notice to Explain Status & History Card -->
-              <div id="nteStatusHistoryCard" style="margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                <div style="background: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 16px;">📄</span>
-                    <span style="font-size: 13px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">Form F-005 Notice To Explain Status</span>
-                  </div>
-                  <span id="nteBadgeStatus">
-                  <?php if ($nteRecord): ?>
-                    <span class="badge" style="background: #dcfce7; color: #166534; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px;">✅ Sent to Outlook Email</span>
-                  <?php else: ?>
-                    <span class="badge" style="background: #fef3c7; color: #92400e; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px;">⚠️ Skipped / Not Sent</span>
-                  <?php endif; ?>
-                  </span>
-                </div>
 
-                <div style="padding: 16px;" id="nteDetailsBody">
-                  <?php if ($nteRecord): ?>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 12px;">
-                      <div>
-                        <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Submission Date</div>
-                        <div style="font-size: 13.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">
-                          <?= date('F j, Y', strtotime($nteRecord['created_at'])) ?>
-                        </div>
-                      </div>
-                      <div>
-                        <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Submission Time</div>
-                        <div style="font-size: 13.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">
-                          <?= date('h:i:s A', strtotime($nteRecord['created_at'])) ?>
-                        </div>
-                      </div>
-                      <div>
-                        <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Incident Report No.</div>
-                        <div style="font-size: 13.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">
-                          <?= htmlspecialchars($nteRecord['incident_report_no'] ?: 'IR-' . date('Y', strtotime($nteRecord['created_at'])) . '-' . str_pad((string)$case_id, 4, '0', STR_PAD_LEFT)) ?>
-                        </div>
-                      </div>
-                    </div>
-
-                    <?php if (!empty($nteRecord['attachment_path'])): ?>
-                      <div style="margin-top: 10px; padding: 10px 14px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; font-weight: 600;">
-                          <span>📎 Attached File:</span>
-                          <span style="color: #1e40af;"><?= htmlspecialchars(basename($nteRecord['attachment_path'])) ?></span>
-                        </div>
-                        <a href="../<?= htmlspecialchars($nteRecord['attachment_path']) ?>" target="_blank" class="btn btn-sm" style="background: #1b2b6b; color: #fff; font-weight: 700; border-radius: 6px; padding: 4px 12px; font-size: 12px; text-decoration: none;">View Document</a>
-                      </div>
-                    <?php endif; ?>
-                  <?php else: ?>
-                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-                      <div style="font-size: 13px; color: #475569;">
-                        No Form F-005 document was sent during offense registration. You can upload and dispatch Form F-005 directly to the student's Outlook email now.
-                      </div>
-                      <button type="button" class="btn btn-primary" onclick="openDirectNteUploadModal(<?= (int)$case_id ?>, '<?= htmlspecialchars($case['student_id']) ?>')" style="background: #1b2b6b; border-color: #1b2b6b; font-weight: 700; padding: 6px 14px; border-radius: 8px;">
-                        📤 Upload & Send Form F-005 to Student
-                      </button>
-                    </div>
-                  <?php endif; ?>
-                </div>
-              </div>
 
               <!-- Student Explanation Section -->
               <div id="studentExplanationBlock" style="<?= !empty($case['student_explanation_at']) ? 'display:block' : 'display:none' ?>; margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
