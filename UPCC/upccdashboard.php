@@ -1303,20 +1303,35 @@ body::before {
   </main>
 </div>
 
-<!-- Modal Acknowledge -->
+<!-- Modal Acknowledge Step 1 -->
 <div id="ackModal" class="modal-overlay">
   <div class="modal-content">
     <div class="modal-icon">🔒</div>
     <div class="modal-title">Protected Record Access</div>
-    <div class="modal-desc" style="color:var(--text-muted); font-size:14px; line-height:1.6; margin-bottom:30px;">
+    <div class="modal-desc" style="color:var(--text-muted); font-size:14px; line-height:1.6; margin-bottom:25px;">
       You are about to access highly sensitive student disciplinary records. By proceeding, you agree to maintain strict confidentiality and acknowledge that unauthorized screenshotting, sharing, or distribution is strictly prohibited under institutional policy.
+    </div>
+    <div class="modal-actions" style="display:flex; gap:15px; justify-content:center;">
+      <button type="button" class="action-btn" style="background:var(--bg-glass); border:1px solid var(--border-glass);" onclick="closeAckModal()">Cancel</button>
+      <button type="button" class="action-btn" style="background:var(--success);" onclick="showAckStep2()">I Agree &amp; Acknowledge</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Acknowledge Step 2: Are You Sure? -->
+<div id="ackModalStep2" class="modal-overlay">
+  <div class="modal-content" style="border: 1px solid rgba(239, 68, 68, 0.4); box-shadow: 0 10px 40px rgba(239, 68, 68, 0.25);">
+    <div class="modal-icon" style="font-size:36px; margin-bottom:12px;">⚖️</div>
+    <div class="modal-title" style="color:#f87171; font-size:18px;">Are You Sure? Final Legal Confirmation</div>
+    <div class="modal-desc" style="color:#e2e8f0; font-size:13.5px; line-height:1.6; margin-bottom:25px; background: rgba(239,68,68,0.12); border-left: 4px solid #ef4444; padding: 14px; border-radius: 8px; text-align: left;">
+      ⚠️ <strong>LEGAL NOTICE:</strong> If you violate student credentials, data privacy, or institutional confidentiality rules, <strong>this digital acknowledgement can and will be used against you</strong> in administrative, disciplinary, and legal proceedings under institutional policy and applicable laws.
     </div>
     <form method="post" action="upccdashboard.php">
       <input type="hidden" name="action" value="accept_confidentiality">
-      <input type="hidden" name="case_id" id="ackCaseId" value="">
-      <div class="modal-actions" style="display:flex; gap:15px; justify-content:center;">
-        <button type="button" class="action-btn" style="background:var(--bg-glass); border:1px solid var(--border-glass);" onclick="closeAckModal()">Cancel</button>
-        <button type="submit" class="action-btn" style="background:var(--success);">I Agree &amp; Acknowledge</button>
+      <input type="hidden" name="case_id" id="ackCaseIdStep2" value="">
+      <div class="modal-actions" style="display:flex; gap:12px; justify-content:center;">
+        <button type="button" class="action-btn" style="background:var(--bg-glass); border:1px solid var(--border-glass);" onclick="backToAckStep1()">⟵ Go Back</button>
+        <button type="submit" class="action-btn" style="background:#dc2626; border-color:#dc2626; color:#fff; font-weight:700;">Yes, I Understand &amp; Confirm</button>
       </div>
     </form>
   </div>
@@ -1435,12 +1450,27 @@ function handleRowClick(href, accepted, caseId, hearingIsOpen, hearingIsPaused, 
 }
 
 function triggerAcknowledge(caseId) {
-  document.getElementById('ackCaseId').value = caseId;
+  document.getElementById('ackCaseIdStep2').value = caseId;
+  document.getElementById('ackModalStep2').classList.remove('show');
   document.getElementById('ackModal').classList.add('show');
 }
 
 function closeAckModal() {
   document.getElementById('ackModal').classList.remove('show');
+}
+
+function showAckStep2() {
+  document.getElementById('ackModal').classList.remove('show');
+  document.getElementById('ackModalStep2').classList.add('show');
+}
+
+function backToAckStep1() {
+  document.getElementById('ackModalStep2').classList.remove('show');
+  document.getElementById('ackModal').classList.add('show');
+}
+
+function closeSecondAckModal() {
+  document.getElementById('ackModalStep2').classList.remove('show');
 }
 
 function triggerDecline(caseId) {

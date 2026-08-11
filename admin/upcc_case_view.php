@@ -142,9 +142,11 @@ if (!empty($assignedPanelIds)) {
   foreach ($ids as $id) {
     if (isset($byId[$id])) {
       $assignedPanelNames[] = [
+          'id' => (int)$byId[$id]['upcc_id'],
           'name' => $byId[$id]['full_name'], 
           'role' => $byId[$id]['role'],
-          'accepted' => !empty($byId[$id]['accepted_at'])
+          'accepted' => !empty($byId[$id]['accepted_at']),
+          'accepted_at' => $byId[$id]['accepted_at'] ?? null
       ];
     }
   }
@@ -1276,9 +1278,21 @@ body {
                             <div class="member-role"><?= htmlspecialchars($pm['role']) ?></div>
                           </div>
                       </div>
-                      <div id="panel-presence-<?= $pm['id'] ?>" data-accepted="<?= $pm['accepted'] ? '1' : '0' ?>">
+                      <div id="panel-presence-<?= $pm['id'] ?>" data-accepted="<?= $pm['accepted'] ? '1' : '0' ?>" style="text-align:right;">
                         <?php if ($pm['accepted']): ?>
-                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dcfce7; color:#16a34a; font-weight:bold; font-size:14px;" title="Accepted">✓</span>
+                          <?php 
+                            $accDate = !empty($pm['accepted_at']) ? date('M j, Y \a\t h:i A', strtotime($pm['accepted_at'])) : '';
+                            $tooltipText = "⭐ Panelist Agreed & Accepted Confidentiality Policy" . ($accDate ? " on " . $accDate : "");
+                          ?>
+                          <div style="display:flex; align-items:center; gap:6px; justify-content:flex-end;">
+                            <span style="font-size:16px; color:#f59e0b; filter:drop-shadow(0 1px 2px rgba(245,158,11,0.4)); cursor:pointer;" title="<?= htmlspecialchars($tooltipText) ?>">⭐</span>
+                            <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:#dcfce7; color:#16a34a; font-weight:bold; font-size:12px;" title="<?= htmlspecialchars($tooltipText) ?>">✓</span>
+                          </div>
+                          <?php if ($accDate): ?>
+                            <div style="font-size:10px; color:#15803d; font-weight:700; margin-top:2px; white-space:nowrap;">
+                              Agreed <?= htmlspecialchars($accDate) ?>
+                            </div>
+                          <?php endif; ?>
                         <?php else: ?>
                           <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fef3c7; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">⌛</span>
                         <?php endif; ?>
