@@ -162,4 +162,13 @@ if (!empty($recipients)) {
     }
 }
 
-json_out(true, 'Hearing response submitted successfully.');
+$checkExp = db_one("SELECT student_explanation_at FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
+$hasExplanation = !empty($checkExp['student_explanation_at']);
+
+json_out(true, 'Hearing response submitted successfully.', [
+    'response' => $response,
+    'has_explanation' => $hasExplanation,
+    'action_required' => $hasExplanation ? 'NONE' : 'SUBMIT_EXPLANATION',
+    'open_explanation_modal' => !$hasExplanation,
+    'redirect_screen' => !$hasExplanation ? 'submit_explanation' : 'dashboard'
+]);

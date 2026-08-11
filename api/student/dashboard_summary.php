@@ -204,6 +204,9 @@ if ($activeCaseRow) {
   $consensusCat = (int)($activeCaseRow['hearing_vote_consensus_category'] ?? 0);
   $studentResponse = (string)($activeCaseRow['student_hearing_response'] ?? 'PENDING');
   
+  $needsExplanation = in_array($activeCaseRow['case_kind'], ['MAJOR_OFFENSE', 'SECTION4_MINOR_ESCALATION']);
+  $hasExplanation = !empty($activeCaseRow['student_explanation_at']);
+
   if ($consensusCat > 0 && $status === 'AWAITING_ADMIN_FINALIZATION') {
     $hearingNotice = [
       'case_id' => (int)$activeCaseRow['case_id'],
@@ -211,7 +214,7 @@ if ($activeCaseRow) {
       'hearing_time' => $hTime,
       'hearing_type' => $hType,
       'title' => 'UPCC Panel Consensus Reached',
-      'message' => 'The panel has reached a consensus and is suggesting a Category ' . $consensusCat . ' punishment. Please wait for the Administration to finalize the decision. Once finalized, you will be able to accept or appeal the punishment here.',
+      'message' => 'The panel has reached a consensus and is suggesting a Category ' . $consensusCat . ' punishment. Please wait for the Administration to finalize the decision.',
       'popup' => false,
       'admin_opened' => true,
     ];
@@ -226,71 +229,62 @@ if ($activeCaseRow) {
       'popup' => false,
       'admin_opened' => true,
     ];
+  } else if ($hasExplanation) {
+    // Student HAS submitted written explanation -> Banner goes away completely!
+    $hearingNotice = null;
+  } else if ($studentResponse === 'ACCEPTED' || $studentResponse === 'DECLINED') {
+    // Student responded to hearing RSVP, but HAS NOT submitted written explanation -> Show 5-day explanation prompt!
+    $respText = $studentResponse === 'ACCEPTED' ? 'confirmed attendance' : 'declined the hearing schedule';
+    $hearingNotice = [
+      'case_id' => (int)$activeCaseRow['case_id'],
+      'hearing_date' => $hDate,
+      'hearing_time' => $hTime,
+      'hearing_type' => $hType,
+      'title' => '⚠️ Written Explanation Required (5-Day Limit)',
+      'message' => 'You ' . $respText . '. Please submit your written explanation within 5 days.',
+      'subtitle' => 'Tap here to submit your written explanation now',
+      'action' => 'SUBMIT_EXPLANATION',
+      'open_explanation_modal' => true,
+      'popup' => false,
+      'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
+    ];
   } else if ($hDate !== '') {
-    if ($studentResponse === 'DECLINED') {
-      $hearingNotice = [
-        'case_id' => (int)$activeCaseRow['case_id'],
-        'hearing_date' => $hDate,
-        'hearing_time' => $hTime,
-        'hearing_type' => $hType,
-        'title' => 'Hearing Declined',
-        'message' => 'You declined this hearing schedule. Awaiting panel instructions.',
-        'popup' => false,
-        'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
-      ];
-    } else if ($studentResponse === 'ACCEPTED') {
-      $hearingNotice = [
-        'case_id' => (int)$activeCaseRow['case_id'],
-        'hearing_date' => $hDate,
-        'hearing_time' => $hTime,
-        'hearing_type' => $hType,
-        'title' => $hDate === $today ? 'Hearing Confirmed' : 'Hearing Confirmed',
-        'message' => $hDate === $today
-          ? 'You confirmed attendance. Be ready for your ' . $typeLabel . ' hearing today at ' . date('g:i A', strtotime($hTime)) . '.'
-          : 'You confirmed attendance for your ' . $typeLabel . ' hearing on ' . date('M d, Y', strtotime($hDate)) . ' at ' . date('g:i A', strtotime($hTime)) . '.',
-        'popup' => false,
-        'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
-      ];
-    } else {
-      // Student response is PENDING
-      $hearingNotice = [
-        'case_id' => (int)$activeCaseRow['case_id'],
-        'hearing_date' => $hDate,
-        'hearing_time' => $hTime,
-        'hearing_type' => $hType,
-        'title' => $hDate === $today ? 'Hearing Scheduled Today' : 'Upcoming Hearing',
-        'message' => $hDate === $today
-          ? 'Your ' . $typeLabel . ' hearing is scheduled today at ' . date('g:i A', strtotime($hTime)) . '. Please confirm if you will attend (Accept or Decline in Alerts).'
-          : 'Your ' . $typeLabel . ' hearing is scheduled on ' . date('M d, Y', strtotime($hDate)) . ' at ' . date('g:i A', strtotime($hTime)) . '. Please confirm your attendance in Alerts.',
-        'popup' => false,
-        'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
-      ];
-    }
+    // Student response is PENDING and hearing date exists
+    $hearingNotice = [
+      'case_id' => (int)$activeCaseRow['case_id'],
+      'hearing_date' => $hDate,
+      'hearing_time' => $hTime,
+      'hearing_type' => $hType,
+      'title' => $hDate === $today ? 'Hearing Scheduled Today' : 'Upcoming Hearing',
+      'message' => $hDate === $today
+        ? 'Your ' . $typeLabel . ' hearing is scheduled today at ' . date('g:i A', strtotime($hTime)) . '. Please confirm if you will attend & submit your written explanation within 5 days.'
+        : 'Your ' . $typeLabel . ' hearing is scheduled on ' . date('M d, Y', strtotime($hDate)) . ' at ' . date('g:i A', strtotime($hTime)) . '. Please confirm your attendance & submit your written explanation within 5 days.',
+      'subtitle' => 'Tap to confirm attendance & submit explanation',
+      'action' => 'CONFIRM_ATTENDANCE',
+      'open_explanation_modal' => true,
+      'popup' => false,
+      'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
+    ];
   } else {
-    // Active case but no hearing date yet
-    $needsExplanation = in_array($activeCaseRow['case_kind'], ['MAJOR_OFFENSE', 'SECTION4_MINOR_ESCALATION']);
-    $hasExplanation = !empty($activeCaseRow['student_explanation_at']);
-    
-    // IF it needs explanation and they already submitted, HIDE the "Active UPCC Case" warning
-    if ($needsExplanation && $hasExplanation) {
-      $hearingNotice = null;
-    } else {
-      $hearingNotice = [
-        'case_id' => (int)$activeCaseRow['case_id'],
-        'hearing_date' => '',
-        'hearing_time' => '',
-        'hearing_type' => '',
-        'title' => 'Active UPCC Case',
-        'message' => 'You currently have an active UPCC investigation. A hearing schedule will be finalized soon.',
-        'popup' => false,
-        'admin_opened' => false,
-      ];
-    }
+    // Active case but no hearing date yet, explanation still required
+    $hearingNotice = [
+      'case_id' => (int)$activeCaseRow['case_id'],
+      'hearing_date' => '',
+      'hearing_time' => '',
+      'hearing_type' => '',
+      'title' => '⚠️ Written Explanation Required (5-Day Limit)',
+      'message' => 'You have an active UPCC case. Please submit your written explanation within 5 days.',
+      'subtitle' => 'Tap here to submit your written explanation now',
+      'action' => 'SUBMIT_EXPLANATION',
+      'open_explanation_modal' => true,
+      'popup' => false,
+      'admin_opened' => false,
+    ];
   }
   
   // Attach has_explanation and response flags to the notice if it exists
   if ($hearingNotice) {
-      $hearingNotice['has_explanation'] = !empty($activeCaseRow['student_explanation_at']);
+      $hearingNotice['has_explanation'] = $hasExplanation;
       $hearingNotice['student_hearing_response'] = $studentResponse;
   }
 }

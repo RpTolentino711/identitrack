@@ -242,11 +242,16 @@ try {
             $exposedLoc = '';
         }
 
+        $checkExp = db_one("SELECT student_explanation_at FROM upcc_case WHERE case_id = :cid", [':cid' => (int)$hearing['case_id']]);
+        $hasExp = !empty($checkExp['student_explanation_at']);
+
         if ($studentResponse === 'DECLINED') {
             $alerts[] = [
                 'alert_type' => $hearingDate === $today ? 'HEARING_REMINDER' : 'HEARING_SCHEDULE',
-                'title' => 'Hearing Declined',
-                'message' => 'You declined this hearing schedule. Awaiting panel instructions.',
+                'title' => $hasExp ? 'Hearing Declined' : '⚠️ Written Explanation Required (5-Day Limit)',
+                'message' => $hasExp 
+                    ? 'You declined this hearing schedule. Awaiting panel instructions.' 
+                    : 'You declined this hearing schedule. Please submit your written explanation within 5 days.',
                 'created_at' => $hearingAt,
                 'metadata' => [
                     'case_id' => (int)$hearing['case_id'],
@@ -256,44 +261,34 @@ try {
                     'hearing_time' => $hearingTime,
                     'admin_opened' => (int)($hearing['hearing_is_open'] ?? 0) === 1,
                     'student_hearing_response' => $studentResponse,
+                    'has_explanation' => $hasExp,
+                    'action' => $hasExp ? 'NONE' : 'SUBMIT_EXPLANATION',
+                    'open_explanation_modal' => !$hasExp,
                     'popup' => false,
                 ],
             ];
         } elseif ($studentResponse === 'ACCEPTED') {
-            if ($hearingDate === $today) {
-                $alerts[] = [
-                    'alert_type' => 'HEARING_REMINDER',
-                    'title' => 'Hearing Confirmed',
-                    'message' => 'You confirmed attendance. Be ready for your ' . $typeLabel . ' hearing today. Wait for panel instructions.',
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'metadata' => [
-                        'case_id' => (int)$hearing['case_id'],
-                        'hearing_type' => $hearingType,
-                        'hearing_link_or_location' => $exposedLoc,
-                        'hearing_date' => $hearingDate,
-                        'hearing_time' => $hearingTime,
-                        'admin_opened' => (int)($hearing['hearing_is_open'] ?? 0) === 1,
-                        'student_hearing_response' => $studentResponse,
-                        'popup' => true,
-                    ],
-                ];
-            } else {
-                $alerts[] = [
-                    'alert_type' => 'HEARING_SCHEDULE',
-                    'title' => 'Hearing Confirmed',
-                    'message' => 'You confirmed attendance for your ' . $typeLabel . ' hearing on ' . date('M d, Y', strtotime($hearingDate)) . ' at ' . date('g:i A', strtotime($hearingTime)) . '.',
-                    'created_at' => $hearingAt,
-                    'metadata' => [
-                        'case_id' => (int)$hearing['case_id'],
-                        'hearing_type' => $hearingType,
-                        'hearing_link_or_location' => $exposedLoc,
-                        'hearing_date' => $hearingDate,
-                        'hearing_time' => $hearingTime,
-                        'student_hearing_response' => $studentResponse,
-                        'popup' => true,
-                    ],
-                ];
-            }
+            $alerts[] = [
+                'alert_type' => $hearingDate === $today ? 'HEARING_REMINDER' : 'HEARING_SCHEDULE',
+                'title' => $hasExp ? 'Hearing Confirmed' : '⚠️ Written Explanation Required (5-Day Limit)',
+                'message' => $hasExp 
+                    ? 'You confirmed attendance for your ' . $typeLabel . ' hearing on ' . date('M d, Y', strtotime($hearingDate)) . ' at ' . date('g:i A', strtotime($hearingTime)) . '.'
+                    : 'You confirmed attendance. Please submit your written explanation within 5 days.',
+                'created_at' => $hearingAt,
+                'metadata' => [
+                    'case_id' => (int)$hearing['case_id'],
+                    'hearing_type' => $hearingType,
+                    'hearing_link_or_location' => $exposedLoc,
+                    'hearing_date' => $hearingDate,
+                    'hearing_time' => $hearingTime,
+                    'admin_opened' => (int)($hearing['hearing_is_open'] ?? 0) === 1,
+                    'student_hearing_response' => $studentResponse,
+                    'has_explanation' => $hasExp,
+                    'action' => $hasExp ? 'NONE' : 'SUBMIT_EXPLANATION',
+                    'open_explanation_modal' => !$hasExp,
+                    'popup' => true,
+                ],
+            ];
         } else {
             // Student response is PENDING
             if ($hearingDate === $today) {
