@@ -761,7 +761,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       }
 
       $reuploadBtn = '
-      <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . htmlspecialchars($student['student_id']) . '" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
+      <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . htmlspecialchars($student['student_id']) . '" onclick="window.openDirectNteUploadModal(this, event, ' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
 
       $nteHistoryHtml .= '
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
@@ -1618,7 +1618,85 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   <script>
     window.__identitrackDisableGlobalScan = true;
+
+    window.openDirectNteUploadModal = function(btn, evt, caseId, studentId) {
+        if (evt) {
+            if (evt.preventDefault) evt.preventDefault();
+            if (evt.stopPropagation) evt.stopPropagation();
+        }
+        let cid = caseId || 0;
+        let sid = studentId || '';
+        if (btn && btn.getAttribute) {
+            cid = btn.getAttribute('data-case-id') || cid;
+            sid = btn.getAttribute('data-student-id') || sid;
+        }
+        const cidEl = document.getElementById('directNteCaseId');
+        const sidEl = document.getElementById('directNteStudentId');
+        const msgEl = document.getElementById('directNteUploadMsg');
+        if (cidEl) cidEl.value = cid;
+        if (sidEl) sidEl.value = sid;
+        if (msgEl) msgEl.innerHTML = '';
+        const modal = document.getElementById('directNteUploadModal');
+        if (modal) {
+            modal.classList.add('active');
+            modal.style.cssText = 'display:flex !important; position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; background:rgba(15,23,42,0.75) !important; z-index:999999 !important; align-items:center !important; justify-content:center !important;';
+        }
+        return false;
+    };
+
+    window.closeDirectNteUploadModal = function() {
+        const modal = document.getElementById('directNteUploadModal');
+        if (modal) {
+            modal.classList.remove('active');
+            modal.style.cssText = 'display:none !important;';
+        }
+    };
+
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-trigger-nte-upload');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const cid = btn.getAttribute('data-case-id') || 0;
+            const sid = btn.getAttribute('data-student-id') || '';
+            window.openDirectNteUploadModal(btn, e, cid, sid);
+        }
+    }, true);
   </script>
+
+  <!-- MODAL: Direct Upload & Send Form F-005 -->
+  <div id="directNteUploadModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.75); z-index:999999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#fff; width:100%; max-width:480px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">📤 Upload Form F-005 Notice to Explain</h3>
+        <button type="button" onclick="closeDirectNteUploadModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
+      </div>
+      <form id="directNteUploadForm" onsubmit="submitDirectNteUpload(event)">
+        <input type="hidden" name="case_id" id="directNteCaseId" value="0">
+        <input type="hidden" name="student_id" id="directNteStudentId" value="">
+        
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Select Form F-005 Document (PDF or Image)</label>
+          <input type="file" name="nte_file" id="directNteFileInput" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" required style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;">
+          <div style="font-size:11px; color:#64748b; margin-top:4px;">Supported files: PDF, DOCX, PNG, JPG (Max 10MB)</div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Custom Instructions (Optional)</label>
+          <textarea name="custom_instructions" rows="2" placeholder="e.g. Submit written explanation within 5 days to SDO..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;"></textarea>
+        </div>
+
+        <div id="directNteUploadMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button type="button" class="btn" onclick="closeDirectNteUploadModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
+          <button type="submit" id="btnSubmitDirectNte" class="btn btn-primary" style="background:#1b2b6b; border-color:#1b2b6b; padding:8px 20px; border-radius:8px; font-weight:700;">
+            📧 Upload & Send to Student Outlook
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div class="admin-shell">
     <?php require_once __DIR__ . '/sidebar.php'; ?>
@@ -3065,39 +3143,5 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
   }
   </script>
-
-  <!-- MODAL: Direct Upload & Send Form F-005 -->
-  <div id="directNteUploadModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
-    <div class="modal-content" style="background:#fff; width:100%; max-width:480px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
-        <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">📤 Upload Form F-005 Notice to Explain</h3>
-        <button type="button" onclick="closeDirectNteUploadModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
-      </div>
-      <form id="directNteUploadForm" onsubmit="submitDirectNteUpload(event)">
-        <input type="hidden" name="case_id" id="directNteCaseId" value="0">
-        <input type="hidden" name="student_id" id="directNteStudentId" value="">
-        
-        <div style="margin-bottom:16px;">
-          <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Select Form F-005 Document (PDF or Image)</label>
-          <input type="file" name="nte_file" id="directNteFileInput" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" required style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;">
-          <div style="font-size:11px; color:#64748b; margin-top:4px;">Supported files: PDF, DOCX, PNG, JPG (Max 10MB)</div>
-        </div>
-
-        <div style="margin-bottom:20px;">
-          <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Custom Instructions (Optional)</label>
-          <textarea name="custom_instructions" rows="2" placeholder="e.g. Submit written explanation within 5 days to SDO..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;"></textarea>
-        </div>
-
-        <div id="directNteUploadMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
-
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
-          <button type="button" class="btn" onclick="closeDirectNteUploadModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
-          <button type="submit" id="btnSubmitDirectNte" class="btn btn-primary" style="background:#1b2b6b; border-color:#1b2b6b; padding:8px 20px; border-radius:8px; font-weight:700;">
-            📧 Upload & Send to Student Outlook
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
 </body>
 </html>
