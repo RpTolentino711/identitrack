@@ -6,18 +6,34 @@ require_once __DIR__ . '/../database/database.php';
 header('Content-Type: application/json; charset=utf-8');
 
 // Check admin authentication
-if (empty($_SESSION['user_id'])) {
+$admin = admin_current();
+if (!$admin) {
     http_response_code(401);
-    echo json_encode(['ok' => false, 'message' => 'Unauthorized admin session.']);
+    echo json_encode(['ok' => false, 'message' => 'Unauthorized admin session. Please log in.']);
     exit;
 }
 
-$adminId = (int)$_SESSION['user_id'];
+$adminId = (int)$admin['admin_id'];
 $raw = file_get_contents('php://input') ?: '';
 $body = json_decode($raw, true) ?: $_POST;
 
 $sessionId = (int)($body['session_id'] ?? 0);
 $studentId = trim((string)($body['student_id'] ?? ''));
+$password = (string)($body['password'] ?? '');
+
+if ($password === '') {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'message' => 'Admin password is required to resume session.']);
+    exit;
+}
+
+// Verify Admin Password
+$adminRow = db_one("SELECT password_hash FROM admin_user WHERE admin_id = :aid AND is_active = 1", [':aid' => $adminId]);
+if (!$adminRow || !password_verify($password, (string)$adminRow['password_hash'])) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'message' => 'Incorrect Admin Password. Unauthorized.']);
+    exit;
+}
 
 if ($sessionId <= 0) {
     http_response_code(400);
