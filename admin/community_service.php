@@ -867,6 +867,9 @@ if ($q !== '') {
         } catch (err) {
             if (msg) { msg.innerHTML = '❌ Error: ' + err.message; msg.style.color = '#b91c1c'; }
             if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        }
+    }
+
     let currentPauseSessionId = 0;
     let currentPauseStudentId = '';
 
@@ -917,6 +920,36 @@ if ($q !== '') {
             if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
         }
     }
+
+    // ── LIVE RFID SCAN & ACTIVE SERVICE AUTO-SYNC POLLING ──
+    let lastCSStateHash = null;
+
+    async function pollCSLiveStatus() {
+        try {
+            const res = await fetch('api_get_cs_live_status.php');
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data.ok) return;
+
+            // Update badge counts on tabs in real-time
+            const activeBadge = document.querySelector('a[href*="tab=active"] .tab-badge');
+            if (activeBadge) activeBadge.textContent = data.active_count;
+
+            const pendingBadge = document.querySelector('a[href*="tab=pending"] .tab-badge');
+            if (pendingBadge) pendingBadge.textContent = data.pending_count;
+
+            if (lastCSStateHash !== null && lastCSStateHash !== data.state_hash) {
+                console.log('⚡ RFID scan / session state change detected! Auto-refreshing active service grid...');
+                window.location.reload();
+            }
+            lastCSStateHash = data.state_hash;
+        } catch (e) {
+            // Ignore temporary network glitch
+        }
+    }
+
+    pollCSLiveStatus();
+    setInterval(pollCSLiveStatus, 3000);
   </script>
 
   <!-- MODAL: Confirm Resume Student Service -->
