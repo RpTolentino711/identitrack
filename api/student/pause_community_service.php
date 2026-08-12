@@ -99,6 +99,51 @@ foreach ($adminIds as $adm) {
     );
 }
 
+// Send automated email notification to student's email address
+$studentParams = [':sid' => $studentId];
+db_add_encryption_key($studentParams);
+$studentInfo = db_one("SELECT " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email']) . " FROM student WHERE student_id = :sid", $studentParams);
+
+if ($studentInfo && !empty($studentInfo['student_email'])) {
+    require_once __DIR__ . '/../../UPCC/class.phpmailer.php';
+    require_once __DIR__ . '/../../UPCC/class.smtp.php';
+
+    try {
+        $mail = new PHPMailer(true);
+        $mail->CharSet = 'UTF-8';
+        $mail->isSMTP();
+        $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
+        $mail->Port = 587;
+        $mail->SMTPAuth = true;
+        $mail->SMTPSecure = 'tls';
+        $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
+        $mail->Password = $_ENV['SMTP_PASS'] ?? '';
+        $mail->Timeout = 20;
+
+        $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack SDO');
+        $mail->addAddress($studentInfo['student_email'], $studentName);
+        $mail->Subject = "⚠️ IdentiTrack: Community Service Timer Paused";
+        $mail->isHTML(true);
+        $mail->Body = "
+            <div style='font-family:sans-serif; max-width:600px; line-height:1.6; color:#333; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;'>
+                <h2 style='color:#dc2626; margin-top: 0;'>⏸️ Community Service Timer Paused</h2>
+                <p>Hello <b>" . htmlspecialchars($studentName) . "</b>,</p>
+                <p>Your active community service timer has been <b>PAUSED</b>.</p>
+                <div style='background:#fef2f2; padding:16px; border-radius:10px; border: 1px solid #fecaca; margin:20px 0;'>
+                    <p style='margin:4px 0;'><b>Student ID:</b> {$studentId}</p>
+                    <p style='margin:4px 0;'><b>Reason:</b> " . htmlspecialchars($reason) . "</p>
+                    <p style='margin:4px 0;'><b>Time Paused:</b> " . date('M j, Y g:i A') . "</p>
+                </div>
+                <p><b>Required Action:</b> Please approach the SDO Admin to resume your community service timer.</p>
+                <p style='margin-top:30px; font-size:12px; color:#94a3b8; border-top: 1px solid #f1f5f9; padding-top: 15px;'>This is an automated notification from IdentiTrack. Please do not reply.</p>
+            </div>
+        ";
+        $mail->send();
+    } catch (Exception $e) {
+        error_log("Failed to send CS pause notification email to {$studentInfo['student_email']}: " . $e->getMessage());
+    }
+}
+
 echo json_encode([
   'ok' => true,
   'message' => 'Your clock-in has been paused. The system sensed you stopped moving for 5 minutes. Please contact the Admin to resume your community service.',
