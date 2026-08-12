@@ -681,6 +681,15 @@ if ($q !== '') {
                           ▶️ Resume Student Service
                         </button>
                       </div>
+                    <?php else: ?>
+                      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <span style="font-size: 12px; color: #15803d; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                          <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#16a34a;"></span> Session Active (Tracking Motion)
+                        </span>
+                        <button type="button" onclick="openPauseCSModal(<?php echo (int)$session['session_id']; ?>, '<?php echo e($session['student_id']); ?>', '<?php echo e($session['student_name']); ?>')" style="background: #dc2626; color: #ffffff; font-weight: 800; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 12px;">
+                          ⏸️ Pause Service Timer
+                        </button>
+                      </div>
                     <?php endif; ?>
                   </div>
                 </div>
@@ -858,6 +867,54 @@ if ($q !== '') {
         } catch (err) {
             if (msg) { msg.innerHTML = '❌ Error: ' + err.message; msg.style.color = '#b91c1c'; }
             if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+    let currentPauseSessionId = 0;
+    let currentPauseStudentId = '';
+
+    function openPauseCSModal(sessionId, studentId, studentName) {
+        currentPauseSessionId = sessionId;
+        currentPauseStudentId = studentId;
+        const nameEl = document.getElementById('pauseCSStudentName');
+        if (nameEl) nameEl.textContent = studentName;
+        const msg = document.getElementById('pauseCSMsg');
+        if (msg) msg.innerHTML = '';
+        const modal = document.getElementById('pauseCSModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closePauseCSModal() {
+        const modal = document.getElementById('pauseCSModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    async function confirmPauseCS() {
+        if (currentPauseSessionId <= 0) return;
+        const msg = document.getElementById('pauseCSMsg');
+        const btn = document.getElementById('btnConfirmPauseCS');
+        const reasonInput = document.getElementById('pauseCSReasonInput');
+        const reason = reasonInput ? reasonInput.value.trim() : 'Manually paused by Admin';
+        if (msg) { msg.innerHTML = '⌛ Pausing student service session…'; msg.style.color = '#334155'; }
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+
+        try {
+            const res = await fetch('api_pause_cs_session.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: currentPauseSessionId, student_id: currentPauseStudentId, reason: reason })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                if (msg) { msg.innerHTML = '✅ Student session paused! Notifying app…'; msg.style.color = '#166534'; }
+                setTimeout(() => {
+                    closePauseCSModal();
+                    window.location.reload();
+                }, 1000);
+            } else {
+                if (msg) { msg.innerHTML = '❌ ' + (data.message || 'Failed to pause session'); msg.style.color = '#b91c1c'; }
+                if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+            }
+        } catch (err) {
+            if (msg) { msg.innerHTML = '❌ Error: ' + err.message; msg.style.color = '#b91c1c'; }
+            if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
         }
     }
   </script>
@@ -882,6 +939,35 @@ if ($q !== '') {
         <button type="button" class="btn" onclick="closeResumeCSModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
         <button type="button" id="btnConfirmResumeCS" onclick="confirmResumeCS()" class="btn btn-primary" style="background:#193B8C; border-color:#193B8C; padding:8px 20px; border-radius:8px; font-weight:800; color:#fff;">
           ▶️ Yes, Resume Session
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Confirm Pause Student Service -->
+  <div id="pauseCSModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#fff; width:100%; max-width:460px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;">
+          <span>⏸️</span> Pause Community Service Session
+        </h3>
+        <button type="button" onclick="closePauseCSModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
+      </div>
+      <div style="margin-bottom:16px; font-size:14px; color:#334155; line-height:1.5;">
+        Are you sure you want to pause the community service timer for <strong id="pauseCSStudentName" style="color:#dc2626;">Student</strong>?
+        <div style="font-size:12px; color:#64748b; margin-top:10px; background:#fff5f5; padding:10px; border-radius:8px; border:1px solid #fed7d7;">
+          ⚠️ Pausing will halt the timer countdown on the student's mobile app until resumed by SDO Admin.
+        </div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Pause Reason (Optional)</label>
+        <input type="text" id="pauseCSReasonInput" placeholder="e.g. Break time / Stationary / Admin decision" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;">
+      </div>
+      <div id="pauseCSMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn" onclick="closePauseCSModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
+        <button type="button" id="btnConfirmPauseCS" onclick="confirmPauseCS()" class="btn btn-primary" style="background:#dc2626; border-color:#dc2626; padding:8px 20px; border-radius:8px; font-weight:800; color:#fff;">
+          ⏸️ Yes, Pause Service Timer
         </button>
       </div>
     </div>

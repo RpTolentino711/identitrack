@@ -80,6 +80,25 @@ if ($csr && !empty($csr['related_case_id'])) {
   ]);
 }
 
+// Fetch student name for notification
+$sRow = db_one("SELECT student_fn, student_ln FROM student WHERE student_id = :sid", [':sid' => $studentId]);
+$studentName = $sRow ? trim($sRow['student_fn'] . ' ' . $sRow['student_ln']) : $studentId;
+
+// Send notification to all active admins
+$adminIds = db_all("SELECT admin_id FROM admin_user WHERE is_active = 1") ?: [];
+foreach ($adminIds as $adm) {
+    db_exec(
+        "INSERT INTO notification (type, title, message, student_id, admin_id, related_table, related_id, is_read, is_deleted, created_at)
+         VALUES ('COMMUNITY_SERVICE_INACTIVITY_PAUSED', '⚠️ Inactivity Auto-Paused', :msg, :sid, :aid, 'community_service_session', :session_id, 0, 0, NOW())",
+        [
+            ':msg' => "App detected {$studentName} ({$studentId}) has not moved for 5 minutes. Their community service time has been automatically paused.",
+            ':sid' => $studentId,
+            ':aid' => $adm['admin_id'],
+            ':session_id' => (string)$session['session_id']
+        ]
+    );
+}
+
 echo json_encode([
   'ok' => true,
   'message' => 'Your clock-in has been paused. The system sensed you stopped moving for 5 minutes. Please contact the Admin to resume your community service.',
