@@ -329,20 +329,38 @@ try {
     }
 
     $activeSession = db_one(
-        "SELECT session_id, time_in FROM community_service_session
+        "SELECT session_id, time_in, status, pause_reason FROM community_service_session
          WHERE requirement_id IN (SELECT requirement_id FROM community_service_requirement WHERE student_id = :sid)
            AND time_out IS NULL",
         [':sid' => $studentId]
     );
 
     if ($activeSession) {
-        $alerts[] = [
-            'alert_type' => 'SERVICE_ACTIVE',
-            'title' => 'Service Timer is Running',
-            'message' => 'Your community service timer is currently active. Do not forget to log out when finished.',
-            'created_at' => date('Y-m-d H:i:s'),
-            'metadata' => ['session_id' => (int)$activeSession['session_id']],
-        ];
+        $isPaused = ($activeSession['status'] ?? '') === 'PAUSED';
+        $pauseReason = $activeSession['pause_reason'] ?: 'Stationary for 5 minutes / Admin decision';
+
+        if ($isPaused) {
+            $alerts[] = [
+                'alert_type' => 'SERVICE_PAUSED',
+                'title' => '⏸️ Service Timer Paused',
+                'message' => 'Your community service timer has been paused. Reason: ' . $pauseReason . '. Please approach SDO Admin to resume your service.',
+                'created_at' => date('Y-m-d H:i:s'),
+                'metadata' => [
+                    'session_id' => (int)$activeSession['session_id'],
+                    'status' => 'PAUSED',
+                    'pause_reason' => $pauseReason,
+                    'popup' => true,
+                ],
+            ];
+        } else {
+            $alerts[] = [
+                'alert_type' => 'SERVICE_ACTIVE',
+                'title' => 'Service Timer is Running',
+                'message' => 'Your community service timer is currently active. Do not forget to log out when finished.',
+                'created_at' => date('Y-m-d H:i:s'),
+                'metadata' => ['session_id' => (int)$activeSession['session_id']],
+            ];
+        }
     }
 
     $recentLogout = db_one(
