@@ -193,6 +193,7 @@ foreach ($reqs as $r) {
 
 $assigned = 0.0;
 $completed = 0.0;
+$completedSeconds = 0;
 
 if (!empty($activeReqs)) {
   $activeIds = [];
@@ -203,6 +204,7 @@ if (!empty($activeReqs)) {
   foreach ($sessions as $s) {
     if (in_array((int)$s['requirement_id'], $activeIds, true)) {
       $completed += (float)$s['hours_done'];
+      $completedSeconds += (int)($s['net_completed_seconds'] ?? 0);
     }
   }
 } else if (!empty($completedReqs)) {
@@ -212,6 +214,7 @@ if (!empty($activeReqs)) {
   foreach ($sessions as $s) {
     if ((int)$s['requirement_id'] === (int)$latestCompleted['requirement_id']) {
       $completed += (float)$s['hours_done'];
+      $completedSeconds += (int)($s['net_completed_seconds'] ?? 0);
     }
   }
 }
@@ -234,6 +237,8 @@ echo json_encode([
     'sessions' => $sessions,
     'hours_assigned' => $assigned,
     'hours_completed' => $completed,
+    'required_seconds' => (int)round($assigned * 3600),
+    'completed_seconds' => $completedSeconds,
     'has_assignment' => count($reqs) > 0,
     'active_session' => $activeSession ?: null,
     'pending_manual_request' => $pendingManual ?: null,
