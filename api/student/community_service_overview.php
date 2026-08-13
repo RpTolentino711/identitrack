@@ -108,6 +108,14 @@ $sessions = db_all("
         ELSE
           GREATEST(0, TIMESTAMPDIFF(SECOND, time_in, time_out) - COALESCE(accum_paused_seconds, 0))
       END
+    ) AS net_completed_seconds,
+    (
+      CASE 
+        WHEN status = 'PAUSED' AND paused_at IS NOT NULL THEN
+          GREATEST(0, TIMESTAMPDIFF(SECOND, time_in, paused_at) - COALESCE(accum_paused_seconds, 0))
+        ELSE
+          GREATEST(0, TIMESTAMPDIFF(SECOND, time_in, time_out) - COALESCE(accum_paused_seconds, 0))
+      END
     ) / 3600.0 AS hours_done
   FROM community_service_session
   WHERE requirement_id IN (SELECT requirement_id FROM community_service_requirement WHERE student_id = :sid)
