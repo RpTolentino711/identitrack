@@ -1949,7 +1949,7 @@ function formatCaseActivity(array $act): string {
 
             <div class="form-group">
               <label for="editCategory">Sanction Category</label>
-              <select id="editCategory" class="form-group input" style="width:100%;" onchange="handleCategoryChange()">
+              <select id="editCategory" class="form-group input" style="width:100%;" onchange="handleCategoryChange(); checkEditSanctionFormDirty();">
                 <option value="1">Category 1 - Probation / Suspension</option>
                 <option value="2">Category 2 - Community Service / Formative Intervention</option>
                 <option value="3">Category 3 - Non-Readmission Warning</option>
@@ -1961,7 +1961,7 @@ function formatCaseActivity(array $act): string {
             <!-- Category 1 Field -->
             <div class="form-group" id="groupProbation" style="display:none;">
               <label for="editProbationUntil">Probation Until Date</label>
-              <input type="date" id="editProbationUntil" />
+              <input type="date" id="editProbationUntil" onchange="checkEditSanctionFormDirty();" oninput="checkEditSanctionFormDirty();" />
             </div>
 
             <!-- Category 2 Field -->
@@ -1979,11 +1979,11 @@ function formatCaseActivity(array $act): string {
               <div style="display: flex; gap: 12px;">
                 <div style="flex: 1;">
                   <label for="editHours" style="font-size: 11px; color: #64748b; margin-bottom: 4px; display: block;">Hours</label>
-                  <input type="number" min="0" id="editHours" placeholder="e.g. 40" style="width: 100%;" />
+                  <input type="number" min="0" id="editHours" placeholder="e.g. 40" style="width: 100%;" oninput="checkEditSanctionFormDirty();" onchange="checkEditSanctionFormDirty();" />
                 </div>
                 <div style="flex: 1;">
                   <label for="editMinutes" style="font-size: 11px; color: #64748b; margin-bottom: 4px; display: block;">Minutes</label>
-                  <input type="number" min="0" max="59" id="editMinutes" placeholder="e.g. 0" style="width: 100%;" />
+                  <input type="number" min="0" max="59" id="editMinutes" placeholder="e.g. 0" style="width: 100%;" oninput="checkEditSanctionFormDirty();" onchange="checkEditSanctionFormDirty();" />
                 </div>
               </div>
             </div>
@@ -1991,7 +1991,7 @@ function formatCaseActivity(array $act): string {
             <!-- Complete/Resolve Sanction Checkbox -->
             <div class="form-group" id="groupComplete" style="margin-top: 24px; margin-bottom: 24px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px;">
               <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; color: #0f172a; margin-bottom: 0;">
-                <input type="checkbox" id="editComplete" style="width: auto; margin: 0; transform: scale(1.15);" onchange="toggleCompleteChecked()" />
+                <input type="checkbox" id="editComplete" style="width: auto; margin: 0; transform: scale(1.15);" onchange="toggleCompleteChecked(); checkEditSanctionFormDirty();" />
                 <span id="completeLabel">Mark Sanction as Completed</span>
               </label>
               <div id="completeHelp" style="font-size: 12px; color: #64748b; margin-top: 6px; line-height: 1.4; padding-left: 26px;">
@@ -1999,7 +1999,7 @@ function formatCaseActivity(array $act): string {
               </div>
             </div>
 
-            <button type="button" class="btn-submit" onclick="goToVerification()">Continue to Verification</button>
+            <button type="button" id="btnContinueToVerification" class="btn-submit" onclick="goToVerification()">Continue to Verification</button>
           </form>
         </div>
 
@@ -2334,6 +2334,36 @@ function formatCaseActivity(array $act): string {
       return parts.join(' ');
     }
 
+    let editSanctionInitialState = {
+      category: 0,
+      probation: '',
+      hours: 0,
+      minutes: 0,
+      completed: false
+    };
+
+    function checkEditSanctionFormDirty() {
+      const catVal = parseInt(document.getElementById('editCategory').value || '0', 10);
+      const probVal = (document.getElementById('editProbationUntil').value || '').toString();
+      const hrsVal = parseInt(document.getElementById('editHours').value || '0', 10);
+      const minsVal = parseInt(document.getElementById('editMinutes').value || '0', 10);
+      const compVal = document.getElementById('editComplete').checked === true;
+
+      const isDirty = (catVal !== editSanctionInitialState.category) ||
+                      (probVal !== editSanctionInitialState.probation) ||
+                      (hrsVal !== editSanctionInitialState.hours) ||
+                      (minsVal !== editSanctionInitialState.minutes) ||
+                      (compVal !== editSanctionInitialState.completed);
+
+      const btn = document.getElementById('btnContinueToVerification');
+      if (btn) {
+        btn.disabled = !isDirty;
+        btn.style.opacity = isDirty ? '1' : '0.45';
+        btn.style.cursor = isDirty ? 'pointer' : 'not-allowed';
+        btn.style.pointerEvents = isDirty ? 'auto' : 'none';
+      }
+    }
+
     function openEditModal(data) {
       document.getElementById('editCaseId').value = data.case_id;
       document.getElementById('editStudentId').value = data.student_id;
@@ -2352,12 +2382,22 @@ function formatCaseActivity(array $act): string {
       modalOverlay.dataset.originalHours = hrs;
       modalOverlay.dataset.originalMinutes = mins;
 
-      document.getElementById('editComplete').checked = (typeof data.auto_check_completed !== 'undefined') ? !!data.auto_check_completed : !!data.completed;
+      const isComp = (typeof data.auto_check_completed !== 'undefined') ? !!data.auto_check_completed : !!data.completed;
+      document.getElementById('editComplete').checked = isComp;
 
       // Store initial completed status
       modalOverlay.dataset.initialCompleted = data.completed ? 'true' : 'false';
 
+      editSanctionInitialState = {
+        category: parseInt(data.category, 10),
+        probation: (data.probation_until || '').toString(),
+        hours: hrs,
+        minutes: mins,
+        completed: isComp
+      };
+
       toggleCategoryFields();
+      checkEditSanctionFormDirty();
 
       // Reset steps
       stepForm.classList.add('active');
@@ -2592,6 +2632,7 @@ function formatCaseActivity(array $act): string {
       document.getElementById('editHours').value = newHrs || '';
       document.getElementById('editMinutes').value = newMins || '';
 
+      checkEditSanctionFormDirty();
       closeAdjustTimeModal();
     }
 
