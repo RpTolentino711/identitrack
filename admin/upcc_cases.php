@@ -7,6 +7,7 @@ upcc_process_panel_reminders();
 
 $admin = admin_current();
 $activeSidebar = 'upcc';
+$q = trim((string)($_GET['q'] ?? $_GET['search'] ?? $_GET['student_id'] ?? $_GET['student'] ?? ''));
 
 function dept_norm(string $value): string {
     return preg_replace('/[^a-z0-9]+/i', '', strtolower(trim($value)));
@@ -666,7 +667,59 @@ function fmt_case_id(int $id, string $created): string {
         .panel-click-hint { margin-left: auto; align-self: center; font-size: 12px; color: #aab8d8; display: flex; align-items: center; gap: 6px; }
         .panel-click-hint svg { width: 16px; height: 16px; opacity: .7; }
 
-        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .case-search-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            min-width: 290px;
+        }
+        .case-search-input {
+            width: 100%;
+            padding: 7px 32px 7px 36px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            outline: none;
+            background: #ffffff;
+            color: #1e293b;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        .case-search-input:focus {
+            border-color: #1b2b6b;
+            box-shadow: 0 0 0 3px rgba(27, 43, 107, 0.12);
+        }
+        .case-search-icon {
+            position: absolute;
+            left: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        .case-search-clear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            font-size: 12px;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 2px 4px;
+            line-height: 1;
+            border-radius: 4px;
+            display: none;
+        }
+        .case-search-clear:hover {
+            color: #ef4444;
+            background: #fee2e2;
+        }
+
+        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 12px; }
         .section-title { font-size: 17px; font-weight: 700; color: #1a1a1a; }
         .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
         .filter-tab { padding: 7px 16px; border-radius: 8px; border: 1px solid #d0d8ea; background: #fff; font-size: 13px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
@@ -1123,11 +1176,28 @@ function fmt_case_id(int $id, string $created): string {
             ?>
             <div class="section-header">
                 <div class="section-title">All Cases</div>
-                <div class="filter-tabs">
-                    <button class="filter-tab active" onclick="filterCases('all', this)">All <span class="tab-count <?= $cntAll > 0 ? 'glow-blue' : '' ?>"><?= $cntAll ?></span></button>
-                    <button class="filter-tab" onclick="filterCases('ready', this)">Upcoming Hearing <span class="tab-count <?= $cntReady > 0 ? 'glow-yellow' : '' ?>"><?= $cntReady ?></span></button>
-                    <button class="filter-tab" onclick="filterCases('assigned', this)">Panel Assigned <span class="tab-count <?= $cntAssigned > 0 ? 'glow-purple' : '' ?>"><?= $cntAssigned ?></span></button>
-                    <button class="filter-tab" onclick="filterCases('unassigned', this)">Unassigned <span class="tab-count <?= $cntUnassigned > 0 ? 'glow-red' : '' ?>"><?= $cntUnassigned ?></span></button>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="case-search-wrap">
+                        <span class="case-search-icon">🔍</span>
+                        <input type="text" 
+                               id="caseSearchInput" 
+                               class="case-search-input" 
+                               placeholder="Search Student Name, ID (2023-XXXX), or Case #..." 
+                               value="<?= e($q) ?>"
+                               onkeyup="applySearchFilter()" 
+                               oninput="applySearchFilter()">
+                        <button id="clearSearchBtn" 
+                                class="case-search-clear" 
+                                onclick="clearCaseSearch()" 
+                                title="Clear Search"
+                                style="<?= $q !== '' ? 'display: inline-block;' : '' ?>">✕</button>
+                    </div>
+                    <div class="filter-tabs">
+                        <button class="filter-tab active" onclick="filterCases('all', this)">All <span class="tab-count <?= $cntAll > 0 ? 'glow-blue' : '' ?>"><?= $cntAll ?></span></button>
+                        <button class="filter-tab" onclick="filterCases('ready', this)">Upcoming Hearing <span class="tab-count <?= $cntReady > 0 ? 'glow-yellow' : '' ?>"><?= $cntReady ?></span></button>
+                        <button class="filter-tab" onclick="filterCases('assigned', this)">Panel Assigned <span class="tab-count <?= $cntAssigned > 0 ? 'glow-purple' : '' ?>"><?= $cntAssigned ?></span></button>
+                        <button class="filter-tab" onclick="filterCases('unassigned', this)">Unassigned <span class="tab-count <?= $cntUnassigned > 0 ? 'glow-red' : '' ?>"><?= $cntUnassigned ?></span></button>
+                    </div>
                 </div>
             </div>
 
@@ -1828,9 +1898,29 @@ let currentFilterLevel = 'all';
 // Updated filterCases function to handle the new "panel" and "nopanel" filters
 function filterCases(level, btn) {
     currentFilterLevel = level;
-    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
+    if (btn) {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+    }
+    applySearchFilter();
+    clearDetail();
+}
+
+function applySearchFilter() {
+    const searchInput = document.getElementById('caseSearchInput');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    if (clearBtn) {
+        clearBtn.style.display = searchTerm.length > 0 ? 'inline-block' : 'none';
+    }
+
+    let visibleCount = 0;
+    let firstVisibleRow = null;
+
     document.querySelectorAll('#cases-table tbody tr').forEach(row => {
+        if (row.id === 'noMatchSearchRow') return;
+
         if (typeof targetStudentId !== 'undefined' && targetStudentId && row.dataset.sid !== targetStudentId) {
             row.style.display = 'none';
             return;
@@ -1852,31 +1942,89 @@ function filterCases(level, btn) {
         const isUnassigned = !hasPanel;
 
         let show = false;
-        if (level === 'all') {
+        if (currentFilterLevel === 'all') {
             show = true;
-        } else if (level === 'major') {
-            show = rowLevel === level;
-        } else if (level === 'assigned') {
+        } else if (currentFilterLevel === 'major') {
+            show = rowLevel === currentFilterLevel;
+        } else if (currentFilterLevel === 'assigned') {
             show = isAssigned;
-        } else if (level === 'ready') {
+        } else if (currentFilterLevel === 'ready') {
             show = isReady;
-        } else if (level === 'unassigned') {
+        } else if (currentFilterLevel === 'unassigned') {
             show = isUnassigned;
-        } else if (level === 'no_hearing') {
+        } else if (currentFilterLevel === 'no_hearing') {
             show = isAssigned && !isReady;
-        } else if (level === 'unsolved') {
+        } else if (currentFilterLevel === 'unsolved') {
             const status = row.dataset.statusRaw;
             show = status === 'PENDING' || status === 'UNDER_INVESTIGATION' || status === 'UNDER_APPEAL';
-        } else if (level === 'solved') {
+        } else if (currentFilterLevel === 'solved') {
             const status = row.dataset.statusRaw;
             show = status === 'CLOSED' || status === 'RESOLVED' || status === 'CANCELLED';
-        } else if (/^cat[1-5]$/.test(level) || level === 'section4') {
-            show = rowCategory === level;
+        } else if (/^cat[1-5]$/.test(currentFilterLevel) || currentFilterLevel === 'section4') {
+            show = rowCategory === currentFilterLevel;
         }
 
-        row.style.display = show ? '' : 'none';
+        // Real-time Text Search Matching
+        if (show && searchTerm.length > 0) {
+            const caseId = (row.dataset.caseid || '').toLowerCase();
+            const caseNum = (row.dataset.caseId || '').toLowerCase();
+            const studentName = (row.dataset.student || '').toLowerCase();
+            const studentId = (row.dataset.sid || '').toLowerCase();
+            const offense = (row.dataset.offense || '').toLowerCase();
+            const status = (row.dataset.status || '').toLowerCase();
+
+            const matchesSearch = caseId.includes(searchTerm) || 
+                                  caseNum.includes(searchTerm) || 
+                                  studentName.includes(searchTerm) || 
+                                  studentId.includes(searchTerm) || 
+                                  offense.includes(searchTerm) ||
+                                  status.includes(searchTerm);
+            if (!matchesSearch) {
+                show = false;
+            }
+        }
+
+        if (show) {
+            row.style.display = '';
+            visibleCount++;
+            if (!firstVisibleRow) firstVisibleRow = row;
+        } else {
+            row.style.display = 'none';
+        }
     });
-    clearDetail();
+
+    // Friendly empty state handling
+    let noMatchRow = document.getElementById('noMatchSearchRow');
+    if (visibleCount === 0 && searchTerm.length > 0) {
+        const tbody = document.querySelector('#cases-table tbody');
+        if (tbody) {
+            if (!noMatchRow) {
+                noMatchRow = document.createElement('tr');
+                noMatchRow.id = 'noMatchSearchRow';
+                noMatchRow.innerHTML = '<td colspan="8" style="text-align: center; padding: 30px; color: #64748b; font-weight: 500;">🔍 No cases found matching "<b id=\"noMatchTerm\"></b>". Try entering a Student ID or Name.</td>';
+                tbody.appendChild(noMatchRow);
+            }
+            const termEl = document.getElementById('noMatchTerm');
+            if (termEl) termEl.textContent = searchTerm;
+            noMatchRow.style.display = '';
+        }
+    } else if (noMatchRow) {
+        noMatchRow.style.display = 'none';
+    }
+
+    // Auto-select case if single match or exact student match
+    if (visibleCount === 1 && firstVisibleRow && searchTerm.length >= 3) {
+        selectCase(firstVisibleRow);
+    }
+}
+
+function clearCaseSearch() {
+    const searchInput = document.getElementById('caseSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+        applySearchFilter();
+        searchInput.focus();
+    }
 }
 
 function selectCase(row) {
@@ -2495,6 +2643,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 <?php endif; ?>
+
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('caseSearchInput');
+    if (searchInput && searchInput.value.trim() !== '') {
+        applySearchFilter();
+    }
+});
 
 setInterval(syncQueueRows, 15000);
 </script>
