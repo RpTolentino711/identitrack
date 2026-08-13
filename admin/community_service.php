@@ -664,7 +664,7 @@ if ($q !== '') {
                         <div class="detail-label" style="color: #dc3545; font-weight: 700;">Remaining Countdown</div>
                         <div class="detail-value countdown-timer" 
                              style="color: #dc3545; font-weight: 700; font-family: monospace; font-size: 15px;"
-                             data-time-in="<?php echo date('c', strtotime($session['time_in'])); ?>"
+                             data-time-in-ts="<?php echo (int)strtotime($session['time_in']); ?>"
                              data-prev-completed="<?php echo (float)$session['prev_hours_completed']; ?>"
                              data-required="<?php echo (float)$session['hours_required']; ?>">
                           Loading...
@@ -802,27 +802,28 @@ if ($q !== '') {
     <?php endif; ?>
 
     function updateCountdownTimers() {
-      const now = new Date();
+      const nowTs = Math.floor(Date.now() / 1000);
       document.querySelectorAll('.countdown-timer').forEach(el => {
-        const timeInStr = el.getAttribute('data-time-in');
+        const timeInTs = parseInt(el.getAttribute('data-time-in-ts') || '0', 10);
         const prevCompleted = parseFloat(el.getAttribute('data-prev-completed')) || 0;
         const required = parseFloat(el.getAttribute('data-required')) || 0;
         
-        if (!timeInStr) return;
-        const timeIn = new Date(timeInStr);
+        if (!timeInTs || isNaN(timeInTs) || timeInTs <= 0) {
+          el.textContent = '00:00:00';
+          return;
+        }
         
         // Elapsed seconds in current session
-        const elapsedSeconds = Math.max(0, Math.floor((now - timeIn) / 1000));
+        const elapsedSeconds = Math.max(0, nowTs - timeInTs);
         
         // Total seconds required
-        const requiredSeconds = required * 3600;
+        const requiredSeconds = Math.round(required * 3600);
         
         // Seconds completed before current session
-        const prevSeconds = prevCompleted * 3600;
+        const prevSeconds = Math.round(prevCompleted * 3600);
         
         // Remaining seconds
-        let remainingSeconds = Math.ceil(requiredSeconds - prevSeconds - elapsedSeconds);
-        if (remainingSeconds < 0) remainingSeconds = 0;
+        let remainingSeconds = Math.max(0, requiredSeconds - prevSeconds - elapsedSeconds);
         
         const h = Math.floor(remainingSeconds / 3600);
         const m = Math.floor((remainingSeconds % 3600) / 60);
@@ -835,25 +836,6 @@ if ($q !== '') {
     
     updateCountdownTimers();
     setInterval(updateCountdownTimers, 1000);
-
-    let currentResumeSessionId = 0;
-    let currentResumeStudentId = '';
-
-    function openResumeCSModal(sessionId, studentId, studentName) {
-        currentResumeSessionId = sessionId;
-        currentResumeStudentId = studentId;
-        const nameEl = document.getElementById('resumeCSStudentName');
-        if (nameEl) nameEl.textContent = studentName;
-        const msg = document.getElementById('resumeCSMsg');
-        if (msg) msg.innerHTML = '';
-        const modal = document.getElementById('resumeCSModal');
-        if (modal) modal.style.display = 'flex';
-    }
-
-    function closeResumeCSModal() {
-        const modal = document.getElementById('resumeCSModal');
-        if (modal) modal.style.display = 'none';
-    }
 
     let currentResumeSessionId = 0;
     let currentResumeStudentId = '';
