@@ -428,7 +428,7 @@ $totalAlertsCount = 0;
 $guardianNotifiedRow = db_one("SELECT COUNT(*) as c FROM offense WHERE student_id = :sid AND guardian_notified_at IS NOT NULL", [':sid' => $studentId]);
 $totalAlertsCount += (int)($guardianNotifiedRow['c'] ?? 0); // GUARDIAN_ALERT
 $totalAlertsCount += min(3, $total); // OFFENSE_RECORDED
-if ($csr && ((float)($csr['hours_required'] ?? 0) > 0)) $totalAlertsCount++; // UPCC_DECISION
+if ($assignedSec > 0) $totalAlertsCount++; // UPCC_DECISION
 if ($latestPunishment) $totalAlertsCount++; // UPCC_CASE_DECISION
 if ($latestAppeal) $totalAlertsCount++; // APPEAL_SUBMITTED/RESPONSE
 
