@@ -667,56 +667,42 @@ function fmt_case_id(int $id, string $created): string {
         .panel-click-hint { margin-left: auto; align-self: center; font-size: 12px; color: #aab8d8; display: flex; align-items: center; gap: 6px; }
         .panel-click-hint svg { width: 16px; height: 16px; opacity: .7; }
 
-        .case-search-wrap {
-            position: relative;
+        .btn-search-trigger {
             display: inline-flex;
             align-items: center;
-            min-width: 290px;
-        }
-        .case-search-input {
-            width: 100%;
-            padding: 7px 32px 7px 36px;
+            gap: 8px;
+            padding: 7px 16px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
             font-size: 13px;
             font-weight: 500;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            outline: none;
-            background: #ffffff;
-            color: #1e293b;
+            color: #334155;
+            cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
-        .case-search-input:focus {
+        .btn-search-trigger:hover {
             border-color: #1b2b6b;
-            box-shadow: 0 0 0 3px rgba(27, 43, 107, 0.12);
+            color: #1b2b6b;
+            background: #f8fafc;
+            box-shadow: 0 2px 5px rgba(27, 43, 107, 0.1);
         }
-        .case-search-icon {
-            position: absolute;
-            left: 11px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #64748b;
-            font-size: 14px;
-            pointer-events: none;
+        .search-active-badge {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 999px;
+            text-transform: uppercase;
         }
-        .case-search-clear {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            font-size: 12px;
-            color: #94a3b8;
-            cursor: pointer;
-            padding: 2px 4px;
-            line-height: 1;
-            border-radius: 4px;
-            display: none;
-        }
-        .case-search-clear:hover {
-            color: #ef4444;
-            background: #fee2e2;
+        .search-result-item:hover {
+            border-color: #1b2b6b !important;
+            background: #eff6ff !important;
+            box-shadow: 0 2px 6px rgba(27, 43, 107, 0.08);
+            transform: translateY(-1px);
         }
 
         .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 12px; }
@@ -1177,26 +1163,61 @@ function fmt_case_id(int $id, string $created): string {
             <div class="section-header">
                 <div class="section-title">All Cases</div>
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <div class="case-search-wrap">
-                        <span class="case-search-icon">🔍</span>
-                        <input type="text" 
-                               id="caseSearchInput" 
-                               class="case-search-input" 
-                               placeholder="Search Student Name, ID (2023-XXXX), or Case #..." 
-                               value="<?= e($q) ?>"
-                               onkeyup="applySearchFilter()" 
-                               oninput="applySearchFilter()">
-                        <button id="clearSearchBtn" 
-                                class="case-search-clear" 
-                                onclick="clearCaseSearch()" 
-                                title="Clear Search"
-                                style="<?= $q !== '' ? 'display: inline-block;' : '' ?>">✕</button>
-                    </div>
+                    <button type="button" class="btn-search-trigger" onclick="openSearchModal()">
+                        <span class="btn-search-icon">🔍</span>
+                        <span id="searchBtnLabel" class="btn-search-label"><?= $q !== '' ? 'Search: ' . e($q) : 'Search Student or Case...' ?></span>
+                        <?php if ($q !== ''): ?>
+                            <span class="search-active-badge">Active</span>
+                        <?php endif; ?>
+                    </button>
                     <div class="filter-tabs">
                         <button class="filter-tab active" onclick="filterCases('all', this)">All <span class="tab-count <?= $cntAll > 0 ? 'glow-blue' : '' ?>"><?= $cntAll ?></span></button>
                         <button class="filter-tab" onclick="filterCases('ready', this)">Upcoming Hearing <span class="tab-count <?= $cntReady > 0 ? 'glow-yellow' : '' ?>"><?= $cntReady ?></span></button>
                         <button class="filter-tab" onclick="filterCases('assigned', this)">Panel Assigned <span class="tab-count <?= $cntAssigned > 0 ? 'glow-purple' : '' ?>"><?= $cntAssigned ?></span></button>
                         <button class="filter-tab" onclick="filterCases('unassigned', this)">Unassigned <span class="tab-count <?= $cntUnassigned > 0 ? 'glow-red' : '' ?>"><?= $cntUnassigned ?></span></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal for Interactive Student/Case Search -->
+            <div class="modal-overlay" id="modal-search-cases" onclick="if(event.target===this) closeSearchModal()">
+                <div class="modal search-modal-content" style="max-width: 580px; width: 92%; padding: 24px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.25);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 20px;">🔍</span>
+                            <span style="font-size: 18px; font-weight: 700; color: #1e293b;">Search UPCC Cases & Students</span>
+                        </div>
+                        <button type="button" class="modal-close" onclick="closeSearchModal()" style="font-size: 24px; color: #94a3b8; background: none; border: none; cursor: pointer;">&times;</button>
+                    </div>
+
+                    <div style="position: relative; margin-bottom: 14px;">
+                        <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #64748b; pointer-events: none;">🔍</span>
+                        <input type="text" 
+                               id="modalSearchInput" 
+                               class="modal-search-input" 
+                               placeholder="Search Student Name, ID (2023-XXXX), or Case #..." 
+                               value="<?= e($q) ?>" 
+                               oninput="renderModalSearchResults()" 
+                               onkeyup="renderModalSearchResults()"
+                               style="width: 100%; padding: 12px 40px 12px 42px; font-size: 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; outline: none; background: #ffffff; color: #1e293b; transition: border-color 0.2s, box-shadow 0.2s;"
+                               autofocus>
+                        <button id="modalClearBtn" 
+                                onclick="clearModalSearch()" 
+                                style="display: none; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: #f1f5f9; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; color: #64748b; cursor: pointer; align-items: center; justify-content: center;">✕</button>
+                    </div>
+
+                    <div style="font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;" id="modalSearchHeader">
+                        Select a student case below:
+                    </div>
+
+                    <!-- Scrollable Dynamic Dropdown List -->
+                    <div id="modalSearchList" style="max-height: 320px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; padding: 6px; background: #fafafa;">
+                        <!-- Populated dynamically -->
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; pt: 12px; border-top: 1px solid #f1f5f9;">
+                        <button type="button" class="btn-secondary" onclick="clearModalSearch(true)" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; font-weight: 600; cursor: pointer; font-size: 13px; color: #475569;">Show All Cases</button>
+                        <button type="button" class="btn-primary" onclick="closeSearchModal()" style="padding: 8px 20px; border-radius: 8px; background: #1b2b6b; color: #fff; font-weight: 600; border: none; cursor: pointer; font-size: 13px;">Close</button>
                     </div>
                 </div>
             </div>
@@ -1894,8 +1915,146 @@ function fmt_case_id(int $id, string $created): string {
 const deptNames = {<?php foreach ($departments as $d): ?><?= $d['dept_id'] ?>: "<?= e($d['dept_name']) ?>", <?php endforeach; ?>};
 const committeeMembers = <?= json_encode($members) ?>;
 let currentFilterLevel = 'all';
+let currentSearchTerm = <?= json_encode($q) ?>;
 
-// Updated filterCases function to handle the new "panel" and "nopanel" filters
+function openSearchModal() {
+    const modal = document.getElementById('modal-search-cases');
+    if (!modal) return;
+    modal.classList.add('open');
+    const input = document.getElementById('modalSearchInput');
+    if (input) {
+        input.value = currentSearchTerm;
+        input.focus();
+        input.select();
+    }
+    renderModalSearchResults();
+}
+
+function closeSearchModal() {
+    const modal = document.getElementById('modal-search-cases');
+    if (modal) modal.classList.remove('open');
+}
+
+function updateSearchTriggerLabel(term) {
+    const label = document.getElementById('searchBtnLabel');
+    if (!label) return;
+    if (term && term.trim() !== '') {
+        label.textContent = 'Search: ' + term;
+    } else {
+        label.textContent = 'Search Student or Case...';
+    }
+}
+
+function clearModalSearch(resetAll = false) {
+    const input = document.getElementById('modalSearchInput');
+    if (input) input.value = '';
+    if (resetAll) {
+        currentSearchTerm = '';
+        updateSearchTriggerLabel('');
+        applySearchFilter();
+        closeSearchModal();
+    } else {
+        renderModalSearchResults();
+        if (input) input.focus();
+    }
+}
+
+function renderModalSearchResults() {
+    const input = document.getElementById('modalSearchInput');
+    const clearBtn = document.getElementById('modalClearBtn');
+    const listContainer = document.getElementById('modalSearchList');
+    const headerLabel = document.getElementById('modalSearchHeader');
+    if (!listContainer) return;
+
+    const query = input ? input.value.trim().toLowerCase() : '';
+    if (clearBtn) {
+        clearBtn.style.display = query.length > 0 ? 'inline-flex' : 'none';
+    }
+
+    const rows = Array.from(document.querySelectorAll('#cases-table tbody tr')).filter(r => r.id !== 'noMatchSearchRow');
+    
+    let matches = [];
+    rows.forEach(row => {
+        const caseId = (row.dataset.caseid || '').toLowerCase();
+        const caseNum = (row.dataset.caseId || '').toLowerCase();
+        const studentName = (row.dataset.student || '').toLowerCase();
+        const studentId = (row.dataset.sid || '').toLowerCase();
+        const offense = (row.dataset.offense || '').toLowerCase();
+        const status = (row.dataset.status || '').toLowerCase();
+
+        if (query === '') {
+            matches.push(row);
+        } else if (caseId.includes(query) || caseNum.includes(query) || studentName.includes(query) || studentId.includes(query) || offense.includes(query) || status.includes(query)) {
+            matches.push(row);
+        }
+    });
+
+    if (query === '') {
+        headerLabel.textContent = `All Student Cases (${matches.length})`;
+    } else {
+        headerLabel.textContent = `Matching Results (${matches.length})`;
+    }
+
+    if (matches.length === 0) {
+        listContainer.innerHTML = `
+            <div style="padding: 24px; text-align: center; color: #64748b;">
+                <div style="font-size: 24px; margin-bottom: 6px;">🔍</div>
+                <div style="font-weight: 600; font-size: 14px;">No matching student or case found</div>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Try searching for a student ID like "2023-XXXX" or student name.</div>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    matches.forEach(row => {
+        const caseId = row.dataset.caseid || 'UPCC Case';
+        const studentName = row.dataset.student || 'Unknown Student';
+        const studentId = row.dataset.sid || '';
+        const offense = row.dataset.offense || 'Offense';
+        const status = row.dataset.status || 'Pending';
+        const rawCaseId = row.dataset.caseId;
+
+        html += `
+            <div class="search-result-item" 
+                 onclick="selectStudentFromModal('${rawCaseId}')" 
+                 style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; margin-bottom: 6px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center;">
+                        ${studentName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 13.5px; color: #1e293b;">${escapeHtml(studentName)} <span style="font-size: 12px; font-weight: 500; color: #64748b;">(${escapeHtml(studentId)})</span></div>
+                        <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                            <span style="font-weight: 600; color: #1b2b6b;">${escapeHtml(caseId)}</span> • ${escapeHtml(offense)}
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <span style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">${escapeHtml(status)}</span>
+                </div>
+            </div>
+        `;
+    });
+
+    listContainer.innerHTML = html;
+}
+
+function selectStudentFromModal(rawCaseId) {
+    const row = document.querySelector(`#cases-table tbody tr[data-case-id="${rawCaseId}"]`);
+    if (row) {
+        closeSearchModal();
+        const studentName = row.dataset.student || '';
+        const studentId = row.dataset.sid || '';
+        currentSearchTerm = studentId || studentName;
+        updateSearchTriggerLabel(`${studentName} (${studentId})`);
+        
+        applySearchFilter();
+        selectCase(row);
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
 function filterCases(level, btn) {
     currentFilterLevel = level;
     if (btn) {
@@ -1907,13 +2066,11 @@ function filterCases(level, btn) {
 }
 
 function applySearchFilter() {
-    const searchInput = document.getElementById('caseSearchInput');
-    const clearBtn = document.getElementById('clearSearchBtn');
-    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
-
-    if (clearBtn) {
-        clearBtn.style.display = searchTerm.length > 0 ? 'inline-block' : 'none';
+    const modalInput = document.getElementById('modalSearchInput');
+    if (modalInput && modalInput.value.trim() !== '') {
+        currentSearchTerm = modalInput.value.trim();
     }
+    const searchTerm = (currentSearchTerm || '').trim().toLowerCase();
 
     let visibleCount = 0;
     let firstVisibleRow = null;
