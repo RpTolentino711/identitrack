@@ -1964,6 +1964,8 @@ function updateSearchTriggerLabel(term) {
     } else {
         label.textContent = 'Search';
     }
+}
+
 function executeModalSearch(e) {
     if (e) e.preventDefault();
     const input = document.getElementById('modalSearchInput');
@@ -2000,6 +2002,8 @@ function clearModalSearch(resetAll = false) {
         renderModalSearchResults();
         if (input) input.focus();
     }
+}
+
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -2858,10 +2862,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <?php endif; ?>
 
 document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('caseSearchInput');
-    if (searchInput && searchInput.value.trim() !== '') {
-        applySearchFilter();
-    }
+    applySearchFilter();
 });
 
 setInterval(syncQueueRows, 15000);
