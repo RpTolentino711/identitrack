@@ -988,6 +988,20 @@ if ($q !== '') {
         }
     }
 
+    function togglePasswordVisibility(inputId, btnEl) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            btnEl.innerHTML = '👁️';
+            btnEl.title = 'Hide Password';
+        } else {
+            input.type = 'password';
+            btnEl.innerHTML = '🙈';
+            btnEl.title = 'Show Password';
+        }
+    }
+
     pollCSLiveStatus();
     setInterval(pollCSLiveStatus, 3000);
   </script>
@@ -1009,7 +1023,10 @@ if ($q !== '') {
       </div>
       <div style="margin-bottom:20px;">
         <label style="display:block; font-size:12px; font-weight:700; color:#1e293b; margin-bottom:6px;">🔑 SDO Admin Password <span style="color:#dc2626;">*</span></label>
-        <input type="password" id="resumeCSPasswordInput" placeholder="Enter Admin Password to confirm..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;" required onkeydown="if(event.key==='Enter') confirmResumeCS();">
+        <div style="position:relative;">
+          <input type="password" id="resumeCSPasswordInput" placeholder="Enter Admin Password to confirm..." style="width:100%; padding:10px 40px 10px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;" required onkeydown="if(event.key==='Enter') confirmResumeCS();">
+          <button type="button" onclick="togglePasswordVisibility('resumeCSPasswordInput', this)" title="Show Password" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px; line-height:1;">🙈</button>
+        </div>
       </div>
       <div id="resumeCSMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
       <div style="display:flex; gap:10px; justify-content:flex-end;">
@@ -1042,7 +1059,10 @@ if ($q !== '') {
       </div>
       <div style="margin-bottom:20px;">
         <label style="display:block; font-size:12px; font-weight:700; color:#dc2626; margin-bottom:6px;">🔑 SDO Admin Password <span style="color:#dc2626;">*</span></label>
-        <input type="password" id="pauseCSPasswordInput" placeholder="Enter Admin Password to confirm..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;" required onkeydown="if(event.key==='Enter') confirmPauseCS();">
+        <div style="position:relative;">
+          <input type="password" id="pauseCSPasswordInput" placeholder="Enter Admin Password to confirm..." style="width:100%; padding:10px 40px 10px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;" required onkeydown="if(event.key==='Enter') confirmPauseCS();">
+          <button type="button" onclick="togglePasswordVisibility('pauseCSPasswordInput', this)" title="Show Password" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px; line-height:1;">🙈</button>
+        </div>
       </div>
       <div id="pauseCSMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
       <div style="display:flex; gap:10px; justify-content:flex-end;">
