@@ -196,26 +196,20 @@ $completed = 0.0;
 $completedSeconds = 0;
 
 if (!empty($activeReqs)) {
-  $activeIds = [];
   foreach ($activeReqs as $ar) {
     $assigned += (float)$ar['hours_required'];
-    $activeIds[] = (int)$ar['requirement_id'];
   }
   foreach ($sessions as $s) {
-    if (in_array((int)$s['requirement_id'], $activeIds, true)) {
-      $completed += (float)$s['hours_done'];
-      $completedSeconds += (int)($s['net_completed_seconds'] ?? 0);
-    }
+    $completed += (float)$s['hours_done'];
+    $completedSeconds += (int)($s['net_completed_seconds'] ?? 0);
   }
 } else if (!empty($completedReqs)) {
   // Use the most recent completed requirement
   $latestCompleted = $completedReqs[0]; // Ordered by assigned_at DESC
   $assigned = (float)$latestCompleted['hours_required'];
   foreach ($sessions as $s) {
-    if ((int)$s['requirement_id'] === (int)$latestCompleted['requirement_id']) {
-      $completed += (float)$s['hours_done'];
-      $completedSeconds += (int)($s['net_completed_seconds'] ?? 0);
-    }
+    $completed += (float)$s['hours_done'];
+    $completedSeconds += (int)($s['net_completed_seconds'] ?? 0);
   }
 }
 

@@ -57,13 +57,14 @@ $activeSessions = db_all(
         SELECT COALESCE(SUM(
           CASE 
             WHEN prev.status = 'PAUSED' AND prev.paused_at IS NOT NULL THEN
-              GREATEST(0, TIMESTAMPDIFF(SECOND, prev.time_in, prev.paused_at) - prev.accum_paused_seconds)
+              GREATEST(0, TIMESTAMPDIFF(SECOND, prev.time_in, prev.paused_at) - COALESCE(prev.accum_paused_seconds, 0))
             ELSE
-              GREATEST(0, TIMESTAMPDIFF(SECOND, prev.time_in, COALESCE(prev.time_out, NOW())) - prev.accum_paused_seconds)
+              GREATEST(0, TIMESTAMPDIFF(SECOND, prev.time_in, COALESCE(prev.time_out, NOW())) - COALESCE(prev.accum_paused_seconds, 0))
           END
         )/3600.0, 0.0)
         FROM community_service_session prev
-        WHERE prev.requirement_id = css.requirement_id AND prev.time_out IS NOT NULL
+        JOIN community_service_requirement prev_csr ON prev_csr.requirement_id = prev.requirement_id
+        WHERE prev_csr.student_id = s.student_id AND prev.time_out IS NOT NULL
       ) AS prev_hours_completed
    FROM community_service_session css
    JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
