@@ -1180,7 +1180,7 @@ function fmt_case_id(int $id, string $created): string {
             </div>
 
             <!-- Modal for Interactive Student/Case Search -->
-            <div class="modal-overlay" id="modal-search-cases" onclick="if(event.target===this) closeSearchModal()">
+            <div class="modal-overlay" id="modal-search-cases" style="z-index: 3000;" onclick="if(event.target===this) closeSearchModal()">
                 <div class="modal search-modal-content" style="max-width: 580px; width: 92%; padding: 24px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.25);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -1921,18 +1921,24 @@ function openSearchModal() {
     const modal = document.getElementById('modal-search-cases');
     if (!modal) return;
     modal.classList.add('open');
+    modal.style.display = 'flex';
     const input = document.getElementById('modalSearchInput');
     if (input) {
-        input.value = currentSearchTerm;
-        input.focus();
-        input.select();
+        input.value = currentSearchTerm || '';
+        setTimeout(() => {
+            input.focus();
+            input.select();
+        }, 50);
     }
     renderModalSearchResults();
 }
 
 function closeSearchModal() {
     const modal = document.getElementById('modal-search-cases');
-    if (modal) modal.classList.remove('open');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+    }
 }
 
 function updateSearchTriggerLabel(term) {
