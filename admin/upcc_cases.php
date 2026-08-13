@@ -1163,9 +1163,9 @@ function fmt_case_id(int $id, string $created): string {
             <div class="section-header">
                 <div class="section-title">All Cases</div>
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <button type="button" class="btn-search-trigger" onclick="openSearchModal()">
+                    <button type="button" class="btn-search-trigger" onclick="openSearchModal()" title="Click to search student or case">
                         <span class="btn-search-icon">🔍</span>
-                        <span id="searchBtnLabel" class="btn-search-label"><?= $q !== '' ? 'Search: ' . e($q) : 'Search Student or Case...' ?></span>
+                        <span id="searchBtnLabel" class="btn-search-label"><?= $q !== '' ? 'Search: ' . e($q) : 'Search' ?></span>
                         <?php if ($q !== ''): ?>
                             <span class="search-active-badge">Active</span>
                         <?php endif; ?>
@@ -1941,7 +1941,7 @@ function updateSearchTriggerLabel(term) {
     if (term && term.trim() !== '') {
         label.textContent = 'Search: ' + term;
     } else {
-        label.textContent = 'Search Student or Case...';
+        label.textContent = 'Search';
     }
 }
 
