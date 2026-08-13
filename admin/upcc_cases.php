@@ -1163,7 +1163,7 @@ function fmt_case_id(int $id, string $created): string {
             <div class="section-header">
                 <div class="section-title">All Cases</div>
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <button type="button" class="btn-search-trigger" onclick="openSearchModal()" title="Click to search student or case">
+                    <button type="button" class="btn-search-trigger" onclick="if(window.openSearchModal){window.openSearchModal();}else{document.getElementById('modal-search-cases').style.display='flex';} return false;" title="Click to search student or case">
                         <span class="btn-search-icon">🔍</span>
                         <span id="searchBtnLabel" class="btn-search-label"><?= $q !== '' ? 'Search: ' . e($q) : 'Search' ?></span>
                         <?php if ($q !== ''): ?>
@@ -1926,12 +1926,12 @@ function openSearchModal() {
     if (input) {
         input.value = currentSearchTerm || '';
         setTimeout(() => {
-            input.focus();
-            input.select();
+            try { input.focus(); input.select(); } catch (_) {}
         }, 50);
     }
     renderModalSearchResults();
 }
+window.openSearchModal = openSearchModal;
 
 function closeSearchModal() {
     const modal = document.getElementById('modal-search-cases');
@@ -1940,6 +1940,7 @@ function closeSearchModal() {
         modal.style.display = 'none';
     }
 }
+window.closeSearchModal = closeSearchModal;
 
 function updateSearchTriggerLabel(term) {
     const label = document.getElementById('searchBtnLabel');
