@@ -101,7 +101,7 @@ db_add_encryption_key($session_params);
 $sessions = db_all("
   SELECT 
     session_id, requirement_id, time_in, time_out, login_method, logout_method, validated_by, sdo_notes,
-    TIMESTAMPDIFF(SECOND, time_in, time_out)/3600 AS hours_done
+    GREATEST(0, (TIMESTAMPDIFF(SECOND, time_in, time_out) - COALESCE(accum_paused_seconds, 0))) / 3600.0 AS hours_done
   FROM community_service_session
   WHERE requirement_id IN (SELECT requirement_id FROM community_service_requirement WHERE student_id = :sid)
   AND time_out IS NOT NULL
