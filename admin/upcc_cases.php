@@ -1190,21 +1190,31 @@ function fmt_case_id(int $id, string $created): string {
                         <button type="button" class="modal-close" onclick="closeSearchModal()" style="font-size: 24px; color: #94a3b8; background: none; border: none; cursor: pointer;">&times;</button>
                     </div>
 
-                    <div style="position: relative; margin-bottom: 14px;">
-                        <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #64748b; pointer-events: none;">🔍</span>
-                        <input type="text" 
-                               id="modalSearchInput" 
-                               class="modal-search-input" 
-                               placeholder="Search Student Name, ID (2023-XXXX), or Case #..." 
-                               value="<?= e($q) ?>" 
-                               oninput="renderModalSearchResults()" 
-                               onkeyup="renderModalSearchResults()"
-                               style="width: 100%; padding: 12px 40px 12px 42px; font-size: 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; outline: none; background: #ffffff; color: #1e293b; transition: border-color 0.2s, box-shadow 0.2s;"
-                               autofocus>
-                        <button id="modalClearBtn" 
-                                onclick="clearModalSearch()" 
-                                style="display: none; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: #f1f5f9; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; color: #64748b; cursor: pointer; align-items: center; justify-content: center;">✕</button>
-                    </div>
+                    <form onsubmit="executeModalSearch(event)" style="margin: 0;">
+                        <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+                            <div style="position: relative; flex: 1;">
+                                <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #64748b; pointer-events: none;">🔍</span>
+                                <input type="text" 
+                                       id="modalSearchInput" 
+                                       class="modal-search-input" 
+                                       placeholder="Enter Student Name or ID (e.g. 2023-183482)..." 
+                                       value="<?= e($q) ?>" 
+                                       oninput="renderModalSearchResults()" 
+                                       onkeydown="if(event.key==='Enter'){ executeModalSearch(event); }"
+                                       style="width: 100%; padding: 12px 36px 12px 42px; font-size: 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; outline: none; background: #ffffff; color: #1e293b; transition: border-color 0.2s;"
+                                       autofocus>
+                                <button type="button" 
+                                        id="modalClearBtn" 
+                                        onclick="clearModalSearch()" 
+                                        style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #f1f5f9; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; color: #64748b; cursor: pointer; align-items: center; justify-content: center;">✕</button>
+                            </div>
+                            <button type="submit" 
+                                    class="btn-modal-search" 
+                                    style="padding: 0 20px; background: #1b2b6b; color: #ffffff; border: none; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap; transition: background 0.2s;">
+                                <span>Search</span>
+                            </button>
+                        </div>
+                    </form>
 
                     <div style="font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;" id="modalSearchHeader">
                         Select a student case below:
@@ -1950,7 +1960,29 @@ function updateSearchTriggerLabel(term) {
     } else {
         label.textContent = 'Search';
     }
+function executeModalSearch(e) {
+    if (e) e.preventDefault();
+    const input = document.getElementById('modalSearchInput');
+    if (!input) return;
+    const query = input.value.trim();
+    if (query === '') return;
+
+    currentSearchTerm = query;
+    updateSearchTriggerLabel(query);
+
+    applySearchFilter();
+
+    const visibleRows = Array.from(document.querySelectorAll('#cases-table tbody tr')).filter(r => r.id !== 'noMatchSearchRow' && r.style.display !== 'none');
+    
+    if (visibleRows.length >= 1) {
+        closeSearchModal();
+        selectCase(visibleRows[0]);
+        visibleRows[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+        renderModalSearchResults();
+    }
 }
+window.executeModalSearch = executeModalSearch;
 
 function clearModalSearch(resetAll = false) {
     const input = document.getElementById('modalSearchInput');
