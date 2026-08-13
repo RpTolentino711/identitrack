@@ -2112,15 +2112,17 @@ function filterCases(level, btn) {
         document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
         btn.classList.add('active');
     }
+    // Reset search term when navigating between tabs
+    currentSearchTerm = '';
+    const modalInput = document.getElementById('modalSearchInput');
+    if (modalInput) modalInput.value = '';
+    updateSearchTriggerLabel('');
+
     applySearchFilter();
-    clearDetail();
 }
+window.filterCases = filterCases;
 
 function applySearchFilter() {
-    const modalInput = document.getElementById('modalSearchInput');
-    if (modalInput && modalInput.value.trim() !== '') {
-        currentSearchTerm = modalInput.value.trim();
-    }
     const searchTerm = (currentSearchTerm || '').trim().toLowerCase();
 
     let visibleCount = 0;
