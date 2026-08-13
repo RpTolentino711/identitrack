@@ -42,13 +42,26 @@ $activeSessions = db_all(
       css.status AS session_status,
       css.pause_reason,
       css.paused_at,
+      css.accum_paused_seconds,
       csr.task_name,
       csr.hours_required,
       s.student_id,
       CONCAT(s.student_ln, ', ', s.student_fn) AS student_name,
-      TIMESTAMPDIFF(MINUTE, css.time_in, NOW()) AS minutes_elapsed,
+      CASE 
+        WHEN css.status = 'PAUSED' AND css.paused_at IS NOT NULL THEN
+          GREATEST(0, TIMESTAMPDIFF(SECOND, css.time_in, css.paused_at) - css.accum_paused_seconds)
+        ELSE
+          GREATEST(0, TIMESTAMPDIFF(SECOND, css.time_in, NOW()) - css.accum_paused_seconds)
+      END AS net_elapsed_seconds,
       (
-        SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, prev.time_in, prev.time_out)/3600.0), 0.0)
+        SELECT COALESCE(SUM(
+          CASE 
+            WHEN prev.status = 'PAUSED' AND prev.paused_at IS NOT NULL THEN
+              GREATEST(0, TIMESTAMPDIFF(SECOND, prev.time_in, prev.paused_at) - prev.accum_paused_seconds)
+            ELSE
+              GREATEST(0, TIMESTAMPDIFF(SECOND, prev.time_in, COALESCE(prev.time_out, NOW())) - prev.accum_paused_seconds)
+          END
+        )/3600.0, 0.0)
         FROM community_service_session prev
         WHERE prev.requirement_id = css.requirement_id AND prev.time_out IS NOT NULL
       ) AS prev_hours_completed
@@ -664,7 +677,8 @@ if ($q !== '') {
                         <div class="detail-label" style="color: #dc3545; font-weight: 700;">Remaining Countdown</div>
                         <div class="detail-value countdown-timer" 
                              style="color: #dc3545; font-weight: 700; font-family: monospace; font-size: 15px;"
-                             data-time-in-ts="<?php echo (int)strtotime($session['time_in']); ?>"
+                             data-status="<?php echo e($session['session_status'] ?: 'ACTIVE'); ?>"
+                             data-net-elapsed-sec="<?php echo (int)$session['net_elapsed_seconds']; ?>"
                              data-prev-completed="<?php echo (float)$session['prev_hours_completed']; ?>"
                              data-required="<?php echo (float)$session['hours_required']; ?>">
                           Loading...
@@ -804,26 +818,37 @@ if ($q !== '') {
     function updateCountdownTimers() {
       const nowTs = Math.floor(Date.now() / 1000);
       document.querySelectorAll('.countdown-timer').forEach(el => {
-        const timeInTs = parseInt(el.getAttribute('data-time-in-ts') || '0', 10);
+        const status = el.getAttribute('data-status') || 'ACTIVE';
+        const initialNetElapsed = parseInt(el.getAttribute('data-net-elapsed-sec') || '0', 10);
         const prevCompleted = parseFloat(el.getAttribute('data-prev-completed')) || 0;
         const required = parseFloat(el.getAttribute('data-required')) || 0;
         
-        if (!timeInTs || isNaN(timeInTs) || timeInTs <= 0) {
-          el.textContent = '00:00:00';
-          return;
+        let currentNetElapsed = initialNetElapsed;
+        
+        if (status === 'ACTIVE') {
+          if (!el._startNowTs) {
+            el._startNowTs = nowTs;
+          }
+          currentNetElapsed += Math.max(0, nowTs - el._startNowTs);
+        } else {
+          el._startNowTs = null;
+        }
+
+        // Update Duration text on card
+        const card = el.closest('.session-card');
+        if (card) {
+          const durationValEl = card.querySelector('.detail-value');
+          if (durationValEl) {
+            const dh = Math.floor(currentNetElapsed / 3600);
+            const dm = Math.floor((currentNetElapsed % 3600) / 60);
+            durationValEl.textContent = `${dh}h ${dm}m`;
+          }
         }
         
-        // Elapsed seconds in current session
-        const elapsedSeconds = Math.max(0, nowTs - timeInTs);
-        
-        // Total seconds required
         const requiredSeconds = Math.round(required * 3600);
-        
-        // Seconds completed before current session
         const prevSeconds = Math.round(prevCompleted * 3600);
         
-        // Remaining seconds
-        let remainingSeconds = Math.max(0, requiredSeconds - prevSeconds - elapsedSeconds);
+        let remainingSeconds = Math.max(0, requiredSeconds - prevSeconds - currentNetElapsed);
         
         const h = Math.floor(remainingSeconds / 3600);
         const m = Math.floor((remainingSeconds % 3600) / 60);

@@ -134,6 +134,22 @@ $activeSession = db_one(
   $active_params
 );
 
+if ($activeSession) {
+  $status = $activeSession['session_status'] ?? 'ACTIVE';
+  $timeInTs = strtotime($activeSession['time_in']);
+  $pausedAtTs = !empty($activeSession['paused_at']) ? strtotime($activeSession['paused_at']) : time();
+  $accumPausedSecs = (int)($activeSession['accum_paused_seconds'] ?? 0);
+
+  if ($status === 'PAUSED') {
+    $netElapsedSec = max(0, ($pausedAtTs - $timeInTs) - $accumPausedSecs);
+  } else {
+    $netElapsedSec = max(0, (time() - $timeInTs) - $accumPausedSecs);
+  }
+
+  $activeSession['net_elapsed_seconds'] = $netElapsedSec;
+  $activeSession['status'] = $status;
+}
+
 $pendingManual = db_one(
   "SELECT
       request_id,
