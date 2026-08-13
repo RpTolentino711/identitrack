@@ -1148,15 +1148,19 @@ function fmt_case_id(int $id, string $created): string {
             $cntAll = count($cases);
             $cntReady = 0; $cntAssigned = 0; $cntUnassigned = 0;
             foreach ($cases as $c) {
+                $st = strtoupper((string)($c['status'] ?? 'PENDING'));
+                $isClosed = ($st === 'CLOSED' || $st === 'RESOLVED' || $st === 'CANCELLED');
                 $hasPanel = (!empty($c['assigned_department_id']) || (!empty($c['assigned_panel_members']) && $c['assigned_panel_members'] !== '[]'));
                 $hearingScheduled = !empty($c['hearing_date']) && !empty($c['hearing_time']);
                 $isHearingActive = ((int)($c['hearing_is_open'] ?? 0) === 1 || (int)($c['hearing_is_paused'] ?? 0) === 1);
                 
-                if ($hasPanel) {
-                    $cntAssigned++;
-                    if ($hearingScheduled && !$isHearingActive) $cntReady++;
-                } else {
-                    $cntUnassigned++;
+                if (!$isClosed) {
+                    if ($hasPanel) {
+                        $cntAssigned++;
+                        if ($hearingScheduled && !$isHearingActive) $cntReady++;
+                    } else {
+                        $cntUnassigned++;
+                    }
                 }
             }
             ?>
@@ -2136,14 +2140,17 @@ function applySearchFilter() {
             }
         }
 
+        const statusRaw = (row.dataset.statusRaw || 'PENDING').toUpperCase();
+        const isClosed = (statusRaw === 'CLOSED' || statusRaw === 'RESOLVED' || statusRaw === 'CANCELLED');
         const rowLevel = row.dataset.level || '';
         const rowCategory = row.dataset.filterCategory || '';
         const hasPanel = row.dataset.hasPanel === '1';
         const hearingScheduled = row.dataset.hearingScheduled === '1';
         const hearingActive = row.dataset.hearingActive === '1';
-        const isAssigned = hasPanel;
-        const isReady = hasPanel && hearingScheduled && !hearingActive;
-        const isUnassigned = !hasPanel;
+
+        const isAssigned = !isClosed && hasPanel;
+        const isReady = !isClosed && hasPanel && hearingScheduled && !hearingActive;
+        const isUnassigned = !isClosed && !hasPanel;
 
         let show = false;
         if (currentFilterLevel === 'all') {
@@ -2159,11 +2166,9 @@ function applySearchFilter() {
         } else if (currentFilterLevel === 'no_hearing') {
             show = isAssigned && !isReady;
         } else if (currentFilterLevel === 'unsolved') {
-            const status = row.dataset.statusRaw;
-            show = status === 'PENDING' || status === 'UNDER_INVESTIGATION' || status === 'UNDER_APPEAL';
+            show = !isClosed;
         } else if (currentFilterLevel === 'solved') {
-            const status = row.dataset.statusRaw;
-            show = status === 'CLOSED' || status === 'RESOLVED' || status === 'CANCELLED';
+            show = isClosed;
         } else if (/^cat[1-5]$/.test(currentFilterLevel) || currentFilterLevel === 'section4') {
             show = rowCategory === currentFilterLevel;
         }
@@ -2216,9 +2221,11 @@ function applySearchFilter() {
         noMatchRow.style.display = 'none';
     }
 
-    // Auto-select case if single match or exact student match
-    if (visibleCount === 1 && firstVisibleRow && searchTerm.length >= 3) {
+    // Auto-select first visible case or clear detail
+    if (firstVisibleRow) {
         selectCase(firstVisibleRow);
+    } else {
+        clearDetail();
     }
 }
 
