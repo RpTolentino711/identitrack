@@ -2159,10 +2159,22 @@ function formatCaseActivity(array $act): string {
         <button class="modal-close" onclick="closeAdjustTimeModal()">&times;</button>
       </div>
       <div class="modal-body" style="padding: 24px;">
-        <!-- Current Total Time info -->
-        <div style="background: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 13px; color: #475569; font-weight: 500;">Current Total Time:</span>
+        <!-- Current Total Required Time info -->
+        <div style="background: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; color: #475569; font-weight: 500;">Current Total Required Time:</span>
           <span id="adjustCurrentDisplay" style="font-size: 14px; color: #0f172a; font-weight: 700;">0 minutes</span>
+        </div>
+
+        <!-- Time Served So Far info -->
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; color: #166534; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Time Served So Far:
+          </span>
+          <span id="adjustServedDisplay" style="font-size: 14px; color: #15803d; font-weight: 800;">0 minutes</span>
         </div>
 
         <!-- Action Toggle: Add / Subtract -->
@@ -2385,8 +2397,9 @@ function formatCaseActivity(array $act): string {
       const isComp = (typeof data.auto_check_completed !== 'undefined') ? !!data.auto_check_completed : !!data.completed;
       document.getElementById('editComplete').checked = isComp;
 
-      // Store initial completed status
+      // Store initial completed status and hours completed
       modalOverlay.dataset.initialCompleted = data.completed ? 'true' : 'false';
+      modalOverlay.dataset.hoursCompleted = data.hours_completed || 0;
 
       editSanctionInitialState = {
         category: parseInt(data.category, 10),
@@ -2539,6 +2552,11 @@ function formatCaseActivity(array $act): string {
       const totalMins = curHrs * 60 + curMins;
 
       document.getElementById('adjustCurrentDisplay').textContent = formatMinutesToText(totalMins);
+
+      const completedHours = parseFloat(modalOverlay.dataset.hoursCompleted) || 0;
+      const completedTotalMins = Math.round(completedHours * 60);
+      document.getElementById('adjustServedDisplay').textContent = formatMinutesToText(completedTotalMins);
+
       setAdjustAction('add');
 
       document.getElementById('adjustHoursInput').value = '';
