@@ -92,7 +92,7 @@ if ($_POST) {
           if ($method === 'NFC') {
             // Instant logout for NFC
             db_exec(
-              "UPDATE community_service_session SET time_out = NOW(), logout_method = 'NFC' WHERE session_id = :sid",
+              "UPDATE community_service_session SET time_out = NOW(), logout_method = 'NFC', status = 'COMPLETED' WHERE session_id = :sid",
               [':sid' => (int)$activeSession['session_id']]
             );
             check_requirement_completion((int)$activeSession['requirement_id']);
@@ -101,7 +101,7 @@ if ($_POST) {
           } else {
             // Strict manual logout: stop timer immediately upon request
             db_exec(
-              "UPDATE community_service_session SET time_out = NOW(), logout_method = 'MANUAL' WHERE session_id = :sid",
+              "UPDATE community_service_session SET time_out = NOW(), logout_method = 'MANUAL', status = 'COMPLETED' WHERE session_id = :sid",
               [':sid' => (int)$activeSession['session_id']]
             );
 

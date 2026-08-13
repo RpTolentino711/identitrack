@@ -1029,7 +1029,7 @@ if ($q !== '') {
     }
 
     pollCSLiveStatus();
-    setInterval(pollCSLiveStatus, 3000);
+    setInterval(pollCSLiveStatus, 1500);
   </script>
 
   <!-- MODAL: Confirm Resume Student Service -->
