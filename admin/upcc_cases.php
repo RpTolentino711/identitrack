@@ -1657,19 +1657,21 @@ function fmt_case_id(int $id, string $created): string {
                                 <td>
                                     <?= e((!empty($c['hearing_date']) && !empty($c['hearing_time'])) ? ($c['hearing_date'] . ' ' . $c['hearing_time'] . (!empty($c['hearing_type']) ? ' · ' . $c['hearing_type'] : '')) : 'No hearing scheduled') ?>
                                 </td>
-                                <td>
-                                    <span class="badge <?= $statusBadgeClass ?>"><?= e($statusLabel) ?></span>
-                                    <?php if ($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED'): ?>
-                                        <?php if (empty($c['resolution_file_path'])): ?>
-                                            <span style="color:#dc2626; font-weight:900; font-size:16px; margin-left:4px; vertical-align:middle;" title="Missing official resolution document!">❗</span>
+                                <td style="white-space:nowrap;">
+                                    <div style="display:inline-flex; align-items:center; gap:4px;">
+                                        <span class="badge <?= $statusBadgeClass ?>"><?= e($statusLabel) ?></span>
+                                        <?php if ($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED'): ?>
+                                            <?php if (empty($c['resolution_file_path'])): ?>
+                                                <span style="color:#dc2626; font-weight:900; font-size:15px; cursor:help;" title="Missing Official Resolution Document — Upload signed resolution document">❗</span>
+                                            <?php endif; ?>
+                                            <?php
+                                            $rowCatNum = (int)($c['decided_category'] ?? $c['hearing_vote_consensus_category'] ?? 0);
+                                            if (($rowCatNum === 1 || $rowCatNum === 2) && empty($c['nfi_file_path'])):
+                                            ?>
+                                                <span style="color:#dc2626; font-weight:900; font-size:15px; cursor:help;" title="Missing Notice of Formative Intervention (NFI) — Required for Category 1 & Category 2 cases">❗</span>
+                                            <?php endif; ?>
                                         <?php endif; ?>
-                                        <?php
-                                        $rowCatNum = (int)($c['decided_category'] ?? $c['hearing_vote_consensus_category'] ?? 0);
-                                        if (($rowCatNum === 1 || $rowCatNum === 2) && empty($c['nfi_file_path'])):
-                                        ?>
-                                            <span style="color:#dc2626; font-weight:900; font-size:16px; margin-left:2px; vertical-align:middle;" title="Missing Notice of Formative Intervention (NFI)!">❗</span>
-                                        <?php endif; ?>
-                                    <?php endif; ?>
+                                    </div>
                                 </td>
                                 <td>
                                     <?php if ($statusRaw === 'PENDING' || $statusRaw === 'UNDER_INVESTIGATION'): ?>
