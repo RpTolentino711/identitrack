@@ -393,11 +393,14 @@ function admin_login(string $username, string $password): array
 
 function admin_logout(): void
 {
-  $admin = admin_current();
-  if ($admin) {
-    db_exec("UPDATE admin_user SET last_active = NULL, active_session_token = NULL, active_session_ip = NULL WHERE admin_id = :id", [':id' => (int)$admin['admin_id']]);
+  $adminId = (int)($_SESSION['admin']['admin_id'] ?? $_SESSION['admin_id'] ?? 0);
+  if ($adminId > 0) {
+    db_exec("UPDATE admin_user SET last_active = NULL, active_session_token = NULL, active_session_ip = NULL WHERE admin_id = :id", [':id' => $adminId]);
+  } else {
+    // Clear all active sessions if session ID was already lost
+    db_exec("UPDATE admin_user SET active_session_token = NULL, active_session_ip = NULL");
   }
-  unset($_SESSION['admin'], $_SESSION['admin_session_token'], $_SESSION['admin_id'], $_SESSION['admin_username']);
+  unset($_SESSION['admin'], $_SESSION['admin_session_token'], $_SESSION['admin_id'], $_SESSION['admin_username'], $_SESSION['admin_pre_2fa'], $_SESSION['login_otp']);
 }
 
 function admin_current(): ?array

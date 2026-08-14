@@ -192,17 +192,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <h1>Verification Required</h1>
     <p>Please enter the 6-digit code sent to your registered email address to continue.</p>
 
-    <?php if (!empty($adminPre['has_active_session'])): ?>
-      <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; padding: 14px; margin-bottom: 20px; text-align: left;">
-        <div style="font-size: 13px; font-weight: 800; color: #b45309; display: flex; align-items: center; gap: 6px;">
-            🔒 Security Notice: Active Session Detected
-        </div>
-        <div style="font-size: 12px; color: #92400e; margin-top: 4px; line-height: 1.4;">
-            This admin account is currently logged in on another device<?php echo !empty($adminPre['active_ip']) ? ' (' . htmlspecialchars($adminPre['active_ip']) . ')' : ''; ?>. Verifying this code will <strong>log out the other device</strong> and transfer access to this location.
-        </div>
-      </div>
-    <?php endif; ?>
-
     <?php if ($error): ?>
       <div class="msg msg-error" id="topMsgError"><?php echo $error; ?></div>
     <?php endif; ?>
