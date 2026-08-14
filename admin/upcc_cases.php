@@ -115,6 +115,10 @@ try {
             sync_case_panel_members($caseId, $decoded);
         }
     }
+
+    try {
+        db_exec("ALTER TABLE upcc_case ADD COLUMN resolution_file_path VARCHAR(255) NULL");
+    } catch (Exception $exRes) {}
 } catch (Exception $e) {
     error_log("UPCC migration error: " . $e->getMessage());
 }
@@ -134,6 +138,7 @@ $cases = db_all("SELECT
         uc.status,
         uc.created_at,
         uc.resolution_date,
+        uc.resolution_file_path,
         " . db_decrypt_cols(['final_decision', 'case_summary', 'punishment_details'], 'uc') . ",
         uc.decided_category,
         uc.assigned_department_id,
@@ -570,6 +575,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 header("Location: upcc_cases.php?msg=resolved"); exit;
             }
         } else { $regError = 'Please select a category (1-5) and write a final decision.'; }
+    }
+
+    // Upload / Reupload Official Resolution Document for Resolved Cases
+    if ($_POST['action'] === 'upload_resolution') {
+        $case_id = (int)($_POST['case_id'] ?? 0);
+        if ($case_id <= 0) {
+            $regError = 'Invalid case ID.';
+        } elseif (!isset($_FILES['resolution_file']) || $_FILES['resolution_file']['error'] !== UPLOAD_ERR_OK) {
+            $regError = 'Please select a valid resolution document to upload.';
+        } else {
+            $file = $_FILES['resolution_file'];
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'doc'];
+            if (!in_array($ext, $allowedExts, true)) {
+                $regError = 'Invalid file format. Allowed: PDF, PNG, JPG, JPEG, DOCX.';
+            } elseif ($file['size'] > 10 * 1024 * 1024) {
+                $regError = 'File size exceeds maximum limit of 10MB.';
+            } else {
+                $uploadDir = __DIR__ . '/uploads/resolutions/';
+                if (!is_dir($uploadDir)) {
+                    @mkdir($uploadDir, 0777, true);
+                }
+                $fileName = 'resolution_case_' . $case_id . '_' . time() . '.' . $ext;
+                $targetPath = $uploadDir . $fileName;
+                $relPath = 'uploads/resolutions/' . $fileName;
+
+                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+                    db_exec("UPDATE upcc_case SET resolution_file_path = :path, resolution_date = NOW(), updated_at = NOW() WHERE case_id = :id", [
+                        ':path' => $relPath,
+                        ':id'   => $case_id,
+                    ]);
+                    upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'RESOLUTION_FILE_UPLOADED', [
+                        'file_path' => $relPath,
+                    ]);
+                    header("Location: upcc_cases.php?msg=resolution_uploaded");
+                    exit;
+                } else {
+                    $regError = 'Failed to save uploaded file.';
+                }
+            }
+        }
     }
 }
 
@@ -1112,6 +1158,9 @@ function fmt_case_id(int $id, string $created): string {
             <?php if (isset($_GET['msg']) && $_GET['msg'] === 'resolved'): ?>
                 <div class="alert-ok" style="margin-bottom:16px;">✓ Case resolved successfully.</div>
             <?php endif; ?>
+            <?php if (isset($_GET['msg']) && $_GET['msg'] === 'resolution_uploaded'): ?>
+                <div class="alert-ok" style="margin-bottom:16px;">✓ Official Case Resolution document uploaded successfully.</div>
+            <?php endif; ?>
             <?php if ($regError && $lastAction === 'update_hearing_config'): ?>
                 <div class="alert-err" style="margin-bottom:16px;">❌ <?= htmlspecialchars($regError) ?></div>
             <?php endif; ?>
@@ -1416,6 +1465,7 @@ function fmt_case_id(int $id, string $created): string {
                                 data-has-panel="<?= $hasPanel ? '1' : '0' ?>"
                                 data-hearing-active="<?= ($isHearingOpen || $isHearingPaused) ? '1' : '0' ?>"
                                 data-consensus-cat="<?= (int)($c['hearing_vote_consensus_category'] ?? 0) ?>"
+                                data-resolution-file-path="<?= e($c['resolution_file_path'] ?? '') ?>"
                                 onclick="selectCase(this)">
                                 <td><div class="case-id"><?= e($caseLabel) ?></div></td>
                                 <td>
@@ -2384,6 +2434,49 @@ function selectCase(row) {
         }
         waitDiv.innerHTML = '⏳ <strong>Awaiting UPCC hearing consensus</strong> — The panel has not yet reached a category decision. The case cannot be resolved until a consensus is recorded.';
         waitDiv.style.display = 'block';
+    }
+
+    // Resolution File Upload / Reupload handling for closed cases
+    const resFilePath = row.dataset.resolutionFilePath || '';
+    const resFormDiv = document.getElementById('resolution-upload-form');
+    const resStatusDiv = document.getElementById('res-doc-status');
+    const resCaseIdInput = document.getElementById('upload_resolution_case_id');
+    const resUploadBtnLabel = document.getElementById('btn-upload-res-label');
+
+    if (resFormDiv) {
+        if (isClosedStatus) {
+            resFormDiv.style.display = 'block';
+            if (resCaseIdInput) resCaseIdInput.value = caseId;
+
+            if (resFilePath) {
+                if (resStatusDiv) {
+                    resStatusDiv.innerHTML = `
+                        <div style="padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:18px;">📄</span>
+                                <div>
+                                    <div style="font-size:12px; font-weight:700; color:#166534;">Resolution Document Attached</div>
+                                    <div style="font-size:11px; color:#15803d;">Official signed document attached</div>
+                                </div>
+                            </div>
+                            <a href="${escapeHtml(resFilePath)}" target="_blank" download style="padding:5px 12px; background:#166534; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View File</a>
+                        </div>
+                    `;
+                }
+                if (resUploadBtnLabel) resUploadBtnLabel.textContent = '🔄 Reupload Resolution File';
+            } else {
+                if (resStatusDiv) {
+                    resStatusDiv.innerHTML = `
+                        <div style="padding:8px 10px; background:#fefce8; border:1px solid #fef08a; border-radius:8px; font-size:12px; color:#854d0e;">
+                            ⚠️ No official resolution document attached to this closed case yet.
+                        </div>
+                    `;
+                }
+                if (resUploadBtnLabel) resUploadBtnLabel.textContent = '📤 Upload Resolution Document';
+            }
+        } else {
+            resFormDiv.style.display = 'none';
+        }
     }
 
     document.getElementById('detail-empty').style.display    = 'none';
