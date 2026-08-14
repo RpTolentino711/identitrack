@@ -1557,9 +1557,7 @@ function fmt_case_id(int $id, string $created): string {
                                 <td>
                                     <span class="badge <?= $statusBadgeClass ?>"><?= e($statusLabel) ?></span>
                                     <?php if (($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED') && empty($c['resolution_file_path'])): ?>
-                                        <div style="font-size:11px; font-weight:700; color:#d97706; margin-top:4px; display:inline-flex; align-items:center; gap:3px; background:#fffbeb; border:1px solid #fde68a; padding:2px 8px; border-radius:12px;" title="Official resolution document is missing!">
-                                            ⚠️ Missing File
-                                        </div>
+                                        <span style="color:#dc2626; font-weight:900; font-size:16px; margin-left:5px; vertical-align:middle;" title="Missing official resolution document!">❗</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -2429,7 +2427,7 @@ function selectCase(row) {
     }
     badgesHtml += `<span class="detail-badge ${statusClass}">${statusLabel}</span>`;
     if (isClosedStatus && !row.dataset.resolutionFilePath) {
-        badgesHtml += `<span class="detail-badge" style="background:rgba(217,119,6,0.2); border-color:#d97706; color:#fcd34d;">⚠️ Missing Resolution File</span>`;
+        badgesHtml += `<span class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800;">❗ Missing Resolution File</span>`;
     }
     badgeContainer.innerHTML = badgesHtml;
 
