@@ -138,6 +138,7 @@ $cases = db_all("SELECT
         uc.status,
         uc.created_at,
         uc.resolution_date,
+        uc.updated_at,
         uc.resolution_file_path,
         " . db_decrypt_cols(['final_decision', 'case_summary', 'punishment_details'], 'uc') . ",
         uc.decided_category,
@@ -673,6 +674,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                 }
             }
+        }
+    }
+
+    // Remove Official Resolution Document for Closed Cases
+    if ($_POST['action'] === 'remove_resolution') {
+        $case_id = (int)($_POST['case_id'] ?? 0);
+        if ($case_id <= 0) {
+            $regError = 'Invalid case ID.';
+        } else {
+            $caseRow = db_one("SELECT resolution_file_path FROM upcc_case WHERE case_id = :id", [':id' => $case_id]);
+            if ($caseRow && !empty($caseRow['resolution_file_path'])) {
+                $oldPath = __DIR__ . '/' . $caseRow['resolution_file_path'];
+                if (is_file($oldPath)) {
+                    @unlink($oldPath);
+                }
+                db_exec("UPDATE upcc_case SET resolution_file_path = NULL, updated_at = NOW() WHERE case_id = :id", [':id' => $case_id]);
+                upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'RESOLUTION_FILE_REMOVED', []);
+            }
+            header("Location: upcc_cases.php?msg=resolution_removed");
+            exit;
         }
     }
 }
@@ -1538,6 +1559,7 @@ function fmt_case_id(int $id, string $created): string {
                                 data-hearing-active="<?= ($isHearingOpen || $isHearingPaused) ? '1' : '0' ?>"
                                 data-consensus-cat="<?= (int)($c['hearing_vote_consensus_category'] ?? 0) ?>"
                                 data-resolution-file-path="<?= e($c['resolution_file_path'] ?? '') ?>"
+                                data-resolution-date="<?= e((string)($c['resolution_date'] ?? $c['updated_at'] ?? '')) ?>"
                                 onclick="selectCase(this)">
                                 <td><div class="case-id"><?= e($caseLabel) ?></div></td>
                                 <td>
@@ -1646,7 +1668,7 @@ function fmt_case_id(int $id, string $created): string {
                             <div id="resolution-upload-form" style="display:none; margin-top:14px; padding-top:14px; border-top:1px dashed #cbd5e1;">
                                 <div class="divider-label" id="res-doc-title">Official Resolution Document</div>
                                 <div id="res-doc-status" style="margin-bottom:10px;"></div>
-                                <form method="post" action="upcc_cases.php" enctype="multipart/form-data">
+                                <form method="post" action="upcc_cases.php" enctype="multipart/form-data" id="real-res-upload-form" onsubmit="return handleResolutionUploadSubmit(event)">
                                     <input type="hidden" name="action" value="upload_resolution">
                                     <input type="hidden" name="case_id" id="upload_resolution_case_id">
                                     <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">Attach/Reupload Signed Resolution File (PDF, PNG, JPG, DOCX):</div>
@@ -1990,6 +2012,20 @@ function fmt_case_id(int $id, string $created): string {
             <input type="hidden" name="otp" id="otp-hidden">
             <button type="submit" class="btn-primary">Verify & Register</button>
         </form>
+</div>
+
+<!-- Resolution Confirmation Modal -->
+<div class="modal-overlay" id="modal-confirm-resolution" style="z-index:3000;">
+    <div class="modal" style="max-width:440px; text-align:center; padding:32px 24px; border-radius:24px; background:#ffffff; box-shadow:0 20px 50px rgba(0,0,0,0.2);">
+        <button class="modal-close" onclick="closeConfirmResModal()">&times;</button>
+        <div style="font-size:42px; margin-bottom:12px;" id="confirm-res-icon">🔄</div>
+        <div class="modal-title" id="confirm-res-title" style="font-size:20px; font-weight:800; color:#0f172a; margin-bottom:8px;">Reupload Resolution File?</div>
+        <div class="modal-sub" id="confirm-res-msg" style="font-size:13px; color:#64748b; line-height:1.5; margin-bottom:24px;">Are you sure you want to reupload this resolution file?</div>
+        
+        <div style="display:flex; gap:12px; justify-content:center;">
+            <button type="button" class="btn-cancel" onclick="closeConfirmResModal()" style="flex:1; padding:12px; border-radius:12px; border:1px solid #cbd5e1; background:#f8fafc; font-weight:700; color:#475569; cursor:pointer;">Cancel</button>
+            <button type="button" id="confirm-res-btn-action" style="flex:1; padding:12px; border-radius:12px; border:none; background:#1b2b6b; font-weight:700; color:#ffffff; cursor:pointer;">Yes, Continue</button>
+        </div>
     </div>
 </div>
 
@@ -2540,17 +2576,39 @@ function selectCase(row) {
             if (resCaseIdInput) resCaseIdInput.value = caseId;
 
             if (resFilePath) {
+                const resDateRaw = row.dataset.resolutionDate || '';
+                let resDateFormatted = '';
+                if (resDateRaw) {
+                    try {
+                        const d = new Date(resDateRaw);
+                        if (!isNaN(d.getTime())) {
+                            resDateFormatted = d.toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true
+                            });
+                        }
+                    } catch(e){}
+                }
+
                 if (resStatusDiv) {
                     resStatusDiv.innerHTML = `
-                        <div style="padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                        <div style="padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
                             <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:18px;">📄</span>
+                                <span style="font-size:20px;">📄</span>
                                 <div>
                                     <div style="font-size:12px; font-weight:700; color:#166534;">Resolution Document Attached</div>
                                     <div style="font-size:11px; color:#15803d;">Official signed document attached</div>
+                                    ${resDateFormatted ? `<div style="font-size:10px; font-weight:600; color:#166534; margin-top:3px; display:flex; align-items:center; gap:3px;">🕒 Submitted: <strong>${escapeHtml(resDateFormatted)}</strong></div>` : ''}
                                 </div>
                             </div>
-                            <a href="${escapeHtml(resFilePath)}" target="_blank" download style="padding:5px 12px; background:#166534; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View File</a>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <a href="${escapeHtml(resFilePath)}" target="_blank" download style="padding:6px 10px; background:#166534; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View File</a>
+                                <button type="button" onclick="confirmRemoveResolutionFile('${escapeHtml(caseId)}')" title="Remove Document" style="width:28px; height:28px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0;">✕</button>
+                            </div>
                         </div>
                     `;
                 }
@@ -3050,6 +3108,79 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 setInterval(syncQueueRows, 15000);
+
+// Resolution Document Confirmation Modals
+let pendingResForm = null;
+
+function handleResolutionUploadSubmit(e) {
+    e.preventDefault();
+    const form = e.target || document.getElementById('real-res-upload-form');
+    const fileInput = form.querySelector('input[type="file"]');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert('Please choose a file to upload first.');
+        return false;
+    }
+
+    pendingResForm = form;
+    const caseIdInput = document.getElementById('upload_resolution_case_id');
+    const caseId = caseIdInput ? caseIdInput.value : '';
+
+    const icon = document.getElementById('confirm-res-icon');
+    const title = document.getElementById('confirm-res-title');
+    const msg = document.getElementById('confirm-res-msg');
+    const btn = document.getElementById('confirm-res-btn-action');
+
+    if (icon) icon.textContent = '🔄';
+    if (title) title.textContent = 'Reupload Resolution File?';
+    if (msg) msg.innerHTML = `Are you sure you want to reupload the resolution file for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><br><span style="color:#d97706; font-weight:600;">⚠️ This will replace the official document and send the updated file to the student's email.</span>`;
+    if (btn) {
+        btn.style.background = '#1b2b6b';
+        btn.textContent = 'Yes, Reupload File';
+        btn.onclick = function() {
+            closeConfirmResModal();
+            if (pendingResForm) pendingResForm.submit();
+        };
+    }
+
+    const modal = document.getElementById('modal-confirm-resolution');
+    if (modal) modal.classList.add('open');
+    return false;
+}
+
+function confirmRemoveResolutionFile(caseId) {
+    const icon = document.getElementById('confirm-res-icon');
+    const title = document.getElementById('confirm-res-title');
+    const msg = document.getElementById('confirm-res-msg');
+    const btn = document.getElementById('confirm-res-btn-action');
+
+    if (icon) icon.textContent = '🗑️';
+    if (title) title.textContent = 'Remove Resolution Document?';
+    if (msg) msg.innerHTML = `Are you sure you want to remove the current official resolution file for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><br><span style="color:#dc2626; font-weight:600;">⚠️ This will detach the file from the case record.</span>`;
+    if (btn) {
+        btn.style.background = '#dc2626';
+        btn.textContent = 'Yes, Remove File';
+        btn.onclick = function() {
+            closeConfirmResModal();
+            const f = document.createElement('form');
+            f.method = 'POST';
+            f.action = 'upcc_cases.php';
+            f.innerHTML = `
+                <input type="hidden" name="action" value="remove_resolution">
+                <input type="hidden" name="case_id" value="${escapeHtml(caseId)}">
+            `;
+            document.body.appendChild(f);
+            f.submit();
+        };
+    }
+
+    const modal = document.getElementById('modal-confirm-resolution');
+    if (modal) modal.classList.add('open');
+}
+
+function closeConfirmResModal() {
+    const modal = document.getElementById('modal-confirm-resolution');
+    if (modal) modal.classList.remove('open');
+}
 </script>
 </body>
 </html>
