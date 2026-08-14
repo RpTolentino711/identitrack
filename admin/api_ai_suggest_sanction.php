@@ -61,8 +61,10 @@ function getGeminiApiKeys(): array
     }
 
     // 2. User provided API Keys (Verified HTTP 200 Active Keys)
+    $userFreshKey      = 'AQ' . '.Ab8RN6K5SsiXB-Xb7Wm0r9o6fHFFGUZOxQBLNePq52-HcoXKxg';
     $userPastedKey     = 'AQ' . '.Ab8RN6K1D3ilTKaDLeayHYVrzFQioUmzJaqaGcQXkEpFP9AtVw';
     $userNewKey        = 'AQ' . '.Ab8RN6IrcmdtUELKTOKASr5Rk19c1g4ur88gO6jMBFjotbAdSA';
+    $keys[] = $userFreshKey;
     $keys[] = $userPastedKey;
     $keys[] = $userNewKey;
 
@@ -167,7 +169,7 @@ function getCategoryPrecedents(?int $majorCategory, int $offenseTypeId, int $exc
           AND uc.case_id != :ecid
         ORDER BY o.date_committed DESC
         LIMIT " . (int)$limit . "
-    ", [':cat' => $majorCategory, ':otid' => $excludeCaseId]);
+    ", [':cat' => $majorCategory, ':otid' => $offenseTypeId, ':ecid' => $excludeCaseId]);
 }
 
 /**
