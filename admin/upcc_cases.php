@@ -1579,6 +1579,19 @@ function fmt_case_id(int $id, string $created): string {
                                     <button type="submit" class="btn-resolve">✓ Resolve Case</button>
                                 </form>
                             </div>
+                            <div id="resolution-upload-form" style="display:none; margin-top:14px; padding-top:14px; border-top:1px dashed #cbd5e1;">
+                                <div class="divider-label" id="res-doc-title">Official Resolution Document</div>
+                                <div id="res-doc-status" style="margin-bottom:10px;"></div>
+                                <form method="post" action="upcc_cases.php" enctype="multipart/form-data">
+                                    <input type="hidden" name="action" value="upload_resolution">
+                                    <input type="hidden" name="case_id" id="upload_resolution_case_id">
+                                    <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">Attach/Reupload Signed Resolution File (PDF, PNG, JPG, DOCX):</div>
+                                    <input type="file" name="resolution_file" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc" required style="width:100%; font-size:12px; margin-bottom:10px; padding:6px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;">
+                                    <button type="submit" class="btn-primary" style="width:100%; padding:9px 14px; font-size:13px; background:#1b2b6b; color:#fff; border-radius:8px; border:none; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;">
+                                        <span id="btn-upload-res-label">📤 Upload Resolution Document</span>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
