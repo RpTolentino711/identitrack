@@ -1556,6 +1556,11 @@ function fmt_case_id(int $id, string $created): string {
                                 </td>
                                 <td>
                                     <span class="badge <?= $statusBadgeClass ?>"><?= e($statusLabel) ?></span>
+                                    <?php if (($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED') && empty($c['resolution_file_path'])): ?>
+                                        <div style="font-size:11px; font-weight:700; color:#d97706; margin-top:4px; display:inline-flex; align-items:center; gap:3px; background:#fffbeb; border:1px solid #fde68a; padding:2px 8px; border-radius:12px;" title="Official resolution document is missing!">
+                                            ⚠️ Missing File
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if ($statusRaw === 'PENDING' || $statusRaw === 'UNDER_INVESTIGATION'): ?>
@@ -2423,6 +2428,9 @@ function selectCase(row) {
         statusLabel = 'Awaiting Assignment';
     }
     badgesHtml += `<span class="detail-badge ${statusClass}">${statusLabel}</span>`;
+    if (isClosedStatus && !row.dataset.resolutionFilePath) {
+        badgesHtml += `<span class="detail-badge" style="background:rgba(217,119,6,0.2); border-color:#d97706; color:#fcd34d;">⚠️ Missing Resolution File</span>`;
+    }
     badgeContainer.innerHTML = badgesHtml;
 
     // Case summary
