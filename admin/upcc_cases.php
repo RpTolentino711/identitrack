@@ -585,34 +585,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } elseif (!isset($_FILES['resolution_file']) || $_FILES['resolution_file']['error'] !== UPLOAD_ERR_OK) {
             $regError = 'Please select a valid resolution document to upload.';
         } else {
-            $file = $_FILES['resolution_file'];
-            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            $allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'doc'];
-            if (!in_array($ext, $allowedExts, true)) {
-                $regError = 'Invalid file format. Allowed: PDF, PNG, JPG, JPEG, DOCX.';
-            } elseif ($file['size'] > 10 * 1024 * 1024) {
-                $regError = 'File size exceeds maximum limit of 10MB.';
+            // ── FIX 1: Server-side authorization check ─────────────────────
+            // The upload form is only *displayed* in the UI for closed cases,
+            // but that is purely cosmetic. Without this check, a POST crafted
+            // directly (curl/devtools) could attach a "resolution document"
+            // to a case that is still PENDING or UNDER_INVESTIGATION, before
+            // any panel decision or consensus exists. Re-verify server-side.
+            $caseRow = db_one(
+                "SELECT status, resolution_file_path, resolution_date FROM upcc_case WHERE case_id = :id",
+                [':id' => $case_id]
+            );
+            if (!$caseRow) {
+                $regError = 'Case not found.';
+            } elseif (!in_array(strtoupper((string)$caseRow['status']), ['CLOSED', 'RESOLVED'], true)) {
+                $regError = 'Resolution documents can only be uploaded for closed cases.';
             } else {
-                $uploadDir = __DIR__ . '/uploads/resolutions/';
-                if (!is_dir($uploadDir)) {
-                    @mkdir($uploadDir, 0777, true);
-                }
-                $fileName = 'resolution_case_' . $case_id . '_' . time() . '.' . $ext;
-                $targetPath = $uploadDir . $fileName;
-                $relPath = 'uploads/resolutions/' . $fileName;
-
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                    db_exec("UPDATE upcc_case SET resolution_file_path = :path, resolution_date = NOW(), updated_at = NOW() WHERE case_id = :id", [
-                        ':path' => $relPath,
-                        ':id'   => $case_id,
-                    ]);
-                    upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'RESOLUTION_FILE_UPLOADED', [
-                        'file_path' => $relPath,
-                    ]);
-                    header("Location: upcc_cases.php?msg=resolution_uploaded");
-                    exit;
+                $file = $_FILES['resolution_file'];
+                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                $allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'doc'];
+                if (!in_array($ext, $allowedExts, true)) {
+                    $regError = 'Invalid file format. Allowed: PDF, PNG, JPG, JPEG, DOCX.';
+                } elseif ($file['size'] > 10 * 1024 * 1024) {
+                    $regError = 'File size exceeds maximum limit of 10MB.';
                 } else {
-                    $regError = 'Failed to save uploaded file.';
+                    $uploadDir = __DIR__ . '/uploads/resolutions/';
+                    if (!is_dir($uploadDir)) {
+                        // ── FIX 3: don't create world-writable directories ──
+                        @mkdir($uploadDir, 0755, true);
+                    }
+
+                    // ── FIX 4: unpredictable filename ───────────────────────
+                    // The old scheme ('resolution_case_<id>_<unix time>.<ext>')
+                    // is guessable: case_id is visible in the UI as
+                    // UPCC-YYYY-NNN, and time() only has second resolution.
+                    // If this directory is web-reachable, that made student
+                    // disciplinary documents guessable/scrapeable without
+                    // authentication. Use a random token instead.
+                    $fileName = 'resolution_' . bin2hex(random_bytes(16)) . '.' . $ext;
+                    $targetPath = $uploadDir . $fileName;
+                    $relPath = 'uploads/resolutions/' . $fileName;
+
+                    if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+                        // ── FIX 2: don't silently overwrite resolution_date ─
+                        // resolution_date is meant to record when the case
+                        // was actually decided (set by resolve_case). Every
+                        // re-upload of the signed document (e.g. fixing a
+                        // typo) used to stomp this timestamp again, quietly
+                        // corrupting reporting/SLA data. Only set it if it
+                        // hasn't been set yet.
+                        $params = [
+                            ':path' => $relPath,
+                            ':id'   => $case_id,
+                        ];
+                        if (empty($caseRow['resolution_date'])) {
+                            db_exec(
+                                "UPDATE upcc_case SET resolution_file_path = :path, resolution_date = NOW(), updated_at = NOW() WHERE case_id = :id",
+                                $params
+                            );
+                        } else {
+                            db_exec(
+                                "UPDATE upcc_case SET resolution_file_path = :path, updated_at = NOW() WHERE case_id = :id",
+                                $params
+                            );
+                        }
+
+                        // Clean up the previous file on re-upload so old
+                        // signed documents don't pile up on disk indefinitely.
+                        if (!empty($caseRow['resolution_file_path'])) {
+                            $oldPath = __DIR__ . '/' . $caseRow['resolution_file_path'];
+                            if (is_file($oldPath)) {
+                                @unlink($oldPath);
+                            }
+                        }
+
+                        upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'RESOLUTION_FILE_UPLOADED', [
+                            'file_path' => $relPath,
+                        ]);
+                        header("Location: upcc_cases.php?msg=resolution_uploaded");
+                        exit;
+                    } else {
+                        $regError = 'Failed to save uploaded file.';
+                    }
                 }
             }
         }
@@ -1173,6 +1226,9 @@ function fmt_case_id(int $id, string $created): string {
                 <div class="alert-ok" style="margin-bottom:16px;">✓ Official Case Resolution document uploaded successfully.</div>
             <?php endif; ?>
             <?php if ($regError && $lastAction === 'update_hearing_config'): ?>
+                <div class="alert-err" style="margin-bottom:16px;">❌ <?= htmlspecialchars($regError) ?></div>
+            <?php endif; ?>
+            <?php if ($regError && $lastAction === 'upload_resolution'): ?>
                 <div class="alert-err" style="margin-bottom:16px;">❌ <?= htmlspecialchars($regError) ?></div>
             <?php endif; ?>
 
