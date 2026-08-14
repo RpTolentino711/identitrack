@@ -1174,13 +1174,6 @@ if (function_exists('db_one')) {
 
     poll();
     setInterval(poll, 5000);
-
-    // Automatically send silent logout beacon when browser/tab is closed
-    window.addEventListener('unload', function () {
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon('logout.php');
-        }
-    });
   })();
 </script>
 
