@@ -2005,6 +2005,7 @@ function fmt_case_id(int $id, string $created): string {
             <input type="hidden" name="otp" id="otp-hidden">
             <button type="submit" class="btn-primary">Verify & Register</button>
         </form>
+    </div>
 </div>
 
 <!-- Resolution Confirmation Modal -->
@@ -3182,6 +3183,10 @@ function closeConfirmResModal() {
     const modal = document.getElementById('modal-confirm-resolution');
     if (modal) modal.classList.remove('open');
 }
+
+window.handleResolutionUploadSubmit = handleResolutionUploadSubmit;
+window.confirmRemoveResolutionFile = confirmRemoveResolutionFile;
+window.closeConfirmResModal = closeConfirmResModal;
 </script>
 </body>
 </html>
