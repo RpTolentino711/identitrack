@@ -81,9 +81,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($enteredOtp !== $sessionOtp['code']) {
         $error = "Invalid verification code. Please check your email.";
     } else {
-        // Success! Finalize login
+        // Success! Finalize login and take over active session
+        $newToken = bin2hex(random_bytes(16));
+        $userIp = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+
+        db_exec(
+            "UPDATE admin_user SET active_session_token = :token, active_session_ip = :ip, last_active = NOW() WHERE admin_id = :id",
+            [':token' => $newToken, ':ip' => $userIp, ':id' => (int)$adminPre['admin_id']]
+        );
+
         $_SESSION['admin_id'] = $adminPre['admin_id'];
         $_SESSION['admin_username'] = $adminPre['username'];
+        $_SESSION['admin_session_token'] = $newToken;
+
         unset($_SESSION['admin_pre_2fa']);
         unset($_SESSION['login_otp']);
         
@@ -181,6 +191,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <img src="../assets/logo.png" alt="Logo" class="logo">
     <h1>Verification Required</h1>
     <p>Please enter the 6-digit code sent to your registered email address to continue.</p>
+
+    <?php if (!empty($adminPre['has_active_session'])): ?>
+      <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; padding: 14px; margin-bottom: 20px; text-align: left;">
+        <div style="font-size: 13px; font-weight: 800; color: #b45309; display: flex; align-items: center; gap: 6px;">
+            🔒 Security Notice: Active Session Detected
+        </div>
+        <div style="font-size: 12px; color: #92400e; margin-top: 4px; line-height: 1.4;">
+            This admin account is currently logged in on another device<?php echo !empty($adminPre['active_ip']) ? ' (' . htmlspecialchars($adminPre['active_ip']) . ')' : ''; ?>. Verifying this code will <strong>log out the other device</strong> and transfer access to this location.
+        </div>
+      </div>
+    <?php endif; ?>
 
     <?php if ($error): ?>
       <div class="msg msg-error" id="topMsgError"><?php echo $error; ?></div>

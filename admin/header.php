@@ -1174,6 +1174,13 @@ if (function_exists('db_one')) {
 
     poll();
     setInterval(poll, 5000);
+
+    // Tab closing warning confirmation for active admin session
+    window.addEventListener('beforeunload', function (e) {
+        const msg = 'You are currently logged in as Admin. Are you sure you want to close this tab? Remember to log out if on a shared computer.';
+        (e || window.event).returnValue = msg;
+        return msg;
+    });
   })();
 </script>
 

@@ -392,9 +392,9 @@ function admin_logout(): void
 {
   $admin = admin_current();
   if ($admin) {
-    db_exec("UPDATE admin_user SET last_active = NULL WHERE admin_id = :id", [':id' => (int)$admin['admin_id']]);
+    db_exec("UPDATE admin_user SET last_active = NULL, active_session_token = NULL, active_session_ip = NULL WHERE admin_id = :id", [':id' => (int)$admin['admin_id']]);
   }
-  unset($_SESSION['admin']);
+  unset($_SESSION['admin'], $_SESSION['admin_session_token'], $_SESSION['admin_id'], $_SESSION['admin_username']);
 }
 
 function admin_current(): ?array
@@ -411,9 +411,30 @@ function require_admin(): void
     redirect('login.php');
   }
 
+  $adminId = (int)$admin['admin_id'];
+
+  // Single active session check (if another device took over the session)
+  static $schemaChecked = false;
+  if (!$schemaChecked) {
+      try {
+          db_exec("ALTER TABLE admin_user ADD COLUMN active_session_token VARCHAR(255) NULL, ADD COLUMN active_session_ip VARCHAR(255) NULL");
+      } catch (Exception $e) {}
+      $schemaChecked = true;
+  }
+
+  $dbRow = db_one("SELECT active_session_token FROM admin_user WHERE admin_id = :id", [':id' => $adminId]);
+  $dbToken = (string)($dbRow['active_session_token'] ?? '');
+  $myToken = (string)($_SESSION['admin_session_token'] ?? '');
+
+  if ($dbToken !== '' && $myToken !== '' && $dbToken !== $myToken) {
+      admin_logout();
+      redirect('login.php?msg=session_kicked');
+      exit;
+  }
+
   static $updatedActive = false;
   if (!$updatedActive) {
-    db_exec("UPDATE admin_user SET last_active = NOW() WHERE admin_id = :id", [':id' => (int)$admin['admin_id']]);
+    db_exec("UPDATE admin_user SET last_active = NOW() WHERE admin_id = :id", [':id' => $adminId]);
     $updatedActive = true;
   }
 }

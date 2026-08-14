@@ -49,11 +49,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       if (!$adminData) {
           $errors[] = "Critical error: Admin data not found after login.";
       } else {
+          $adminRow = db_one("SELECT active_session_token, active_session_ip, last_active FROM admin_user WHERE admin_id = :id", [':id' => (int)$adminData['admin_id']]);
+          $hasActiveSession = false;
+          $activeIp = (string)($adminRow['active_session_ip'] ?? '');
+
+          if (!empty($adminRow['active_session_token']) && !empty($adminRow['last_active'])) {
+              $lastActiveSecs = time() - strtotime((string)$adminRow['last_active']);
+              if ($lastActiveSecs < 900) {
+                  $hasActiveSession = true;
+              }
+          }
+
           $_SESSION['admin_pre_2fa'] = [
               'admin_id' => $adminData['admin_id'],
               'username' => $adminData['username'],
               'full_name' => $adminData['full_name'],
-              'email' => $adminData['email']
+              'email' => $adminData['email'],
+              'has_active_session' => $hasActiveSession,
+              'active_ip' => $activeIp,
           ];
           unset($_SESSION['admin_id']);
           unset($_SESSION['admin_username']);
