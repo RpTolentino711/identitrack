@@ -5,9 +5,16 @@ require_once __DIR__ . '/otp_mailer.php';
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
+// If admin is ALREADY logged in, redirect to dashboard immediately (do NOT send OTP)
+if (isset($_SESSION['admin_id']) && !empty($_SESSION['admin_id'])) {
+    redirect('dashboard.php');
+    exit;
+}
+
 // Ensure the user is in the pre-2fa state
 if (!isset($_SESSION['admin_pre_2fa'])) {
     redirect('login.php');
+    exit;
 }
 
 $adminPre = $_SESSION['admin_pre_2fa'];

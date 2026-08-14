@@ -7,6 +7,12 @@ require_once __DIR__ . '/../database/database.php';
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
+// If admin is ALREADY logged in, redirect to dashboard
+if (isset($_SESSION['admin_id']) && !empty($_SESSION['admin_id'])) {
+    redirect('dashboard.php');
+    exit;
+}
+
 $errors = [];
 $isLocked = false;
 $remainingSeconds = 0;
