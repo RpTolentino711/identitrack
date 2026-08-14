@@ -1659,8 +1659,16 @@ function fmt_case_id(int $id, string $created): string {
                                 </td>
                                 <td>
                                     <span class="badge <?= $statusBadgeClass ?>"><?= e($statusLabel) ?></span>
-                                    <?php if (($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED') && empty($c['resolution_file_path'])): ?>
-                                        <span style="color:#dc2626; font-weight:900; font-size:16px; margin-left:5px; vertical-align:middle;" title="Missing official resolution document!">❗</span>
+                                    <?php if ($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED'): ?>
+                                        <?php if (empty($c['resolution_file_path'])): ?>
+                                            <span style="color:#dc2626; font-weight:900; font-size:16px; margin-left:4px; vertical-align:middle;" title="Missing official resolution document!">❗</span>
+                                        <?php endif; ?>
+                                        <?php
+                                        $rowCatNum = (int)($c['decided_category'] ?? $c['hearing_vote_consensus_category'] ?? 0);
+                                        if (($rowCatNum === 1 || $rowCatNum === 2) && empty($c['nfi_file_path'])):
+                                        ?>
+                                            <span style="color:#dc2626; font-weight:900; font-size:16px; margin-left:2px; vertical-align:middle;" title="Missing Notice of Formative Intervention (NFI)!">❗</span>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -2559,6 +2567,10 @@ function selectCase(row) {
     badgesHtml += `<span class="detail-badge ${statusClass}">${statusLabel}</span>`;
     if (isClosedStatus && !row.dataset.resolutionFilePath) {
         badgesHtml += `<span class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800;">❗ Missing Resolution File</span>`;
+    }
+    const catNumHeader = parseInt(decidedCat || consensusCat || '0', 10);
+    if (isClosedStatus && (catNumHeader === 1 || catNumHeader === 2) && !row.dataset.nfiFilePath) {
+        badgesHtml += `<span class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800;">❗ Missing NFI File</span>`;
     }
     badgeContainer.innerHTML = badgesHtml;
 
