@@ -16,11 +16,11 @@ $success = '';
 
 // Handle initial OTP sending
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) {
-    // 30-second cooldown check
+    // 3-minute cooldown check (180 seconds)
     if (isset($_SESSION['login_otp']['last_sent'])) {
         $elapsed = time() - $_SESSION['login_otp']['last_sent'];
-        if ($elapsed < 30) {
-            $wait = 30 - $elapsed;
+        if ($elapsed < 180) {
+            $wait = 180 - $elapsed;
             $error = "Please wait <strong id=\"topTimer\">{$wait}</strong> seconds before requesting a new code.";
             goto render_page; // Skip sending
         }
@@ -184,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cooldown = 0;
     if (isset($_SESSION['login_otp']['last_sent'])) {
         $elapsed = time() - $_SESSION['login_otp']['last_sent'];
-        if ($elapsed < 30) $cooldown = 30 - $elapsed;
+        if ($elapsed < 180) $cooldown = 180 - $elapsed;
     }
     ?>
 
