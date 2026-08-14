@@ -572,6 +572,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'category' => $category,
                     'probation_until' => $probationUntil,
                 ]);
+                send_upcc_case_resolution_email($case_id);
                 header("Location: upcc_cases.php?msg=resolved"); exit;
             }
         } else { $regError = 'Please select a category (1-5) and write a final decision.'; }
@@ -661,6 +662,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'RESOLUTION_FILE_UPLOADED', [
                             'file_path' => $relPath,
                         ]);
+
+                        // Send official resolution notice email to student with file attached
+                        send_upcc_case_resolution_email($case_id);
+
                         header("Location: upcc_cases.php?msg=resolution_uploaded");
                         exit;
                     } else {

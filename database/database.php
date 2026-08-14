@@ -1702,6 +1702,156 @@ function ensure_notice_to_explain_table(): void {
     } catch (\Throwable $e) {}
 }
 
+function send_upcc_case_resolution_email(int $caseId): bool {
+    $params = [':cid' => $caseId];
+    db_add_encryption_key($params);
+
+    $case = db_one(
+        "SELECT 
+            uc.case_id,
+            uc.status,
+            uc.resolution_file_path,
+            uc.resolution_date,
+            " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ",
+            uc.decided_category,
+            s.student_id,
+            " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email'], 's') . ",
+            GROUP_CONCAT(ot.name SEPARATOR ' | ') AS offense_names
+         FROM upcc_case uc
+         JOIN student s ON s.student_id = uc.student_id
+         LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
+         LEFT JOIN offense o ON o.offense_id = uco.offense_id
+         LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+         WHERE uc.case_id = :cid
+         GROUP BY uc.case_id
+         LIMIT 1",
+        $params
+    );
+
+    if (!$case || empty($case['student_email'])) {
+        return false;
+    }
+
+    $toEmail  = trim((string)$case['student_email']);
+    $studentName = trim((string)$case['student_fn'] . ' ' . (string)$case['student_ln']);
+    $resDate = !empty($case['resolution_date']) ? strtotime((string)$case['resolution_date']) : time();
+    $caseNum = 'UPCC-' . date('Y', $resDate) . '-' . str_pad((string)$caseId, 4, '0', STR_PAD_LEFT);
+    $categoryLabel = !empty($case['decided_category']) ? (string)$case['decided_category'] : 'Resolved';
+    $offenses = !empty($case['offense_names']) ? (string)$case['offense_names'] : 'UPCC Disciplinary Case';
+
+    require_once __DIR__ . '/../UPCC/class.phpmailer.php';
+    require_once __DIR__ . '/../UPCC/class.smtp.php';
+
+    try {
+        $mail = new PHPMailer(true);
+        $mail->CharSet   = 'UTF-8';
+        $mail->isSMTP();
+        $mail->Host      = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
+        $mail->Port      = (int)($_ENV['SMTP_PORT'] ?? 465);
+        $mail->SMTPAuth  = true;
+        $mail->SMTPSecure = $_ENV['SMTP_SECURE'] ?? 'ssl';
+        $mail->SMTPAutoTLS = false;
+        $mail->Username  = db_smtp_user();
+        $mail->Password  = db_smtp_pass();
+        $mail->Timeout   = 30;
+
+        $mail->SMTPOptions = [
+            'ssl' => [
+                'verify_peer'       => false,
+                'verify_peer_name'  => false,
+                'allow_self_signed' => true
+            ]
+        ];
+
+        $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack UPCC Discipline Office');
+        $mail->addAddress($toEmail, $studentName);
+        $mail->isHTML(true);
+
+        $mail->Subject = "📜 Official Case Resolution Notice — {$caseNum}";
+
+        // Attach official resolution file if present
+        $resFileRel = (string)($case['resolution_file_path'] ?? '');
+        $resFileAbs = realpath(__DIR__ . '/../admin/' . $resFileRel);
+        $attachmentHtml = '';
+
+        if ($resFileAbs && is_file($resFileAbs) && is_readable($resFileAbs)) {
+            $fileName = basename($resFileAbs);
+            $mail->addAttachment($resFileAbs, $fileName);
+            $attachmentHtml = "
+            <div style='background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:14px 16px; margin:20px 0;'>
+                <div style='font-size:14px; font-weight:700; color:#15803d;'>📎 Official Signed Document Attached</div>
+                <div style='font-size:12px; color:#166534; margin-top:4px;'>The official signed resolution document (<strong>" . htmlspecialchars($fileName) . "</strong>) has been attached directly to this email for your records.</div>
+            </div>";
+        }
+
+        $logoPath = realpath(__DIR__ . '/../assets/logo.png');
+        $cid = 'upcclogo';
+        if ($logoPath && is_readable($logoPath)) {
+            $mail->addEmbeddedImage($logoPath, $cid, 'logo.png');
+            $logoHtml = "<img src=\"cid:$cid\" width=\"44\" height=\"44\" alt=\"IdentiTrack Logo\" style=\"display:block;border-radius:12px;\" />";
+        } else {
+            $logoHtml = "<div style=\"width:44px;height:44px;border-radius:12px;background:#1b2976;color:#fff;font-weight:800;font-size:16px;text-align:center;line-height:44px;\">NU</div>";
+        }
+
+        $decisionText = !empty($case['final_decision']) ? htmlspecialchars((string)$case['final_decision']) : 'Case officially closed by UPCC Committee.';
+
+        $mail->Body = "
+        <!doctype html>
+        <html>
+        <head><meta charset='utf-8'></head>
+        <body style='margin:0;padding:0;background:#f4f7ff;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:#1e293b;'>
+          <div style='padding:30px 12px;'>
+            <div style='max-width:580px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.06);'>
+              
+              <div style='background:#1b2976;padding:24px 28px;'>
+                <div style='display:flex;align-items:center;gap:14px;'>
+                  {$logoHtml}
+                  <div style='color:#ffffff;'>
+                    <div style='font-size:18px;font-weight:800;letter-spacing:0.5px;'>IdentiTrack Discipline Office</div>
+                    <div style='font-size:12px;color:#cbd5e1;'>Official UPCC Case Resolution Notice</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style='padding:28px;'>
+                <h2 style='margin:0 0 12px;font-size:20px;color:#0f172a;'>Case Resolution Notice</h2>
+                <p style='font-size:14px;color:#475569;line-height:1.6;margin:0 0 20px;'>
+                  Dear <strong>{$studentName}</strong>,
+                  <br><br>
+                  This is an official notice regarding UPCC Case <strong>{$caseNum}</strong> (" . htmlspecialchars($offenses) . "). The Discipline Committee has finalized the case status as <strong>RESOLVED / CLOSED</strong>.
+                </p>
+
+                <div style='background:#f8fafc;border:1px solid #cbd5e1;border-radius:14px;padding:18px;margin-bottom:20px;'>
+                  <div style='font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;'>Resolution Details</div>
+                  <div style='font-size:14px;color:#1e293b;margin-bottom:6px;'><strong>Status:</strong> <span style='color:#15803d;font-weight:700;'>Resolved & Closed</span></div>
+                  <div style='font-size:14px;color:#1e293b;margin-bottom:6px;'><strong>Category / Sanction:</strong> " . htmlspecialchars($categoryLabel) . "</div>
+                  <div style='font-size:14px;color:#1e293b;'><strong>Summary Decision:</strong> {$decisionText}</div>
+                </div>
+
+                {$attachmentHtml}
+
+                <p style='font-size:13px;color:#64748b;line-height:1.5;margin-top:20px;'>
+                  If you have any questions regarding this resolution or require further assistance, please visit the University Disciplinary Board / SDO Office.
+                </p>
+
+                <hr style='border:0;border-top:1px solid #e2e8f0;margin:25px 0 20px;'>
+                <div style='font-size:12px;color:#94a3b8;text-align:center;'>
+                  &copy; " . date('Y') . " National University - IdentiTrack SDO System. All rights reserved.
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </body>
+        </html>";
+
+        return $mail->send();
+    } catch (\Throwable $e) {
+        error_log("Failed sending UPCC resolution email for case {$caseId}: " . $e->getMessage());
+        return false;
+    }
+}
+
 function ensure_student_privacy_columns(): void {
     static $done = false;
     if ($done) return;
