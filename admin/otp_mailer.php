@@ -22,7 +22,7 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
     $mail->setFrom($mail->Username, 'IdentiTrack Admin Security');
     $mail->addAddress($toEmail, $toName);
     $mail->isHTML(true);
-    $mail->Subject = "Security Code: {$otp} for IdentiTrack Admin";
+    $mail->Subject = "🚨 Security Alert: Login Code {$otp} for IdentiTrack Admin";
 
     // Embed logo
     $logoPath = realpath(__DIR__ . '/../assets/logo.png');
@@ -37,22 +37,38 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
         ? "<img src='cid:$cid' width='50' height='50' style='display:block;margin-bottom:15px;'>" 
         : "<div style='font-size:24px;font-weight:bold;color:#3b4a9e;margin-bottom:15px;'>IdentiTrack</div>";
 
+    $ipAddr = $_SERVER['REMOTE_ADDR'] ?? 'Unknown IP';
+    $timestamp = date('M j, Y g:i:s A');
+
     $mail->Body = "
-    <div style='font-family: Arial, sans-serif; background-color: #f4f7ff; padding: 40px; color: #333;'>
-        <div style='max-width: 500px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05);'>
+    <div style='font-family: Arial, sans-serif; background-color: #f4f7ff; padding: 30px; color: #333;'>
+        <div style='max-width: 520px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;'>
             $logoHtml
-            <h2 style='color: #1e293b; margin-top: 0;'>Verification Code</h2>
-            <p style='font-size: 16px; color: #64748b;'>Hello <strong>$toName</strong>,</p>
-            <p style='font-size: 16px; color: #64748b;'>A login attempt was made for your account. Please use the code below to complete your authentication for <strong>$actionLabel</strong>.</p>
+            <div style='background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px;'>
+                <div style='font-size: 14px; font-weight: 700; color: #be123c; display: flex; align-items: center; gap: 6px;'>
+                    🚨 Security Alert: Admin Login Attempt Detected
+                </div>
+                <div style='font-size: 12px; color: #9f1239; margin-top: 4px;'>
+                    A new login request was initiated for your administrator account.
+                </div>
+            </div>
+
+            <p style='font-size: 15px; color: #334155; margin-top: 0;'>Hello <strong>$toName</strong>,</p>
+            <p style='font-size: 14px; color: #64748b; line-height: 1.5;'>Please use the 6-digit verification code below to authorize access for <strong>$actionLabel</strong>:</p>
             
-            <div style='background: #f1f5f9; border-radius: 12px; padding: 25px; text-align: center; margin: 25px 0;'>
-                <span style='font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #3b4a9e;'>$otp</span>
+            <div style='background: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 14px; padding: 22px; text-align: center; margin: 20px 0;'>
+                <span style='font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #1e293b;'>$otp</span>
+            </div>
+
+            <div style='background: #f8fafc; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 12px; color: #475569;'>
+                <div><strong>📍 IP Address:</strong> $ipAddr</div>
+                <div style='margin-top: 4px;'><strong>🕒 Time:</strong> $timestamp (PHT)</div>
             </div>
             
-            <p style='font-size: 14px; color: #94a3b8; line-height: 1.5;'>This code is valid for 5 minutes. If you did not request this code, please secure your account immediately.</p>
+            <p style='font-size: 13px; color: #dc2626; font-weight: 600; line-height: 1.5;'>⚠️ If you did NOT initiate this login, someone may be attempting to access your admin panel. Do not share this code with anyone.</p>
             
             <hr style='border: 0; border-top: 1px solid #e2e8f0; margin: 25px 0;'>
-            <p style='font-size: 12px; color: #94a3b8; text-align: center;'>&copy; " . date('Y') . " IdentiTrack SDO System. All rights reserved.</p>
+            <p style='font-size: 12px; color: #94a3b8; text-align: center;'>&copy; " . date('Y') . " IdentiTrack SDO Security Center. All rights reserved.</p>
         </div>
     </div>
     ";

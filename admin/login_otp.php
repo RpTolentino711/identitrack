@@ -213,13 +213,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <a href="login_otp.php?resend=1" id="resendLink">Resend Verification Code</a>
       <?php endif; ?>
     </div>
-
-    <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #e2e8f0; font-size: 13px; color: var(--muted);">
-      Already logged in as Admin? <br>
-      <a href="dashboard.php" style="color: var(--nu-blue); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; margin-top: 5px;">
-        Continue to Dashboard &rarr;
-      </a>
-    </div>
   </div>
 
   <script>
