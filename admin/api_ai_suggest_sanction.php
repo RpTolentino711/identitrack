@@ -56,29 +56,21 @@ function getGeminiApiKeys(): array
 
     // 1. Explicit request param key
     $reqKey = trim((string)($_POST['api_key'] ?? $_GET['api_key'] ?? ''));
-    if ($reqKey !== '') {
+    if ($reqKey !== '' && strpos($reqKey, 'AQ.') !== 0) {
         $keys[] = $reqKey;
     }
 
-    // 2. User provided API Keys (Verified HTTP 200 Active Keys)
-    $userFreshKey      = 'AQ' . '.Ab8RN6K5SsiXB-Xb7Wm0r9o6fHFFGUZOxQBLNePq52-HcoXKxg';
-    $userPastedKey     = 'AQ' . '.Ab8RN6K1D3ilTKaDLeayHYVrzFQioUmzJaqaGcQXkEpFP9AtVw';
-    $userNewKey        = 'AQ' . '.Ab8RN6IrcmdtUELKTOKASr5Rk19c1g4ur88gO6jMBFjotbAdSA';
-    $keys[] = $userFreshKey;
-    $keys[] = $userPastedKey;
-    $keys[] = $userNewKey;
-
-    // 3. Session key
+    // 2. Session key
     if (!empty($_SESSION['GEMINI_API_KEY'])) {
         $rawSession = trim((string)$_SESSION['GEMINI_API_KEY']);
         $splitS = preg_split('/[\s,;\n\r]+/', $rawSession);
         foreach ($splitS as $sk) {
             $sk = trim($sk);
-            if ($sk !== '') $keys[] = $sk;
+            if ($sk !== '' && strpos($sk, 'AQ.') !== 0) $keys[] = $sk;
         }
     }
 
-    // 4. Database config key(s)
+    // 3. Database config key(s)
     try {
         $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'gemini_api_key' LIMIT 1");
         if ($cfg && !empty($cfg['config_value'])) {
@@ -86,18 +78,19 @@ function getGeminiApiKeys(): array
             $split = preg_split('/[\s,;\n\r]+/', $raw);
             foreach ($split as $k) {
                 $k = trim($k);
-                if ($k !== '') $keys[] = $k;
+                if ($k !== '' && strpos($k, 'AQ.') !== 0) $keys[] = $k;
             }
         }
     } catch (\Throwable $e) {}
 
-    // 5. Environment or constant keys
+    // 4. Environment or constant keys
     if (defined('GEMINI_API_KEY')) {
-        $keys[] = (string)GEMINI_API_KEY;
+        $k = (string)GEMINI_API_KEY;
+        if (strpos($k, 'AQ.') !== 0) $keys[] = $k;
     }
 
     $envKey = trim((string)($_ENV['GEMINI_API_KEY'] ?? $_SERVER['GEMINI_API_KEY'] ?? getenv('GEMINI_API_KEY') ?: ''));
-    if ($envKey !== '') {
+    if ($envKey !== '' && strpos($envKey, 'AQ.') !== 0) {
         $keys[] = $envKey;
     }
 
