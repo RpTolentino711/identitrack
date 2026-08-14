@@ -897,7 +897,18 @@ function fmt_case_id(int $id, string $created): string {
         .days-sub { font-size: 11px; color: #e74c3c; }
         .category-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; background: #eef2ff; color: #1b2b6b; }
         .category-badge.resolved { background: #d1f0e0; color: #155724; }
-        .detail-pane { background: #fff; border: 1px solid #e0e8f5; border-radius: 14px; box-shadow: 0 2px 8px rgba(20,36,74,0.05); padding: 0; min-height: 200px; overflow: hidden; }
+        .detail-pane { 
+            background: #fff; 
+            border: 1px solid #e0e8f5; 
+            border-radius: 14px; 
+            box-shadow: 0 2px 8px rgba(20,36,74,0.05); 
+            padding: 0; 
+            min-height: 200px; 
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+            position: sticky;
+            top: 20px;
+        }
         .detail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 160px; color: #bbb; padding: 40px; }
         .detail-empty svg { width: 44px; height: 44px; opacity: .4; }
         .detail-content { display: none; }
