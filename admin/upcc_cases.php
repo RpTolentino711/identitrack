@@ -2568,6 +2568,8 @@ function selectCase(row) {
             resFormDiv.style.display = 'block';
             if (resCaseIdInput) resCaseIdInput.value = caseId;
 
+            const uploadForm = document.getElementById('real-res-upload-form');
+
             if (resFilePath) {
                 const resDateRaw = row.dataset.resolutionDate || '';
                 let resDateFormatted = '';
@@ -2589,23 +2591,24 @@ function selectCase(row) {
 
                 if (resStatusDiv) {
                     resStatusDiv.innerHTML = `
-                        <div style="padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:20px;">📄</span>
-                                <div>
-                                    <div style="font-size:12px; font-weight:700; color:#166534;">Resolution Document Attached</div>
-                                    <div style="font-size:11px; color:#15803d;">Official signed document attached</div>
-                                    ${resDateFormatted ? `<div style="font-size:11px; font-weight:600; color:#15803d; margin-top:4px; white-space:nowrap;">🕒 Submitted: <strong>${escapeHtml(resDateFormatted)}</strong></div>` : ''}
+                        <div style="padding:12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; position:relative; box-sizing:border-box; width:100%;">
+                            <button type="button" onclick="confirmRemoveResolutionFile('${escapeHtml(caseId)}')" title="Reupload / Replace Document" style="position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; z-index:2;">✕</button>
+                            <div style="display:flex; align-items:flex-start; gap:10px; padding-right:32px;">
+                                <span style="font-size:22px; line-height:1;">📄</span>
+                                <div style="flex:1; min-width:0;">
+                                    <div style="font-size:12px; font-weight:800; color:#166534;">Resolution Document Attached</div>
+                                    <div style="font-size:11px; color:#15803d; margin-top:2px;">Official signed document attached</div>
+                                    ${resDateFormatted ? `<div style="font-size:11px; font-weight:600; color:#15803d; margin-top:5px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>🕒</span> <span>Submitted: <strong>${escapeHtml(resDateFormatted)}</strong></span></div>` : ''}
+                                    <div style="margin-top:10px;">
+                                        <a href="${escapeHtml(resFilePath)}" target="_blank" download style="padding:5px 12px; background:#166534; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View File</a>
+                                    </div>
                                 </div>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <a href="${escapeHtml(resFilePath)}" target="_blank" download style="padding:6px 10px; background:#166534; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">👁️ View File</a>
-                                <button type="button" onclick="confirmRemoveResolutionFile('${escapeHtml(caseId)}')" title="Reupload / Replace Document" style="width:28px; height:28px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; flex-shrink:0;">✕</button>
                             </div>
                         </div>
                     `;
                 }
                 if (resUploadBtnLabel) resUploadBtnLabel.textContent = '🔄 Reupload Resolution File';
+                if (uploadForm) uploadForm.style.display = 'none';
             } else {
                 if (resStatusDiv) {
                     resStatusDiv.innerHTML = `
@@ -2615,6 +2618,7 @@ function selectCase(row) {
                     `;
                 }
                 if (resUploadBtnLabel) resUploadBtnLabel.textContent = '📤 Upload Resolution Document';
+                if (uploadForm) uploadForm.style.display = 'block';
             }
         } else {
             resFormDiv.style.display = 'none';
@@ -3156,12 +3160,16 @@ function confirmRemoveResolutionFile(caseId) {
         btn.textContent = 'Yes, Reupload File';
         btn.onclick = function() {
             closeConfirmResModal();
+            const uploadForm = document.getElementById('real-res-upload-form');
+            if (uploadForm) {
+                uploadForm.style.display = 'block';
+                uploadForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
             const fileInput = document.querySelector('#real-res-upload-form input[type="file"]');
             if (fileInput) {
-                fileInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 setTimeout(() => {
                     fileInput.click();
-                }, 300);
+                }, 200);
             }
         };
     }
