@@ -673,6 +673,8 @@ function ensure_hearing_workflow_schema(): void
     'student_explanation_pdf' => "ALTER TABLE upcc_case ADD COLUMN student_explanation_pdf VARCHAR(255) DEFAULT NULL",
     'student_explanation_at' => "ALTER TABLE upcc_case ADD COLUMN student_explanation_at DATETIME DEFAULT NULL",
     'student_hearing_response' => "ALTER TABLE upcc_case ADD COLUMN student_hearing_response ENUM('PENDING','ACCEPTED','DECLINED') NOT NULL DEFAULT 'PENDING'",
+    'nfi_file_path' => "ALTER TABLE upcc_case ADD COLUMN nfi_file_path VARCHAR(255) DEFAULT NULL",
+    'nfi_date' => "ALTER TABLE upcc_case ADD COLUMN nfi_date DATETIME DEFAULT NULL",
   ];
 
   foreach ($columns as $column => $sql) {
@@ -1777,10 +1779,23 @@ function send_upcc_case_resolution_email(int $caseId): bool {
         if ($resFileAbs && is_file($resFileAbs) && is_readable($resFileAbs)) {
             $fileName = basename($resFileAbs);
             $mail->addAttachment($resFileAbs, $fileName);
-            $attachmentHtml = "
-            <div style='background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:14px 16px; margin:20px 0;'>
-                <div style='font-size:14px; font-weight:700; color:#15803d;'>📎 Official Signed Document Attached</div>
-                <div style='font-size:12px; color:#166534; margin-top:4px;'>The official signed resolution document (<strong>" . htmlspecialchars($fileName) . "</strong>) has been attached directly to this email for your records.</div>
+            $attachmentHtml .= "
+            <div style='background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:14px 16px; margin:16px 0;'>
+                <div style='font-size:14px; font-weight:700; color:#15803d;'>📎 Official Signed Resolution Document Attached</div>
+                <div style='font-size:12px; color:#166534; margin-top:4px;'>The official signed resolution document (<strong>" . htmlspecialchars($fileName) . "</strong>) is attached to this email.</div>
+            </div>";
+        }
+
+        // Attach Notice of Formative Intervention (NFI) file if present
+        $nfiFileRel = (string)($case['nfi_file_path'] ?? '');
+        $nfiFileAbs = realpath(__DIR__ . '/../admin/' . $nfiFileRel);
+        if ($nfiFileAbs && is_file($nfiFileAbs) && is_readable($nfiFileAbs)) {
+            $nfiFileName = basename($nfiFileAbs);
+            $mail->addAttachment($nfiFileAbs, $nfiFileName);
+            $attachmentHtml .= "
+            <div style='background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:14px 16px; margin:16px 0;'>
+                <div style='font-size:14px; font-weight:700; color:#1d4ed8;'>📋 Notice of Formative Intervention (NFI) Attached</div>
+                <div style='font-size:12px; color:#1e40af; margin-top:4px;'>The Notice of Formative Intervention (NFI) document (<strong>" . htmlspecialchars($nfiFileName) . "</strong>) is attached to this email.</div>
             </div>";
         }
 

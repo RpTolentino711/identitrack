@@ -140,6 +140,8 @@ $cases = db_all("SELECT
         uc.resolution_date,
         uc.updated_at,
         uc.resolution_file_path,
+        uc.nfi_file_path,
+        uc.nfi_date,
         " . db_decrypt_cols(['final_decision', 'case_summary', 'punishment_details'], 'uc') . ",
         uc.decided_category,
         uc.assigned_department_id,
@@ -686,6 +688,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'RESOLUTION_FILE_REMOVED', []);
             }
             header("Location: upcc_cases.php?msg=resolution_removed");
+            exit;
+        }
+    }
+
+    // Upload / Reupload Notice of Formative Intervention (NFI) for Cat 1 & Cat 2 Cases
+    if ($_POST['action'] === 'upload_nfi') {
+        $case_id = (int)($_POST['case_id'] ?? 0);
+        if ($case_id <= 0) {
+            $regError = 'Invalid case ID.';
+        } elseif (!isset($_FILES['nfi_file']) || $_FILES['nfi_file']['error'] !== UPLOAD_ERR_OK) {
+            $regError = 'Please select a valid Notice of Formative Intervention (NFI) document to upload.';
+        } else {
+            $caseRow = db_one(
+                "SELECT status, decided_category, nfi_file_path FROM upcc_case WHERE case_id = :id",
+                [':id' => $case_id]
+            );
+            if (!$caseRow) {
+                $regError = 'Case not found.';
+            } else {
+                $file = $_FILES['nfi_file'];
+                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                $allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'doc'];
+                if (!in_array($ext, $allowedExts, true)) {
+                    $regError = 'Invalid file format. Allowed: PDF, PNG, JPG, JPEG, DOCX.';
+                } elseif ($file['size'] > 10 * 1024 * 1024) {
+                    $regError = 'File size exceeds maximum limit of 10MB.';
+                } else {
+                    $uploadDir = __DIR__ . '/uploads/nfi/';
+                    if (!is_dir($uploadDir)) {
+                        @mkdir($uploadDir, 0755, true);
+                    }
+
+                    $fileName = 'nfi_' . bin2hex(random_bytes(16)) . '.' . $ext;
+                    $targetPath = $uploadDir . $fileName;
+                    $relPath = 'uploads/nfi/' . $fileName;
+
+                    if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+                        db_exec(
+                            "UPDATE upcc_case SET nfi_file_path = :path, nfi_date = NOW(), updated_at = NOW() WHERE case_id = :id",
+                            [':path' => $relPath, ':id' => $case_id]
+                        );
+
+                        if (!empty($caseRow['nfi_file_path'])) {
+                            $oldPath = __DIR__ . '/' . $caseRow['nfi_file_path'];
+                            if (is_file($oldPath)) {
+                                @unlink($oldPath);
+                            }
+                        }
+
+                        upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'NFI_FILE_UPLOADED', [
+                            'file_path' => $relPath,
+                        ]);
+
+                        send_upcc_case_resolution_email($case_id);
+
+                        header("Location: upcc_cases.php?msg=nfi_uploaded");
+                        exit;
+                    } else {
+                        $regError = 'Failed to save uploaded NFI file.';
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove Notice of Formative Intervention (NFI) Document
+    if ($_POST['action'] === 'remove_nfi') {
+        $case_id = (int)($_POST['case_id'] ?? 0);
+        if ($case_id > 0) {
+            $caseRow = db_one("SELECT nfi_file_path FROM upcc_case WHERE case_id = :id", [':id' => $case_id]);
+            if ($caseRow && !empty($caseRow['nfi_file_path'])) {
+                $oldPath = __DIR__ . '/' . $caseRow['nfi_file_path'];
+                if (is_file($oldPath)) {
+                    @unlink($oldPath);
+                }
+                db_exec("UPDATE upcc_case SET nfi_file_path = NULL, nfi_date = NULL, updated_at = NOW() WHERE case_id = :id", [':id' => $case_id]);
+                upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'NFI_FILE_REMOVED', []);
+            }
+            header("Location: upcc_cases.php?msg=nfi_removed");
             exit;
         }
     }
@@ -1553,6 +1634,8 @@ function fmt_case_id(int $id, string $created): string {
                                 data-consensus-cat="<?= (int)($c['hearing_vote_consensus_category'] ?? 0) ?>"
                                 data-resolution-file-path="<?= e($c['resolution_file_path'] ?? '') ?>"
                                 data-resolution-date="<?= e((string)($c['resolution_date'] ?? $c['updated_at'] ?? '')) ?>"
+                                data-nfi-file-path="<?= e($c['nfi_file_path'] ?? '') ?>"
+                                data-nfi-date="<?= e((string)($c['nfi_date'] ?? '')) ?>"
                                 onclick="selectCase(this)">
                                 <td><div class="case-id"><?= e($caseLabel) ?></div></td>
                                 <td>
@@ -1668,6 +1751,19 @@ function fmt_case_id(int $id, string $created): string {
                                     <input type="file" name="resolution_file" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc" required style="width:100%; font-size:12px; margin-bottom:10px; padding:6px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;">
                                     <button type="submit" class="btn-primary" style="width:100%; padding:9px 14px; font-size:13px; background:#1b2b6b; color:#fff; border-radius:8px; border:none; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;">
                                         <span id="btn-upload-res-label">📤 Upload Resolution Document</span>
+                                    </button>
+                                </form>
+                            </div>
+                            <div id="nfi-upload-container" style="display:none; margin-top:14px; padding-top:14px; border-top:1px dashed #cbd5e1;">
+                                <div class="divider-label" id="nfi-doc-title">Notice of Formative Intervention (NFI)</div>
+                                <div id="nfi-doc-status" style="margin-bottom:10px;"></div>
+                                <form method="post" action="upcc_cases.php" enctype="multipart/form-data" id="real-nfi-upload-form" onsubmit="return handleNfiUploadSubmit(event)">
+                                    <input type="hidden" name="action" value="upload_nfi">
+                                    <input type="hidden" name="case_id" id="upload_nfi_case_id">
+                                    <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">Attach/Reupload Notice of Formative Intervention (PDF, PNG, JPG, DOCX):</div>
+                                    <input type="file" name="nfi_file" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc" required style="width:100%; font-size:12px; margin-bottom:10px; padding:6px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;">
+                                    <button type="submit" class="btn-primary" style="width:100%; padding:9px 14px; font-size:13px; background:#2563eb; color:#fff; border-radius:8px; border:none; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;">
+                                        <span id="btn-upload-nfi-label">📋 Upload Notice of Formative Intervention (NFI)</span>
                                     </button>
                                 </form>
                             </div>
@@ -2626,6 +2722,77 @@ function selectCase(row) {
         }
     }
 
+    // Notice of Formative Intervention (NFI) handling for Category 1 & Category 2 cases
+    const nfiFilePath = row.dataset.nfiFilePath || '';
+    const nfiContainer = document.getElementById('nfi-upload-container');
+    const nfiStatusDiv = document.getElementById('nfi-doc-status');
+    const nfiCaseIdInput = document.getElementById('upload_nfi_case_id');
+    const nfiUploadBtnLabel = document.getElementById('btn-upload-nfi-label');
+    const nfiUploadForm = document.getElementById('real-nfi-upload-form');
+
+    const catNum = parseInt(decidedCat || consensusCat || '0', 10);
+    const isCat1or2 = (catNum === 1 || catNum === 2);
+
+    if (nfiContainer) {
+        if (isClosedStatus && isCat1or2) {
+            nfiContainer.style.display = 'block';
+            if (nfiCaseIdInput) nfiCaseIdInput.value = caseId;
+
+            if (nfiFilePath) {
+                const nfiDateRaw = row.dataset.nfiDate || '';
+                let nfiDateFormatted = '';
+                if (nfiDateRaw) {
+                    try {
+                        const d = new Date(nfiDateRaw);
+                        if (!isNaN(d.getTime())) {
+                            nfiDateFormatted = d.toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true
+                            });
+                        }
+                    } catch(e){}
+                }
+
+                if (nfiStatusDiv) {
+                    nfiStatusDiv.innerHTML = `
+                        <div style="padding:12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; position:relative; box-sizing:border-box; width:100%;">
+                            <button type="button" onclick="confirmRemoveNfiFile('${escapeHtml(caseId)}')" title="Reupload / Replace NFI" style="position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; z-index:2;">✕</button>
+                            <div style="display:flex; align-items:flex-start; gap:10px; padding-right:32px;">
+                                <span style="font-size:22px; line-height:1;">📋</span>
+                                <div style="flex:1; min-width:0;">
+                                    <div style="font-size:12px; font-weight:800; color:#1e40af;">Notice of Formative Intervention (NFI) Attached</div>
+                                    <div style="font-size:11px; color:#1d4ed8; margin-top:2px;">Official Formative Intervention document (Category ${catNum})</div>
+                                    ${nfiDateFormatted ? `<div style="font-size:11px; font-weight:600; color:#1e40af; margin-top:5px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>🕒</span> <span>Submitted: <strong>${escapeHtml(nfiDateFormatted)}</strong></span></div>` : ''}
+                                    <div style="margin-top:10px;">
+                                        <a href="${escapeHtml(nfiFilePath)}" target="_blank" download style="padding:5px 12px; background:#1d4ed8; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View NFI Document</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '🔄 Reupload NFI Document';
+                if (nfiUploadForm) nfiUploadForm.style.display = 'none';
+            } else {
+                if (nfiStatusDiv) {
+                    nfiStatusDiv.innerHTML = `
+                        <div style="padding:8px 10px; background:#fefce8; border:1px solid #fef08a; border-radius:8px; font-size:12px; color:#854d0e;">
+                            ⚠️ Notice of Formative Intervention (NFI) not attached yet for Category ${catNum}.
+                        </div>
+                    `;
+                }
+                if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '📋 Upload Notice of Formative Intervention (NFI)';
+                if (nfiUploadForm) nfiUploadForm.style.display = 'block';
+            }
+        } else {
+            nfiContainer.style.display = 'none';
+        }
+    }
+
     document.getElementById('detail-empty').style.display    = 'none';
     document.getElementById('detail-content').classList.add('active');
 }
@@ -3184,8 +3351,81 @@ function closeConfirmResModal() {
     if (modal) modal.classList.remove('open');
 }
 
+let pendingNfiForm = null;
+
+function handleNfiUploadSubmit(e) {
+    e.preventDefault();
+    const form = e.target || document.getElementById('real-nfi-upload-form');
+    const fileInput = form.querySelector('input[type="file"]');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert('Please choose a Notice of Formative Intervention (NFI) file to upload first.');
+        return false;
+    }
+
+    pendingNfiForm = form;
+    const caseIdInput = document.getElementById('upload_nfi_case_id');
+    const caseId = caseIdInput ? caseIdInput.value : '';
+
+    const icon = document.getElementById('confirm-res-icon');
+    const title = document.getElementById('confirm-res-title');
+    const msg = document.getElementById('confirm-res-msg');
+    const btn = document.getElementById('confirm-res-btn-action');
+
+    if (icon) icon.textContent = '📋';
+    if (title) title.textContent = 'Upload Notice of Formative Intervention?';
+    if (msg) msg.innerHTML = `Are you sure you want to upload/replace the Notice of Formative Intervention (NFI) document for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><br><span style="color:#1d4ed8; font-weight:600;">ℹ️ This document will be attached to the student's resolution record and sent via email.</span>`;
+    if (btn) {
+        btn.style.background = '#2563eb';
+        btn.textContent = 'Yes, Upload NFI Document';
+        btn.onclick = function() {
+            closeConfirmResModal();
+            if (pendingNfiForm) {
+                HTMLFormElement.prototype.submit.call(pendingNfiForm);
+            }
+        };
+    }
+
+    const modal = document.getElementById('modal-confirm-resolution');
+    if (modal) modal.classList.add('open');
+    return false;
+}
+
+function confirmRemoveNfiFile(caseId) {
+    const icon = document.getElementById('confirm-res-icon');
+    const title = document.getElementById('confirm-res-title');
+    const msg = document.getElementById('confirm-res-msg');
+    const btn = document.getElementById('confirm-res-btn-action');
+
+    if (icon) icon.textContent = '🔄';
+    if (title) title.textContent = 'Reupload NFI Document?';
+    if (msg) msg.innerHTML = `Are you sure you want to reupload/replace the Notice of Formative Intervention (NFI) document for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><br><span style="color:#d97706; font-weight:600;">⚠️ Confirming will allow you to select a new file to replace the current NFI document.</span>`;
+    if (btn) {
+        btn.style.background = '#2563eb';
+        btn.textContent = 'Yes, Reupload NFI';
+        btn.onclick = function() {
+            closeConfirmResModal();
+            const nfiForm = document.getElementById('real-nfi-upload-form');
+            if (nfiForm) {
+                nfiForm.style.display = 'block';
+                nfiForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            const fileInput = document.querySelector('#real-nfi-upload-form input[type="file"]');
+            if (fileInput) {
+                setTimeout(() => {
+                    fileInput.click();
+                }, 200);
+            }
+        };
+    }
+
+    const modal = document.getElementById('modal-confirm-resolution');
+    if (modal) modal.classList.add('open');
+}
+
 window.handleResolutionUploadSubmit = handleResolutionUploadSubmit;
 window.confirmRemoveResolutionFile = confirmRemoveResolutionFile;
+window.handleNfiUploadSubmit = handleNfiUploadSubmit;
+window.confirmRemoveNfiFile = confirmRemoveNfiFile;
 window.closeConfirmResModal = closeConfirmResModal;
 </script>
 </body>
