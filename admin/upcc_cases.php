@@ -2602,12 +2602,12 @@ function selectCase(row) {
                                 <div>
                                     <div style="font-size:12px; font-weight:700; color:#166534;">Resolution Document Attached</div>
                                     <div style="font-size:11px; color:#15803d;">Official signed document attached</div>
-                                    ${resDateFormatted ? `<div style="font-size:10px; font-weight:600; color:#166534; margin-top:3px; display:flex; align-items:center; gap:3px;">🕒 Submitted: <strong>${escapeHtml(resDateFormatted)}</strong></div>` : ''}
+                                    ${resDateFormatted ? `<div style="font-size:11px; font-weight:600; color:#15803d; margin-top:4px; white-space:nowrap;">🕒 Submitted: <strong>${escapeHtml(resDateFormatted)}</strong></div>` : ''}
                                 </div>
                             </div>
                             <div style="display:flex; align-items:center; gap:6px;">
-                                <a href="${escapeHtml(resFilePath)}" target="_blank" download style="padding:6px 10px; background:#166534; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View File</a>
-                                <button type="button" onclick="confirmRemoveResolutionFile('${escapeHtml(caseId)}')" title="Remove Document" style="width:28px; height:28px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0;">✕</button>
+                                <a href="${escapeHtml(resFilePath)}" target="_blank" download style="padding:6px 10px; background:#166534; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">👁️ View File</a>
+                                <button type="button" onclick="confirmRemoveResolutionFile('${escapeHtml(caseId)}')" title="Reupload / Replace Document" style="width:28px; height:28px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; flex-shrink:0;">✕</button>
                             </div>
                         </div>
                     `;
@@ -3153,23 +3153,21 @@ function confirmRemoveResolutionFile(caseId) {
     const msg = document.getElementById('confirm-res-msg');
     const btn = document.getElementById('confirm-res-btn-action');
 
-    if (icon) icon.textContent = '🗑️';
-    if (title) title.textContent = 'Remove Resolution Document?';
-    if (msg) msg.innerHTML = `Are you sure you want to remove the current official resolution file for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><br><span style="color:#dc2626; font-weight:600;">⚠️ This will detach the file from the case record.</span>`;
+    if (icon) icon.textContent = '🔄';
+    if (title) title.textContent = 'Reupload Resolution File?';
+    if (msg) msg.innerHTML = `Are you sure you want to reupload/replace the official resolution file for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><br><span style="color:#d97706; font-weight:600;">⚠️ Confirming will allow you to select a new file to replace the current document.</span>`;
     if (btn) {
-        btn.style.background = '#dc2626';
-        btn.textContent = 'Yes, Remove File';
+        btn.style.background = '#1b2b6b';
+        btn.textContent = 'Yes, Reupload File';
         btn.onclick = function() {
             closeConfirmResModal();
-            const f = document.createElement('form');
-            f.method = 'POST';
-            f.action = 'upcc_cases.php';
-            f.innerHTML = `
-                <input type="hidden" name="action" value="remove_resolution">
-                <input type="hidden" name="case_id" value="${escapeHtml(caseId)}">
-            `;
-            document.body.appendChild(f);
-            f.submit();
+            const fileInput = document.querySelector('#real-res-upload-form input[type="file"]');
+            if (fileInput) {
+                fileInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => {
+                    fileInput.click();
+                }, 300);
+            }
         };
     }
 
