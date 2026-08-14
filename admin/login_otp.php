@@ -18,23 +18,30 @@ if (!isset($_SESSION['admin_pre_2fa'])) {
 }
 
 $adminPre = $_SESSION['admin_pre_2fa'];
+$targetEmail = $adminPre['email'];
+$maskedEmail = substr($targetEmail, 0, 3) . "..." . substr($targetEmail, strpos($targetEmail, '@'));
 $error = '';
 $success = '';
 
-// Handle initial OTP sending
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) {
-    // 3-minute cooldown check (180 seconds)
+$hasActiveOtp = isset($_SESSION['login_otp']['code']) && (time() < ($_SESSION['login_otp']['expires'] ?? 0));
+$isResendRequest = isset($_GET['resend']) && $_GET['resend'] === '1';
+
+// Send new OTP email ONLY if no active OTP exists OR if explicitly requested via resend button
+if (!$hasActiveOtp || $isResendRequest) {
+    // 3-minute cooldown check (180 seconds) for resending
     if (isset($_SESSION['login_otp']['last_sent'])) {
         $elapsed = time() - $_SESSION['login_otp']['last_sent'];
         if ($elapsed < 180) {
             $wait = 180 - $elapsed;
             $error = "Please wait <strong id=\"topTimer\">{$wait}</strong> seconds before requesting a new code.";
+            if ($hasActiveOtp) {
+                $success = "A verification code was previously sent to " . htmlspecialchars($maskedEmail);
+            }
             goto render_page; // Skip sending
         }
     }
 
     $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $targetEmail = $adminPre['email'];
     
     $_SESSION['login_otp'] = [
         'code' => $otp,
@@ -49,12 +56,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) {
         $emailSent = false;
     }
 
-    $maskedEmail = substr($targetEmail, 0, 3) . "..." . substr($targetEmail, strpos($targetEmail, '@'));
     if ($emailSent) {
         $success = "A verification code has been sent to " . htmlspecialchars($maskedEmail);
     } else {
         $success = "Verification code generated for " . htmlspecialchars($maskedEmail) . "! (Email server delayed). Code: <strong style='font-size:18px; color:#1b2976; letter-spacing:2px;'>{$otp}</strong>";
     }
+} else {
+    // Active OTP code exists and page was simply reloaded
+    $success = "A verification code has been sent to " . htmlspecialchars($maskedEmail);
 }
 
 render_page: // Label for skipping OTP generation during cooldown
@@ -199,15 +208,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       Didn't receive the code? <br>
       <?php if ($cooldown > 0): ?>
         <span id="cooldownText">Resend available in <strong id="timer"><?php echo $cooldown; ?></strong>s</span>
-        <a href="login_otp.php?init=1" id="resendLink" style="display:none;">Resend Verification Code</a>
+        <a href="login_otp.php?resend=1" id="resendLink" style="display:none;">Resend Verification Code</a>
       <?php else: ?>
-        <a href="login_otp.php?init=1" id="resendLink">Resend Verification Code</a>
+        <a href="login_otp.php?resend=1" id="resendLink">Resend Verification Code</a>
       <?php endif; ?>
     </div>
   </div>
 
   <script>
     (function() {
+        if (window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
         let timeLeft = <?php echo $cooldown; ?>;
         const timerSpan = document.getElementById('timer');
         const topTimerSpan = document.getElementById('topTimer');
