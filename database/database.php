@@ -21,6 +21,9 @@ function ph_date(string $format, int|string|null $timestamp = null): string {
 }
 
 if (session_status() === PHP_SESSION_NONE) {
+  @ini_set('session.cookie_lifetime', '0');
+  @ini_set('session.use_cookies', '1');
+  @ini_set('session.use_only_cookies', '1');
   session_start();
 }
 
