@@ -639,17 +639,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             ':path' => $relPath,
                             ':id'   => $case_id,
                         ];
-                        if (empty($caseRow['resolution_date'])) {
-                            db_exec(
-                                "UPDATE upcc_case SET resolution_file_path = :path, resolution_date = NOW(), updated_at = NOW() WHERE case_id = :id",
-                                $params
-                            );
-                        } else {
-                            db_exec(
-                                "UPDATE upcc_case SET resolution_file_path = :path, updated_at = NOW() WHERE case_id = :id",
-                                $params
-                            );
-                        }
+                        db_exec(
+                            "UPDATE upcc_case SET resolution_file_path = :path, resolution_date = NOW(), updated_at = NOW() WHERE case_id = :id",
+                            $params
+                        );
 
                         // Clean up the previous file on re-upload so old
                         // signed documents don't pile up on disk indefinitely.
@@ -3138,7 +3131,9 @@ function handleResolutionUploadSubmit(e) {
         btn.textContent = 'Yes, Reupload File';
         btn.onclick = function() {
             closeConfirmResModal();
-            if (pendingResForm) pendingResForm.submit();
+            if (pendingResForm) {
+                HTMLFormElement.prototype.submit.call(pendingResForm);
+            }
         };
     }
 
