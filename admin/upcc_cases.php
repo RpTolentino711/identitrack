@@ -1662,13 +1662,13 @@ function fmt_case_id(int $id, string $created): string {
                                         <span class="badge <?= $statusBadgeClass ?>"><?= e($statusLabel) ?></span>
                                         <?php if ($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED'): ?>
                                             <?php if (empty($c['resolution_file_path'])): ?>
-                                                <span style="color:#dc2626; font-weight:900; font-size:15px; cursor:help;" title="Missing Official Resolution Document — Upload signed resolution document">❗</span>
+                                                <span onclick="event.stopPropagation(); locateMissingDoc(this, 'resolution');" style="color:#dc2626; font-weight:900; font-size:15px; cursor:pointer;" title="Missing Official Resolution Document — Click to locate upload section">❗</span>
                                             <?php endif; ?>
                                             <?php
                                             $rowCatNum = (int)($c['decided_category'] ?? $c['hearing_vote_consensus_category'] ?? 0);
                                             if (($rowCatNum === 1 || $rowCatNum === 2) && empty($c['nfi_file_path'])):
                                             ?>
-                                                <span style="color:#dc2626; font-weight:900; font-size:15px; cursor:help;" title="Missing Notice of Formative Intervention (NFI) — Required for Category 1 & Category 2 cases">❗</span>
+                                                <span onclick="event.stopPropagation(); locateMissingDoc(this, 'nfi');" style="color:#dc2626; font-weight:900; font-size:15px; cursor:pointer;" title="Missing Notice of Formative Intervention (NFI) — Click to locate upload section">❗</span>
                                             <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
@@ -2568,11 +2568,11 @@ function selectCase(row) {
     }
     badgesHtml += `<span class="detail-badge ${statusClass}">${statusLabel}</span>`;
     if (isClosedStatus && !row.dataset.resolutionFilePath) {
-        badgesHtml += `<span class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800;">❗ Missing Resolution File</span>`;
+        badgesHtml += `<span onclick="locateMissingDocTarget('resolution');" class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800; cursor:pointer;" title="Click to jump to Official Resolution Document upload form">❗ Missing Resolution File</span>`;
     }
     const catNumHeader = parseInt(decidedCat || consensusCat || '0', 10);
     if (isClosedStatus && (catNumHeader === 1 || catNumHeader === 2) && !row.dataset.nfiFilePath) {
-        badgesHtml += `<span class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800;">❗ Missing NFI File</span>`;
+        badgesHtml += `<span onclick="locateMissingDocTarget('nfi');" class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800; cursor:pointer;" title="Click to jump to Notice of Formative Intervention (NFI) upload form">❗ Missing NFI File</span>`;
     }
     badgeContainer.innerHTML = badgesHtml;
 
@@ -3436,6 +3436,38 @@ function confirmRemoveNfiFile(caseId) {
     if (modal) modal.classList.add('open');
 }
 
+function locateMissingDoc(el, docType) {
+    const row = el.closest('tr');
+    if (row) {
+        selectCase(row);
+    }
+    locateMissingDocTarget(docType);
+}
+
+function locateMissingDocTarget(docType) {
+    setTimeout(() => {
+        let targetEl = null;
+        if (docType === 'resolution') {
+            targetEl = document.getElementById('resolution-upload-form');
+        } else if (docType === 'nfi') {
+            targetEl = document.getElementById('nfi-upload-container');
+        }
+        if (targetEl) {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            targetEl.style.transition = 'outline 0.3s ease, box-shadow 0.3s ease';
+            targetEl.style.outline = '2px solid #dc2626';
+            targetEl.style.borderRadius = '10px';
+            targetEl.style.boxShadow = '0 0 14px rgba(220,38,38,0.35)';
+            setTimeout(() => {
+                targetEl.style.outline = 'none';
+                targetEl.style.boxShadow = 'none';
+            }, 1800);
+        }
+    }, 150);
+}
+
+window.locateMissingDoc = locateMissingDoc;
+window.locateMissingDocTarget = locateMissingDocTarget;
 window.handleResolutionUploadSubmit = handleResolutionUploadSubmit;
 window.confirmRemoveResolutionFile = confirmRemoveResolutionFile;
 window.handleNfiUploadSubmit = handleNfiUploadSubmit;
