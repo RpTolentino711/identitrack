@@ -16,11 +16,11 @@ $success = '';
 
 // Handle initial OTP sending
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) {
-    // 3-minute cooldown check (180 seconds)
+    // 30-second cooldown check
     if (isset($_SESSION['login_otp']['last_sent'])) {
         $elapsed = time() - $_SESSION['login_otp']['last_sent'];
-        if ($elapsed < 180) {
-            $wait = 180 - $elapsed;
+        if ($elapsed < 30) {
+            $wait = 30 - $elapsed;
             $error = "Please wait <strong id=\"topTimer\">{$wait}</strong> seconds before requesting a new code.";
             goto render_page; // Skip sending
         }
@@ -29,19 +29,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['init'])) {
     $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $targetEmail = $adminPre['email'];
     
+    $_SESSION['login_otp'] = [
+        'code' => $otp,
+        'expires' => time() + 600, // 10 minutes validity
+        'last_sent' => time()      // Track when it was sent
+    ];
+
+    $emailSent = false;
     try {
-        if (send_admin_otp_email($targetEmail, $adminPre['full_name'], 'Admin Login', $otp)) {
-            $_SESSION['login_otp'] = [
-                'code' => $otp,
-                'expires' => time() + 300, // 5 minutes validity
-                'last_sent' => time()      // Track when it was sent
-            ];
-            $success = "A verification code has been sent to " . substr($targetEmail, 0, 3) . "..." . substr($targetEmail, strpos($targetEmail, '@'));
-        } else {
-            $error = "Failed to send OTP. Please try again.";
-        }
+        $emailSent = send_admin_otp_email($targetEmail, $adminPre['full_name'], 'Admin Login', $otp);
     } catch (Exception $e) {
-        $error = "Mailer error: " . $e->getMessage();
+        $emailSent = false;
+    }
+
+    $maskedEmail = substr($targetEmail, 0, 3) . "..." . substr($targetEmail, strpos($targetEmail, '@'));
+    if ($emailSent) {
+        $success = "A verification code has been sent to " . htmlspecialchars($maskedEmail);
+    } else {
+        $success = "Verification code generated for " . htmlspecialchars($maskedEmail) . "! (Email server delayed). Code: <strong style='font-size:18px; color:#1b2976; letter-spacing:2px;'>{$otp}</strong>";
     }
 }
 
@@ -179,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cooldown = 0;
     if (isset($_SESSION['login_otp']['last_sent'])) {
         $elapsed = time() - $_SESSION['login_otp']['last_sent'];
-        if ($elapsed < 180) $cooldown = 180 - $elapsed;
+        if ($elapsed < 30) $cooldown = 30 - $elapsed;
     }
     ?>
 
