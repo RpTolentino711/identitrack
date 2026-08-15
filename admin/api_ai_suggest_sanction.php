@@ -203,8 +203,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
                     ['category' => 'HARM_CATEGORY_HARASSMENT', 'threshold' => 'BLOCK_NONE'],
                     ['category' => 'HARM_CATEGORY_HATE_SPEECH', 'threshold' => 'BLOCK_NONE'],
                     ['category' => 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold' => 'BLOCK_NONE'],
-                    ['category' => 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold' => 'BLOCK_NONE'],
-                    ['category' => 'HARM_CATEGORY_CIVIC_INTEGRITY', 'threshold' => 'BLOCK_NONE']
+                    ['category' => 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold' => 'BLOCK_NONE']
                 ]
             ];
 
@@ -585,14 +584,11 @@ try {
             }
         }
 
-        $sysPrompt = "IMPORTANT ROLE PERSPECTIVE & DATA PRIVACY:\n"
-            . "You are an internal executive Decision-Support Advisor assisting the UPCC DISCIPLINARY PANEL MEMBERS (the board/hearing officers) of NU Lipa.\n"
-            . "You are NOT talking to the student. Always address the user as 'Panel Member' or 'Board'.\n"
-            . "Refer to the accused student strictly in the 3rd person (e.g., 'The student, {$studentName}, has...'). Never address the panel member as 'you' in reference to the offense.\n"
-            . "DATA PRIVACY MANDATE (RA 10173): If discussing prior offenses of the CURRENT student on trial ({$studentName}), mention {$studentName} directly by full name. For OTHER past student offenders, NEVER reveal their full names — refer to them using Case Numbers (e.g. Case #DO-24-25-001) or Academic Programs (e.g. BSIT Student).\n"
-            . "If asked about another student, use the REAL-TIME DATABASE LOOKUP context provided below.\n\n"
-            . "Answer questions strictly grounded in the NU Lipa Student Handbook rules below and the active case data provided. "
-            . "Format your responses with clean Markdown headers, bold highlights, and bullet points. Never make up facts outside the handbook or case file.\n\n"
+        $sysPrompt = "You are IdentiTrack AI, an executive decision-support assistant for NU Lipa Disciplinary Panel Members.\n"
+            . "Address the user as 'Panel Member'. Refer to the student strictly in the 3rd person.\n"
+            . "For privacy protection, refer to other past student offenders using Case Numbers or Programs.\n"
+            . "Answer questions strictly grounded in the NU Lipa Student Handbook rules below and active case data provided.\n"
+            . "Format responses with clean Markdown headers, bold highlights, and bullet points.\n\n"
             . $dynamicRules;
 
         $userPrompt = "ACTIVE HEARING CASE DATA:\n"
