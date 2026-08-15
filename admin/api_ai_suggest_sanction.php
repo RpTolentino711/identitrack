@@ -178,7 +178,7 @@ function callGemini(string $systemPrompt, string $userPrompt): ?string
         return null;
     }
 
-    $models = ['gemini-3.5-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
+    $models = ['gemini-3.5-flash', 'gemini-3.6-flash'];
     $lastErr = '';
     $hasQuotaLimit = false;
 
