@@ -2875,51 +2875,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     <?php endif; ?>
   };
 
-  window.rejectGuardReport = async function(reportId) {
-    if (!confirm('Are you sure you want to reject and dismiss Guard Violation Report #' + reportId + '?')) {
-      return;
-    }
-    try {
-      const formData = new FormData();
-      formData.append('action', 'reject');
-      formData.append('report_id', reportId);
-
-      const res = await fetch('AJAX/guard_report_review.php', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-
-      if (data && data.ok) {
-        const banner = document.getElementById('pendingGuardReportBanner');
-        if (banner) {
-          banner.style.transition = 'all 0.4s ease';
-          banner.style.opacity = '0';
-          banner.style.transform = 'translateY(-10px)';
-          setTimeout(() => banner.remove(), 400);
-        }
-
-        const hiddenInput = document.getElementById('pending_report_id');
-        if (hiddenInput) hiddenInput.value = '0';
-
-        if (window.history && window.history.replaceState) {
-          const url = new URL(window.location.href);
-          url.searchParams.delete('pending_report_id');
-          window.history.replaceState(null, '', url.pathname + url.search);
-        }
-
-        const descInput = document.getElementById('description');
-        if (descInput) descInput.value = '';
-
-        alert('✓ Guard Report #' + reportId + ' has been rejected and dismissed.');
-      } else {
-        alert('❌ Failed to reject report: ' + (data?.message || 'Error occurred'));
-      }
-    } catch (e) {
-      alert('❌ Connection error while rejecting report.');
-    }
-  };
-
   const suggestionsBox = document.getElementById('studentSuggestions');
   let searchTimer = null;
 
