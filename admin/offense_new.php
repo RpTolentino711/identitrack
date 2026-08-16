@@ -105,6 +105,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
 
     $newOffenseId = db_last_id();
 
+    // Mark associated pending guard report as APPROVED / REVIEWED
+    $pendingReportIdSubmit = (int)($_POST['pending_report_id'] ?? 0);
+    if ($pendingReportIdSubmit > 0) {
+      db_exec(
+        "UPDATE pending_guard_report SET status = 'APPROVED', reviewed_by = :aid, reviewed_at = CURRENT_TIMESTAMP WHERE report_id = :rid",
+        [':aid' => $adminId, ':rid' => $pendingReportIdSubmit]
+      );
+      db_exec(
+        "UPDATE notification SET is_read = 1 WHERE item_type = 'VIOLATION' AND report_id = :rid",
+        [':rid' => $pendingReportIdSubmit]
+      );
+    }
+
     // ── AFTER INSERT LOGIC ────────────────────────────────────────────────
     if ($level === 'MINOR') {
       $afterRow = db_one(
@@ -263,6 +276,52 @@ $postStudentId = (string)($_POST['student_id'] ?? $studentIdPrefill);
 $defaultDate   = ph_date('Y-m-d\TH:i');
 $postDate      = (string)($_POST['date_committed'] ?? $defaultDate);
 $postDesc      = (string)($_POST['description']    ?? '');
+
+// ── Pending Guard Violation Report Lookup ─────────────────────────────────────────
+$pendingReportId = (int)($_GET['pending_report_id'] ?? $_POST['pending_report_id'] ?? 0);
+$pendingGuardReport = null;
+
+if ($pendingReportId > 0) {
+  $pendingGuardReport = db_one("
+    SELECT pgr.*, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
+           ga.full_name as guard_name
+    FROM pending_guard_report pgr
+    LEFT JOIN offense_type ot ON ot.offense_type_id = pgr.offense_type_id
+    LEFT JOIN guard_account ga ON ga.guard_id = pgr.guard_id
+    WHERE pgr.report_id = :rid AND pgr.status = 'PENDING'
+    LIMIT 1
+  ", [':rid' => $pendingReportId]);
+}
+
+if (!$pendingGuardReport && $postStudentId !== '') {
+  $pendingGuardReport = db_one("
+    SELECT pgr.*, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
+           ga.full_name as guard_name
+    FROM pending_guard_report pgr
+    LEFT JOIN offense_type ot ON ot.offense_type_id = pgr.offense_type_id
+    LEFT JOIN guard_account ga ON ga.guard_id = pgr.guard_id
+    WHERE pgr.student_id = :sid AND pgr.status = 'PENDING'
+    ORDER BY pgr.report_id DESC LIMIT 1
+  ", [':sid' => $postStudentId]);
+}
+
+if ($pendingGuardReport) {
+  $pendingReportId = (int)$pendingGuardReport['report_id'];
+  if ($postStudentId === '') {
+    $postStudentId = (string)($pendingGuardReport['student_id'] ?? '');
+  }
+  if (empty($_POST)) {
+    if ($postDesc === '' && !empty($pendingGuardReport['description'])) {
+      $postDesc = (string)$pendingGuardReport['description'];
+    }
+    if (!empty($pendingGuardReport['created_at'])) {
+      $postDate = ph_date('Y-m-d\TH:i', strtotime($pendingGuardReport['created_at']));
+    }
+    if ($postExistingTypeId <= 0 && !empty($pendingGuardReport['offense_type_id'])) {
+      $postExistingTypeId = (int)$pendingGuardReport['offense_type_id'];
+    }
+  }
+}
 
 // ── Letter mode ──────────────────────────────────────────────────────────────
 $letterOffenseId = (int)($_GET['offense_id'] ?? 0);
@@ -1757,12 +1816,45 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                     </div>
                   </div>
                 <?php else: ?>
-                  <div style="background: var(--surface-2); border: 1px dashed var(--border); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 18px; text-align: center; color: var(--text-4);">
-                    Enter a Student ID above to load student information.
+                <!-- Pending Security Guard Violation Report Banner -->
+                <?php if ($pendingGuardReport): ?>
+                  <div id="pendingGuardReportBanner" style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:12px; padding:16px 20px; margin-bottom:20px; box-shadow:0 4px 14px rgba(37,99,235,0.1);">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                      <div style="display:flex; align-items:flex-start; gap:12px; flex:1; min-width:260px;">
+                        <div style="width:42px; height:42px; border-radius:10px; background:#dbeafe; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
+                          🛡️
+                        </div>
+                        <div>
+                          <div style="font-size:14px; font-weight:800; color:#1e40af; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span>Pending Security Guard Violation Report</span>
+                            <span style="background:#dbeafe; color:#1e40af; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Report #<?php echo (int)$pendingGuardReport['report_id']; ?></span>
+                          </div>
+                          <div style="font-size:12.5px; color:#2563eb; margin-top:3px; font-weight:600;">
+                            Filed by <strong><?php echo htmlspecialchars($pendingGuardReport['guard_name'] ?? 'Campus Security Guard'); ?></strong> on <?php echo htmlspecialchars(date('M j, Y h:i A', strtotime($pendingGuardReport['created_at']))); ?>
+                          </div>
+                          <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #dbeafe; line-height:1.4;">
+                            <div style="font-weight:700; color:#1e40af; margin-bottom:2px;">
+                              Reported Offense: <span style="color:#0f172a;"><?php echo htmlspecialchars($pendingGuardReport['offense_name'] ?? 'Violation Report'); ?> (<?php echo htmlspecialchars($pendingGuardReport['offense_code'] ?? 'MIN-01'); ?>)</span>
+                            </div>
+                            <div>
+                              <span style="font-weight:700; color:#1e40af;">Guard Notes:</span>
+                              <em style="color:#334155;">"<?php echo htmlspecialchars($pendingGuardReport['description'] ?? 'No additional notes provided.'); ?>"</em>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style="align-self:center;">
+                        <button type="button" onclick="autoFillGuardReportData()" style="padding:9px 16px; background:#2563eb; color:#ffffff; font-weight:700; font-size:12.5px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 8px rgba(37,99,235,0.3);">
+                          ⚡ Auto-Input Guard Details
+                        </button>
+                      </div>
+                    </div>
                   </div>
+                <?php endif; ?>
                 <?php endif; ?>
 
                 <form method="post" action="offense_new.php" id="offenseForm">
+                  <input type="hidden" name="pending_report_id" id="pending_report_id" value="<?php echo (int)($pendingReportId ?? 0); ?>"/>
 
                   <div class="form-row">
                     <div class="form-group">
@@ -2633,6 +2725,35 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     if (studentId) params.set('student_id', studentId);
     window.location.href = 'offense_new.php?' + params.toString();
   }
+
+  window.autoFillGuardReportData = function() {
+    <?php if ($pendingGuardReport): ?>
+      const reportTypeId = <?php echo (int)($pendingGuardReport['offense_type_id'] ?? 0); ?>;
+      const reportDesc   = <?php echo json_encode((string)($pendingGuardReport['description'] ?? '')); ?>;
+      const reportDate   = <?php echo json_encode(ph_date('Y-m-d\TH:i', strtotime($pendingGuardReport['created_at']))); ?>;
+
+      const typeSelect = document.getElementById('offense_type_id');
+      const descInput  = document.getElementById('description');
+      const dateInput  = document.getElementById('date_committed');
+
+      if (typeSelect && reportTypeId > 0) {
+        typeSelect.value = reportTypeId;
+      }
+      if (descInput && reportDesc) {
+        descInput.value = reportDesc;
+      }
+      if (dateInput && reportDate) {
+        dateInput.value = reportDate;
+      }
+
+      const banner = document.getElementById('pendingGuardReportBanner');
+      if (banner) {
+        banner.style.transition = 'all 0.3s ease';
+        banner.style.background = '#dcfce7';
+        banner.style.borderColor = '#86efac';
+      }
+    <?php endif; ?>
+  };
 
   const suggestionsBox = document.getElementById('studentSuggestions');
   let searchTimer = null;
