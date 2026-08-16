@@ -9,6 +9,7 @@ $rows = db_all(
      r.report_id,
      r.student_id,
      r.date_committed,
+     r.description,
      r.created_at,
      ot.code AS offense_code,
      ot.name AS offense_name,
@@ -34,6 +35,7 @@ foreach ((array)$rows as $r) {
     'offense_code' => (string)($r['offense_code'] ?? ''),
     'offense_name' => (string)($r['offense_name'] ?? ''),
     'offense_level' => (string)($r['offense_level'] ?? ''),
+    'description' => (string)($r['description'] ?? ''),
     'date_committed_label' => !empty($r['date_committed']) ? date('M d, Y h:i A', strtotime((string)$r['date_committed'])) : '',
     'created_at_label' => !empty($r['created_at']) ? date('M d, Y h:i A', strtotime((string)$r['created_at'])) : '',
   ];

@@ -957,6 +957,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                       data-offense-level="<?php echo htmlspecialchars((string)$g['offense_level'], ENT_QUOTES, 'UTF-8'); ?>"
                       data-date-committed="<?php echo htmlspecialchars(date('M d, Y g:i A', strtotime((string)$g['date_committed'])), ENT_QUOTES, 'UTF-8'); ?>"
                       data-submitted-at="<?php echo htmlspecialchars(date('M d, Y g:i A', strtotime((string)$g['created_at'])), ENT_QUOTES, 'UTF-8'); ?>"
+                      data-description="<?php echo htmlspecialchars((string)($g['description'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
                     >Review</button>
                   </div>
                 </div>
@@ -1008,6 +1009,10 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
             <div class="guard-modal-field-label">Submitted at</div>
             <div class="guard-modal-field-value" id="gmSubmitted">—</div>
           </div>
+        </div>
+        <div style="margin-top: 14px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+          <div class="guard-modal-field-label" style="font-weight: 700; color: #1e293b; margin-bottom: 4px;">Guard Incident Notes / Description</div>
+          <div id="gmDescription" style="font-size: 13px; color: #334155; line-height: 1.45; font-style: italic;">—</div>
         </div>
       </div>
       <div class="guard-modal-actions">
@@ -1091,6 +1096,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     var gmLevel       = document.getElementById('gmLevel');
     var gmDate        = document.getElementById('gmDate');
     var gmSubmitted   = document.getElementById('gmSubmitted');
+    var gmDescription = document.getElementById('gmDescription');
     var gmViewStudent = document.getElementById('gmViewStudent');
     var gmRejectBtn   = document.getElementById('gmRejectBtn');
     var gmApproveBtn  = document.getElementById('gmApproveBtn');
@@ -1267,6 +1273,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       gmLevel.textContent      = d.offenseLevel || '—';
       gmDate.textContent       = d.dateCommitted || '—';
       gmSubmitted.textContent  = d.submittedAt  || '—';
+      if (gmDescription) gmDescription.textContent = d.description ? ('"' + d.description + '"') : '(No additional notes provided.)';
       gmViewStudent.href       = 'offenses_student_view.php?student_id='
         + encodeURIComponent(String(d.studentId || ''))
         + '&pending_report_id=' + encodeURIComponent(String(d.reportId || ''));
@@ -1500,7 +1507,8 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
               + ' data-offense-name="' + esc(g.offense_name) + '"'
               + ' data-offense-level="' + esc(g.offense_level) + '"'
               + ' data-date-committed="' + esc(g.date_committed_label) + '"'
-              + ' data-submitted-at="' + esc(g.created_at_label) + '">Review</button>'
+              + ' data-submitted-at="' + esc(g.created_at_label) + '"'
+              + ' data-description="' + esc(g.description || '') + '">Review</button>'
           + '</div>'
         + '</div>';
       }).join('');
@@ -1580,7 +1588,8 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
         offenseName:   btn.getAttribute('data-offense-name')   || '',
         offenseLevel:  btn.getAttribute('data-offense-level')  || '',
         dateCommitted: btn.getAttribute('data-date-committed') || '',
-        submittedAt:   btn.getAttribute('data-submitted-at')   || ''
+        submittedAt:   btn.getAttribute('data-submitted-at')   || '',
+        description:   btn.getAttribute('data-description')    || ''
       });
     });
 
