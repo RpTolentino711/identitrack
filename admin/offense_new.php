@@ -1897,6 +1897,32 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         }
     };
 
+        // Update 3D Horizontal Coverflow peeking cards (peeking out to the right behind main card)
+        const r1 = document.getElementById('cardStackRight1');
+        if (r1 && window.guardReportsList.length > 1) {
+            const nextIdx = (idx + 1) % window.guardReportsList.length;
+            const rNext = window.guardReportsList[nextIdx];
+            r1.onclick = function() { window.selectGuardReportIndex(nextIdx); };
+            r1.style.cursor = 'pointer';
+            r1.title = 'Click to switch to Report #' + rNext.report_id;
+            r1.innerHTML = '<div style="position:absolute; right:10px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#0369a1; pointer-events:none;">' +
+              '<div style="background:#0284c7; color:#ffffff; font-size:10px; font-weight:800; padding:3px 10px; border-radius:12px; display:inline-block; box-shadow:0 2px 6px rgba(2,132,199,0.35);">Report #' + rNext.report_id + ' ›</div>' +
+              '</div>';
+        }
+
+        const r2 = document.getElementById('cardStackRight2');
+        if (r2 && window.guardReportsList.length > 2) {
+            const nextIdx2 = (idx + 2) % window.guardReportsList.length;
+            const rNext2 = window.guardReportsList[nextIdx2];
+            r2.onclick = function() { window.selectGuardReportIndex(nextIdx2); };
+            r2.style.cursor = 'pointer';
+            r2.title = 'Click to switch to Report #' + rNext2.report_id;
+            r2.innerHTML = '<div style="position:absolute; right:10px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#92400e; pointer-events:none;">' +
+              '<div style="background:#d97706; color:#ffffff; font-size:10px; font-weight:800; padding:3px 10px; border-radius:12px; display:inline-block; box-shadow:0 2px 6px rgba(217,119,6,0.35);">Report #' + rNext2.report_id + ' ›</div>' +
+              '</div>';
+        }
+    };
+
     window.prevGuardReportCarousel = function() {
         if (!window.guardReportsList || window.guardReportsList.length === 0) return;
         const total = window.guardReportsList.length;
@@ -1911,26 +1937,28 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         window.selectGuardReportIndex(newIdx);
     };
 
-    // Attach mouse wheel & touch swipe gestures for card stack vertical scrolling
+    // Attach horizontal swipe & wheel gestures for Coverflow deck scrolling
     (function() {
         let isThrottled = false;
-        let startY = 0;
+        let startX = 0;
         let isDragging = false;
 
         document.addEventListener('DOMContentLoaded', function() {
             const stack = document.getElementById('pendingGuardReportStackContainer');
             if (!stack) return;
 
-            // Mouse Wheel Vertical Scroll
+            // Mouse Wheel Horizontal/Vertical Carousel Scroll
             stack.addEventListener('wheel', function(e) {
                 if (window.guardReportsList && window.guardReportsList.length > 1) {
+                    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+                    if (Math.abs(delta) < 5) return;
                     e.preventDefault();
                     if (isThrottled) return;
                     isThrottled = true;
 
-                    if (e.deltaY > 0) {
+                    if (delta > 0) {
                         window.nextGuardReportCarousel();
-                    } else if (e.deltaY < 0) {
+                    } else {
                         window.prevGuardReportCarousel();
                     }
 
@@ -1938,23 +1966,23 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 }
             }, { passive: false });
 
-            // Touch Swipe Vertical Gestures (Up/Down)
+            // Touch Swipe Horizontal Gestures (Left/Right)
             stack.addEventListener('touchstart', function(e) {
                 if (e.touches && e.touches.length === 1) {
-                    startY = e.touches[0].clientY;
+                    startX = e.touches[0].clientX;
                     isDragging = true;
                 }
             }, { passive: true });
 
             stack.addEventListener('touchmove', function(e) {
                 if (!isDragging || !e.touches || e.touches.length !== 1) return;
-                const currentY = e.touches[0].clientY;
-                const diffY = startY - currentY;
+                const currentX = e.touches[0].clientX;
+                const diffX = startX - currentX;
 
-                if (Math.abs(diffY) > 30) {
+                if (Math.abs(diffX) > 25) {
                     if (window.guardReportsList && window.guardReportsList.length > 1) {
                         isDragging = false;
-                        if (diffY > 0) {
+                        if (diffX > 0) {
                             window.nextGuardReportCarousel();
                         } else {
                             window.prevGuardReportCarousel();
@@ -2189,14 +2217,40 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                 <?php endif; ?>
 
-                <!-- Pending Security Guard Violation Report Stack Banner -->
+                <!-- Pending Security Guard Violation Report Stack Banner (3D Horizontal Coverflow) -->
                 <?php 
                   $pReportsCount = is_array($pendingGuardReports) ? count($pendingGuardReports) : 0;
                   if ($pReportsCount > 0): 
                 ?>
-                  <div id="pendingGuardReportStackContainer" style="position:relative; margin-bottom:24px; user-select:none;">
+                  <style>
+                    #pendingGuardReportStackContainer {
+                      position: relative;
+                      margin-bottom: 28px;
+                      user-select: none;
+                      perspective: 1000px;
+                    }
+                    #pendingGuardReportStackContainer:hover #pendingGuardReportBanner {
+                      transform: translateX(-14px) scale(0.99);
+                    }
+                    #pendingGuardReportStackContainer:hover #cardStackRight1 {
+                      right: -36px;
+                      transform: scale(0.95) perspective(600px) rotateY(-4deg);
+                      opacity: 0.95;
+                      box-shadow: 4px 8px 24px rgba(0,0,0,0.12);
+                    }
+                    #pendingGuardReportStackContainer:hover #cardStackRight2 {
+                      right: -60px;
+                      transform: scale(0.9) perspective(600px) rotateY(-8deg);
+                      opacity: 0.8;
+                    }
+                  </style>
+                  <div id="pendingGuardReportStackContainer" title="Swipe left/right or click the card peeking to the right to switch">
+                    <!-- 3D Horizontal Coverflow Stacked Card Layers peeking to the RIGHT -->
+                    <div id="cardStackRight2" style="position:absolute; top:16px; bottom:16px; right:-32px; width:100%; max-width:94%; background:#fef3c7; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.65; transform:scale(0.9) perspective(600px) rotateY(-10deg); box-shadow:0 4px 12px rgba(0,0,0,0.06); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+                    <div id="cardStackRight1" style="position:absolute; top:8px; bottom:8px; right:-18px; width:100%; max-width:97%; background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:14px; z-index:2; opacity:0.85; transform:scale(0.94) perspective(600px) rotateY(-6deg); box-shadow:2px 6px 18px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+
                     <!-- Active Banner Card -->
-                    <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 8px 20px rgba(22,163,74,0.12); transition:transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;">
+                    <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 10px 25px rgba(22,163,74,0.15); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
                       <!-- Carousel Navigation Header Controls (if multiple reports) -->
                       <div id="guardCarouselHeader" style="display:<?php echo $pReportsCount > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
                         <div style="font-size:12.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -2205,7 +2259,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                             <!-- Clickable report pills rendered via JS -->
                           </div>
                         </div>
-                        <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85;">Click a report tab or ↕ Scroll/Swipe</span>
+                        <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85;">Swipe ↔ or click a report</span>
                       </div>
 
                       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
