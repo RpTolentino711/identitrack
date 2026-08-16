@@ -109,8 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
     $pendingReportIdSubmit = (int)($_POST['pending_report_id'] ?? 0);
     if ($pendingReportIdSubmit > 0) {
       db_exec(
-        "UPDATE pending_guard_report SET status = 'APPROVED', reviewed_by = :aid, reviewed_at = CURRENT_TIMESTAMP WHERE report_id = :rid",
-        [':aid' => $adminId, ':rid' => $pendingReportIdSubmit]
+        "UPDATE guard_violation_report SET status = 'APPROVED' WHERE report_id = :rid",
+        [':rid' => $pendingReportIdSubmit]
       );
       db_exec(
         "UPDATE notification SET is_read = 1 WHERE item_type = 'VIOLATION' AND report_id = :rid",
@@ -284,11 +284,11 @@ $pendingGuardReport = null;
 if ($pendingReportId > 0) {
   $pendingGuardReport = db_one("
     SELECT pgr.*, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
-           ga.full_name as guard_name
-    FROM pending_guard_report pgr
+           g.full_name as guard_name
+    FROM guard_violation_report pgr
     LEFT JOIN offense_type ot ON ot.offense_type_id = pgr.offense_type_id
-    LEFT JOIN guard_account ga ON ga.guard_id = pgr.guard_id
-    WHERE pgr.report_id = :rid AND pgr.status = 'PENDING'
+    LEFT JOIN security_guard g ON g.guard_id = pgr.submitted_by
+    WHERE pgr.report_id = :rid AND pgr.status = 'PENDING' AND pgr.is_deleted = 0
     LIMIT 1
   ", [':rid' => $pendingReportId]);
 }
@@ -296,11 +296,11 @@ if ($pendingReportId > 0) {
 if (!$pendingGuardReport && $postStudentId !== '') {
   $pendingGuardReport = db_one("
     SELECT pgr.*, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
-           ga.full_name as guard_name
-    FROM pending_guard_report pgr
+           g.full_name as guard_name
+    FROM guard_violation_report pgr
     LEFT JOIN offense_type ot ON ot.offense_type_id = pgr.offense_type_id
-    LEFT JOIN guard_account ga ON ga.guard_id = pgr.guard_id
-    WHERE pgr.student_id = :sid AND pgr.status = 'PENDING'
+    LEFT JOIN security_guard g ON g.guard_id = pgr.submitted_by
+    WHERE pgr.student_id = :sid AND pgr.status = 'PENDING' AND pgr.is_deleted = 0
     ORDER BY pgr.report_id DESC LIMIT 1
   ", [':sid' => $postStudentId]);
 }

@@ -79,9 +79,10 @@ if ($studentName === '') {
 
 $pendingRow = db_one(
   "SELECT report_id
-   FROM pending_guard_report
+   FROM guard_violation_report
    WHERE student_id = :sid
      AND status = 'PENDING'
+     AND is_deleted = 0
    ORDER BY created_at DESC, report_id DESC
    LIMIT 1",
   [':sid' => $studentId]
