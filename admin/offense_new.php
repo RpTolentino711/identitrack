@@ -1895,34 +1895,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         if (dateInput && r.created_at) {
             dateInput.value = r.created_at.replace(' ', 'T').substring(0, 16);
         }
-
-        // Update peeking card layer 1 data (the card behind)
-        const l1 = document.getElementById('cardStackLayer1');
-        if (l1 && window.guardReportsList.length > 1) {
-            const nextIdx = (idx + 1) % window.guardReportsList.length;
-            const rNext = window.guardReportsList[nextIdx];
-            l1.onclick = function() { window.selectGuardReportIndex(nextIdx); };
-            l1.style.cursor = 'pointer';
-            l1.title = 'Click to switch to Report #' + rNext.report_id;
-            l1.innerHTML = '<div style="position:absolute; bottom:3px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:700; color:#0369a1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">' +
-              '<span style="overflow:hidden; text-overflow:ellipsis;">🛡️ Report #' + rNext.report_id + ': ' + (rNext.offense_name || 'Violation Report') + '</span>' +
-              '<span style="background:#0284c7; color:#fff; font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px; flex-shrink:0; margin-left:8px;">Switch Card ↵</span>' +
-              '</div>';
-        }
-
-        // Update peeking card layer 2 data (the 2nd card behind)
-        const l2 = document.getElementById('cardStackLayer2');
-        if (l2 && window.guardReportsList.length > 2) {
-            const nextIdx2 = (idx + 2) % window.guardReportsList.length;
-            const rNext2 = window.guardReportsList[nextIdx2];
-            l2.onclick = function() { window.selectGuardReportIndex(nextIdx2); };
-            l2.style.cursor = 'pointer';
-            l2.title = 'Click to switch to Report #' + rNext2.report_id;
-            l2.innerHTML = '<div style="position:absolute; bottom:3px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:700; color:#92400e; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">' +
-              '<span style="overflow:hidden; text-overflow:ellipsis;">🛡️ Report #' + rNext2.report_id + ': ' + (rNext2.offense_name || 'Violation Report') + '</span>' +
-              '<span style="background:#d97706; color:#fff; font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px; flex-shrink:0; margin-left:8px;">Switch Card ↵</span>' +
-              '</div>';
-        }
     };
 
     window.prevGuardReportCarousel = function() {
@@ -2222,35 +2194,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   $pReportsCount = is_array($pendingGuardReports) ? count($pendingGuardReports) : 0;
                   if ($pReportsCount > 0): 
                 ?>
-                  <style>
-                    #pendingGuardReportStackContainer {
-                      position: relative;
-                      margin-bottom: 38px;
-                      user-select: none;
-                      cursor: grab;
-                    }
-                    #pendingGuardReportStackContainer:hover #pendingGuardReportBanner {
-                      transform: translateY(-4px);
-                      box-shadow: 0 16px 32px rgba(22,163,74,0.2);
-                    }
-                    #pendingGuardReportStackContainer:hover #cardStackLayer1 {
-                      bottom: -24px;
-                      transform: scale(0.985);
-                      opacity: 0.98;
-                    }
-                    #pendingGuardReportStackContainer:hover #cardStackLayer2 {
-                      bottom: -44px;
-                      transform: scale(0.97);
-                      opacity: 0.9;
-                    }
-                  </style>
-                  <div id="pendingGuardReportStackContainer" title="Scroll up/down, swipe, or click peeking card to switch">
-                    <!-- Visual stacked card depth layers behind active report -->
-                    <div id="cardStackLayer2" style="position:absolute; bottom:-16px; left:16px; right:16px; height:100%; background:#fef3c7; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.75; transform:scale(0.96); box-shadow:0 4px 12px rgba(0,0,0,0.05); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
-                    <div id="cardStackLayer1" style="position:absolute; bottom:-8px; left:8px; right:8px; height:100%; background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:14px; z-index:2; opacity:0.9; transform:scale(0.98); box-shadow:0 6px 16px rgba(0,0,0,0.07); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
-
+                  <div id="pendingGuardReportStackContainer" style="position:relative; margin-bottom:24px; user-select:none;">
                     <!-- Active Banner Card -->
-                    <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 10px 25px rgba(22,163,74,0.15); transition:transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.25s ease;">
+                    <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 8px 20px rgba(22,163,74,0.12); transition:transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;">
                       <!-- Carousel Navigation Header Controls (if multiple reports) -->
                       <div id="guardCarouselHeader" style="display:<?php echo $pReportsCount > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
                         <div style="font-size:12.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -2259,7 +2205,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                             <!-- Clickable report pills rendered via JS -->
                           </div>
                         </div>
-                        <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85;">Click a report or ↕ Scroll/Swipe</span>
+                        <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85;">Click a report tab or ↕ Scroll/Swipe</span>
                       </div>
 
                       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
