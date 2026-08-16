@@ -335,9 +335,36 @@ if ($pendingGuardReport) {
     if (!empty($pendingGuardReport['created_at'])) {
       $postDate = ph_date('Y-m-d\TH:i', strtotime($pendingGuardReport['created_at']));
     }
+    if (!empty($pendingGuardReport['offense_level'])) {
+      $level = strtoupper((string)$pendingGuardReport['offense_level']);
+      if ($level !== 'MINOR' && $level !== 'MAJOR') $level = 'MINOR';
+    }
+    if (isset($pendingGuardReport['major_category'])) {
+      $category = (int)$pendingGuardReport['major_category'];
+    }
     if ($postExistingTypeId <= 0 && !empty($pendingGuardReport['offense_type_id'])) {
       $postExistingTypeId = (int)$pendingGuardReport['offense_type_id'];
     }
+  }
+
+  // Reload offenseTypes to match the pending report's level and category
+  if ($level === 'MINOR') {
+    $offenseTypes = db_all(
+      "SELECT offense_type_id, code, name FROM offense_type
+       WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
+      []
+    ) ?: [];
+    $offenseTypes[] = ['offense_type_id' => 22, 'code' => 'OTHER', 'name' => 'Other / Custom Minor Offense'];
+  } else if ($level === 'MAJOR') {
+    $sql = "SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR'";
+    $params = [];
+    if ($category >= 1 && $category <= 5) {
+      $sql .= " AND major_category = :cat";
+      $params[':cat'] = $category;
+    }
+    $sql .= " AND code NOT LIKE '%OTHER%' ORDER BY code ASC";
+    $offenseTypes = db_all($sql, $params) ?: [];
+    $offenseTypes[] = ['offense_type_id' => 23, 'code' => 'OTHER', 'name' => 'Other / Custom Major Offense'];
   }
 }
 
