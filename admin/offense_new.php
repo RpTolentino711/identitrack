@@ -1780,7 +1780,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
         try {
             const formData = new FormData();
-            formData.append('action', 'reject');
+            formData.append('action', 'reject_guard_report');
             formData.append('report_id', reportId);
 
             const res = await fetch('AJAX/guard_report_review.php', {

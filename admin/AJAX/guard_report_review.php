@@ -98,7 +98,7 @@ function send_guardian_notice(string $studentId, string $subject, string $letter
     }
 }
 
-if ($reportId <= 0 || ($action !== 'approve_guard_report' && $action !== 'reject_guard_report')) {
+if ($reportId <= 0 || ($action !== 'approve_guard_report' && $action !== 'reject_guard_report' && $action !== 'reject' && $action !== 'approve')) {
   echo json_encode(['ok' => false, 'message' => 'Invalid review request.']);
   exit;
 }
@@ -336,19 +336,16 @@ if ($action === 'approve_guard_report') {
   exit;
 }
 
-// Reject and permanently delete the report
+// Reject and mark report as REJECTED
 db_exec(
-  "DELETE FROM guard_violation_report WHERE report_id = :rid",
+  "UPDATE guard_violation_report SET status = 'REJECTED' WHERE report_id = :rid",
   [':rid' => $reportId]
 );
 
 db_exec(
-  "DELETE FROM notification
-   WHERE type = 'GUARD_REPORT'
-     AND related_table = 'guard_violation_report'
-     AND related_id = :rid",
+  "UPDATE notification SET is_read = 1 WHERE (type = 'GUARD_REPORT' AND related_id = :rid) OR (item_type = 'VIOLATION' AND report_id = :rid)",
   [':rid' => $reportId]
 );
 
-echo json_encode(['ok' => true, 'message' => 'Report permanently deleted.']);
+echo json_encode(['ok' => true, 'message' => 'Report rejected and dismissed.']);
 exit;
