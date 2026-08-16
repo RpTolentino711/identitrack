@@ -2303,7 +2303,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       </div>
                     </div>
                   </div>
-                <?php endif; ?>
+                </div>
+              <?php endif; ?>
 
                 <form method="post" action="offense_new.php" id="offenseForm">
                   <input type="hidden" name="pending_report_id" id="pending_report_id" value="<?php echo (int)($pendingReportId ?? 0); ?>"/>
