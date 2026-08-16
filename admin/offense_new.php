@@ -333,7 +333,7 @@ if ($pendingGuardReport) {
       $postDesc = (string)$pendingGuardReport['description'];
     }
     if (!empty($pendingGuardReport['created_at'])) {
-      $postDate = ph_date('Y-m-d\TH:i', strtotime($pendingGuardReport['created_at']));
+      $postDate = ph_date('Y-m-d\TH:i', $pendingGuardReport['created_at'] ?? null);
     }
     if (!empty($pendingGuardReport['offense_level'])) {
       $level = strtoupper((string)$pendingGuardReport['offense_level']);
@@ -658,9 +658,9 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   $isAppRegistered = (!empty($student['privacy_accepted']) || !empty($student['app_registered_at']) || !empty($student['privacy_accepted_at']));
   $privacyDateStr = '';
   if (!empty($student['privacy_accepted_at'])) {
-      $privacyDateStr = date('M d, Y g:i A', strtotime($student['privacy_accepted_at']));
+      $privacyDateStr = ph_date('M d, Y g:i A', $student['privacy_accepted_at']);
   } elseif (!empty($student['app_registered_at'])) {
-      $privacyDateStr = date('M d, Y g:i A', strtotime($student['app_registered_at']));
+      $privacyDateStr = ph_date('M d, Y g:i A', $student['app_registered_at']);
   }
 
   $starBadge = '';
@@ -745,8 +745,8 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $bgColor = $isRed ? 'var(--red-soft)' : 'var(--amber-soft)';
       $textColor = $isRed ? 'var(--red)' : 'var(--amber)';
       $borderColor = $isRed ? 'var(--red-mid)' : 'var(--amber-mid)';
-      $dateStr = date('M j, Y', strtotime($o['date_committed']));
-      $timeStr = date('g:i A', strtotime($o['date_committed']));
+      $dateStr = ph_date('M j, Y', $o['date_committed']);
+      $timeStr = ph_date('g:i A', $o['date_committed']);
       $dateDisplay = $dateStr . '<br><span style="font-size:9px; opacity:0.9;">' . $timeStr . '</span>';
       
       $labelHtml = '';
@@ -1019,7 +1019,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       $offensesHtml .= '<summary style="cursor:pointer; font-weight:600; font-size:13px; color:#475569; outline:none; user-select:none;">View all past offenses (' . count($offenses) . ')</summary>';
       $offensesHtml .= '<div style="margin-top:10px; max-height:200px; overflow-y:auto; border-top:1px solid #e2e8f0; padding-top:10px; text-align:left;">';
       foreach ($offenses as $off) {
-          $dt = date('M j, Y g:i A', strtotime($off['date_committed']));
+          $dt = ph_date('M j, Y g:i A', $off['date_committed']);
           $lvlColor = $off['level'] === 'MAJOR' ? 'color:var(--red);' : 'color:var(--amber);';
           $offensesHtml .= '<div style="font-size:12px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #e2e8f0;">';
           $offensesHtml .= '<div style="display:flex; justify-content:space-between; margin-bottom:4px;">';
@@ -2133,7 +2133,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                               <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
                             </div>
                             <div id="bannerGuardMeta" style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
-                              Filed by <strong><?php echo htmlspecialchars((string)($pendingGuardReport['guard_name'] ?? 'Campus Security Guard')); ?></strong> on <?php echo htmlspecialchars(!empty($pendingGuardReport['created_at']) ? date('M j, Y h:i A', strtotime((string)$pendingGuardReport['created_at'])) : 'Recently'); ?>
+                              Filed by <strong><?php echo htmlspecialchars((string)($pendingGuardReport['guard_name'] ?? 'Campus Security Guard')); ?></strong> on <?php echo htmlspecialchars(!empty($pendingGuardReport['created_at']) ? ph_date('M j, Y h:i A', $pendingGuardReport['created_at']) : 'Recently'); ?>
                             </div>
                             <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #bbf7d0; line-height:1.4;">
                               <div style="font-weight:700; color:#15803d; margin-bottom:2px;">
@@ -2354,7 +2354,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       if ($studentInfo && $letterOffenseId > 0) {
                           $coff = db_one("SELECT o.description, o.date_committed, ot.code, ot.name, ot.level FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.offense_id = :oid", [':oid' => $letterOffenseId]);
                           if ($coff) {
-                              $dt = date('F j, Y g:i A', strtotime($coff['date_committed']));
+                              $dt = ph_date('F j, Y g:i A', $coff['date_committed']);
                               $defaultBody .= "CURRENT OFFENSE:\n- {$coff['code']} — {$coff['name']}\n- Level: {$coff['level']}\n- Date: {$dt}\n- Notes: " . ($coff['description'] ?: '(none)') . "\n\n";
                           }
                           $history = db_all("SELECT o.date_committed, o.description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", [':sid' => $studentInfo['student_id']]);
@@ -2363,7 +2363,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                               $defaultBody .= "(No offenses found.)\n";
                           } else {
                               foreach ($history as $i => $h) {
-                                  $dt = date('M j, Y g:i A', strtotime($h['date_committed']));
+                                  $dt = ph_date('M j, Y g:i A', $h['date_committed']);
                                   $defaultBody .= ($i + 1) . ". [{$h['level']}] {$h['code']} — {$h['name']} ({$dt})\n";
                                   if (trim($h['description']) !== '') $defaultBody .= "   Notes: " . trim($h['description']) . "\n";
                               }
@@ -3039,7 +3039,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     <?php if ($pendingGuardReport): ?>
       const reportTypeId = <?php echo (int)($pendingGuardReport['offense_type_id'] ?? 0); ?>;
       const reportDesc   = <?php echo json_encode((string)($pendingGuardReport['description'] ?? '')); ?>;
-      const reportDate   = <?php echo json_encode(ph_date('Y-m-d\TH:i', strtotime($pendingGuardReport['created_at']))); ?>;
+      const reportDate   = <?php echo json_encode(ph_date('Y-m-d\TH:i', $pendingGuardReport['created_at'] ?? null)); ?>;
 
       const typeSelect = document.getElementById('offense_type_id');
       const descInput  = document.getElementById('description');
