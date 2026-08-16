@@ -1905,8 +1905,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             r1.onclick = function() { window.selectGuardReportIndex(nextIdx); };
             r1.style.cursor = 'pointer';
             r1.title = 'Click to switch to Report #' + rNext.report_id;
-            r1.innerHTML = '<div style="position:absolute; right:10px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#0369a1; pointer-events:none;">' +
-              '<div style="background:#0284c7; color:#ffffff; font-size:10px; font-weight:800; padding:3px 10px; border-radius:12px; display:inline-block; box-shadow:0 2px 6px rgba(2,132,199,0.35);">Report #' + rNext.report_id + ' ›</div>' +
+            r1.innerHTML = '<div style="position:absolute; right:8px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#0369a1; pointer-events:none; white-space:nowrap;">' +
+              '<div style="background:#0284c7; color:#ffffff; font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:12px; display:inline-block; box-shadow:0 2px 6px rgba(2,132,199,0.35);">Report #' + rNext.report_id + ' ›</div>' +
               '</div>';
         }
 
@@ -1917,8 +1917,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             r2.onclick = function() { window.selectGuardReportIndex(nextIdx2); };
             r2.style.cursor = 'pointer';
             r2.title = 'Click to switch to Report #' + rNext2.report_id;
-            r2.innerHTML = '<div style="position:absolute; right:10px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#92400e; pointer-events:none;">' +
-              '<div style="background:#d97706; color:#ffffff; font-size:10px; font-weight:800; padding:3px 10px; border-radius:12px; display:inline-block; box-shadow:0 2px 6px rgba(217,119,6,0.35);">Report #' + rNext2.report_id + ' ›</div>' +
+            r2.innerHTML = '<div style="position:absolute; right:8px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#92400e; pointer-events:none; white-space:nowrap;">' +
+              '<div style="background:#d97706; color:#ffffff; font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:12px; display:inline-block; box-shadow:0 2px 6px rgba(217,119,6,0.35);">Report #' + rNext2.report_id + ' ›</div>' +
               '</div>';
         }
     };
@@ -2223,6 +2223,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   if ($pReportsCount > 0): 
                 ?>
                   <style>
+                    #pendingGuardReportStackWrapper {
+                      padding-right: 36px;
+                      box-sizing: border-box;
+                    }
                     #pendingGuardReportStackContainer {
                       position: relative;
                       margin-bottom: 28px;
@@ -2230,37 +2234,38 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       perspective: 1000px;
                     }
                     #pendingGuardReportStackContainer:hover #pendingGuardReportBanner {
-                      transform: translateX(-14px) scale(0.99);
+                      transform: translateX(-12px) scale(0.99);
                     }
                     #pendingGuardReportStackContainer:hover #cardStackRight1 {
-                      right: -36px;
-                      transform: scale(0.95) perspective(600px) rotateY(-4deg);
-                      opacity: 0.95;
-                      box-shadow: 4px 8px 24px rgba(0,0,0,0.12);
+                      right: -24px;
+                      transform: scale(0.96) perspective(600px) rotateY(-4deg);
+                      opacity: 0.98;
+                      box-shadow: 6px 10px 24px rgba(0,0,0,0.12);
                     }
                     #pendingGuardReportStackContainer:hover #cardStackRight2 {
-                      right: -60px;
-                      transform: scale(0.9) perspective(600px) rotateY(-8deg);
-                      opacity: 0.8;
+                      right: -42px;
+                      transform: scale(0.92) perspective(600px) rotateY(-8deg);
+                      opacity: 0.85;
                     }
                   </style>
-                  <div id="pendingGuardReportStackContainer" title="Swipe left/right or click the card peeking to the right to switch">
-                    <!-- 3D Horizontal Coverflow Stacked Card Layers peeking to the RIGHT -->
-                    <div id="cardStackRight2" style="position:absolute; top:16px; bottom:16px; right:-32px; width:100%; max-width:94%; background:#fef3c7; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.65; transform:scale(0.9) perspective(600px) rotateY(-10deg); box-shadow:0 4px 12px rgba(0,0,0,0.06); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
-                    <div id="cardStackRight1" style="position:absolute; top:8px; bottom:8px; right:-18px; width:100%; max-width:97%; background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:14px; z-index:2; opacity:0.85; transform:scale(0.94) perspective(600px) rotateY(-6deg); box-shadow:2px 6px 18px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+                  <div id="pendingGuardReportStackWrapper">
+                    <div id="pendingGuardReportStackContainer" title="Swipe left/right or click the card peeking to the right to switch">
+                      <!-- 3D Horizontal Coverflow Stacked Card Layers peeking to the RIGHT -->
+                      <div id="cardStackRight2" style="position:absolute; top:12px; bottom:12px; right:-20px; width:100%; background:#fef3c7; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.7; transform:scale(0.92) perspective(600px) rotateY(-10deg); box-shadow:0 4px 12px rgba(0,0,0,0.06); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+                      <div id="cardStackRight1" style="position:absolute; top:6px; bottom:6px; right:-8px; width:100%; background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:14px; z-index:2; opacity:0.9; transform:scale(0.95) perspective(600px) rotateY(-6deg); box-shadow:4px 6px 18px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
 
-                    <!-- Active Banner Card -->
-                    <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 10px 25px rgba(22,163,74,0.15); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
-                      <!-- Carousel Navigation Header Controls (if multiple reports) -->
-                      <div id="guardCarouselHeader" style="display:<?php echo $pReportsCount > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
-                        <div style="font-size:12.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                          <span>📚 Multiple Pending Reports (<?php echo $pReportsCount; ?> Total):</span>
-                          <div id="carouselReportPills" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                            <!-- Clickable report pills rendered via JS -->
+                      <!-- Active Banner Card -->
+                      <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 10px 25px rgba(22,163,74,0.15); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
+                        <!-- Carousel Navigation Header Controls (if multiple reports) -->
+                        <div id="guardCarouselHeader" style="display:<?php echo $pReportsCount > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
+                          <div style="font-size:12.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span>📚 Multiple Pending Reports (<?php echo $pReportsCount; ?> Total):</span>
+                            <div id="carouselReportPills" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                              <!-- Clickable report pills rendered via JS -->
+                            </div>
                           </div>
+                          <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85;">Swipe ↔ or click a report</span>
                         </div>
-                        <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85;">Swipe ↔ or click a report</span>
-                      </div>
 
                       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
                         <div style="display:flex; align-items:flex-start; gap:12px; flex:1; min-width:260px;">
