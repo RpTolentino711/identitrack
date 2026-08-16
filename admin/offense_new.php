@@ -1903,8 +1903,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             const nextIdx = (idx + 1) % window.guardReportsList.length;
             const rNext = window.guardReportsList[nextIdx];
             r1.onclick = function() { window.selectGuardReportIndex(nextIdx); };
+            r1.onmouseenter = function() { window.selectGuardReportIndex(nextIdx); };
             r1.style.cursor = 'pointer';
-            r1.title = 'Click to switch to Report #' + rNext.report_id;
+            r1.title = 'Hover or click to switch to Report #' + rNext.report_id;
             r1.innerHTML = '<div style="position:absolute; right:8px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#0369a1; pointer-events:none; white-space:nowrap;">' +
               '<div style="background:#0284c7; color:#ffffff; font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:12px; display:inline-block; box-shadow:0 2px 6px rgba(2,132,199,0.35);">Report #' + rNext.report_id + ' ›</div>' +
               '</div>';
@@ -1915,8 +1916,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             const nextIdx2 = (idx + 2) % window.guardReportsList.length;
             const rNext2 = window.guardReportsList[nextIdx2];
             r2.onclick = function() { window.selectGuardReportIndex(nextIdx2); };
+            r2.onmouseenter = function() { window.selectGuardReportIndex(nextIdx2); };
             r2.style.cursor = 'pointer';
-            r2.title = 'Click to switch to Report #' + rNext2.report_id;
+            r2.title = 'Hover or click to switch to Report #' + rNext2.report_id;
             r2.innerHTML = '<div style="position:absolute; right:8px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#92400e; pointer-events:none; white-space:nowrap;">' +
               '<div style="background:#d97706; color:#ffffff; font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:12px; display:inline-block; box-shadow:0 2px 6px rgba(217,119,6,0.35);">Report #' + rNext2.report_id + ' ›</div>' +
               '</div>';
@@ -1993,6 +1995,32 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
             stack.addEventListener('touchend', function() {
                 isDragging = false;
+            });
+
+            // Mouse Drag Horizontal Gestures (Desktop Dragging)
+            let isMouseDown = false;
+            let mouseStartX = 0;
+            stack.addEventListener('mousedown', function(e) {
+                if (e.target.closest('button, input, select, textarea, a')) return;
+                isMouseDown = true;
+                mouseStartX = e.clientX;
+            });
+            stack.addEventListener('mousemove', function(e) {
+                if (!isMouseDown) return;
+                const diffX = mouseStartX - e.clientX;
+                if (Math.abs(diffX) > 30) {
+                    if (window.guardReportsList && window.guardReportsList.length > 1) {
+                        isMouseDown = false;
+                        if (diffX > 0) {
+                            window.nextGuardReportCarousel();
+                        } else {
+                            window.prevGuardReportCarousel();
+                        }
+                    }
+                }
+            });
+            document.addEventListener('mouseup', function() {
+                isMouseDown = false;
             });
 
             // Populate peeking card layer data on initial load
