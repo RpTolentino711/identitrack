@@ -1,11 +1,11 @@
 <?php
 // Reusable admin sidebar v2.0 - Cache Busted: 2026-08-04
 $activeSidebar = isset($activeSidebar) ? (string)$activeSidebar : 'dashboard';
-$pendingGuardReports = 0;
+$sidebarPendingGuardCount = 0;
 $pendingAppeals = 0;
 if (function_exists('db_one')) {
   $row = db_one("SELECT COUNT(*) AS cnt FROM guard_violation_report WHERE status = 'PENDING' AND is_deleted = 0");
-  $pendingGuardReports = (int)($row['cnt'] ?? 0);
+  $sidebarPendingGuardCount = (int)($row['cnt'] ?? 0);
 
   if (db_one("SHOW TABLES LIKE 'student_appeal_request'")) {
     $appealRow = db_one("SELECT COUNT(*) AS cnt FROM student_appeal_request WHERE status IN ('PENDING','REVIEWING')");
@@ -404,8 +404,8 @@ if (function_exists('db_one')) {
           </svg>
         </span>
         <span>Dashboard</span>
-        <?php if ($pendingGuardReports > 0): ?>
-          <span class="admin-sidebar-count"><?php echo (int)$pendingGuardReports; ?></span>
+        <?php if ($sidebarPendingGuardCount > 0): ?>
+          <span class="admin-sidebar-count"><?php echo (int)$sidebarPendingGuardCount; ?></span>
         <?php endif; ?>
       </a>
     </li>

@@ -2100,19 +2100,22 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 <?php endif; ?>
 
                 <!-- Pending Security Guard Violation Report Stack Banner -->
-                <?php if (!empty($pendingGuardReports)): ?>
+                <?php 
+                  $pReportsCount = is_array($pendingGuardReports) ? count($pendingGuardReports) : 0;
+                  if ($pReportsCount > 0): 
+                ?>
                   <div id="pendingGuardReportStackContainer" style="position:relative; margin-bottom:24px;">
                     <!-- Visual stacked card depth layers behind if count > 1 -->
-                    <div id="cardStackLayer2" style="position:absolute; bottom:-10px; left:10px; right:10px; height:45px; background:#dcfce7; border:1.5px solid #86efac; border-radius:12px; z-index:1; opacity:0.6; display:<?php echo count($pendingGuardReports) > 2 ? 'block' : 'none'; ?>;"></div>
-                    <div id="cardStackLayer1" style="position:absolute; bottom:-5px; left:5px; right:5px; height:45px; background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:12px; z-index:2; opacity:0.85; display:<?php echo count($pendingGuardReports) > 1 ? 'block' : 'none'; ?>;"></div>
+                    <div id="cardStackLayer2" style="position:absolute; bottom:-10px; left:10px; right:10px; height:45px; background:#dcfce7; border:1.5px solid #86efac; border-radius:12px; z-index:1; opacity:0.6; display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>;"></div>
+                    <div id="cardStackLayer1" style="position:absolute; bottom:-5px; left:5px; right:5px; height:45px; background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:12px; z-index:2; opacity:0.85; display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>;"></div>
 
                     <!-- Active Banner Card -->
                     <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:12px; padding:16px 20px; box-shadow:0 6px 18px rgba(22,163,74,0.12); transition:all 0.3s ease;">
                       <!-- Carousel Navigation Header Controls (if multiple reports) -->
-                      <div id="guardCarouselHeader" style="display:<?php echo count($pendingGuardReports) > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
+                      <div id="guardCarouselHeader" style="display:<?php echo $pReportsCount > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
                         <div style="font-size:12.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px;">
-                          <span>📚 Multiple Pending Reports (<?php echo count($pendingGuardReports); ?> Total)</span>
-                          <span id="carouselReportCounter" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:800; padding:2px 10px; border-radius:12px;">Report 1 of <?php echo count($pendingGuardReports); ?></span>
+                          <span>📚 Multiple Pending Reports (<?php echo $pReportsCount; ?> Total)</span>
+                          <span id="carouselReportCounter" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:800; padding:2px 10px; border-radius:12px;">Report 1 of <?php echo $pReportsCount; ?></span>
                         </div>
                         <div style="display:flex; align-items:center; gap:6px;">
                           <button type="button" onclick="prevGuardReportCarousel()" id="btnPrevReport" style="padding:5px 12px; background:#ffffff; border:1px solid #86efac; border-radius:6px; color:#15803d; font-weight:700; font-size:12px; cursor:pointer;" disabled>
