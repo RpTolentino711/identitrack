@@ -336,7 +336,7 @@ if ($pendingGuardReport) {
       $postDesc = (string)$pendingGuardReport['description'];
     }
     if (!empty($pendingGuardReport['created_at'])) {
-      $postDate = ph_date('Y-m-d\TH:i', strtotime($pendingGuardReport['created_at']));
+      $postDate = ph_date('Y-m-d\TH:i', $pendingGuardReport['created_at']);
     }
     if (!empty($pendingGuardReport['offense_level'])) {
       $level = strtoupper((string)$pendingGuardReport['offense_level']);
@@ -3043,7 +3043,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     <?php if ($pendingGuardReport): ?>
       const reportTypeId = <?php echo (int)($pendingGuardReport['offense_type_id'] ?? 0); ?>;
       const reportDesc   = <?php echo json_encode((string)($pendingGuardReport['description'] ?? '')); ?>;
-      const reportDate   = <?php echo json_encode(ph_date('Y-m-d\TH:i', strtotime($pendingGuardReport['created_at']))); ?>;
+      const reportDate   = <?php echo json_encode(ph_date('Y-m-d\TH:i', $pendingGuardReport['created_at'] ?? null)); ?>;
 
       const typeSelect = document.getElementById('offense_type_id');
       const descInput  = document.getElementById('description');

@@ -8,12 +8,13 @@ date_default_timezone_set('Asia/Manila');
 /**
  * Format a date/time string explicitly in Philippine Standard Time (Asia/Manila).
  */
-function ph_date(string $format, int|string|null $timestamp = null): string {
+function ph_date(string $format, mixed $timestamp = null): string {
     date_default_timezone_set('Asia/Manila');
-    if ($timestamp === null) {
+    if ($timestamp === null || $timestamp === false || $timestamp === true || $timestamp === '') {
         $ts = time();
     } elseif (is_string($timestamp)) {
         $ts = strtotime($timestamp);
+        if ($ts === false) $ts = time();
     } else {
         $ts = (int)$timestamp;
     }
