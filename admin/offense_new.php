@@ -1,8 +1,5 @@
 <?php
 // File: admin/offense_new.php
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
 require_once __DIR__ . '/../database/database.php';
 require_admin();
 
@@ -336,7 +333,7 @@ if ($pendingGuardReport) {
       $postDesc = (string)$pendingGuardReport['description'];
     }
     if (!empty($pendingGuardReport['created_at'])) {
-      $postDate = ph_date('Y-m-d\TH:i', $pendingGuardReport['created_at']);
+      $postDate = ph_date('Y-m-d\TH:i', strtotime($pendingGuardReport['created_at']));
     }
     if (!empty($pendingGuardReport['offense_level'])) {
       $level = strtoupper((string)$pendingGuardReport['offense_level']);
@@ -650,22 +647,20 @@ function renderMajorAlert(int $majorCount, array $upccCases): string {
 }
 function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $majorCount = 0, $activeCases = [], $offenses = []) {
   if (!$student) return '';
-  $fn = (string)($student['student_fn'] ?? '');
-  $ln = (string)($student['student_ln'] ?? '');
-  $fullName    = htmlspecialchars(trim($fn . ' ' . $ln) ?: 'Student');
-  $studentId   = htmlspecialchars((string)($student['student_id'] ?? ''));
-  $yearSection = htmlspecialchars((string)($student['year_level'] ?? '') . ' - ' . (string)($student['section'] ?? 'N/A'));
-  $program     = htmlspecialchars((string)($student['program'] ?? 'N/A'));
-  $school      = htmlspecialchars((string)($student['school'] ?? 'NU Lipa'));
-  $email       = htmlspecialchars((string)($student['student_email'] ?? ''));
-  $guardian    = $guardianEmail ? htmlspecialchars((string)$guardianEmail) : '<span class="text-muted">Not provided</span>';
+  $fullName    = htmlspecialchars($student['student_fn'] . ' ' . $student['student_ln']);
+  $studentId   = htmlspecialchars($student['student_id']);
+  $yearSection = htmlspecialchars($student['year_level'] . ' - ' . ($student['section'] ?? 'N/A'));
+  $program     = htmlspecialchars($student['program'] ?? 'N/A');
+  $school      = htmlspecialchars($student['school'] ?? 'NU Lipa');
+  $email       = htmlspecialchars($student['student_email'] ?? '');
+  $guardian    = $guardianEmail ? htmlspecialchars($guardianEmail) : '<span class="text-muted">Not provided</span>';
 
   $isAppRegistered = (!empty($student['privacy_accepted']) || !empty($student['app_registered_at']) || !empty($student['privacy_accepted_at']));
   $privacyDateStr = '';
   if (!empty($student['privacy_accepted_at'])) {
-      $privacyDateStr = ph_date('M d, Y g:i A', $student['privacy_accepted_at']);
+      $privacyDateStr = date('M d, Y g:i A', strtotime($student['privacy_accepted_at']));
   } elseif (!empty($student['app_registered_at'])) {
-      $privacyDateStr = ph_date('M d, Y g:i A', $student['app_registered_at']);
+      $privacyDateStr = date('M d, Y g:i A', strtotime($student['app_registered_at']));
   }
 
   $starBadge = '';
@@ -750,8 +745,8 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $bgColor = $isRed ? 'var(--red-soft)' : 'var(--amber-soft)';
       $textColor = $isRed ? 'var(--red)' : 'var(--amber)';
       $borderColor = $isRed ? 'var(--red-mid)' : 'var(--amber-mid)';
-      $dateStr = ph_date('M j, Y', $o['date_committed']);
-      $timeStr = ph_date('g:i A', $o['date_committed']);
+      $dateStr = date('M j, Y', strtotime($o['date_committed']));
+      $timeStr = date('g:i A', strtotime($o['date_committed']));
       $dateDisplay = $dateStr . '<br><span style="font-size:9px; opacity:0.9;">' . $timeStr . '</span>';
       
       $labelHtml = '';
@@ -983,15 +978,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     return '';
   }
 
-  $fn = (string)($student['student_fn'] ?? '');
-  $ln = (string)($student['student_ln'] ?? '');
-  $fullName   = htmlspecialchars(trim($fn . ' ' . $ln) ?: 'Student');
-  $studentId  = htmlspecialchars((string)($student['student_id'] ?? ''));
-  $yearSection = htmlspecialchars((string)($student['year_level'] ?? '') . ' - ' . (string)($student['section'] ?? 'N/A'));
-  $program    = htmlspecialchars((string)($student['program'] ?? 'N/A'));
-  $school     = htmlspecialchars((string)($student['school'] ?? 'NU Lipa'));
-  $email      = htmlspecialchars((string)($student['student_email'] ?? 'Not provided'));
-  $guardian   = $guardianEmail ? htmlspecialchars((string)$guardianEmail) : 'Not provided';
+  $fullName   = htmlspecialchars($student['student_fn'] . ' ' . $student['student_ln']);
+  $studentId  = htmlspecialchars($student['student_id']);
+  $yearSection = htmlspecialchars($student['year_level'] . ' - ' . ($student['section'] ?? 'N/A'));
+  $program    = htmlspecialchars($student['program'] ?? 'N/A');
+  $school     = htmlspecialchars($student['school'] ?? 'NU Lipa');
+  $email      = htmlspecialchars($student['student_email'] ?? 'Not provided');
+  $guardian   = $guardianEmail ? htmlspecialchars($guardianEmail) : 'Not provided';
   $statusNote = $hasActiveSection4 ? '<div class="ap-warning" style="margin-top:12px;">⚠️ This student has an active Section 4 investigation.</div>' : '';
 
   $caseItems = '';
@@ -1026,7 +1019,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       $offensesHtml .= '<summary style="cursor:pointer; font-weight:600; font-size:13px; color:#475569; outline:none; user-select:none;">View all past offenses (' . count($offenses) . ')</summary>';
       $offensesHtml .= '<div style="margin-top:10px; max-height:200px; overflow-y:auto; border-top:1px solid #e2e8f0; padding-top:10px; text-align:left;">';
       foreach ($offenses as $off) {
-          $dt = ph_date('M j, Y g:i A', $off['date_committed']);
+          $dt = date('M j, Y g:i A', strtotime($off['date_committed']));
           $lvlColor = $off['level'] === 'MAJOR' ? 'color:var(--red);' : 'color:var(--amber);';
           $offensesHtml .= '<div style="font-size:12px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #e2e8f0;">';
           $offensesHtml .= '<div style="display:flex; justify-content:space-between; margin-bottom:4px;">';
@@ -2140,7 +2133,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                               <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
                             </div>
                             <div id="bannerGuardMeta" style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
-                              Filed by <strong><?php echo htmlspecialchars((string)($pendingGuardReport['guard_name'] ?? 'Campus Security Guard')); ?></strong> on <?php echo htmlspecialchars(!empty($pendingGuardReport['created_at']) ? ph_date('M j, Y h:i A', $pendingGuardReport['created_at']) : 'Recently'); ?>
+                              Filed by <strong><?php echo htmlspecialchars((string)($pendingGuardReport['guard_name'] ?? 'Campus Security Guard')); ?></strong> on <?php echo htmlspecialchars(!empty($pendingGuardReport['created_at']) ? date('M j, Y h:i A', strtotime((string)$pendingGuardReport['created_at'])) : 'Recently'); ?>
                             </div>
                             <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #bbf7d0; line-height:1.4;">
                               <div style="font-weight:700; color:#15803d; margin-bottom:2px;">
@@ -2361,7 +2354,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       if ($studentInfo && $letterOffenseId > 0) {
                           $coff = db_one("SELECT o.description, o.date_committed, ot.code, ot.name, ot.level FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.offense_id = :oid", [':oid' => $letterOffenseId]);
                           if ($coff) {
-                              $dt = ph_date('F j, Y g:i A', $coff['date_committed']);
+                              $dt = date('F j, Y g:i A', strtotime($coff['date_committed']));
                               $defaultBody .= "CURRENT OFFENSE:\n- {$coff['code']} — {$coff['name']}\n- Level: {$coff['level']}\n- Date: {$dt}\n- Notes: " . ($coff['description'] ?: '(none)') . "\n\n";
                           }
                           $history = db_all("SELECT o.date_committed, o.description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", [':sid' => $studentInfo['student_id']]);
@@ -2595,6 +2588,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <button class="btn btn-primary" onclick="confirmSkipNteFile()" style="flex: 1; justify-content: center; font-weight: 700; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b);">Yes, Skip File</button>
       </div>
     </div>
+  </div>
+  <!-- END confirmSkipNteModal --> <!-- added missing closing div -->
+
   <!-- MODAL: Email Sending Loading Modal -->
   <div id="emailSendingModal" class="modal" data-static="true">
     <div class="modal-content" style="max-width: 360px; text-align: center; border-radius: 16px; padding: 32px 24px;">
@@ -3043,7 +3039,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     <?php if ($pendingGuardReport): ?>
       const reportTypeId = <?php echo (int)($pendingGuardReport['offense_type_id'] ?? 0); ?>;
       const reportDesc   = <?php echo json_encode((string)($pendingGuardReport['description'] ?? '')); ?>;
-      const reportDate   = <?php echo json_encode(ph_date('Y-m-d\TH:i', $pendingGuardReport['created_at'] ?? null)); ?>;
+      const reportDate   = <?php echo json_encode(ph_date('Y-m-d\TH:i', strtotime($pendingGuardReport['created_at']))); ?>;
 
       const typeSelect = document.getElementById('offense_type_id');
       const descInput  = document.getElementById('description');
@@ -3510,42 +3506,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         }
     });
 
-  window.openDirectNteUploadModal = function(caseId, studentId) {
-      if (window.event && window.event.stopPropagation) {
-          window.event.stopPropagation();
-      }
-      const cid = document.getElementById('directNteCaseId');
-      const sid = document.getElementById('directNteStudentId');
-      const msg = document.getElementById('directNteUploadMsg');
-      if (cid) cid.value = caseId || 0;
-      if (sid) sid.value = studentId || '';
-      if (msg) msg.innerHTML = '';
-      const modal = document.getElementById('directNteUploadModal');
-      if (modal) {
-          modal.classList.add('active');
-          modal.style.cssText = 'display:flex !important; position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; background:rgba(15,23,42,0.7) !important; z-index:999999 !important; align-items:center !important; justify-content:center !important;';
-      }
-      return false;
-  };
-
-  window.closeDirectNteUploadModal = function() {
-      const modal = document.getElementById('directNteUploadModal');
-      if (modal) {
-          modal.classList.remove('active');
-          modal.style.cssText = 'display:none !important;';
-      }
-  };
-
-  document.addEventListener('click', function(e) {
-      const btn = e.target.closest('.btn-trigger-nte-upload');
-      if (btn) {
-          e.preventDefault();
-          e.stopPropagation();
-          const cid = btn.getAttribute('data-case-id') || 0;
-          const sid = btn.getAttribute('data-student-id') || '';
-          window.openDirectNteUploadModal(cid, sid);
-      }
-  }, true);
+  // We keep only the first definition of these functions, so the second block is removed.
+  // The event listener for .btn-trigger-nte-upload is already defined above; no need to redefine.
+  // Additional duplicate definitions removed.
 
   async function submitDirectNteUpload(e) {
       e.preventDefault();
