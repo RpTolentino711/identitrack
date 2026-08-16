@@ -279,10 +279,10 @@ $postDesc      = (string)($_POST['description']    ?? '');
 
 // ── Pending Guard Violation Report Lookup ─────────────────────────────────────────
 $pendingReportId = (int)($_GET['pending_report_id'] ?? $_POST['pending_report_id'] ?? 0);
-$pendingGuardReport = null;
+$pendingGuardReports = [];
 
 if ($pendingReportId > 0) {
-  $pendingGuardReport = db_one("
+  $single = db_one("
     SELECT pgr.*, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
            g.full_name as guard_name
     FROM guard_violation_report pgr
@@ -291,25 +291,43 @@ if ($pendingReportId > 0) {
     WHERE pgr.report_id = :rid AND pgr.status = 'PENDING' AND pgr.is_deleted = 0
     LIMIT 1
   ", [':rid' => $pendingReportId]);
+  if ($single) {
+    $pendingGuardReports[] = $single;
+    if ($postStudentId === '') {
+      $postStudentId = (string)($single['student_id'] ?? '');
+    }
+  }
 }
 
-if (!$pendingGuardReport && $postStudentId !== '') {
-  $pendingGuardReport = db_one("
+if ($postStudentId !== '') {
+  $others = db_all("
     SELECT pgr.*, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
            g.full_name as guard_name
     FROM guard_violation_report pgr
     LEFT JOIN offense_type ot ON ot.offense_type_id = pgr.offense_type_id
     LEFT JOIN security_guard g ON g.guard_id = pgr.submitted_by
     WHERE pgr.student_id = :sid AND pgr.status = 'PENDING' AND pgr.is_deleted = 0
-    ORDER BY pgr.report_id DESC LIMIT 1
-  ", [':sid' => $postStudentId]);
+    ORDER BY pgr.created_at ASC
+  ", [':sid' => $postStudentId]) ?: [];
+
+  foreach ($others as $o) {
+    $alreadyIn = false;
+    foreach ($pendingGuardReports as $p) {
+      if ((int)$p['report_id'] === (int)$o['report_id']) {
+        $alreadyIn = true;
+        break;
+      }
+    }
+    if (!$alreadyIn) {
+      $pendingGuardReports[] = $o;
+    }
+  }
 }
+
+$pendingGuardReport = !empty($pendingGuardReports) ? $pendingGuardReports[0] : null;
 
 if ($pendingGuardReport) {
   $pendingReportId = (int)$pendingGuardReport['report_id'];
-  if ($postStudentId === '') {
-    $postStudentId = (string)($pendingGuardReport['student_id'] ?? '');
-  }
   if (empty($_POST)) {
     if ($postDesc === '' && !empty($pendingGuardReport['description'])) {
       $postDesc = (string)$pendingGuardReport['description'];
@@ -1747,6 +1765,87 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         }
     };
 
+    window.guardReportsList = <?php echo json_encode(array_values($pendingGuardReports ?: [])); ?>;
+    window.currentReportIndex = 0;
+
+    window.selectGuardReportIndex = function(idx) {
+        if (!window.guardReportsList || window.guardReportsList.length === 0) return;
+        if (idx < 0) idx = 0;
+        if (idx >= window.guardReportsList.length) idx = window.guardReportsList.length - 1;
+        window.currentReportIndex = idx;
+
+        const r = window.guardReportsList[idx];
+        if (!r) return;
+
+        // Update banner UI elements
+        const badge = document.getElementById('bannerReportBadge');
+        if (badge) badge.textContent = 'Report #' + r.report_id;
+
+        const counter = document.getElementById('carouselReportCounter');
+        if (counter) counter.textContent = 'Report ' + (idx + 1) + ' of ' + window.guardReportsList.length;
+
+        const prevBtn = document.getElementById('btnPrevReport');
+        const nextBtn = document.getElementById('btnNextReport');
+        if (prevBtn) prevBtn.disabled = (idx === 0);
+        if (nextBtn) nextBtn.disabled = (idx === window.guardReportsList.length - 1);
+
+        const meta = document.getElementById('bannerGuardMeta');
+        if (meta) {
+            let dt = '';
+            if (r.created_at) {
+                const d = new Date(r.created_at.replace(' ', 'T'));
+                if (!isNaN(d.getTime())) {
+                    dt = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+                } else {
+                    dt = r.created_at;
+                }
+            }
+            meta.innerHTML = 'Filed by <strong>' + (r.guard_name || 'Campus Security Guard') + '</strong> on ' + dt;
+        }
+
+        const offTitle = document.getElementById('bannerOffenseTitle');
+        if (offTitle) offTitle.textContent = (r.offense_name || 'Violation Report') + ' (' + (r.offense_code || 'MIN-01') + ')';
+
+        const notes = document.getElementById('bannerGuardNotes');
+        if (notes) notes.textContent = '"' + (r.description || 'No additional notes provided.') + '"';
+
+        // Update hidden input & auto-fill form inputs
+        const hiddenInput = document.getElementById('pending_report_id');
+        if (hiddenInput) hiddenInput.value = r.report_id;
+
+        const typeSelect = document.getElementById('offense_type_id');
+        if (typeSelect && r.offense_type_id > 0) {
+            typeSelect.value = r.offense_type_id;
+        }
+        const descInput = document.getElementById('description');
+        if (descInput) {
+            descInput.value = r.description || '';
+        }
+        const dateInput = document.getElementById('date_committed');
+        if (dateInput && r.created_at) {
+            dateInput.value = r.created_at.replace(' ', 'T').substring(0, 16);
+        }
+    };
+
+    window.prevGuardReportCarousel = function() {
+        window.selectGuardReportIndex(window.currentReportIndex - 1);
+    };
+
+    window.nextGuardReportCarousel = function() {
+        window.selectGuardReportIndex(window.currentReportIndex + 1);
+    };
+
+    window.autoFillCurrentGuardReport = function() {
+        window.selectGuardReportIndex(window.currentReportIndex);
+    };
+
+    window.triggerCurrentGuardRejection = function() {
+        const r = window.guardReportsList[window.currentReportIndex];
+        if (r && r.report_id) {
+            window.rejectGuardReport(r.report_id);
+        }
+    };
+
     window.rejectGuardReport = function(reportId) {
         if (typeof event !== 'undefined' && event) {
             if (event.preventDefault) event.preventDefault();
@@ -1792,25 +1891,43 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             closeRejectGuardModal();
 
             if (data && data.ok) {
-                const banner = document.getElementById('pendingGuardReportBanner');
-                if (banner) {
-                    banner.style.transition = 'all 0.4s ease';
-                    banner.style.opacity = '0';
-                    banner.style.transform = 'translateY(-10px)';
-                    setTimeout(() => banner.remove(), 400);
+                const rejectedId = window.activeRejectReportId;
+                window.guardReportsList = (window.guardReportsList || []).filter(r => Number(r.report_id) !== Number(rejectedId));
+
+                if (window.guardReportsList.length > 0) {
+                    if (window.currentReportIndex >= window.guardReportsList.length) {
+                        window.currentReportIndex = window.guardReportsList.length - 1;
+                    }
+                    window.selectGuardReportIndex(window.currentReportIndex);
+
+                    // Update stacked layer cards
+                    const layer1 = document.getElementById('cardStackLayer1');
+                    const layer2 = document.getElementById('cardStackLayer2');
+                    if (layer1) layer1.style.display = window.guardReportsList.length > 1 ? 'block' : 'none';
+                    if (layer2) layer2.style.display = window.guardReportsList.length > 2 ? 'block' : 'none';
+
+                    const header = document.getElementById('guardCarouselHeader');
+                    if (header) header.style.display = window.guardReportsList.length > 1 ? 'flex' : 'none';
+                } else {
+                    const stack = document.getElementById('pendingGuardReportStackContainer');
+                    if (stack) {
+                        stack.style.transition = 'all 0.4s ease';
+                        stack.style.opacity = '0';
+                        stack.style.transform = 'translateY(-10px)';
+                        setTimeout(() => stack.remove(), 400);
+                    }
+                    const hiddenInput = document.getElementById('pending_report_id');
+                    if (hiddenInput) hiddenInput.value = '0';
+
+                    if (window.history && window.history.replaceState) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('pending_report_id');
+                        window.history.replaceState(null, '', url.pathname + url.search);
+                    }
+
+                    const descInput = document.getElementById('description');
+                    if (descInput) descInput.value = '';
                 }
-
-                const hiddenInput = document.getElementById('pending_report_id');
-                if (hiddenInput) hiddenInput.value = '0';
-
-                if (window.history && window.history.replaceState) {
-                    const url = new URL(window.location.href);
-                    url.searchParams.delete('pending_report_id');
-                    window.history.replaceState(null, '', url.pathname + url.search);
-                }
-
-                const descInput = document.getElementById('description');
-                if (descInput) descInput.value = '';
 
             } else {
                 alert('❌ Failed to reject report: ' + (data?.message || 'Error occurred'));
@@ -1933,41 +2050,64 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                 <?php endif; ?>
 
-                <!-- Pending Security Guard Violation Report Banner -->
-                <?php if ($pendingGuardReport): ?>
-                  <div id="pendingGuardReportBanner" style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:12px; padding:16px 20px; margin-bottom:20px; box-shadow:0 4px 14px rgba(22,163,74,0.1);">
-                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-                      <div style="display:flex; align-items:flex-start; gap:12px; flex:1; min-width:260px;">
-                        <div style="width:42px; height:42px; border-radius:10px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
-                          🛡️
+                <!-- Pending Security Guard Violation Report Stack Banner -->
+                <?php if (!empty($pendingGuardReports)): ?>
+                  <div id="pendingGuardReportStackContainer" style="position:relative; margin-bottom:24px;">
+                    <!-- Visual stacked card depth layers behind if count > 1 -->
+                    <div id="cardStackLayer2" style="position:absolute; bottom:-10px; left:10px; right:10px; height:45px; background:#dcfce7; border:1.5px solid #86efac; border-radius:12px; z-index:1; opacity:0.6; display:<?php echo count($pendingGuardReports) > 2 ? 'block' : 'none'; ?>;"></div>
+                    <div id="cardStackLayer1" style="position:absolute; bottom:-5px; left:5px; right:5px; height:45px; background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:12px; z-index:2; opacity:0.85; display:<?php echo count($pendingGuardReports) > 1 ? 'block' : 'none'; ?>;"></div>
+
+                    <!-- Active Banner Card -->
+                    <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:12px; padding:16px 20px; box-shadow:0 6px 18px rgba(22,163,74,0.12); transition:all 0.3s ease;">
+                      <!-- Carousel Navigation Header Controls (if multiple reports) -->
+                      <div id="guardCarouselHeader" style="display:<?php echo count($pendingGuardReports) > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
+                        <div style="font-size:12.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px;">
+                          <span>📚 Multiple Pending Reports (<?php echo count($pendingGuardReports); ?> Total)</span>
+                          <span id="carouselReportCounter" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:800; padding:2px 10px; border-radius:12px;">Report 1 of <?php echo count($pendingGuardReports); ?></span>
                         </div>
-                        <div>
-                          <div style="font-size:14px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                            <span>Pending Security Guard Violation Report</span>
-                            <span style="background:#dcfce7; color:#16a34a; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Report #<?php echo (int)$pendingGuardReport['report_id']; ?></span>
-                            <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
-                          </div>
-                          <div style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
-                            Filed by <strong><?php echo htmlspecialchars($pendingGuardReport['guard_name'] ?? 'Campus Security Guard'); ?></strong> on <?php echo htmlspecialchars(date('M j, Y h:i A', strtotime($pendingGuardReport['created_at']))); ?>
-                          </div>
-                          <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #bbf7d0; line-height:1.4;">
-                            <div style="font-weight:700; color:#15803d; margin-bottom:2px;">
-                              Reported Offense: <span style="color:#0f172a;"><?php echo htmlspecialchars($pendingGuardReport['offense_name'] ?? 'Violation Report'); ?> (<?php echo htmlspecialchars($pendingGuardReport['offense_code'] ?? 'MIN-01'); ?>)</span>
-                            </div>
-                            <div>
-                              <span style="font-weight:700; color:#15803d;">Guard Notes:</span>
-                              <em style="color:#334155;">"<?php echo htmlspecialchars($pendingGuardReport['description'] ?? 'No additional notes provided.'); ?>"</em>
-                            </div>
-                          </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                          <button type="button" onclick="prevGuardReportCarousel()" id="btnPrevReport" style="padding:5px 12px; background:#ffffff; border:1px solid #86efac; border-radius:6px; color:#15803d; font-weight:700; font-size:12px; cursor:pointer;" disabled>
+                            ‹ Prev
+                          </button>
+                          <button type="button" onclick="nextGuardReportCarousel()" id="btnNextReport" style="padding:5px 12px; background:#16a34a; border:1px solid #16a34a; border-radius:6px; color:#ffffff; font-weight:700; font-size:12px; cursor:pointer;">
+                            Next ›
+                          </button>
                         </div>
                       </div>
-                      <div style="align-self:center; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                        <button type="button" id="btnAutoFillGuard" onclick="autoFillGuardReportData()" style="padding:9px 16px; background:#16a34a; color:#ffffff; font-weight:700; font-size:12.5px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 8px rgba(22,163,74,0.3);">
-                          ✓ Details Auto-Filled
-                        </button>
-                        <button type="button" onclick="rejectGuardReport(<?php echo (int)$pendingGuardReport['report_id']; ?>)" style="padding:9px 14px; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; font-weight:700; font-size:12.5px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
-                          ✕ Reject Report
-                        </button>
+
+                      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:flex-start; gap:12px; flex:1; min-width:260px;">
+                          <div style="width:42px; height:42px; border-radius:10px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
+                            🛡️
+                          </div>
+                          <div>
+                            <div style="font-size:14px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                              <span>Pending Security Guard Violation Report</span>
+                              <span id="bannerReportBadge" style="background:#dcfce7; color:#16a34a; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Report #<?php echo (int)$pendingGuardReport['report_id']; ?></span>
+                              <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
+                            </div>
+                            <div id="bannerGuardMeta" style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
+                              Filed by <strong><?php echo htmlspecialchars($pendingGuardReport['guard_name'] ?? 'Campus Security Guard'); ?></strong> on <?php echo htmlspecialchars(date('M j, Y h:i A', strtotime($pendingGuardReport['created_at']))); ?>
+                            </div>
+                            <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #bbf7d0; line-height:1.4;">
+                              <div style="font-weight:700; color:#15803d; margin-bottom:2px;">
+                                Reported Offense: <span id="bannerOffenseTitle" style="color:#0f172a;"><?php echo htmlspecialchars($pendingGuardReport['offense_name'] ?? 'Violation Report'); ?> (<?php echo htmlspecialchars($pendingGuardReport['offense_code'] ?? 'MIN-01'); ?>)</span>
+                              </div>
+                              <div>
+                                <span style="font-weight:700; color:#15803d;">Guard Notes:</span>
+                                <em id="bannerGuardNotes" style="color:#334155;">"<?php echo htmlspecialchars($pendingGuardReport['description'] ?? 'No additional notes provided.'); ?>"</em>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div style="align-self:center; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                          <button type="button" id="btnAutoFillGuard" onclick="autoFillCurrentGuardReport()" style="padding:9px 16px; background:#16a34a; color:#ffffff; font-weight:700; font-size:12.5px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 8px rgba(22,163,74,0.3);">
+                            ✓ Details Auto-Filled
+                          </button>
+                          <button type="button" id="btnRejectGuard" onclick="triggerCurrentGuardRejection()" style="padding:9px 14px; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; font-weight:700; font-size:12.5px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
+                            ✕ Reject Report
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
