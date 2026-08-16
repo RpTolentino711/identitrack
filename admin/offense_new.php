@@ -1,5 +1,8 @@
 <?php
 // File: admin/offense_new.php
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
 require_once __DIR__ . '/../database/database.php';
 require_admin();
 
@@ -647,13 +650,15 @@ function renderMajorAlert(int $majorCount, array $upccCases): string {
 }
 function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $majorCount = 0, $activeCases = [], $offenses = []) {
   if (!$student) return '';
-  $fullName    = htmlspecialchars($student['student_fn'] . ' ' . $student['student_ln']);
-  $studentId   = htmlspecialchars($student['student_id']);
-  $yearSection = htmlspecialchars($student['year_level'] . ' - ' . ($student['section'] ?? 'N/A'));
-  $program     = htmlspecialchars($student['program'] ?? 'N/A');
-  $school      = htmlspecialchars($student['school'] ?? 'NU Lipa');
-  $email       = htmlspecialchars($student['student_email'] ?? '');
-  $guardian    = $guardianEmail ? htmlspecialchars($guardianEmail) : '<span class="text-muted">Not provided</span>';
+  $fn = (string)($student['student_fn'] ?? '');
+  $ln = (string)($student['student_ln'] ?? '');
+  $fullName    = htmlspecialchars(trim($fn . ' ' . $ln) ?: 'Student');
+  $studentId   = htmlspecialchars((string)($student['student_id'] ?? ''));
+  $yearSection = htmlspecialchars((string)($student['year_level'] ?? '') . ' - ' . (string)($student['section'] ?? 'N/A'));
+  $program     = htmlspecialchars((string)($student['program'] ?? 'N/A'));
+  $school      = htmlspecialchars((string)($student['school'] ?? 'NU Lipa'));
+  $email       = htmlspecialchars((string)($student['student_email'] ?? ''));
+  $guardian    = $guardianEmail ? htmlspecialchars((string)$guardianEmail) : '<span class="text-muted">Not provided</span>';
 
   $isAppRegistered = (!empty($student['privacy_accepted']) || !empty($student['app_registered_at']) || !empty($student['privacy_accepted_at']));
   $privacyDateStr = '';
@@ -978,13 +983,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     return '';
   }
 
-  $fullName   = htmlspecialchars($student['student_fn'] . ' ' . $student['student_ln']);
-  $studentId  = htmlspecialchars($student['student_id']);
-  $yearSection = htmlspecialchars($student['year_level'] . ' - ' . ($student['section'] ?? 'N/A'));
-  $program    = htmlspecialchars($student['program'] ?? 'N/A');
-  $school     = htmlspecialchars($student['school'] ?? 'NU Lipa');
-  $email      = htmlspecialchars($student['student_email'] ?? 'Not provided');
-  $guardian   = $guardianEmail ? htmlspecialchars($guardianEmail) : 'Not provided';
+  $fn = (string)($student['student_fn'] ?? '');
+  $ln = (string)($student['student_ln'] ?? '');
+  $fullName   = htmlspecialchars(trim($fn . ' ' . $ln) ?: 'Student');
+  $studentId  = htmlspecialchars((string)($student['student_id'] ?? ''));
+  $yearSection = htmlspecialchars((string)($student['year_level'] ?? '') . ' - ' . (string)($student['section'] ?? 'N/A'));
+  $program    = htmlspecialchars((string)($student['program'] ?? 'N/A'));
+  $school     = htmlspecialchars((string)($student['school'] ?? 'NU Lipa'));
+  $email      = htmlspecialchars((string)($student['student_email'] ?? 'Not provided'));
+  $guardian   = $guardianEmail ? htmlspecialchars((string)$guardianEmail) : 'Not provided';
   $statusNote = $hasActiveSection4 ? '<div class="ap-warning" style="margin-top:12px;">⚠️ This student has an active Section 4 investigation.</div>' : '';
 
   $caseItems = '';
