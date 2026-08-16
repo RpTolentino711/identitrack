@@ -1675,6 +1675,42 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 <body>
   <?php require_once __DIR__ . '/header.php'; ?>
 
+  <!-- REJECT GUARD REPORT CONFIRMATION MODAL -->
+  <div id="rejectGuardReportModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 440px; width: 92%; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); background: #ffffff; margin: auto;">
+      <div style="padding: 26px 24px 22px; text-align: center;">
+        <div style="width: 56px; height: 56px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 16px;">
+          ⚠️
+        </div>
+        <h3 style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 6px;">Reject Guard Violation Report?</h3>
+        <p style="font-size: 13.5px; color: #64748b; line-height: 1.5; margin-bottom: 16px;">
+          Are you sure you want to reject and dismiss <strong>Report #<span id="rejectModalReportId"><?php echo (int)($pendingGuardReport['report_id'] ?? 0); ?></span></strong>?
+        </p>
+
+        <?php if (!empty($pendingGuardReport)): ?>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; text-align: left; font-size: 12.5px; margin-bottom: 18px; line-height: 1.45;">
+          <div style="color: #334155; margin-bottom: 4px;"><strong>Student:</strong> <?php echo htmlspecialchars(($studentInfo['student_fn'] ?? '') . ' ' . ($studentInfo['student_ln'] ?? '')); ?> (<?php echo htmlspecialchars($pendingGuardReport['student_id'] ?? ''); ?>)</div>
+          <div style="color: #334155; margin-bottom: 4px;"><strong>Offense:</strong> <?php echo htmlspecialchars($pendingGuardReport['offense_name'] ?? 'Violation'); ?></div>
+          <div style="color: #64748b; font-style: italic;">"<?php echo htmlspecialchars($pendingGuardReport['description'] ?? ''); ?>"</div>
+        </div>
+        <?php endif; ?>
+
+        <p style="font-size: 12px; color: #94a3b8; margin-bottom: 20px;">
+          This action will dismiss the pending report and mark the notification as read.
+        </p>
+
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          <button type="button" onclick="closeRejectGuardModal()" style="flex: 1; padding: 11px 16px; background: #f1f5f9; color: #475569; font-weight: 700; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1; cursor: pointer;">
+            Cancel
+          </button>
+          <button type="button" id="confirmRejectBtn" onclick="confirmRejectGuardReport()" style="flex: 1; padding: 11px 16px; background: #dc2626; color: #ffffff; font-weight: 700; font-size: 13px; border-radius: 8px; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(220,38,38,0.25);">
+            Reject Report
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     window.__identitrackDisableGlobalScan = true;
 
@@ -1723,10 +1759,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         if (modal) {
             modal.classList.add('active');
             modal.style.cssText = 'display:flex !important; position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; background:rgba(15,23,42,0.75) !important; z-index:999999 !important; align-items:center !important; justify-content:center !important;';
-        } else {
-            if (confirm('Are you sure you want to reject and dismiss Guard Report #' + reportId + '?')) {
-                window.confirmRejectGuardReport();
-            }
         }
         return false;
     };
@@ -3397,42 +3429,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
   }
   </script>
-
-  <!-- REJECT GUARD REPORT CONFIRMATION MODAL -->
-  <div id="rejectGuardReportModal" class="modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 999999 !important;">
-    <div class="modal-content" style="max-width: 440px; width: 92%; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); background: #ffffff; margin: auto;">
-      <div style="padding: 26px 24px 22px; text-align: center;">
-        <div style="width: 56px; height: 56px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 16px;">
-          ⚠️
-        </div>
-        <h3 style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 6px;">Reject Guard Violation Report?</h3>
-        <p style="font-size: 13.5px; color: #64748b; line-height: 1.5; margin-bottom: 16px;">
-          Are you sure you want to reject and dismiss <strong>Report #<span id="rejectModalReportId"></span></strong>?
-        </p>
-
-        <?php if ($pendingGuardReport): ?>
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; text-align: left; font-size: 12.5px; margin-bottom: 18px; line-height: 1.45;">
-          <div style="color: #334155; margin-bottom: 4px;"><strong>Student:</strong> <?php echo htmlspecialchars(($studentInfo['student_fn'] ?? '') . ' ' . ($studentInfo['student_ln'] ?? '')); ?> (<?php echo htmlspecialchars($pendingGuardReport['student_id'] ?? ''); ?>)</div>
-          <div style="color: #334155; margin-bottom: 4px;"><strong>Offense:</strong> <?php echo htmlspecialchars($pendingGuardReport['offense_name'] ?? 'Violation'); ?></div>
-          <div style="color: #64748b; font-style: italic;">"<?php echo htmlspecialchars($pendingGuardReport['description'] ?? ''); ?>"</div>
-        </div>
-        <?php endif; ?>
-
-        <p style="font-size: 12px; color: #94a3b8; margin-bottom: 20px;">
-          This action will dismiss the pending report and mark the notification as read.
-        </p>
-
-        <div style="display: flex; gap: 10px; justify-content: center;">
-          <button type="button" onclick="closeRejectGuardModal()" style="flex: 1; padding: 11px 16px; background: #f1f5f9; color: #475569; font-weight: 700; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1; cursor: pointer;">
-            Cancel
-          </button>
-          <button type="button" id="confirmRejectBtn" onclick="confirmRejectGuardReport()" style="flex: 1; padding: 11px 16px; background: #dc2626; color: #ffffff; font-weight: 700; font-size: 13px; border-radius: 8px; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(220,38,38,0.25);">
-            Reject Report
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
 
 </body>
 </html>
