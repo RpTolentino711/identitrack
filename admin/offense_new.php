@@ -1765,7 +1765,26 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         }
     };
 
-    window.guardReportsList = <?php echo json_encode(array_values($pendingGuardReports ?: [])); ?>;
+    <?php
+      $cleanReportsJs = [];
+      if (!empty($pendingGuardReports)) {
+          foreach ($pendingGuardReports as $pr) {
+              $cleanReportsJs[] = [
+                  'report_id' => (int)($pr['report_id'] ?? 0),
+                  'student_id' => (string)($pr['student_id'] ?? ''),
+                  'offense_type_id' => (int)($pr['offense_type_id'] ?? 0),
+                  'offense_code' => (string)($pr['offense_code'] ?? ''),
+                  'offense_name' => (string)($pr['offense_name'] ?? ''),
+                  'offense_level' => (string)($pr['offense_level'] ?? ''),
+                  'guard_name' => (string)($pr['guard_name'] ?? ''),
+                  'description' => (string)($pr['description'] ?? ''),
+                  'created_at' => (string)($pr['created_at'] ?? ''),
+                  'date_committed' => (string)($pr['date_committed'] ?? '')
+              ];
+          }
+      }
+    ?>
+    window.guardReportsList = <?php echo json_encode($cleanReportsJs); ?> || [];
     window.currentReportIndex = 0;
 
     window.selectGuardReportIndex = function(idx) {
@@ -2083,19 +2102,19 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                           <div>
                             <div style="font-size:14px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                               <span>Pending Security Guard Violation Report</span>
-                              <span id="bannerReportBadge" style="background:#dcfce7; color:#16a34a; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Report #<?php echo (int)$pendingGuardReport['report_id']; ?></span>
+                              <span id="bannerReportBadge" style="background:#dcfce7; color:#16a34a; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Report #<?php echo (int)($pendingGuardReport['report_id'] ?? 0); ?></span>
                               <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
                             </div>
                             <div id="bannerGuardMeta" style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
-                              Filed by <strong><?php echo htmlspecialchars($pendingGuardReport['guard_name'] ?? 'Campus Security Guard'); ?></strong> on <?php echo htmlspecialchars(date('M j, Y h:i A', strtotime($pendingGuardReport['created_at']))); ?>
+                              Filed by <strong><?php echo htmlspecialchars((string)($pendingGuardReport['guard_name'] ?? 'Campus Security Guard')); ?></strong> on <?php echo htmlspecialchars(!empty($pendingGuardReport['created_at']) ? date('M j, Y h:i A', strtotime((string)$pendingGuardReport['created_at'])) : 'Recently'); ?>
                             </div>
                             <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #bbf7d0; line-height:1.4;">
                               <div style="font-weight:700; color:#15803d; margin-bottom:2px;">
-                                Reported Offense: <span id="bannerOffenseTitle" style="color:#0f172a;"><?php echo htmlspecialchars($pendingGuardReport['offense_name'] ?? 'Violation Report'); ?> (<?php echo htmlspecialchars($pendingGuardReport['offense_code'] ?? 'MIN-01'); ?>)</span>
+                                Reported Offense: <span id="bannerOffenseTitle" style="color:#0f172a;"><?php echo htmlspecialchars((string)($pendingGuardReport['offense_name'] ?? 'Violation Report')); ?> (<?php echo htmlspecialchars((string)($pendingGuardReport['offense_code'] ?? 'MIN-01')); ?>)</span>
                               </div>
                               <div>
                                 <span style="font-weight:700; color:#15803d;">Guard Notes:</span>
-                                <em id="bannerGuardNotes" style="color:#334155;">"<?php echo htmlspecialchars($pendingGuardReport['description'] ?? 'No additional notes provided.'); ?>"</em>
+                                <em id="bannerGuardNotes" style="color:#334155;">"<?php echo htmlspecialchars((string)($pendingGuardReport['description'] ?? 'No additional notes provided.')); ?>"</em>
                               </div>
                             </div>
                           </div>
