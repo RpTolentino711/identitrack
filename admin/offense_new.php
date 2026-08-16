@@ -3319,8 +3319,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   </script>
 
   <!-- REJECT GUARD REPORT CONFIRMATION MODAL -->
-  <div id="rejectGuardReportModal" class="modal">
-    <div class="modal-content" style="max-width: 440px; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.25); background: #ffffff;">
+  <div id="rejectGuardReportModal" class="modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 999999 !important;">
+    <div class="modal-content" style="max-width: 440px; width: 92%; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); background: #ffffff; margin: auto;">
       <div style="padding: 26px 24px 22px; text-align: center;">
         <div style="width: 56px; height: 56px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 16px;">
           ⚠️
@@ -3362,12 +3362,18 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const modal = document.getElementById('rejectGuardReportModal');
     const spanId = document.getElementById('rejectModalReportId');
     if (spanId) spanId.textContent = reportId;
-    if (modal) modal.classList.add('active');
+    if (modal) {
+      modal.classList.add('active');
+      modal.style.setProperty('display', 'flex', 'important');
+    }
   };
 
   window.closeRejectGuardModal = function() {
     const modal = document.getElementById('rejectGuardReportModal');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+      modal.classList.remove('active');
+      modal.style.setProperty('display', 'none', 'important');
+    }
   };
 
   window.confirmRejectGuardReport = async function() {
