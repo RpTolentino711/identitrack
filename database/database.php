@@ -45,35 +45,64 @@ function db(): PDO
 {
   static $pdo = null;
   if ($pdo === null) {
+    // 1. Load .env variables manually into $_ENV if missing
+    $envPaths = [__DIR__ . '/../.env', __DIR__ . '/.env'];
+    foreach ($envPaths as $envPath) {
+        if (file_exists($envPath)) {
+            $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line === '' || strpos($line, '#') === 0) continue;
+                if (strpos($line, '=') !== false) {
+                    list($name, $val) = explode('=', $line, 2);
+                    $name = trim($name);
+                    $val = trim($val);
+                    if (!isset($_ENV[$name]) || $_ENV[$name] === '') $_ENV[$name] = $val;
+                    if (!isset($_SERVER[$name]) || $_SERVER[$name] === '') $_SERVER[$name] = $val;
+                }
+            }
+        }
+    }
+
     // Helper to get from $_ENV, $_SERVER or getenv()
     $getEnv = function($key, $default) {
         return (string)($_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: $default);
     };
 
-    $host = $getEnv('DB_HOST', 'localhost');
-    $db   = $getEnv('DB_NAME', 'identitrack');
-    $user = $getEnv('DB_USER', 'root');
-    $pass = $getEnv('DB_PASS', '');
+    $host   = $getEnv('DB_HOST', 'localhost');
+    $dbname = $getEnv('DB_NAME', 'identitrack');
+    $user   = $getEnv('DB_USER', 'root');
+    $pass   = $getEnv('DB_PASS', '');
 
-    $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
     $options = [
       PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
       PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
       PDO::ATTR_EMULATE_PREPARES   => true, 
     ];
 
-    try {
-      $pdo = new PDO($dsn, $user, $pass, $options);
-      $pdo->exec("SET time_zone = '+08:00'");
-    } catch (PDOException $e) {
-      // Fallback for local development
+    $attempts = [
+      ['host' => $host, 'db' => $dbname, 'user' => $user, 'pass' => $pass],
+      ['host' => '127.0.0.1', 'db' => 'u321173822_track', 'user' => 'u321173822_titrack', 'pass' => 'Pogilameg@10'],
+      ['host' => 'localhost', 'db' => 'u321173822_track', 'user' => 'u321173822_titrack', 'pass' => 'Pogilameg@10'],
+      ['host' => 'localhost', 'db' => 'identitrack', 'user' => 'root', 'pass' => 'Pogilameg@10'],
+      ['host' => 'localhost', 'db' => 'identitrack', 'user' => 'root', 'pass' => ''],
+      ['host' => '127.0.0.1', 'db' => 'identitrack', 'user' => 'root', 'pass' => ''],
+    ];
+
+    $lastErr = null;
+    foreach ($attempts as $cfg) {
       try {
-        $dsnLocal = "mysql:host=localhost;dbname=identitrack;charset=utf8mb4";
-        $pdo = new PDO($dsnLocal, 'root', '', $options);
+        $dsn = "mysql:host={$cfg['host']};dbname={$cfg['db']};charset=utf8mb4";
+        $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], $options);
         $pdo->exec("SET time_zone = '+08:00'");
-      } catch (PDOException $e2) {
-        die("DB Connection failed: " . $e->getMessage() . " (Fallback to local 'identitrack' database also failed: " . $e2->getMessage() . ")");
+        break;
+      } catch (PDOException $ex) {
+        $lastErr = $ex;
       }
+    }
+
+    if ($pdo === null) {
+      die("DB Connection failed: " . ($lastErr ? $lastErr->getMessage() : "Unable to connect to MySQL database server."));
     }
   }
   return $pdo;
