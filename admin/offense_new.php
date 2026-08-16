@@ -1840,6 +1840,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         const badge = document.getElementById('bannerReportBadge');
         if (badge) badge.textContent = 'Report #' + r.report_id;
 
+        // Render interactive click-to-switch report pill tabs in carousel header
+        const pillsContainer = document.getElementById('carouselReportPills');
+        if (pillsContainer && window.guardReportsList && window.guardReportsList.length > 1) {
+            pillsContainer.innerHTML = window.guardReportsList.map((item, i) => {
+                const isActive = (i === idx);
+                const activeStyle = 'background:#16a34a; color:#ffffff; font-weight:800; font-size:11px; padding:4px 12px; border-radius:12px; border:none; cursor:pointer; box-shadow:0 2px 6px rgba(22,163,74,0.35); transition:all 0.18s;';
+                const inactiveStyle = 'background:#ffffff; color:#15803d; font-weight:700; font-size:11px; padding:4px 12px; border-radius:12px; border:1px solid #86efac; cursor:pointer; transition:all 0.18s;';
+                return `<button type="button" onclick="selectGuardReportIndex(${i})" style="${isActive ? activeStyle : inactiveStyle}" title="Click to switch to Report #${item.report_id}">Report #${item.report_id}${isActive ? ' (Active)' : ''}</button>`;
+            }).join('');
+        }
+
         const counter = document.getElementById('carouselReportCounter');
         if (counter) counter.textContent = 'Report ' + (idx + 1) + ' of ' + window.guardReportsList.length;
 
@@ -2243,10 +2254,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       <!-- Carousel Navigation Header Controls (if multiple reports) -->
                       <div id="guardCarouselHeader" style="display:<?php echo $pReportsCount > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
                         <div style="font-size:12.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                          <span>📚 Multiple Pending Reports (<?php echo $pReportsCount; ?> Total)</span>
-                          <span id="carouselReportCounter" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:800; padding:2px 10px; border-radius:12px;">Report 1 of <?php echo $pReportsCount; ?></span>
-                          <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85; margin-left:6px; display:inline-flex; align-items:center; gap:4px;">↕ Scroll or Swipe up/down to flip</span>
+                          <span>📚 Multiple Pending Reports (<?php echo $pReportsCount; ?> Total):</span>
+                          <div id="carouselReportPills" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                            <!-- Clickable report pills rendered via JS -->
+                          </div>
                         </div>
+                        <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85;">Click a report or ↕ Scroll/Swipe</span>
                       </div>
 
                       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
