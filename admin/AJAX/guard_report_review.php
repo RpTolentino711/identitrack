@@ -111,7 +111,25 @@ $report = db_one(
   [':rid' => $reportId]
 );
 
-if (!$report || strtoupper((string)$report['status']) !== 'PENDING') {
+if (!$report) {
+  echo json_encode(['ok' => false, 'message' => 'Report not found.']);
+  exit;
+}
+
+if ($action === 'reject_guard_report' || $action === 'reject') {
+  db_exec(
+    "UPDATE guard_violation_report SET status = 'REJECTED' WHERE report_id = :rid",
+    [':rid' => $reportId]
+  );
+  db_exec(
+    "UPDATE notification SET is_read = 1 WHERE (type = 'GUARD_REPORT' AND related_id = :rid) OR (item_type = 'VIOLATION' AND report_id = :rid)",
+    [':rid' => $reportId]
+  );
+  echo json_encode(['ok' => true, 'message' => 'Report rejected and dismissed.']);
+  exit;
+}
+
+if (strtoupper((string)$report['status']) !== 'PENDING') {
   echo json_encode(['ok' => false, 'message' => 'Report is no longer pending.']);
   exit;
 }
