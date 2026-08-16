@@ -1816,6 +1816,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                     </div>
                   </div>
                 <?php else: ?>
+                  <div style="background: var(--surface-2); border: 1px dashed var(--border); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 18px; text-align: center; color: var(--text-4);">
+                    Enter a Student ID above to load student information.
+                  </div>
+                <?php endif; ?>
+
                 <!-- Pending Security Guard Violation Report Banner -->
                 <?php if ($pendingGuardReport): ?>
                   <div id="pendingGuardReportBanner" style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:12px; padding:16px 20px; margin-bottom:20px; box-shadow:0 4px 14px rgba(37,99,235,0.1);">
@@ -1850,7 +1855,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       </div>
                     </div>
                   </div>
-                <?php endif; ?>
                 <?php endif; ?>
 
                 <form method="post" action="offense_new.php" id="offenseForm">
