@@ -1711,6 +1711,86 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         }
     };
 
+    window.rejectGuardReport = function(reportId) {
+        if (typeof event !== 'undefined' && event) {
+            if (event.preventDefault) event.preventDefault();
+            if (event.stopPropagation) event.stopPropagation();
+        }
+        window.activeRejectReportId = reportId;
+        const modal = document.getElementById('rejectGuardReportModal');
+        const spanId = document.getElementById('rejectModalReportId');
+        if (spanId) spanId.textContent = reportId;
+        if (modal) {
+            modal.classList.add('active');
+            modal.style.cssText = 'display:flex !important; position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; background:rgba(15,23,42,0.75) !important; z-index:999999 !important; align-items:center !important; justify-content:center !important;';
+        } else {
+            if (confirm('Are you sure you want to reject and dismiss Guard Report #' + reportId + '?')) {
+                window.confirmRejectGuardReport();
+            }
+        }
+        return false;
+    };
+
+    window.closeRejectGuardModal = function() {
+        const modal = document.getElementById('rejectGuardReportModal');
+        if (modal) {
+            modal.classList.remove('active');
+            modal.style.cssText = 'display:none !important;';
+        }
+    };
+
+    window.confirmRejectGuardReport = async function() {
+        const reportId = window.activeRejectReportId || 0;
+        if (!reportId) return;
+
+        const btn = document.getElementById('confirmRejectBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Rejecting...'; }
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'reject');
+            formData.append('report_id', reportId);
+
+            const res = await fetch('AJAX/guard_report_review.php', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            closeRejectGuardModal();
+
+            if (data && data.ok) {
+                const banner = document.getElementById('pendingGuardReportBanner');
+                if (banner) {
+                    banner.style.transition = 'all 0.4s ease';
+                    banner.style.opacity = '0';
+                    banner.style.transform = 'translateY(-10px)';
+                    setTimeout(() => banner.remove(), 400);
+                }
+
+                const hiddenInput = document.getElementById('pending_report_id');
+                if (hiddenInput) hiddenInput.value = '0';
+
+                if (window.history && window.history.replaceState) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('pending_report_id');
+                    window.history.replaceState(null, '', url.pathname + url.search);
+                }
+
+                const descInput = document.getElementById('description');
+                if (descInput) descInput.value = '';
+
+            } else {
+                alert('❌ Failed to reject report: ' + (data?.message || 'Error occurred'));
+            }
+        } catch (e) {
+            closeRejectGuardModal();
+            alert('❌ Connection error while rejecting report.');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = 'Reject Report'; }
+        }
+    };
+
     document.addEventListener('click', function(e) {
         const btn = e.target.closest('.btn-trigger-nte-upload');
         if (btn) {
@@ -3354,78 +3434,5 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </div>
   </div>
 
-  <script>
-  let activeRejectReportId = 0;
-
-  window.rejectGuardReport = function(reportId) {
-    activeRejectReportId = reportId;
-    const modal = document.getElementById('rejectGuardReportModal');
-    const spanId = document.getElementById('rejectModalReportId');
-    if (spanId) spanId.textContent = reportId;
-    if (modal) {
-      modal.classList.add('active');
-      modal.style.setProperty('display', 'flex', 'important');
-    }
-  };
-
-  window.closeRejectGuardModal = function() {
-    const modal = document.getElementById('rejectGuardReportModal');
-    if (modal) {
-      modal.classList.remove('active');
-      modal.style.setProperty('display', 'none', 'important');
-    }
-  };
-
-  window.confirmRejectGuardReport = async function() {
-    if (!activeRejectReportId) return;
-
-    const btn = document.getElementById('confirmRejectBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Rejecting...'; }
-
-    try {
-      const formData = new FormData();
-      formData.append('action', 'reject');
-      formData.append('report_id', activeRejectReportId);
-
-      const res = await fetch('AJAX/guard_report_review.php', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-
-      closeRejectGuardModal();
-
-      if (data && data.ok) {
-        const banner = document.getElementById('pendingGuardReportBanner');
-        if (banner) {
-          banner.style.transition = 'all 0.4s ease';
-          banner.style.opacity = '0';
-          banner.style.transform = 'translateY(-10px)';
-          setTimeout(() => banner.remove(), 400);
-        }
-
-        const hiddenInput = document.getElementById('pending_report_id');
-        if (hiddenInput) hiddenInput.value = '0';
-
-        if (window.history && window.history.replaceState) {
-          const url = new URL(window.location.href);
-          url.searchParams.delete('pending_report_id');
-          window.history.replaceState(null, '', url.pathname + url.search);
-        }
-
-        const descInput = document.getElementById('description');
-        if (descInput) descInput.value = '';
-
-      } else {
-        alert('❌ Failed to reject report: ' + (data?.message || 'Error occurred'));
-      }
-    } catch (e) {
-      closeRejectGuardModal();
-      alert('❌ Connection error while rejecting report.');
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Reject Report'; }
-    }
-  };
-  </script>
 </body>
 </html>
