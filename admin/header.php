@@ -935,24 +935,23 @@ if (function_exists('db_one')) {
 
     dropdown.addEventListener('click', (e) => e.stopPropagation());
 
-    async function fetchPendingReports() {
-      notifList.innerHTML = '<div class="notif-empty">Loading pending reports...</div>';
+    async function fetchPendingReports(showLoading = true) {
+      if (showLoading && notifList) {
+        notifList.innerHTML = '<div class="notif-empty">Loading pending reports...</div>';
+      }
       try {
         const res = await fetch('AJAX/get_pending_guard_reports.php');
         const json = await res.json();
-        if (json.ok && json.reports.length > 0) {
+        if (json.ok && json.reports && json.reports.length > 0) {
           renderReports(json.reports);
-          countLabel.textContent = json.reports.length + ' pending';
+          if (countLabel) countLabel.textContent = json.reports.length + ' pending';
         } else {
-          notifList.innerHTML = '<div class="notif-empty">No pending violation reports</div>';
-          countLabel.textContent = '0 pending';
+          if (notifList) notifList.innerHTML = '<div class="notif-empty">No pending violation reports</div>';
+          if (countLabel) countLabel.textContent = '0 pending';
         }
       } catch (e) {
-        notifList.innerHTML = '<div class="notif-empty">Error loading reports</div>';
+        if (notifList) notifList.innerHTML = '<div class="notif-empty">Error loading reports</div>';
       }
-      
-      // Update badge instantly since backend just marked notifications as read
-      setTimeout(poll, 100);
     }
 
     function renderReports(reports) {
@@ -1169,7 +1168,7 @@ if (function_exists('db_one')) {
           }
         }
         lastPendingGuardCount = pendingGuards;
-        if (dropdownOpen) fetchPendingReports();
+        if (dropdownOpen) fetchPendingReports(false);
 
         if (unread > 0) {
           badge.style.display = 'flex';
