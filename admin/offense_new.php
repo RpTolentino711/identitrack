@@ -1823,34 +1823,35 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
                 <!-- Pending Security Guard Violation Report Banner -->
                 <?php if ($pendingGuardReport): ?>
-                  <div id="pendingGuardReportBanner" style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:12px; padding:16px 20px; margin-bottom:20px; box-shadow:0 4px 14px rgba(37,99,235,0.1);">
+                  <div id="pendingGuardReportBanner" style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:12px; padding:16px 20px; margin-bottom:20px; box-shadow:0 4px 14px rgba(22,163,74,0.1);">
                     <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
                       <div style="display:flex; align-items:flex-start; gap:12px; flex:1; min-width:260px;">
-                        <div style="width:42px; height:42px; border-radius:10px; background:#dbeafe; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
+                        <div style="width:42px; height:42px; border-radius:10px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
                           🛡️
                         </div>
                         <div>
-                          <div style="font-size:14px; font-weight:800; color:#1e40af; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                          <div style="font-size:14px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             <span>Pending Security Guard Violation Report</span>
-                            <span style="background:#dbeafe; color:#1e40af; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Report #<?php echo (int)$pendingGuardReport['report_id']; ?></span>
+                            <span style="background:#dcfce7; color:#16a34a; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Report #<?php echo (int)$pendingGuardReport['report_id']; ?></span>
+                            <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
                           </div>
-                          <div style="font-size:12.5px; color:#2563eb; margin-top:3px; font-weight:600;">
+                          <div style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
                             Filed by <strong><?php echo htmlspecialchars($pendingGuardReport['guard_name'] ?? 'Campus Security Guard'); ?></strong> on <?php echo htmlspecialchars(date('M j, Y h:i A', strtotime($pendingGuardReport['created_at']))); ?>
                           </div>
-                          <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #dbeafe; line-height:1.4;">
-                            <div style="font-weight:700; color:#1e40af; margin-bottom:2px;">
+                          <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #bbf7d0; line-height:1.4;">
+                            <div style="font-weight:700; color:#15803d; margin-bottom:2px;">
                               Reported Offense: <span style="color:#0f172a;"><?php echo htmlspecialchars($pendingGuardReport['offense_name'] ?? 'Violation Report'); ?> (<?php echo htmlspecialchars($pendingGuardReport['offense_code'] ?? 'MIN-01'); ?>)</span>
                             </div>
                             <div>
-                              <span style="font-weight:700; color:#1e40af;">Guard Notes:</span>
+                              <span style="font-weight:700; color:#15803d;">Guard Notes:</span>
                               <em style="color:#334155;">"<?php echo htmlspecialchars($pendingGuardReport['description'] ?? 'No additional notes provided.'); ?>"</em>
                             </div>
                           </div>
                         </div>
                       </div>
                       <div style="align-self:center;">
-                        <button type="button" onclick="autoFillGuardReportData()" style="padding:9px 16px; background:#2563eb; color:#ffffff; font-weight:700; font-size:12.5px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 8px rgba(37,99,235,0.3);">
-                          ⚡ Auto-Input Guard Details
+                        <button type="button" id="btnAutoFillGuard" onclick="autoFillGuardReportData()" style="padding:9px 16px; background:#16a34a; color:#ffffff; font-weight:700; font-size:12.5px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 8px rgba(22,163,74,0.3);">
+                          ✓ Details Auto-Filled
                         </button>
                       </div>
                     </div>
