@@ -864,7 +864,8 @@ if (function_exists('db_one')) {
 
 <script>
   (function() {
-    const isDashboard = window.location.pathname.toLowerCase().includes('dashboard.php');
+    const currentPath = window.location.pathname.toLowerCase();
+    const isDashboard = currentPath.includes('dashboard.php') || currentPath.endsWith('/admin/') || currentPath.endsWith('/admin') || currentPath.endsWith('/admin/index.php');
     const badge = document.getElementById('notifBadge');
     const bell = document.getElementById('notifBell');
     const container = document.getElementById('notifContainer');
@@ -1126,21 +1127,25 @@ if (function_exists('db_one')) {
         const newNotifs = json.new_notifications || [];
         const pendingGuards = Number(json.pending_guard_count || 0);
 
-        // If on dashboard, automatically mark current pending guard count as reviewed
-        if (isDashboard) {
+        const cPath = window.location.pathname.toLowerCase();
+        const isCurrentlyDashboard = cPath.includes('dashboard.php') || cPath.endsWith('/admin/') || cPath.endsWith('/admin') || cPath.endsWith('/admin/index.php');
+
+        // If on dashboard, automatically mark current pending guard count as reviewed & suppressed
+        if (isCurrentlyDashboard) {
             unread = Math.max(0, unread - pendingGuards);
             localStorage.setItem('reviewed_pending_guard_count', String(pendingGuards));
+            sessionStorage.setItem('last_shown_pending_guard_count', String(pendingGuards));
         }
 
         const reviewedCount = Number(localStorage.getItem('reviewed_pending_guard_count') || 0);
 
-        // Show toast for new notifications
+        // Show toast for new notifications (suppressed on dashboard and for guard reports on dashboard)
         if (newNotifs.length > 0) {
           let highestId = lastNotifId;
           newNotifs.forEach(n => {
             const id = Number(n.notification_id || 0);
             if (id > highestId) highestId = id;
-            if (lastNotifId > 0 && !isDashboard && n.type !== 'HEARING_ACCEPTED') {
+            if (lastNotifId > 0 && !isCurrentlyDashboard && n.type !== 'HEARING_ACCEPTED' && n.type !== 'GUARD_REPORT' && n.type !== 'VIOLATION') {
               const title = n.title || 'New Offense Report';
               const message = n.message || 'A new violation report has been filed.';
               createToast(title, message);
@@ -1153,7 +1158,7 @@ if (function_exists('db_one')) {
         // 1. We are NOT on dashboard
         // 2. pendingGuards > 0
         // 3. pendingGuards > reviewedCount (has not been reviewed or dismissed yet)
-        if (pendingGuards > 0 && pendingGuards > reviewedCount && !isDashboard) {
+        if (pendingGuards > 0 && pendingGuards > reviewedCount && !isCurrentlyDashboard) {
           const lastShownCount = Number(sessionStorage.getItem('last_shown_pending_guard_count') || 0);
           if (pendingGuards !== lastShownCount) {
             createToast(
