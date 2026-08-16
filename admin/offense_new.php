@@ -2186,6 +2186,95 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           </div>
         <?php endif; ?>
 
+        <!-- Pending Security Guard Violation Report Stack Banner (3D Horizontal Coverflow) -->
+        <?php 
+          $pReportsCount = is_array($pendingGuardReports) ? count($pendingGuardReports) : 0;
+          if ($pReportsCount > 0): 
+        ?>
+          <style>
+            #pendingGuardReportStackWrapper {
+              padding-right: 36px;
+              box-sizing: border-box;
+              margin-bottom: 20px;
+            }
+            #pendingGuardReportStackContainer {
+              position: relative;
+              user-select: none;
+              perspective: 1000px;
+            }
+            #pendingGuardReportStackContainer:hover #pendingGuardReportBanner {
+              transform: translateX(-12px) scale(0.99);
+            }
+            #pendingGuardReportStackContainer:hover #cardStackRight1 {
+              right: -24px;
+              transform: scale(0.96) perspective(600px) rotateY(-4deg);
+              opacity: 0.98;
+              box-shadow: 6px 10px 24px rgba(0,0,0,0.12);
+            }
+            #pendingGuardReportStackContainer:hover #cardStackRight2 {
+              right: -42px;
+              transform: scale(0.92) perspective(600px) rotateY(-8deg);
+              opacity: 0.85;
+            }
+          </style>
+          <div id="pendingGuardReportStackWrapper">
+            <div id="pendingGuardReportStackContainer" title="Swipe left/right or click the card peeking to the right to switch">
+              <!-- 3D Horizontal Coverflow Stacked Card Layers peeking to the RIGHT -->
+              <div id="cardStackRight2" style="position:absolute; top:12px; bottom:12px; right:-20px; width:100%; background:#fef3c7; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.7; transform:scale(0.92) perspective(600px) rotateY(-10deg); box-shadow:0 4px 12px rgba(0,0,0,0.06); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+              <div id="cardStackRight1" style="position:absolute; top:6px; bottom:6px; right:-8px; width:100%; background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:14px; z-index:2; opacity:0.9; transform:scale(0.95) perspective(600px) rotateY(-6deg); box-shadow:4px 6px 18px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+
+              <!-- Active Banner Card -->
+              <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 10px 25px rgba(22,163,74,0.15); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
+                <!-- Carousel Navigation Header Controls (if multiple reports) -->
+                <div id="guardCarouselHeader" style="display:<?php echo $pReportsCount > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
+                  <div style="font-size:12.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span>📚 Multiple Pending Reports (<?php echo $pReportsCount; ?> Total):</span>
+                    <div id="carouselReportPills" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                      <!-- Clickable report pills rendered via JS -->
+                    </div>
+                  </div>
+                  <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85;">Swipe ↔ or click a report</span>
+                </div>
+
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                  <div style="display:flex; align-items:flex-start; gap:12px; flex:1; min-width:260px;">
+                    <div style="width:42px; height:42px; border-radius:10px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
+                      🛡️
+                    </div>
+                    <div>
+                      <div style="font-size:14px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span>Pending Security Guard Violation Report</span>
+                        <span id="bannerReportBadge" style="background:#dcfce7; color:#16a34a; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Report #<?php echo (int)($pendingGuardReport['report_id'] ?? 0); ?></span>
+                        <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
+                      </div>
+                      <div id="bannerGuardMeta" style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
+                        Filed by <strong><?php echo htmlspecialchars((string)($pendingGuardReport['guard_name'] ?? 'Campus Security Guard')); ?></strong> on <?php echo htmlspecialchars(!empty($pendingGuardReport['created_at']) ? ph_date('M j, Y h:i A', $pendingGuardReport['created_at']) : 'Recently'); ?>
+                      </div>
+                      <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #bbf7d0; line-height:1.4;">
+                        <div style="font-weight:700; color:#15803d; margin-bottom:2px;">
+                          Reported Offense: <span id="bannerOffenseTitle" style="color:#0f172a;"><?php echo htmlspecialchars((string)($pendingGuardReport['offense_name'] ?? 'Violation Report')); ?> (<?php echo htmlspecialchars((string)($pendingGuardReport['offense_code'] ?? 'MIN-01')); ?>)</span>
+                        </div>
+                        <div>
+                          <span style="font-weight:700; color:#15803d;">Guard Notes:</span>
+                          <em id="bannerGuardNotes" style="color:#334155;">"<?php echo htmlspecialchars((string)($pendingGuardReport['description'] ?? 'No additional notes provided.')); ?>"</em>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="align-self:center; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <button type="button" id="btnAutoFillGuard" onclick="autoFillCurrentGuardReport()" style="padding:9px 16px; background:#16a34a; color:#ffffff; font-weight:700; font-size:12.5px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 8px rgba(22,163,74,0.3);">
+                      ✓ Details Auto-Filled
+                    </button>
+                    <button type="button" id="btnRejectGuard" onclick="triggerCurrentGuardRejection()" style="padding:9px 14px; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; font-weight:700; font-size:12.5px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
+                      ✕ Reject Report
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        <?php endif; ?>
+
         <div class="content-grid">
 
           <!-- LEFT: Form -->
@@ -2216,95 +2305,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                     Enter a Student ID above to load student information.
                   </div>
                 <?php endif; ?>
-
-                <!-- Pending Security Guard Violation Report Stack Banner (3D Horizontal Coverflow) -->
-                <?php 
-                  $pReportsCount = is_array($pendingGuardReports) ? count($pendingGuardReports) : 0;
-                  if ($pReportsCount > 0): 
-                ?>
-                  <style>
-                    #pendingGuardReportStackWrapper {
-                      padding-right: 36px;
-                      box-sizing: border-box;
-                    }
-                    #pendingGuardReportStackContainer {
-                      position: relative;
-                      margin-bottom: 28px;
-                      user-select: none;
-                      perspective: 1000px;
-                    }
-                    #pendingGuardReportStackContainer:hover #pendingGuardReportBanner {
-                      transform: translateX(-12px) scale(0.99);
-                    }
-                    #pendingGuardReportStackContainer:hover #cardStackRight1 {
-                      right: -24px;
-                      transform: scale(0.96) perspective(600px) rotateY(-4deg);
-                      opacity: 0.98;
-                      box-shadow: 6px 10px 24px rgba(0,0,0,0.12);
-                    }
-                    #pendingGuardReportStackContainer:hover #cardStackRight2 {
-                      right: -42px;
-                      transform: scale(0.92) perspective(600px) rotateY(-8deg);
-                      opacity: 0.85;
-                    }
-                  </style>
-                  <div id="pendingGuardReportStackWrapper">
-                    <div id="pendingGuardReportStackContainer" title="Swipe left/right or click the card peeking to the right to switch">
-                      <!-- 3D Horizontal Coverflow Stacked Card Layers peeking to the RIGHT -->
-                      <div id="cardStackRight2" style="position:absolute; top:12px; bottom:12px; right:-20px; width:100%; background:#fef3c7; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.7; transform:scale(0.92) perspective(600px) rotateY(-10deg); box-shadow:0 4px 12px rgba(0,0,0,0.06); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
-                      <div id="cardStackRight1" style="position:absolute; top:6px; bottom:6px; right:-8px; width:100%; background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:14px; z-index:2; opacity:0.9; transform:scale(0.95) perspective(600px) rotateY(-6deg); box-shadow:4px 6px 18px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
-
-                      <!-- Active Banner Card -->
-                      <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 10px 25px rgba(22,163,74,0.15); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
-                        <!-- Carousel Navigation Header Controls (if multiple reports) -->
-                        <div id="guardCarouselHeader" style="display:<?php echo $pReportsCount > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
-                          <div style="font-size:12.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                            <span>📚 Multiple Pending Reports (<?php echo $pReportsCount; ?> Total):</span>
-                            <div id="carouselReportPills" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                              <!-- Clickable report pills rendered via JS -->
-                            </div>
-                          </div>
-                          <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85;">Swipe ↔ or click a report</span>
-                        </div>
-
-                      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-                        <div style="display:flex; align-items:flex-start; gap:12px; flex:1; min-width:260px;">
-                          <div style="width:42px; height:42px; border-radius:10px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
-                            🛡️
-                          </div>
-                          <div>
-                            <div style="font-size:14px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                              <span>Pending Security Guard Violation Report</span>
-                              <span id="bannerReportBadge" style="background:#dcfce7; color:#16a34a; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Report #<?php echo (int)($pendingGuardReport['report_id'] ?? 0); ?></span>
-                              <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
-                            </div>
-                            <div id="bannerGuardMeta" style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
-                              Filed by <strong><?php echo htmlspecialchars((string)($pendingGuardReport['guard_name'] ?? 'Campus Security Guard')); ?></strong> on <?php echo htmlspecialchars(!empty($pendingGuardReport['created_at']) ? ph_date('M j, Y h:i A', $pendingGuardReport['created_at']) : 'Recently'); ?>
-                            </div>
-                            <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #bbf7d0; line-height:1.4;">
-                              <div style="font-weight:700; color:#15803d; margin-bottom:2px;">
-                                Reported Offense: <span id="bannerOffenseTitle" style="color:#0f172a;"><?php echo htmlspecialchars((string)($pendingGuardReport['offense_name'] ?? 'Violation Report')); ?> (<?php echo htmlspecialchars((string)($pendingGuardReport['offense_code'] ?? 'MIN-01')); ?>)</span>
-                              </div>
-                              <div>
-                                <span style="font-weight:700; color:#15803d;">Guard Notes:</span>
-                                <em id="bannerGuardNotes" style="color:#334155;">"<?php echo htmlspecialchars((string)($pendingGuardReport['description'] ?? 'No additional notes provided.')); ?>"</em>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div style="align-self:center; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                          <button type="button" id="btnAutoFillGuard" onclick="autoFillCurrentGuardReport()" style="padding:9px 16px; background:#16a34a; color:#ffffff; font-weight:700; font-size:12.5px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 8px rgba(22,163,74,0.3);">
-                            ✓ Details Auto-Filled
-                          </button>
-                          <button type="button" id="btnRejectGuard" onclick="triggerCurrentGuardRejection()" style="padding:9px 14px; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; font-weight:700; font-size:12.5px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
-                            ✕ Reject Report
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              <?php endif; ?>
 
                 <form method="post" action="offense_new.php" id="offenseForm">
                   <input type="hidden" name="pending_report_id" id="pending_report_id" value="<?php echo (int)($pendingReportId ?? 0); ?>"/>
