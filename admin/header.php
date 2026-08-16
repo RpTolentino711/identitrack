@@ -872,9 +872,16 @@ if (function_exists('db_one')) {
 
     let lastNotifId = 0;
 
-    function createToast(title, message) {
+    function createToast(title, message, onClickUrl = null, onClickCallback = null) {
       const popup = document.createElement('div');
       popup.className = 'notif-popup';
+      if (onClickUrl || onClickCallback) {
+        popup.style.cursor = 'pointer';
+        popup.onclick = (e) => {
+          if (onClickCallback) onClickCallback();
+          if (onClickUrl) window.location.href = onClickUrl;
+        };
+      }
       popup.innerHTML = `
         <div class="notif-popup-header">
           <div class="notif-popup-icon">
@@ -882,9 +889,10 @@ if (function_exists('db_one')) {
               <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
             </svg>
           </div>
-          <div>
+          <div style="flex:1;">
             <p class="notif-popup-title">${title}</p>
             <p class="notif-popup-message">${message}</p>
+            ${onClickUrl ? `<div style="margin-top:4px; font-size:11px; font-weight:700; color:#2563eb;">Click to review reports →</div>` : ''}
           </div>
         </div>
         <div class="notif-popup-timer">
@@ -1119,10 +1127,13 @@ if (function_exists('db_one')) {
         const newNotifs = json.new_notifications || [];
         const pendingGuards = Number(json.pending_guard_count || 0);
 
-        // Subtract pending guard count if on dashboard
+        // If on dashboard, automatically mark current pending guard count as reviewed
         if (isDashboard) {
             unread = Math.max(0, unread - pendingGuards);
+            localStorage.setItem('reviewed_pending_guard_count', String(pendingGuards));
         }
+
+        const reviewedCount = Number(localStorage.getItem('reviewed_pending_guard_count') || 0);
 
         // Show toast for new notifications
         if (newNotifs.length > 0) {
@@ -1139,16 +1150,26 @@ if (function_exists('db_one')) {
           lastNotifId = highestId;
         }
 
-        // Show toast for new pending guard submissions
-        if (pendingGuards > lastPendingGuardCount) {
-          if ((lastPendingGuardCount > 0 || lastNotifId > 0) && !isDashboard) {
-            createToast('Violation Report', `There are ${pendingGuards} pending violation reports awaiting review.`);
+        // Show toast for pending guard submissions ONLY IF:
+        // 1. We are NOT on dashboard
+        // 2. pendingGuards > 0
+        // 3. pendingGuards > reviewedCount (has not been reviewed or dismissed yet)
+        if (pendingGuards > 0 && pendingGuards > reviewedCount && !isDashboard) {
+          const lastShownCount = Number(sessionStorage.getItem('last_shown_pending_guard_count') || 0);
+          if (pendingGuards !== lastShownCount) {
+            createToast(
+              'Violation Report', 
+              `There are ${pendingGuards} pending violation report${pendingGuards > 1 ? 's' : ''} awaiting review.`,
+              'dashboard.php?open_pending_reports=1',
+              () => {
+                localStorage.setItem('reviewed_pending_guard_count', String(pendingGuards));
+              }
+            );
+            sessionStorage.setItem('last_shown_pending_guard_count', String(pendingGuards));
           }
-          lastPendingGuardCount = pendingGuards;
-          if (dropdownOpen) fetchPendingReports();
-        } else {
-          lastPendingGuardCount = pendingGuards;
         }
+        lastPendingGuardCount = pendingGuards;
+        if (dropdownOpen) fetchPendingReports();
 
         if (unread > 0) {
           badge.style.display = 'flex';
