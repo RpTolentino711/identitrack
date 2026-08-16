@@ -663,9 +663,9 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   $isAppRegistered = (!empty($student['privacy_accepted']) || !empty($student['app_registered_at']) || !empty($student['privacy_accepted_at']));
   $privacyDateStr = '';
   if (!empty($student['privacy_accepted_at'])) {
-      $privacyDateStr = date('M d, Y g:i A', strtotime($student['privacy_accepted_at']));
+      $privacyDateStr = ph_date('M d, Y g:i A', $student['privacy_accepted_at']);
   } elseif (!empty($student['app_registered_at'])) {
-      $privacyDateStr = date('M d, Y g:i A', strtotime($student['app_registered_at']));
+      $privacyDateStr = ph_date('M d, Y g:i A', $student['app_registered_at']);
   }
 
   $starBadge = '';
@@ -750,8 +750,8 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $bgColor = $isRed ? 'var(--red-soft)' : 'var(--amber-soft)';
       $textColor = $isRed ? 'var(--red)' : 'var(--amber)';
       $borderColor = $isRed ? 'var(--red-mid)' : 'var(--amber-mid)';
-      $dateStr = date('M j, Y', strtotime($o['date_committed']));
-      $timeStr = date('g:i A', strtotime($o['date_committed']));
+      $dateStr = ph_date('M j, Y', $o['date_committed']);
+      $timeStr = ph_date('g:i A', $o['date_committed']);
       $dateDisplay = $dateStr . '<br><span style="font-size:9px; opacity:0.9;">' . $timeStr . '</span>';
       
       $labelHtml = '';
@@ -1026,7 +1026,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       $offensesHtml .= '<summary style="cursor:pointer; font-weight:600; font-size:13px; color:#475569; outline:none; user-select:none;">View all past offenses (' . count($offenses) . ')</summary>';
       $offensesHtml .= '<div style="margin-top:10px; max-height:200px; overflow-y:auto; border-top:1px solid #e2e8f0; padding-top:10px; text-align:left;">';
       foreach ($offenses as $off) {
-          $dt = date('M j, Y g:i A', strtotime($off['date_committed']));
+          $dt = ph_date('M j, Y g:i A', $off['date_committed']);
           $lvlColor = $off['level'] === 'MAJOR' ? 'color:var(--red);' : 'color:var(--amber);';
           $offensesHtml .= '<div style="font-size:12px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #e2e8f0;">';
           $offensesHtml .= '<div style="display:flex; justify-content:space-between; margin-bottom:4px;">';
@@ -2361,7 +2361,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       if ($studentInfo && $letterOffenseId > 0) {
                           $coff = db_one("SELECT o.description, o.date_committed, ot.code, ot.name, ot.level FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.offense_id = :oid", [':oid' => $letterOffenseId]);
                           if ($coff) {
-                              $dt = date('F j, Y g:i A', strtotime($coff['date_committed']));
+                              $dt = ph_date('F j, Y g:i A', $coff['date_committed']);
                               $defaultBody .= "CURRENT OFFENSE:\n- {$coff['code']} — {$coff['name']}\n- Level: {$coff['level']}\n- Date: {$dt}\n- Notes: " . ($coff['description'] ?: '(none)') . "\n\n";
                           }
                           $history = db_all("SELECT o.date_committed, o.description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", [':sid' => $studentInfo['student_id']]);
