@@ -1849,9 +1849,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                           </div>
                         </div>
                       </div>
-                      <div style="align-self:center;">
+                      <div style="align-self:center; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <button type="button" id="btnAutoFillGuard" onclick="autoFillGuardReportData()" style="padding:9px 16px; background:#16a34a; color:#ffffff; font-weight:700; font-size:12.5px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 8px rgba(22,163,74,0.3);">
                           ✓ Details Auto-Filled
+                        </button>
+                        <button type="button" onclick="rejectGuardReport(<?php echo (int)$pendingGuardReport['report_id']; ?>)" style="padding:9px 14px; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; font-weight:700; font-size:12.5px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
+                          ✕ Reject Report
                         </button>
                       </div>
                     </div>
@@ -2758,6 +2761,51 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         banner.style.borderColor = '#86efac';
       }
     <?php endif; ?>
+  };
+
+  window.rejectGuardReport = async function(reportId) {
+    if (!confirm('Are you sure you want to reject and dismiss Guard Violation Report #' + reportId + '?')) {
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append('action', 'reject');
+      formData.append('report_id', reportId);
+
+      const res = await fetch('AJAX/guard_report_review.php', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if (data && data.ok) {
+        const banner = document.getElementById('pendingGuardReportBanner');
+        if (banner) {
+          banner.style.transition = 'all 0.4s ease';
+          banner.style.opacity = '0';
+          banner.style.transform = 'translateY(-10px)';
+          setTimeout(() => banner.remove(), 400);
+        }
+
+        const hiddenInput = document.getElementById('pending_report_id');
+        if (hiddenInput) hiddenInput.value = '0';
+
+        if (window.history && window.history.replaceState) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('pending_report_id');
+          window.history.replaceState(null, '', url.pathname + url.search);
+        }
+
+        const descInput = document.getElementById('description');
+        if (descInput) descInput.value = '';
+
+        alert('✓ Guard Report #' + reportId + ' has been rejected and dismissed.');
+      } else {
+        alert('❌ Failed to reject report: ' + (data?.message || 'Error occurred'));
+      }
+    } catch (e) {
+      alert('❌ Connection error while rejecting report.');
+    }
   };
 
   const suggestionsBox = document.getElementById('studentSuggestions');
