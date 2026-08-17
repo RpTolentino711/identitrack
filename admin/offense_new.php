@@ -1895,7 +1895,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         if (dateInput && r.created_at) {
             dateInput.value = r.created_at.replace(' ', 'T').substring(0, 16);
         }
-    };
 
         // Helper to escape HTML characters
         function escapeHtmlStr(str) {
