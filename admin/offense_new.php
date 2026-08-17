@@ -1953,17 +1953,33 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         };
 
         if (isDifferent && banner) {
-            // Smooth micro-fade animation during tab switch
-            banner.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
-            banner.style.transform = 'scale(0.985)';
+            // Phase 1: 3D Deck Card Shuffle Out
+            banner.style.transition = 'transform 0.16s cubic-bezier(0.4, 0, 1, 1), opacity 0.16s ease, filter 0.16s ease';
+            banner.style.transform = 'translateX(-35px) scale(0.96) rotateY(4deg)';
             banner.style.opacity = '0.4';
+            banner.style.filter = 'blur(1px)';
+
+            const l1 = document.getElementById('cardStackLayer1');
+            if (l1) {
+                l1.style.transition = 'transform 0.16s ease';
+                l1.style.transform = 'scale(1.02) translateY(-2px)';
+            }
 
             setTimeout(() => {
+                // Phase 2: Update content midway while card is shifted
                 applyDataUpdates();
-                banner.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease';
-                banner.style.transform = 'scale(1)';
+
+                // Phase 3: 3D Deck Card Snap In
+                banner.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, filter 0.28s ease';
+                banner.style.transform = 'translateX(0) scale(1) rotateY(0deg)';
                 banner.style.opacity = '1';
-            }, 150);
+                banner.style.filter = 'blur(0px)';
+
+                if (l1) {
+                    l1.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
+                    l1.style.transform = 'scale(0.98)';
+                }
+            }, 160);
         } else {
             applyDataUpdates();
         }
@@ -2258,16 +2274,20 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           </div>
         <?php endif; ?>
 
-        <!-- Pending Security Guard Violation Report Tabbed Stack Banner -->
+        <!-- Pending Security Guard Violation Report Tabbed 3D Stacked Deck Banner -->
         <?php 
           $pReportsCount = is_array($pendingGuardReports) ? count($pendingGuardReports) : 0;
           if ($pReportsCount > 0): 
         ?>
-          <div id="pendingGuardReportStackWrapper" style="margin-bottom: 24px;">
-            <div id="pendingGuardReportStackContainer" style="position: relative;">
+          <div id="pendingGuardReportStackWrapper" style="margin-bottom: 28px;">
+            <div id="pendingGuardReportStackContainer" style="position: relative; perspective: 1000px;">
 
-              <!-- Clean Active Banner Card with Stacked Layer Depth -->
-              <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #86efac; border-radius:16px; padding:18px 22px; box-shadow: 0 4px 0 #bbf7d0, 0 8px 0 #dcfce7, 0 12px 25px rgba(22,163,74,0.12); transition:all 0.25s ease;">
+              <!-- 3D Card Deck Stack Layers Behind Main Card -->
+              <div id="cardStackLayer2" style="position:absolute; top:12px; bottom:-10px; left:16px; right:16px; z-index:1; background:#dcfce7; border:1.5px solid #86efac; border-radius:18px; transform:scale(0.96); opacity:0.75; box-shadow:0 4px 12px rgba(0,0,0,0.05); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.3s ease;"></div>
+              <div id="cardStackLayer1" style="position:absolute; top:6px; bottom:-5px; left:8px; right:8px; z-index:2; background:#f0fdf4; border:1.5px solid #a7f3d0; border-radius:18px; transform:scale(0.98); opacity:0.92; box-shadow:0 6px 16px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.3s ease;"></div>
+
+              <!-- Active 3D Banner Card -->
+              <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #86efac; border-radius:16px; padding:18px 22px; box-shadow: 0 10px 25px rgba(22,163,74,0.15); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
                 
                 <!-- Tabbed Report Carousel Header -->
                 <div id="guardCarouselHeader" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px dashed #86efac; flex-wrap:wrap; gap:10px;">

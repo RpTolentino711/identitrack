@@ -122,7 +122,7 @@ if ($action === 'reject_guard_report' || $action === 'reject') {
     [':rid' => $reportId]
   );
   db_exec(
-    "UPDATE notification SET is_read = 1 WHERE (type = 'GUARD_REPORT' AND related_id = :rid) OR (item_type = 'VIOLATION' AND report_id = :rid)",
+    "UPDATE notification SET is_read = 1 WHERE (type = 'GUARD_REPORT' AND related_id = :rid) OR (related_table = 'guard_violation_report' AND related_id = :rid)",
     [':rid' => $reportId]
   );
   echo json_encode(['ok' => true, 'message' => 'Report rejected and dismissed.']);
@@ -361,7 +361,7 @@ db_exec(
 );
 
 db_exec(
-  "UPDATE notification SET is_read = 1 WHERE (type = 'GUARD_REPORT' AND related_id = :rid) OR (item_type = 'VIOLATION' AND report_id = :rid)",
+  "UPDATE notification SET is_read = 1 WHERE (type = 'GUARD_REPORT' AND related_id = :rid) OR (related_table = 'guard_violation_report' AND related_id = :rid)",
   [':rid' => $reportId]
 );
 
