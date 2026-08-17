@@ -54,6 +54,8 @@ class DashboardApi {
         adminOpened: h['admin_opened'] == true,
         hasExplanation: h['has_explanation'] == true,
         studentHearingResponse: (h['student_hearing_response'] ?? 'PENDING').toString(),
+        nteEmailSent: h['nte_email_sent'] == true,
+        openExplanationModal: h['open_explanation_modal'] == true,
       );
     }
 
@@ -287,6 +289,8 @@ class HearingNotice {
   final bool adminOpened;
   final bool hasExplanation;
   final String studentHearingResponse;
+  final bool nteEmailSent;
+  final bool openExplanationModal;
 
   HearingNotice({
     required this.caseId,
@@ -299,6 +303,8 @@ class HearingNotice {
     required this.adminOpened,
     required this.hasExplanation,
     required this.studentHearingResponse,
+    required this.nteEmailSent,
+    required this.openExplanationModal,
   });
 }
 

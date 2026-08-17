@@ -52,6 +52,16 @@ if (in_array($case['status'], ['RESOLVED', 'CLOSED', 'CANCELLED'])) {
     json_out(false, 'This case is already closed. Explanations can no longer be submitted.', null, 400);
 }
 
+// Verify that official Notice to Explain (Form F-005) was sent by Admin
+ensure_notice_to_explain_table();
+$nteSent = db_one("SELECT nte_id FROM notice_to_explain WHERE (case_id = :cid OR student_id = :sid) AND status = 'SENT' LIMIT 1", [
+    ':cid' => $caseId,
+    ':sid' => $studentId
+]);
+if (!$nteSent) {
+    json_out(false, 'The official Notice to Explain (Form F-005) has not been sent to your Outlook email by the Student Discipline Office yet.', null, 400);
+}
+
 $uploadDir = __DIR__ . '/../../uploads/explanations/';
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0777, true);

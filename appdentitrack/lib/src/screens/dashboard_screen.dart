@@ -1173,8 +1173,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final titleLower = notice.title.toLowerCase();
     final msgLower = notice.message.toLowerCase();
 
-    // If this notice is a Hearing notice or asks for response in Alerts, navigate directly to AlertsScreen (index 3)
-    if (titleLower.contains('hearing') || msgLower.contains('alerts') || msgLower.contains('accept or decline')) {
+    // 1. Hearing RSVP MUST happen FIRST: navigate to AlertsScreen to confirm/decline hearing attendance
+    if (notice.studentHearingResponse == 'PENDING' && notice.hearingDate.isNotEmpty) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (context, animation1, animation2) => AlertsScreen(
@@ -1183,6 +1183,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           transitionDuration: Duration.zero,
           reverseTransitionDuration: Duration.zero,
+        ),
+      );
+      return;
+    }
+
+    // 2. Gating: If Admin HAS NOT sent F-05 Notice to Explain via email yet, show informative message
+    if (!notice.nteEmailSent && !notice.hasExplanation) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ℹ️ Notice to Explain (Form F-005) Pending: The Student Discipline Office will send the official document to your student Outlook email once issued.'),
+          backgroundColor: Color(0xFF1E293B),
+          duration: Duration(seconds: 4),
         ),
       );
       return;

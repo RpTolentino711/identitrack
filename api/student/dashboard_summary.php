@@ -248,6 +248,15 @@ if ($activeCaseRow) {
   $needsExplanation = in_array($activeCaseRow['case_kind'], ['MAJOR_OFFENSE', 'SECTION4_MINOR_ESCALATION']);
   $hasExplanation = !empty($activeCaseRow['student_explanation_at']);
 
+  ensure_notice_to_explain_table();
+  $nteSentRow = db_one(
+    "SELECT nte_id, attachment_path, status FROM notice_to_explain 
+     WHERE student_id = :sid AND (case_id = :cid OR case_id IS NULL) AND status = 'SENT'
+     ORDER BY nte_id DESC LIMIT 1",
+    [':sid' => $studentId, ':cid' => (int)$activeCaseRow['case_id']]
+  );
+  $hasNteSent = !empty($nteSentRow);
+
   if ($consensusCat > 0 && $status === 'AWAITING_ADMIN_FINALIZATION') {
     $hearingNotice = [
       'case_id' => (int)$activeCaseRow['case_id'],
@@ -258,6 +267,7 @@ if ($activeCaseRow) {
       'message' => 'The panel has reached a consensus and is suggesting a Category ' . $consensusCat . ' punishment. Please wait for the Administration to finalize the decision.',
       'popup' => false,
       'admin_opened' => true,
+      'nte_email_sent' => $hasNteSent,
     ];
   } else if ($status === 'UNDER_INVESTIGATION' && (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1) {
     $hearingNotice = [
@@ -269,60 +279,74 @@ if ($activeCaseRow) {
       'message' => 'Your case is currently live. The UPCC panel is actively discussing and voting on a suggested punishment. Please stand by.',
       'popup' => false,
       'admin_opened' => true,
+      'nte_email_sent' => $hasNteSent,
     ];
   } else if ($hasExplanation) {
     // Student HAS submitted written explanation -> Banner goes away completely!
     $hearingNotice = null;
-  } else if ($studentResponse === 'ACCEPTED' || $studentResponse === 'DECLINED') {
-    // Student responded to hearing RSVP, but HAS NOT submitted written explanation -> Show 5-day explanation prompt!
-    $respText = $studentResponse === 'ACCEPTED' ? 'confirmed attendance' : 'declined the hearing schedule';
+  } else if ($hDate !== '' && $studentResponse === 'PENDING') {
+    // 1. HEARING ATTENDANCE ACTION MUST APPEAR FIRST!
+    // The student MUST take action first on accepting/declining hearing attendance before explanation option is available.
     $hearingNotice = [
       'case_id' => (int)$activeCaseRow['case_id'],
       'hearing_date' => $hDate,
       'hearing_time' => $hTime,
       'hearing_type' => $hType,
-      'title' => '⚠️ Written Explanation Required (5-Day Limit)',
-      'message' => 'You ' . $respText . '. Please submit your written explanation within 5 days.',
-      'subtitle' => 'Tap here to submit your written explanation now',
+      'title' => $hDate === $today ? '📅 Hearing Scheduled Today' : '📅 Upcoming Hearing Scheduled',
+      'message' => $hDate === $today
+        ? 'Your ' . $typeLabel . ' hearing is scheduled today at ' . date('g:i A', strtotime($hTime)) . '. Please take action to confirm if you will attend or decline.'
+        : 'Your ' . $typeLabel . ' hearing is scheduled on ' . date('M d, Y', strtotime($hDate)) . ' at ' . date('g:i A', strtotime($hTime)) . '. Please take action to confirm if you will attend or decline.',
+      'subtitle' => 'Tap to confirm your hearing attendance (Accept / Decline)',
+      'action' => 'CONFIRM_ATTENDANCE',
+      'open_explanation_modal' => false, // Gated until student responds to hearing
+      'popup' => false,
+      'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
+      'nte_email_sent' => $hasNteSent,
+    ];
+  } else if (($studentResponse === 'ACCEPTED' || $studentResponse === 'DECLINED' || $hDate === '') && $hasNteSent) {
+    // 2. AFTER student responded to hearing (or if no hearing), AND Admin HAS sent F-05 email:
+    // Show 5-day written explanation submission card!
+    $respText = $studentResponse === 'ACCEPTED' 
+      ? 'confirmed your attendance' 
+      : ($studentResponse === 'DECLINED' ? 'declined the hearing schedule' : 'have an active UPCC case');
+    
+    $hearingNotice = [
+      'case_id' => (int)$activeCaseRow['case_id'],
+      'hearing_date' => $hDate,
+      'hearing_time' => $hTime,
+      'hearing_type' => $hType,
+      'title' => '📄 Notice to Explain (Form F-005) Sent to Outlook Email',
+      'message' => 'You ' . $respText . '. The Student Discipline Office has sent the official Notice to Explain (Form F-005) to your student Outlook email. Please submit your 5-day written explanation below.',
+      'subtitle' => 'Tap here to submit your 5-day written explanation now',
       'action' => 'SUBMIT_EXPLANATION',
       'open_explanation_modal' => true,
       'popup' => false,
       'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
-    ];
-  } else if ($hDate !== '') {
-    // Student response is PENDING and hearing date exists
-    $hearingNotice = [
-      'case_id' => (int)$activeCaseRow['case_id'],
-      'hearing_date' => $hDate,
-      'hearing_time' => $hTime,
-      'hearing_type' => $hType,
-      'title' => $hDate === $today ? 'Hearing Scheduled Today' : 'Upcoming Hearing',
-      'message' => $hDate === $today
-        ? 'Your ' . $typeLabel . ' hearing is scheduled today at ' . date('g:i A', strtotime($hTime)) . '. Please confirm if you will attend & submit your written explanation within 5 days.'
-        : 'Your ' . $typeLabel . ' hearing is scheduled on ' . date('M d, Y', strtotime($hDate)) . ' at ' . date('g:i A', strtotime($hTime)) . '. Please confirm your attendance & submit your written explanation within 5 days.',
-      'subtitle' => 'Tap to confirm attendance & submit explanation',
-      'action' => 'CONFIRM_ATTENDANCE',
-      'open_explanation_modal' => true,
-      'popup' => false,
-      'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
+      'nte_email_sent' => true,
     ];
   } else {
-    // Active case but no hearing date yet, explanation still required
+    // 3. AFTER student responded to hearing, but Admin HAS NOT sent F-05 email yet:
+    // Inform student that Notice to Explain is pending delivery by Admin
+    $respText = $studentResponse === 'ACCEPTED' 
+      ? 'You confirmed hearing attendance.' 
+      : ($studentResponse === 'DECLINED' ? 'You declined hearing attendance.' : 'Case is under review.');
+    
     $hearingNotice = [
       'case_id' => (int)$activeCaseRow['case_id'],
-      'hearing_date' => '',
-      'hearing_time' => '',
-      'hearing_type' => '',
-      'title' => '⚠️ Written Explanation Required (5-Day Limit)',
-      'message' => 'You have an active UPCC case. Please submit your written explanation within 5 days.',
-      'subtitle' => 'Tap here to submit your written explanation now',
-      'action' => 'SUBMIT_EXPLANATION',
-      'open_explanation_modal' => true,
+      'hearing_date' => $hDate,
+      'hearing_time' => $hTime,
+      'hearing_type' => $hType,
+      'title' => 'ℹ️ Notice to Explain (F-005) Pending Admin Delivery',
+      'message' => $respText . ' The Student Discipline Office will send the official Notice to Explain (Form F-005) to your student Outlook email once issued.',
+      'subtitle' => 'Awaiting official Notice to Explain email from Admin',
+      'action' => 'AWAITING_NTE_EMAIL',
+      'open_explanation_modal' => false, // Gated until admin sends email
       'popup' => false,
-      'admin_opened' => false,
+      'admin_opened' => (int)($activeCaseRow['hearing_is_open'] ?? 0) === 1,
+      'nte_email_sent' => false,
     ];
   }
-  
+
   // Attach has_explanation and response flags to the notice if it exists
   if ($hearingNotice) {
       $hearingNotice['has_explanation'] = $hasExplanation;

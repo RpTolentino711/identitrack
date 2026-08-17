@@ -414,7 +414,52 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
       );
     }
 
-    // Form to submit
+    // If Notice to Explain (Form F-005) HAS NOT been sent by Admin via email yet -> Gated banner
+    if (!o.hasNteSent) {
+      return Container(
+        margin: const EdgeInsets.only(top: 14),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFCBD5E1)),
+        ),
+        child: const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline_rounded, color: Color(0xFF475569)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Notice to Explain (Form F-005) Pending',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B),
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'The Student Discipline Office (SDO) has not issued/sent the official Notice to Explain (Form F-005) to your student Outlook email yet.\n\nSubmission of your 5-day written explanation will open automatically once the SDO sends the Notice to Explain to your Outlook email.',
+                    style: TextStyle(
+                      color: Color(0xFF475569),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Form to submit (When F-005 has been sent by Admin)
     return Container(
       margin: const EdgeInsets.only(top: 14),
       padding: const EdgeInsets.all(16),
@@ -431,7 +476,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
               Icon(Icons.edit_note_rounded, color: Color(0xFFE65100)),
               SizedBox(width: 8),
               Text(
-                'Submit Explanation',
+                'Submit Explanation (Form F-005)',
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
                   color: Color(0xFFE65100),
@@ -440,29 +485,16 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
               ),
             ],
           ),
-          if (o.hasNteSent) ...[
-            const SizedBox(height: 8),
-            const Text(
-              '📧 Notice to Explain (Form F-005): An official Form F-005 document has been sent to your student Outlook email. Please check your Outlook inbox for the attached document file.\n\nPer NU Lipa SDO Policy, you are required to submit your written explanation below within five (5) days upon receipt.',
-              style: TextStyle(
-                color: Color(0xFFBF360C),
-                fontWeight: FontWeight.w700,
-                fontSize: 12.5,
-                height: 1.4,
-              ),
+          const SizedBox(height: 8),
+          const Text(
+            '📧 Notice to Explain (Form F-005): An official Form F-005 document has been sent to your student Outlook email. Please check your Outlook inbox for the attached document file.\n\nPer NU Lipa SDO Policy, you are required to submit your written explanation below within five (5) days upon receipt.',
+            style: TextStyle(
+              color: Color(0xFFBF360C),
+              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+              height: 1.4,
             ),
-          ] else ...[
-            const SizedBox(height: 8),
-            const Text(
-              '📝 Written Explanation: You may submit your written explanation and any supporting documents/evidence below for review by the Student Discipline Office.',
-              style: TextStyle(
-                color: Color(0xFF475569),
-                fontWeight: FontWeight.w600,
-                fontSize: 12.5,
-                height: 1.4,
-              ),
-            ),
-          ],
+          ),
           const SizedBox(height: 14),
           TextField(
             controller: _explanationCtrl,
