@@ -98,6 +98,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
         : null;
     final int? caseId = (rawCaseId != null && rawCaseId > 0) ? rawCaseId : null;
 
+    final String pdfUrl = metadata != null ? (metadata['pdf_url'] ?? '').toString() : '';
+
     final cardContent = Padding(
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -210,7 +212,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ),
           if (alert.alertType == 'HEARING_SCHEDULE' || alert.alertType == 'HEARING_REMINDER')
             _buildHearingActions(alert),
-          final pdfUrl = metadata != null ? (metadata['pdf_url'] ?? '').toString() : '';
           if (pdfUrl.isNotEmpty) ...[
             const SizedBox(height: 10),
             Row(
@@ -278,8 +279,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
         ],
       ),
     );
-
-    final pdfUrl = metadata != null ? (metadata['pdf_url'] ?? '').toString() : '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
