@@ -2268,9 +2268,31 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           </style>
           <div id="pendingGuardReportStackWrapper">
             <div id="pendingGuardReportStackContainer" title="Swipe left/right or click the card peeking to the right to switch">
+              <?php 
+                $rNext1 = $cleanReportsJs[1] ?? null;
+                $rNext2 = $cleanReportsJs[2] ?? null;
+              ?>
               <!-- 3D Horizontal Coverflow Stacked Card Layers peeking to the RIGHT -->
-              <div id="cardStackRight2" style="position:absolute; top:8px; bottom:8px; right:-120px; width:100%; background:#fffbeb; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.8; transform:scale(0.94) perspective(600px) rotateY(-7deg); box-shadow:0 4px 14px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
-              <div id="cardStackRight1" style="position:absolute; top:4px; bottom:4px; right:-105px; width:100%; background:#f0f9ff; border:1.5px solid #7dd3fc; border-radius:14px; z-index:2; opacity:0.98; transform:scale(0.97) perspective(600px) rotateY(-4deg); box-shadow:4px 8px 22px rgba(3,105,161,0.15); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+              <div id="cardStackRight2" style="position:absolute; top:8px; bottom:8px; right:-120px; width:100%; background:#fffbeb; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.8; transform:scale(0.94) perspective(600px) rotateY(-7deg); box-shadow:0 4px 14px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);">
+                <?php if ($rNext2): ?>
+                  <div style="position:absolute; right:14px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11.5px; color:#92400e; pointer-events:none; white-space:nowrap;">
+                    <div style="background:#d97706; color:#ffffff; font-size:10.5px; font-weight:800; padding:5px 12px; border-radius:14px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 3px 10px rgba(217,119,6,0.4); border:1px solid #fbbf24;">
+                      <span>🛡️ Report #<?php echo (int)$rNext2['report_id']; ?> ›</span>
+                    </div>
+                  </div>
+                <?php endif; ?>
+              </div>
+              <div id="cardStackRight1" style="position:absolute; top:4px; bottom:4px; right:-105px; width:100%; background:#f0f9ff; border:1.5px solid #7dd3fc; border-radius:14px; z-index:2; opacity:0.98; transform:scale(0.97) perspective(600px) rotateY(-4deg); box-shadow:4px 8px 22px rgba(3,105,161,0.15); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1); cursor:pointer;" <?php if ($rNext1): ?>onclick="selectGuardReportIndex(1)" onmouseenter="selectGuardReportIndex(1)" title="Hover or click to switch to Report #<?php echo (int)$rNext1['report_id']; ?>"<?php endif; ?>>
+                <?php if ($rNext1): ?>
+                  <div style="position:absolute; right:14px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11.5px; color:#0369a1; pointer-events:none; white-space:nowrap;">
+                    <div style="background:#0284c7; color:#ffffff; font-size:11.5px; font-weight:800; padding:8px 16px; border-radius:16px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(2,132,199,0.45); border:1.5px solid #38bdf8; letter-spacing:0.2px;">
+                      <span>🛡️ Report #<?php echo (int)$rNext1['report_id']; ?></span>
+                      <span style="opacity:0.9; font-size:10.5px; font-weight:700;">(<?php echo htmlspecialchars((string)($rNext1['offense_code'] ?? 'MIN-01')); ?>)</span>
+                      <span style="margin-left:4px; font-size:13px;">›</span>
+                    </div>
+                  </div>
+                <?php endif; ?>
+              </div>
 
               <!-- Active Banner Card -->
               <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 10px 25px rgba(22,163,74,0.15); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
