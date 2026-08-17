@@ -63,6 +63,41 @@ try {
         }
     }
 
+    // Fetch official conduct letters sent to the student / guardian (e.g. F-005 Notice of Formative Intervention)
+    $letters = db_all(
+        "SELECT letter_id, letter_type, subject, body, file_path, generated_at
+         FROM violation_letter
+         WHERE student_id = :sid
+         ORDER BY generated_at DESC",
+        [':sid' => $studentId]
+    );
+
+    foreach ($letters as $letter) {
+        $lType = (string)$letter['letter_type'];
+        $subjectText = trim((string)$letter['subject']);
+        $title = $subjectText ?: 'Official Conduct Notice';
+        
+        if ($lType === 'THIRD_MINOR_NOTICE' || stripos($subjectText, 'Formative') !== false || stripos($subjectText, '3rd Minor') !== false || stripos($subjectText, 'Section 4') !== false) {
+            $title = 'Notice of Formative Intervention (F-005)';
+        } elseif ($lType === 'MAJOR_OFFENSE_NOTICE') {
+            $title = 'Major Offense Official Notice';
+        }
+
+        $alerts[] = [
+            'alert_type' => 'OFFENSE_LETTER',
+            'title' => $title,
+            'message' => 'An official conduct notice (' . ($subjectText ?: 'Formative Intervention F-005') . ') was issued and emailed to your parent/guardian by the SDO.',
+            'created_at' => (string)$letter['generated_at'],
+            'metadata' => [
+                'letter_id' => (int)$letter['letter_id'],
+                'letter_type' => $lType,
+                'file_path' => (string)($letter['file_path'] ?? ''),
+                'subject' => $subjectText,
+                'pdf_url' => !empty($letter['file_path']) ? 'https://identitrack.site/' . ltrim((string)$letter['file_path'], '/') : '',
+            ],
+        ];
+    }
+
     $recentOffenses = array_slice($offenses, 0, 3);
     foreach ($recentOffenses as $offense) {
         $levelLabel = ucfirst(strtolower((string)($offense['level'] ?? 'OFFENSE')));

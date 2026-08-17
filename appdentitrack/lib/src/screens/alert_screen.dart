@@ -210,7 +210,29 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ),
           if (alert.alertType == 'HEARING_SCHEDULE' || alert.alertType == 'HEARING_REMINDER')
             _buildHearingActions(alert),
-          if (offenseId != null) ...[
+          final pdfUrl = metadata != null ? (metadata['pdf_url'] ?? '').toString() : '';
+          if (pdfUrl.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  'Tap to view official notice PDF',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: alert.badgeColor,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.picture_as_pdf_rounded,
+                  size: 14,
+                  color: alert.badgeColor,
+                ),
+              ],
+            ),
+          ] else if (offenseId != null) ...[
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -257,6 +279,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
       ),
     );
 
+    final pdfUrl = metadata != null ? (metadata['pdf_url'] ?? '').toString() : '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -275,11 +299,20 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ),
         ],
       ),
-      child: (offenseId != null || caseId != null)
+      child: (offenseId != null || caseId != null || pdfUrl.isNotEmpty)
           ? Material(
               color: Colors.transparent,
               child: InkWell(
                 onTap: () async {
+                  if (pdfUrl.isNotEmpty) {
+                    try {
+                      final uri = Uri.parse(pdfUrl);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    } catch (_) {}
+                    return;
+                  }
                   showDialog(
                     context: context,
                     barrierDismissible: false,

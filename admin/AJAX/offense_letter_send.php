@@ -170,9 +170,14 @@ $dompdf->render();
 
 $pdfBytes = $dompdf->output();
 
-// Save temp file to sys_get_temp_dir to avoid Hostinger uploads/ permissions, and bypass addStringAttachment bugs
+// Save temp file & permanent copy in uploads/letters/ for student/admin access
 $filename = 'minor_offense_' . $offenseId . '_' . date('Ymd_His') . '.pdf';
-$fileAbs = sys_get_temp_dir() . '/' . $filename;
+$lettersDir = __DIR__ . '/../../uploads/letters';
+if (!file_exists($lettersDir)) {
+    @mkdir($lettersDir, 0777, true);
+}
+$publicRelPath = 'uploads/letters/' . $filename;
+$fileAbs = __DIR__ . '/../../' . $publicRelPath;
 file_put_contents($fileAbs, $pdfBytes);
 
 // Send email via PHPMailer
@@ -266,12 +271,56 @@ try {
     "UPDATE offense SET guardian_notified_at = CURRENT_TIMESTAMP WHERE offense_id = :oid",
     [':oid' => $offenseId]
   );
+
+  // Store in violation_letter table for student record & app access
+  $admin = admin_current();
+  $adminId = (int)($admin['admin_id'] ?? $admin['id'] ?? 1);
+
+  $letterType = 'CUSTOM';
+  $is3rdMinor = (stripos($subject, '3rd Minor') !== false || stripos($subject, 'Section 4') !== false || stripos($subject, 'Formative') !== false);
+  $isMajor = (stripos($subject, 'Major Offense') !== false || strtoupper((string)($row['level'] ?? '')) === 'MAJOR');
+
+  if ($is3rdMinor) {
+      $letterType = 'THIRD_MINOR_NOTICE';
+  } elseif ($isMajor) {
+      $letterType = 'MAJOR_OFFENSE_NOTICE';
+  }
+
+  db_exec(
+      "INSERT INTO violation_letter (student_id, generated_by, letter_type, subject, body, file_path, generated_at)
+       VALUES (:sid, :admin, :ltype, :subject, :body, :fpath, CURRENT_TIMESTAMP)",
+      [
+          ':sid'     => (string)$row['student_id'],
+          ':admin'   => $adminId,
+          ':ltype'   => $letterType,
+          ':subject' => $subject,
+          ':body'    => $letterBody,
+          ':fpath'   => $publicRelPath
+      ]
+  );
+  $letterId = (int)db_last_id();
+
+  // Create student in-app notification
+  $notifTitle = $is3rdMinor ? 'Notice of Formative Intervention (F-005) Issued' : ($isMajor ? 'Major Offense Conduct Notice Issued' : 'Student Conduct Notice Sent');
+  $notifMsg = 'An official conduct notice (' . $subject . ') was sent to your parent/guardian by the Student Discipline Office.';
+
+  db_exec(
+      "INSERT INTO notification (type, title, message, student_id, admin_id, related_table, related_id, is_read, created_at)
+       VALUES ('OFFENSE_LETTER', :title, :msg, :sid, :admin, 'violation_letter', :lid, 0, CURRENT_TIMESTAMP)",
+      [
+          ':title' => $notifTitle,
+          ':msg'   => $notifMsg,
+          ':sid'   => (string)$row['student_id'],
+          ':admin' => $adminId,
+          ':lid'   => (string)$letterId
+      ]
+  );
   
   if (isset($_SESSION['pending_letter']) && $_SESSION['pending_letter']['offense_id'] == $offenseId) {
       unset($_SESSION['pending_letter']);
   }
   
-  echo json_encode(['ok' => true, 'message' => 'Email sent.']);
+  echo json_encode(['ok' => true, 'message' => 'Email sent and official notice recorded for student.']);
   exit;
 } catch (Exception $e) {
   error_log('Offense letter mail error: ' . $e->getMessage());

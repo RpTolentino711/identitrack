@@ -447,8 +447,29 @@ foreach ($hearings as $h) {
         }
     }
 }
-if ($activeSession) $totalAlertsCount++; // SERVICE_ACTIVE
-if ($recentLogout) $totalAlertsCount++; // SERVICE_LOGGED_OUT
+// Check for Formative Intervention F-005 Notice / Official Letters
+$latestLetter = db_one(
+  "SELECT letter_id, letter_type, subject, file_path, generated_at
+   FROM violation_letter
+   WHERE student_id = :sid
+   ORDER BY generated_at DESC LIMIT 1",
+  [':sid' => $studentId]
+);
+
+$formativeNotice = null;
+if ($latestLetter) {
+  $totalAlertsCount++;
+  $formativeNotice = [
+    'letter_id' => (int)$latestLetter['letter_id'],
+    'letter_type' => (string)$latestLetter['letter_type'],
+    'title' => ($latestLetter['letter_type'] === 'THIRD_MINOR_NOTICE' || stripos((string)$latestLetter['subject'], 'Formative') !== false) 
+        ? 'Notice of Formative Intervention (F-005)' 
+        : (string)$latestLetter['subject'],
+    'subject' => (string)$latestLetter['subject'],
+    'generated_at' => (string)$latestLetter['generated_at'],
+    'pdf_url' => !empty($latestLetter['file_path']) ? 'https://identitrack.site/' . ltrim((string)$latestLetter['file_path'], '/') : '',
+  ];
+}
 
 json_out(true, 'Dashboard summary loaded.', [
   'student_id' => $studentId,
@@ -462,6 +483,7 @@ json_out(true, 'Dashboard summary loaded.', [
   'account_mode' => $accountMode,
   'account_message' => $accountMessage,
   'hearing_notice' => $hearingNotice,
+  'formative_notice' => $formativeNotice,
   'latest_punishment' => $latestPunishment,
   'unseen_appeals' => $unseenAppeals,
   'active_service_session' => $activeSession ? true : false,

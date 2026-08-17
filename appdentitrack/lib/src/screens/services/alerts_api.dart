@@ -102,6 +102,8 @@ class StudentAlert {
 
   String get badgeLabel {
     switch (alertType) {
+      case 'OFFENSE_LETTER':
+        return 'Official Notice (F-005)';
       case 'GUARDIAN_ALERT':
         return 'Guardian Alert';
       case 'UPCC_DECISION':
@@ -131,6 +133,8 @@ class StudentAlert {
 
   Color get badgeColor {
     switch (alertType) {
+      case 'OFFENSE_LETTER':
+        return const Color(0xFFD97706); // Gold / Amber
       case 'GUARDIAN_ALERT':
         return const Color(0xFFE8470B); // Orange
       case 'UPCC_DECISION':
@@ -160,6 +164,8 @@ class StudentAlert {
 
   IconData get badgeIcon {
     switch (alertType) {
+      case 'OFFENSE_LETTER':
+        return Icons.mark_email_read_rounded;
       case 'GUARDIAN_ALERT':
         return Icons.mail_rounded;
       case 'UPCC_DECISION':
