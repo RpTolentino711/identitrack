@@ -58,15 +58,13 @@ if (isset($_FILES['nte_file']) && $_FILES['nte_file']['error'] === UPLOAD_ERR_OK
 
 ensure_notice_to_explain_table();
 
-// Save or Replace Form F-005 record
+// Save or Replace Form F-005 record for specific case or offense
 $existing = null;
 if ($caseId > 0) {
-    $existing = db_one("SELECT nte_id, attachment_path FROM notice_to_explain WHERE case_id = :cid LIMIT 1", [':cid' => $caseId]);
-} else if ($offenseId > 0) {
-    $existing = db_one("SELECT nte_id, attachment_path FROM notice_to_explain WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
+    $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE case_id = :cid LIMIT 1", [':cid' => $caseId]);
 }
-if (!$existing && !empty($studentId)) {
-    $existing = db_one("SELECT nte_id, attachment_path FROM notice_to_explain WHERE student_id = :sid ORDER BY created_at DESC LIMIT 1", [':sid' => $studentId]);
+if (!$existing && $offenseId > 0) {
+    $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
 }
 
 $finalAttachment = $attachmentPath ?: ($existing['attachment_path'] ?? null);
@@ -74,7 +72,9 @@ $finalAttachment = $attachmentPath ?: ($existing['attachment_path'] ?? null);
 if ($existing) {
     db_exec("
         UPDATE notice_to_explain 
-        SET incident_report_no = :ir,
+        SET case_id = COALESCE(:cid, case_id),
+            offense_id = COALESCE(:oid, offense_id),
+            incident_report_no = :ir,
             alleged_details = :alleged,
             handbook_section = :sec,
             handbook_page = :page,
@@ -85,6 +85,8 @@ if ($existing) {
             updated_at = NOW()
         WHERE nte_id = :nid
     ", [
+        ':cid' => $caseId > 0 ? $caseId : null,
+        ':oid' => $offenseId > 0 ? $offenseId : null,
         ':ir' => $irNo,
         ':alleged' => $alleged,
         ':sec' => $section,
