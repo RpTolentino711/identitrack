@@ -1944,32 +1944,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         };
 
         if (isDifferent && banner) {
-            // Phase 1: Smooth 3D Slide Out / Deck Shuffle Animation
-            banner.style.transition = 'transform 0.16s cubic-bezier(0.4, 0, 1, 1), opacity 0.16s ease, filter 0.16s ease';
-            banner.style.transform = 'translateX(-30px) scale(0.97) rotateY(3deg)';
+            // Smooth micro-fade animation during tab switch
+            banner.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+            banner.style.transform = 'scale(0.985)';
             banner.style.opacity = '0.4';
-            banner.style.filter = 'blur(1px)';
-
-            if (r1) {
-                r1.style.transition = 'transform 0.16s cubic-bezier(0.4, 0, 1, 1), right 0.16s ease';
-                r1.style.transform = 'translateX(20px) scale(1.02)';
-            }
 
             setTimeout(() => {
-                // Phase 2: Update content midway while cards are shifted
                 applyDataUpdates();
-
-                // Phase 3: Smooth 3D Slide In / Snap into position
-                banner.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, filter 0.28s ease';
-                banner.style.transform = 'translateX(0) scale(1) rotateY(0deg)';
+                banner.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease';
+                banner.style.transform = 'scale(1)';
                 banner.style.opacity = '1';
-                banner.style.filter = 'blur(0px)';
-
-                if (r1) {
-                    r1.style.transition = 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
-                    r1.style.transform = 'scale(0.97) perspective(600px) rotateY(-4deg)';
-                }
-            }, 160);
+            }, 150);
         } else {
             applyDataUpdates();
         }
@@ -2264,95 +2249,54 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           </div>
         <?php endif; ?>
 
-        <!-- Pending Security Guard Violation Report Stack Banner (3D Horizontal Coverflow) -->
+        <!-- Pending Security Guard Violation Report Tabbed Stack Banner -->
         <?php 
           $pReportsCount = is_array($pendingGuardReports) ? count($pendingGuardReports) : 0;
           if ($pReportsCount > 0): 
         ?>
-          <style>
-            #pendingGuardReportStackWrapper {
-              padding-right: 150px;
-              box-sizing: border-box;
-              margin-bottom: 20px;
-            }
-            #pendingGuardReportStackContainer {
-              position: relative;
-              user-select: none;
-              perspective: 1000px;
-            }
-            #pendingGuardReportStackContainer:hover #pendingGuardReportBanner {
-              transform: translateX(-14px) scale(0.99);
-            }
-            #pendingGuardReportStackContainer:hover #cardStackRight1 {
-              right: -125px;
-              transform: scale(0.98) perspective(600px) rotateY(-2deg);
-              opacity: 1;
-              box-shadow: 8px 12px 28px rgba(3,105,161,0.25);
-            }
-            #pendingGuardReportStackContainer:hover #cardStackRight2 {
-              right: -142px;
-              transform: scale(0.95) perspective(600px) rotateY(-5deg);
-              opacity: 0.9;
-            }
-          </style>
-          <div id="pendingGuardReportStackWrapper">
-            <div id="pendingGuardReportStackContainer" title="Swipe left/right or click the card peeking to the right to switch">
-              <?php 
-                $rNext1 = $cleanReportsJs[1] ?? null;
-                $rNext2 = $cleanReportsJs[2] ?? null;
-              ?>
-              <!-- 3D Horizontal Coverflow Stacked Card Layers peeking to the RIGHT -->
-              <div id="cardStackRight2" style="position:absolute; top:8px; bottom:8px; right:-120px; width:100%; background:#fffbeb; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.8; transform:scale(0.94) perspective(600px) rotateY(-7deg); box-shadow:0 4px 14px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);">
-                <?php if ($rNext2): ?>
-                  <div style="position:absolute; right:14px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11.5px; color:#92400e; pointer-events:none; white-space:nowrap;">
-                    <div style="background:#d97706; color:#ffffff; font-size:10.5px; font-weight:800; padding:5px 12px; border-radius:14px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 3px 10px rgba(217,119,6,0.4); border:1px solid #fbbf24;">
-                      <span>🛡️ Report #<?php echo (int)$rNext2['report_id']; ?> ›</span>
-                    </div>
-                  </div>
-                <?php endif; ?>
-              </div>
-              <div id="cardStackRight1" style="position:absolute; top:4px; bottom:4px; right:-105px; width:100%; background:#f0f9ff; border:1.5px solid #7dd3fc; border-radius:14px; z-index:2; opacity:0.98; transform:scale(0.97) perspective(600px) rotateY(-4deg); box-shadow:4px 8px 22px rgba(3,105,161,0.15); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1); cursor:pointer;" <?php if ($rNext1): ?>onclick="selectGuardReportIndex(1)" title="Click to switch to Report #<?php echo (int)$rNext1['report_id']; ?>"<?php endif; ?>>
-                <?php if ($rNext1): ?>
-                  <div style="position:absolute; right:14px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11.5px; color:#0369a1; pointer-events:none; white-space:nowrap;">
-                    <div style="background:#0284c7; color:#ffffff; font-size:11.5px; font-weight:800; padding:8px 16px; border-radius:16px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(2,132,199,0.45); border:1.5px solid #38bdf8; letter-spacing:0.2px;">
-                      <span>🛡️ Report #<?php echo (int)$rNext1['report_id']; ?></span>
-                      <span style="opacity:0.9; font-size:10.5px; font-weight:700;">(<?php echo htmlspecialchars((string)($rNext1['offense_code'] ?? 'MIN-01')); ?>)</span>
-                      <span style="margin-left:4px; font-size:13px;">›</span>
-                    </div>
-                  </div>
-                <?php endif; ?>
-              </div>
+          <div id="pendingGuardReportStackWrapper" style="margin-bottom: 24px;">
+            <div id="pendingGuardReportStackContainer" style="position: relative;">
 
-              <!-- Active Banner Card -->
-              <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 10px 25px rgba(22,163,74,0.15); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
-                <!-- Carousel Navigation Header Controls (if multiple reports) -->
-                <div id="guardCarouselHeader" style="display:<?php echo $pReportsCount > 1 ? 'flex' : 'none'; ?>; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px dashed #bbf7d0;">
-                  <div style="font-size:12.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <span>📚 Multiple Pending Reports (<?php echo $pReportsCount; ?> Total):</span>
-                    <div id="carouselReportPills" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                      <!-- Clickable report pills rendered via JS -->
-                    </div>
+              <!-- Clean Active Banner Card with Stacked Layer Depth -->
+              <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #86efac; border-radius:16px; padding:18px 22px; box-shadow: 0 4px 0 #bbf7d0, 0 8px 0 #dcfce7, 0 12px 25px rgba(22,163,74,0.12); transition:all 0.25s ease;">
+                
+                <!-- Tabbed Report Carousel Header -->
+                <div id="guardCarouselHeader" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px dashed #86efac; flex-wrap:wrap; gap:10px;">
+                  <div style="font-size:13px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="background:#dcfce7; color:#16a34a; padding:4px 10px; border-radius:10px; font-size:12px;">🛡️ Pending Security Guard Reports (<?php echo $pReportsCount; ?> Total)</span>
+                    <span id="carouselReportCounter" style="font-size:11.5px; color:#16a34a; font-weight:700;">Report 1 of <?php echo $pReportsCount; ?></span>
                   </div>
-                  <span style="font-size:11.5px; font-weight:700; color:#15803d; opacity:0.85;">Swipe ↔ or click a report</span>
+
+                  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <?php if ($pReportsCount > 1): ?>
+                      <div id="carouselReportPills" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                        <!-- Clickable report tabs generated by JS -->
+                      </div>
+                      <div style="display:inline-flex; gap:4px; margin-left:4px;">
+                        <button type="button" id="btnPrevReport" onclick="prevGuardReportCarousel()" style="padding:4px 10px; background:#ffffff; border:1px solid #86efac; color:#15803d; font-weight:800; border-radius:8px; cursor:pointer; font-size:12px; transition:all 0.15s;" title="Previous Report">‹</button>
+                        <button type="button" id="btnNextReport" onclick="nextGuardReportCarousel()" style="padding:4px 10px; background:#ffffff; border:1px solid #86efac; color:#15803d; font-weight:800; border-radius:8px; cursor:pointer; font-size:12px; transition:all 0.15s;" title="Next Report">›</button>
+                      </div>
+                    <?php endif; ?>
+                  </div>
                 </div>
 
                 <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-                  <div style="display:flex; align-items:flex-start; gap:12px; flex:1; min-width:260px;">
-                    <div style="width:42px; height:42px; border-radius:10px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
+                  <div style="display:flex; align-items:flex-start; gap:14px; flex:1; min-width:260px;">
+                    <div style="width:44px; height:44px; border-radius:12px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; box-shadow:0 2px 6px rgba(22,163,74,0.2);">
                       🛡️
                     </div>
                     <div>
                       <div style="font-size:14px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <span>Pending Security Guard Violation Report</span>
-                        <span id="bannerReportBadge" style="background:#dcfce7; color:#16a34a; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Report #<?php echo (int)($pendingGuardReport['report_id'] ?? 0); ?></span>
-                        <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
+                        <span id="bannerReportBadge" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:800; padding:2px 10px; border-radius:12px;">Report #<?php echo (int)($pendingGuardReport['report_id'] ?? 0); ?></span>
+                        <span style="background:#ffffff; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
                       </div>
                       <div id="bannerGuardMeta" style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
                         Filed by <strong><?php echo htmlspecialchars((string)($pendingGuardReport['guard_name'] ?? 'Campus Security Guard')); ?></strong> on <?php echo htmlspecialchars(!empty($pendingGuardReport['created_at']) ? ph_date('M j, Y h:i A', $pendingGuardReport['created_at']) : 'Recently'); ?>
                       </div>
-                      <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:10px 14px; border-radius:8px; border:1px solid #bbf7d0; line-height:1.4;">
+                      <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:12px 16px; border-radius:10px; border:1px solid #bbf7d0; line-height:1.4; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
                         <div style="font-weight:700; color:#15803d; margin-bottom:2px;">
-                          Reported Offense: <span id="bannerOffenseTitle" style="color:#0f172a;"><?php echo htmlspecialchars((string)($pendingGuardReport['offense_name'] ?? 'Violation Report')); ?> (<?php echo htmlspecialchars((string)($pendingGuardReport['offense_code'] ?? 'MIN-01')); ?>)</span>
+                          Reported Offense: <span id="bannerOffenseTitle" style="color:#0f172a; font-weight:800;"><?php echo htmlspecialchars((string)($pendingGuardReport['offense_name'] ?? 'Violation Report')); ?> (<?php echo htmlspecialchars((string)($pendingGuardReport['offense_code'] ?? 'MIN-01')); ?>)</span>
                         </div>
                         <div>
                           <span style="font-weight:700; color:#15803d;">Guard Notes:</span>
@@ -2371,6 +2315,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
         <?php endif; ?>
