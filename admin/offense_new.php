@@ -1907,10 +1907,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         if (r1 && window.guardReportsList.length > 1) {
             const nextIdx = (idx + 1) % window.guardReportsList.length;
             const rNext = window.guardReportsList[nextIdx];
-            r1.onclick = function() { window.selectGuardReportIndex(nextIdx); };
-            r1.onmouseenter = function() { window.selectGuardReportIndex(nextIdx); };
+            r1.setAttribute('data-report-index', nextIdx);
+            r1.onclick = function(e) {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                window.selectGuardReportIndex(nextIdx);
+            };
             r1.style.cursor = 'pointer';
-            r1.title = 'Hover or click to switch to Report #' + rNext.report_id;
+            r1.title = 'Click to switch to Report #' + rNext.report_id;
             
             const gName = rNext.guard_name || 'Campus Security Guard';
             const offName = rNext.offense_name || 'Violation Report';
@@ -1930,10 +1933,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         if (r2 && window.guardReportsList.length > 2) {
             const nextIdx2 = (idx + 2) % window.guardReportsList.length;
             const rNext2 = window.guardReportsList[nextIdx2];
-            r2.onclick = function() { window.selectGuardReportIndex(nextIdx2); };
-            r2.onmouseenter = function() { window.selectGuardReportIndex(nextIdx2); };
+            r2.setAttribute('data-report-index', nextIdx2);
+            r2.onclick = function(e) {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                window.selectGuardReportIndex(nextIdx2);
+            };
             r2.style.cursor = 'pointer';
-            r2.title = 'Hover or click to switch to Report #' + rNext2.report_id;
+            r2.title = 'Click to switch to Report #' + rNext2.report_id;
             
             const offCode2 = rNext2.offense_code || 'MIN-01';
 
@@ -2281,7 +2287,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                 <?php endif; ?>
               </div>
-              <div id="cardStackRight1" style="position:absolute; top:4px; bottom:4px; right:-105px; width:100%; background:#f0f9ff; border:1.5px solid #7dd3fc; border-radius:14px; z-index:2; opacity:0.98; transform:scale(0.97) perspective(600px) rotateY(-4deg); box-shadow:4px 8px 22px rgba(3,105,161,0.15); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1); cursor:pointer;" <?php if ($rNext1): ?>onclick="selectGuardReportIndex(1)" onmouseenter="selectGuardReportIndex(1)" title="Hover or click to switch to Report #<?php echo (int)$rNext1['report_id']; ?>"<?php endif; ?>>
+              <div id="cardStackRight1" style="position:absolute; top:4px; bottom:4px; right:-105px; width:100%; background:#f0f9ff; border:1.5px solid #7dd3fc; border-radius:14px; z-index:2; opacity:0.98; transform:scale(0.97) perspective(600px) rotateY(-4deg); box-shadow:4px 8px 22px rgba(3,105,161,0.15); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1); cursor:pointer;" <?php if ($rNext1): ?>onclick="selectGuardReportIndex(1)" title="Click to switch to Report #<?php echo (int)$rNext1['report_id']; ?>"<?php endif; ?>>
                 <?php if ($rNext1): ?>
                   <div style="position:absolute; right:14px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11.5px; color:#0369a1; pointer-events:none; white-space:nowrap;">
                     <div style="background:#0284c7; color:#ffffff; font-size:11.5px; font-weight:800; padding:8px 16px; border-radius:16px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(2,132,199,0.45); border:1.5px solid #38bdf8; letter-spacing:0.2px;">
