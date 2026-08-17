@@ -1821,80 +1821,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         if (!window.guardReportsList || window.guardReportsList.length === 0) return;
         if (idx < 0) idx = 0;
         if (idx >= window.guardReportsList.length) idx = window.guardReportsList.length - 1;
+        
+        const isDifferent = (window.currentReportIndex !== idx);
         window.currentReportIndex = idx;
 
         const r = window.guardReportsList[idx];
         if (!r) return;
 
         const banner = document.getElementById('pendingGuardReportBanner');
-        if (banner) {
-            banner.style.transform = 'translateY(-6px) scale(0.99)';
-            banner.style.opacity = '0.7';
-            setTimeout(() => {
-                banner.style.transform = 'translateY(0) scale(1)';
-                banner.style.opacity = '1';
-            }, 150);
-        }
-
-        // Update banner UI elements
-        const badge = document.getElementById('bannerReportBadge');
-        if (badge) badge.textContent = 'Report #' + r.report_id;
-
-        // Render interactive click-to-switch report pill tabs in carousel header
-        const pillsContainer = document.getElementById('carouselReportPills');
-        if (pillsContainer && window.guardReportsList && window.guardReportsList.length > 1) {
-            pillsContainer.innerHTML = window.guardReportsList.map((item, i) => {
-                const isActive = (i === idx);
-                const activeStyle = 'background:#16a34a; color:#ffffff; font-weight:800; font-size:11px; padding:4px 12px; border-radius:12px; border:none; cursor:pointer; box-shadow:0 2px 6px rgba(22,163,74,0.35); transition:all 0.18s;';
-                const inactiveStyle = 'background:#ffffff; color:#15803d; font-weight:700; font-size:11px; padding:4px 12px; border-radius:12px; border:1px solid #86efac; cursor:pointer; transition:all 0.18s;';
-                return `<button type="button" onclick="selectGuardReportIndex(${i})" style="${isActive ? activeStyle : inactiveStyle}" title="Click to switch to Report #${item.report_id}">Report #${item.report_id}${isActive ? ' (Active)' : ''}</button>`;
-            }).join('');
-        }
-
-        const counter = document.getElementById('carouselReportCounter');
-        if (counter) counter.textContent = 'Report ' + (idx + 1) + ' of ' + window.guardReportsList.length;
-
-        const prevBtn = document.getElementById('btnPrevReport');
-        const nextBtn = document.getElementById('btnNextReport');
-        if (prevBtn) prevBtn.disabled = (idx === 0);
-        if (nextBtn) nextBtn.disabled = (idx === window.guardReportsList.length - 1);
-
-        const meta = document.getElementById('bannerGuardMeta');
-        if (meta) {
-            let dt = '';
-            if (r.created_at) {
-                const d = new Date(r.created_at.replace(' ', 'T'));
-                if (!isNaN(d.getTime())) {
-                    dt = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
-                } else {
-                    dt = r.created_at;
-                }
-            }
-            meta.innerHTML = 'Filed by <strong>' + (r.guard_name || 'Campus Security Guard') + '</strong> on ' + dt;
-        }
-
-        const offTitle = document.getElementById('bannerOffenseTitle');
-        if (offTitle) offTitle.textContent = (r.offense_name || 'Violation Report') + ' (' + (r.offense_code || 'MIN-01') + ')';
-
-        const notes = document.getElementById('bannerGuardNotes');
-        if (notes) notes.textContent = '"' + (r.description || 'No additional notes provided.') + '"';
-
-        // Update hidden input & auto-fill form inputs
-        const hiddenInput = document.getElementById('pending_report_id');
-        if (hiddenInput) hiddenInput.value = r.report_id;
-
-        const typeSelect = document.getElementById('offense_type_id');
-        if (typeSelect && r.offense_type_id > 0) {
-            typeSelect.value = r.offense_type_id;
-        }
-        const descInput = document.getElementById('description');
-        if (descInput) {
-            descInput.value = r.description || '';
-        }
-        const dateInput = document.getElementById('date_committed');
-        if (dateInput && r.created_at) {
-            dateInput.value = r.created_at.replace(' ', 'T').substring(0, 16);
-        }
+        const r1 = document.getElementById('cardStackRight1');
+        const r2 = document.getElementById('cardStackRight2');
 
         // Helper to escape HTML characters
         function escapeHtmlStr(str) {
@@ -1902,52 +1838,140 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
 
-        // Update 3D Horizontal Coverflow peeking cards (peeking out to the right behind main card)
-        const r1 = document.getElementById('cardStackRight1');
-        if (r1 && window.guardReportsList.length > 1) {
-            const nextIdx = (idx + 1) % window.guardReportsList.length;
-            const rNext = window.guardReportsList[nextIdx];
-            r1.setAttribute('data-report-index', nextIdx);
-            r1.onclick = function(e) {
-                if (e) { e.preventDefault(); e.stopPropagation(); }
-                window.selectGuardReportIndex(nextIdx);
-            };
-            r1.style.cursor = 'pointer';
-            r1.title = 'Click to switch to Report #' + rNext.report_id;
-            
-            const gName = rNext.guard_name || 'Campus Security Guard';
-            const offName = rNext.offense_name || 'Violation Report';
-            const offCode = rNext.offense_code || 'MIN-01';
-            const guardNotes = rNext.description || 'No additional notes provided.';
+        const applyDataUpdates = () => {
+            // Update banner UI elements
+            const badge = document.getElementById('bannerReportBadge');
+            if (badge) badge.textContent = 'Report #' + r.report_id;
 
-            r1.innerHTML = '<div style="position:absolute; right:14px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11.5px; color:#0369a1; pointer-events:none; white-space:nowrap;">' +
-              '<div style="background:#0284c7; color:#ffffff; font-size:11.5px; font-weight:800; padding:8px 16px; border-radius:16px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(2,132,199,0.45); border:1.5px solid #38bdf8; letter-spacing:0.2px;">' +
-                '<span>🛡️ Report #' + rNext.report_id + '</span>' +
-                '<span style="opacity:0.9; font-size:10.5px; font-weight:700;">(' + escapeHtmlStr(offCode) + ')</span>' +
-                '<span style="margin-left:4px; font-size:13px;">›</span>' +
-              '</div>' +
-              '</div>';
-        }
+            // Render interactive click-to-switch report pill tabs in carousel header
+            const pillsContainer = document.getElementById('carouselReportPills');
+            if (pillsContainer && window.guardReportsList && window.guardReportsList.length > 1) {
+                pillsContainer.innerHTML = window.guardReportsList.map((item, i) => {
+                    const isActive = (i === idx);
+                    const activeStyle = 'background:#16a34a; color:#ffffff; font-weight:800; font-size:11px; padding:4px 12px; border-radius:12px; border:none; cursor:pointer; box-shadow:0 2px 6px rgba(22,163,74,0.35); transition:all 0.18s;';
+                    const inactiveStyle = 'background:#ffffff; color:#15803d; font-weight:700; font-size:11px; padding:4px 12px; border-radius:12px; border:1px solid #86efac; cursor:pointer; transition:all 0.18s;';
+                    return `<button type="button" onclick="selectGuardReportIndex(${i})" style="${isActive ? activeStyle : inactiveStyle}" title="Click to switch to Report #${item.report_id}">Report #${item.report_id}${isActive ? ' (Active)' : ''}</button>`;
+                }).join('');
+            }
 
-        const r2 = document.getElementById('cardStackRight2');
-        if (r2 && window.guardReportsList.length > 2) {
-            const nextIdx2 = (idx + 2) % window.guardReportsList.length;
-            const rNext2 = window.guardReportsList[nextIdx2];
-            r2.setAttribute('data-report-index', nextIdx2);
-            r2.onclick = function(e) {
-                if (e) { e.preventDefault(); e.stopPropagation(); }
-                window.selectGuardReportIndex(nextIdx2);
-            };
-            r2.style.cursor = 'pointer';
-            r2.title = 'Click to switch to Report #' + rNext2.report_id;
-            
-            const offCode2 = rNext2.offense_code || 'MIN-01';
+            const counter = document.getElementById('carouselReportCounter');
+            if (counter) counter.textContent = 'Report ' + (idx + 1) + ' of ' + window.guardReportsList.length;
 
-            r2.innerHTML = '<div style="position:absolute; right:8px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#92400e; pointer-events:none; white-space:nowrap;">' +
-              '<div style="background:#d97706; color:#ffffff; font-size:10.5px; font-weight:800; padding:5px 12px; border-radius:14px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 3px 10px rgba(217,119,6,0.4); border:1px solid #fbbf24;">' +
-                '<span>🛡️ Report #' + rNext2.report_id + ' ›</span>' +
-              '</div>' +
-              '</div>';
+            const prevBtn = document.getElementById('btnPrevReport');
+            const nextBtn = document.getElementById('btnNextReport');
+            if (prevBtn) prevBtn.disabled = (idx === 0);
+            if (nextBtn) nextBtn.disabled = (idx === window.guardReportsList.length - 1);
+
+            const meta = document.getElementById('bannerGuardMeta');
+            if (meta) {
+                let dt = '';
+                if (r.created_at) {
+                    const d = new Date(r.created_at.replace(' ', 'T'));
+                    if (!isNaN(d.getTime())) {
+                        dt = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+                    } else {
+                        dt = r.created_at;
+                    }
+                }
+                meta.innerHTML = 'Filed by <strong>' + (r.guard_name || 'Campus Security Guard') + '</strong> on ' + dt;
+            }
+
+            const offTitle = document.getElementById('bannerOffenseTitle');
+            if (offTitle) offTitle.textContent = (r.offense_name || 'Violation Report') + ' (' + (r.offense_code || 'MIN-01') + ')';
+
+            const notes = document.getElementById('bannerGuardNotes');
+            if (notes) notes.textContent = '"' + (r.description || 'No additional notes provided.') + '"';
+
+            // Update hidden input & auto-fill form inputs
+            const hiddenInput = document.getElementById('pending_report_id');
+            if (hiddenInput) hiddenInput.value = r.report_id;
+
+            const typeSelect = document.getElementById('offense_type_id');
+            if (typeSelect && r.offense_type_id > 0) {
+                typeSelect.value = r.offense_type_id;
+            }
+            const descInput = document.getElementById('description');
+            if (descInput) {
+                descInput.value = r.description || '';
+            }
+            const dateInput = document.getElementById('date_committed');
+            if (dateInput && r.created_at) {
+                dateInput.value = r.created_at.replace(' ', 'T').substring(0, 16);
+            }
+
+            // Update peeking right cards
+            if (r1 && window.guardReportsList.length > 1) {
+                const nextIdx = (idx + 1) % window.guardReportsList.length;
+                const rNext = window.guardReportsList[nextIdx];
+                r1.setAttribute('data-report-index', nextIdx);
+                r1.onclick = function(e) {
+                    if (e) { e.preventDefault(); e.stopPropagation(); }
+                    window.selectGuardReportIndex(nextIdx);
+                };
+                r1.style.cursor = 'pointer';
+                r1.title = 'Click to switch to Report #' + rNext.report_id;
+                
+                const offCode = rNext.offense_code || 'MIN-01';
+
+                r1.innerHTML = '<div style="position:absolute; right:14px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11.5px; color:#0369a1; pointer-events:none; white-space:nowrap;">' +
+                  '<div style="background:#0284c7; color:#ffffff; font-size:11.5px; font-weight:800; padding:8px 16px; border-radius:16px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(2,132,199,0.45); border:1.5px solid #38bdf8; letter-spacing:0.2px;">' +
+                    '<span>🛡️ Report #' + rNext.report_id + '</span>' +
+                    '<span style="opacity:0.9; font-size:10.5px; font-weight:700;">(' + escapeHtmlStr(offCode) + ')</span>' +
+                    '<span style="margin-left:4px; font-size:13px;">›</span>' +
+                  '</div>' +
+                  '</div>';
+            }
+
+            if (r2 && window.guardReportsList.length > 2) {
+                const nextIdx2 = (idx + 2) % window.guardReportsList.length;
+                const rNext2 = window.guardReportsList[nextIdx2];
+                r2.setAttribute('data-report-index', nextIdx2);
+                r2.onclick = function(e) {
+                    if (e) { e.preventDefault(); e.stopPropagation(); }
+                    window.selectGuardReportIndex(nextIdx2);
+                };
+                r2.style.cursor = 'pointer';
+                r2.title = 'Click to switch to Report #' + rNext2.report_id;
+                
+                const offCode2 = rNext2.offense_code || 'MIN-01';
+
+                r2.innerHTML = '<div style="position:absolute; right:8px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#92400e; pointer-events:none; white-space:nowrap;">' +
+                  '<div style="background:#d97706; color:#ffffff; font-size:10.5px; font-weight:800; padding:5px 12px; border-radius:14px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 3px 10px rgba(217,119,6,0.4); border:1px solid #fbbf24;">' +
+                    '<span>🛡️ Report #' + rNext2.report_id + ' ›</span>' +
+                  '</div>' +
+                  '</div>';
+            }
+        };
+
+        if (isDifferent && banner) {
+            // Phase 1: Smooth 3D Slide Out / Deck Shuffle Animation
+            banner.style.transition = 'transform 0.16s cubic-bezier(0.4, 0, 1, 1), opacity 0.16s ease, filter 0.16s ease';
+            banner.style.transform = 'translateX(-30px) scale(0.97) rotateY(3deg)';
+            banner.style.opacity = '0.4';
+            banner.style.filter = 'blur(1px)';
+
+            if (r1) {
+                r1.style.transition = 'transform 0.16s cubic-bezier(0.4, 0, 1, 1), right 0.16s ease';
+                r1.style.transform = 'translateX(20px) scale(1.02)';
+            }
+
+            setTimeout(() => {
+                // Phase 2: Update content midway while cards are shifted
+                applyDataUpdates();
+
+                // Phase 3: Smooth 3D Slide In / Snap into position
+                banner.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, filter 0.28s ease';
+                banner.style.transform = 'translateX(0) scale(1) rotateY(0deg)';
+                banner.style.opacity = '1';
+                banner.style.filter = 'blur(0px)';
+
+                if (r1) {
+                    r1.style.transition = 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
+                    r1.style.transform = 'scale(0.97) perspective(600px) rotateY(-4deg)';
+                }
+            }, 160);
+        } else {
+            applyDataUpdates();
         }
     };
 
