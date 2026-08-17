@@ -502,7 +502,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF166534),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.vertical(10),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                             ),
@@ -517,7 +517,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF991B1B),
                               side: const BorderSide(color: Color(0xFFEF4444)),
-                              padding: const EdgeInsets.vertical(10),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                             ),
