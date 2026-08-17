@@ -29,33 +29,16 @@ $admin = admin_current();
 $fullName = trim((string)($admin['full_name'] ?? ''));
 if ($fullName === '') $fullName = (string)($admin['username'] ?? 'User');
 
-// 1. Password Verification gate for entering the page
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_page_password') {
-    header('Content-Type: application/json');
-    $pwd = (string)($_POST['password'] ?? '');
-    if ($pwd === '') {
-        echo json_encode(['success' => false, 'message' => 'Password is required.']);
-        exit;
-    }
-    if (admin_verify_password($admin['admin_id'], $pwd)) {
-        $_SESSION['sanctions_page_verified'] = time();
-        echo json_encode(['success' => true]);
-        exit;
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Incorrect password.']);
-        exit;
-    }
-}
-
-$is_verified = isset($_SESSION['sanctions_page_verified']) && (time() - $_SESSION['sanctions_page_verified'] < 900);
+// 1. Password Verification gate for entering the page (Disabled per client request)
+$is_verified = true;
 
 // Get current tab (default category 1)
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'cat1';
 
-// Fetch cases only if page is verified
+// Fetch cases
 $cases = [];
 $activities = [];
-if ($is_verified) {
+$params = [];
     $params = [];
     db_add_encryption_key($params);
 
@@ -117,7 +100,6 @@ if ($is_verified) {
             }
         }
     }
-}
 
 // Group cases by category tab for display
 $cat1_cases = [];
@@ -1358,31 +1340,6 @@ function formatCaseActivity(array $act): string {
       <!-- Content Area -->
       <div class="content-area">
 
-        <?php if (!$is_verified): ?>
-          <!-- Password Verification gate -->
-          <div class="lock-screen-wrapper">
-            <div class="lock-screen-header">
-              <div class="lock-logo-container">
-                <img src="../assets/logo.png" alt="IdentiTrack Logo" class="lock-logo" />
-              </div>
-              <h2>Security Verification Required</h2>
-              <div class="lock-subtitle">Please enter your password to access the Sanctions panel.</div>
-            </div>
-            <div class="lock-screen-body">
-              <div class="error-banner" id="pagePasswordError"></div>
-              <form id="pagePasswordForm">
-                <div class="form-group">
-                  <label for="pagePassword">Admin Password</label>
-                  <input type="password" id="pagePassword" required placeholder="Enter password to verify identity" />
-                </div>
-                <button type="submit" class="btn-submit">Verify Identity</button>
-              </form>
-            </div>
-          </div>
-
-        <?php else: ?>
-          <!-- Verified Panel Content -->
-
           <!-- RFID & ID Scan Finder -->
           <div class="scanner-search-box">
             <div class="scanner-search-title">
@@ -1922,7 +1879,6 @@ function formatCaseActivity(array $act): string {
               <?php endif; ?>
             </section>
           <?php endif; ?>
-        <?php endif; ?>
 
       </div>
     </main>
