@@ -2125,6 +2125,34 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         }
     };
 
+    window.clearGuardReportAutoFill = function() {
+        const hiddenInput = document.getElementById('pending_report_id');
+        if (hiddenInput) hiddenInput.value = '0';
+
+        const descInput = document.getElementById('description');
+        if (descInput) descInput.value = '';
+
+        const typeSelect = document.getElementById('offense_type_id');
+        if (typeSelect) typeSelect.selectedIndex = 0;
+
+        const dateInput = document.getElementById('date_committed');
+        if (dateInput) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const mins = String(now.getMinutes()).padStart(2, '0');
+            dateInput.value = `${year}-${month}-${day}T${hours}:${mins}`;
+        }
+
+        if (window.history && window.history.replaceState) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('pending_report_id');
+            window.history.replaceState(null, '', url.pathname + url.search);
+        }
+    };
+
     window.confirmRejectGuardReport = async function() {
         const reportId = window.activeRejectReportId || 0;
         if (!reportId) return;
@@ -2149,6 +2177,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 const rejectedId = window.activeRejectReportId;
                 window.guardReportsList = (window.guardReportsList || []).filter(r => Number(r.report_id) !== Number(rejectedId));
 
+                // Always clear auto-filled form fields upon rejection
+                window.clearGuardReportAutoFill();
+
                 if (window.guardReportsList.length > 0) {
                     if (window.currentReportIndex >= window.guardReportsList.length) {
                         window.currentReportIndex = window.guardReportsList.length - 1;
@@ -2171,17 +2202,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                         stack.style.transform = 'translateY(-10px)';
                         setTimeout(() => stack.remove(), 400);
                     }
-                    const hiddenInput = document.getElementById('pending_report_id');
-                    if (hiddenInput) hiddenInput.value = '0';
-
-                    if (window.history && window.history.replaceState) {
-                        const url = new URL(window.location.href);
-                        url.searchParams.delete('pending_report_id');
-                        window.history.replaceState(null, '', url.pathname + url.search);
-                    }
-
-                    const descInput = document.getElementById('description');
-                    if (descInput) descInput.value = '';
                 }
 
             } else {
