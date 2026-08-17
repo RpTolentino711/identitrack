@@ -659,9 +659,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             'file_path' => $relPath,
                         ]);
 
-                        // Send official resolution notice email to student with file attached
-                        send_upcc_case_resolution_email($case_id);
-
                         header("Location: upcc_cases.php?msg=resolution_uploaded");
                         exit;
                     } else {

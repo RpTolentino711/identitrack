@@ -1802,22 +1802,9 @@ function send_upcc_case_resolution_email(int $caseId): bool {
 
         $mail->Subject = "📜 Official Case Resolution Notice — {$caseNum}";
 
-        // Attach official resolution file if present
-        $resFileRel = (string)($case['resolution_file_path'] ?? '');
-        $resFileAbs = realpath(__DIR__ . '/../admin/' . $resFileRel);
         $attachmentHtml = '';
 
-        if ($resFileAbs && is_file($resFileAbs) && is_readable($resFileAbs)) {
-            $fileName = basename($resFileAbs);
-            $mail->addAttachment($resFileAbs, $fileName);
-            $attachmentHtml .= "
-            <div style='background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:14px 16px; margin:16px 0;'>
-                <div style='font-size:14px; font-weight:700; color:#15803d;'>📎 Official Signed Resolution Document Attached</div>
-                <div style='font-size:12px; color:#166534; margin-top:4px;'>The official signed resolution document (<strong>" . htmlspecialchars($fileName) . "</strong>) is attached to this email.</div>
-            </div>";
-        }
-
-        // Attach Notice of Formative Intervention (NFI) file if present
+        // Attach Notice of Formative Intervention (NFI) file if present (sent to student)
         $nfiFileRel = (string)($case['nfi_file_path'] ?? '');
         $nfiFileAbs = realpath(__DIR__ . '/../admin/' . $nfiFileRel);
         if ($nfiFileAbs && is_file($nfiFileAbs) && is_readable($nfiFileAbs)) {
