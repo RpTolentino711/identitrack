@@ -241,9 +241,10 @@ if ($action === 'approve_guard_report') {
               $defaultBody .= "(No offenses found.)\n";
           } else {
               foreach ($history as $i => $h) {
-                  $dt = date('M j, Y g:i A', strtotime($h['date_committed']));
+                  $dt = ph_date('M j, Y g:i A', $h['date_committed']);
                   $defaultBody .= ($i + 1) . ". [{$h['level']}] {$h['code']} — {$h['name']} ({$dt})\n";
-                  if (trim($h['description']) !== '') $defaultBody .= "   Notes: " . trim($h['description']) . "\n";
+                  $hDesc = trim((string)($h['description'] ?? ''));
+                  if ($hDesc !== '') $defaultBody .= "   Notes: " . $hDesc . "\n";
               }
           }
           $defaultBody .= "\n\nPlease be reminded that a 3rd minor offense will automatically escalate to a Major Offense and trigger a UPCC Investigation.\n\nWe encourage you to support your student in maintaining proper conduct within our institution.\n\nSincerely,\nStudent Discipline Office";
@@ -304,9 +305,10 @@ if ($action === 'approve_guard_report') {
             $defaultBody .= "(No offenses found.)\n";
         } else {
             foreach ($history as $i => $h) {
-                $dt = date('M j, Y g:i A', strtotime($h['date_committed']));
+                $dt = ph_date('M j, Y g:i A', $h['date_committed']);
                 $defaultBody .= ($i + 1) . ". [{$h['level']}] {$h['code']} — {$h['name']} ({$dt})\n";
-                if (trim($h['description']) !== '') $defaultBody .= "   Notes: " . trim($h['description']) . "\n";
+                $hDesc = trim((string)($h['description'] ?? ''));
+                if ($hDesc !== '') $defaultBody .= "   Notes: " . $hDesc . "\n";
             }
         }
         $defaultBody .= "\n\nPer university policy, this has escalated to a Major Offense (Section 4).\n\nThis case is now an active case under UPCC investigation and a hearing will be required.\n\nWe encourage you to support your student in maintaining proper conduct within our institution.\n\nSincerely,\nStudent Discipline Office";

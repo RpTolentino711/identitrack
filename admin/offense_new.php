@@ -2606,7 +2606,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                               foreach ($history as $i => $h) {
                                   $dt = ph_date('M j, Y g:i A', $h['date_committed']);
                                   $defaultBody .= ($i + 1) . ". [{$h['level']}] {$h['code']} — {$h['name']} ({$dt})\n";
-                                  if (trim($h['description']) !== '') $defaultBody .= "   Notes: " . trim($h['description']) . "\n";
+                                  $hDesc = trim((string)($h['description'] ?? ''));
+                                  if ($hDesc !== '') $defaultBody .= "   Notes: " . $hDesc . "\n";
                               }
                           }
                       }
