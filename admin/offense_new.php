@@ -1897,6 +1897,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         }
     };
 
+        // Helper to escape HTML characters
+        function escapeHtmlStr(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
         // Update 3D Horizontal Coverflow peeking cards (peeking out to the right behind main card)
         const r1 = document.getElementById('cardStackRight1');
         if (r1 && window.guardReportsList.length > 1) {
@@ -1906,8 +1912,18 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             r1.onmouseenter = function() { window.selectGuardReportIndex(nextIdx); };
             r1.style.cursor = 'pointer';
             r1.title = 'Hover or click to switch to Report #' + rNext.report_id;
+            
+            const gName = rNext.guard_name || 'Campus Security Guard';
+            const offName = rNext.offense_name || 'Violation Report';
+            const offCode = rNext.offense_code || 'MIN-01';
+            const guardNotes = rNext.description || 'No additional notes provided.';
+
             r1.innerHTML = '<div style="position:absolute; right:8px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#0369a1; pointer-events:none; white-space:nowrap;">' +
-              '<div style="background:#0284c7; color:#ffffff; font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:12px; display:inline-block; box-shadow:0 2px 6px rgba(2,132,199,0.35);">Report #' + rNext.report_id + ' ›</div>' +
+              '<div style="background:#0284c7; color:#ffffff; font-size:11px; font-weight:800; padding:6px 14px; border-radius:14px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(2,132,199,0.4); border:1px solid #38bdf8;">' +
+                '<span>🛡️ Report #' + rNext.report_id + '</span>' +
+                '<span style="opacity:0.85; font-size:10px;">(' + escapeHtmlStr(offCode) + ')</span>' +
+                '<span style="margin-left:2px; font-size:12px;">›</span>' +
+              '</div>' +
               '</div>';
         }
 
@@ -1919,8 +1935,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             r2.onmouseenter = function() { window.selectGuardReportIndex(nextIdx2); };
             r2.style.cursor = 'pointer';
             r2.title = 'Hover or click to switch to Report #' + rNext2.report_id;
+            
+            const offCode2 = rNext2.offense_code || 'MIN-01';
+
             r2.innerHTML = '<div style="position:absolute; right:8px; top:50%; transform:translateY(-50%); text-align:right; font-weight:800; font-size:11px; color:#92400e; pointer-events:none; white-space:nowrap;">' +
-              '<div style="background:#d97706; color:#ffffff; font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:12px; display:inline-block; box-shadow:0 2px 6px rgba(217,119,6,0.35);">Report #' + rNext2.report_id + ' ›</div>' +
+              '<div style="background:#d97706; color:#ffffff; font-size:10.5px; font-weight:800; padding:5px 12px; border-radius:14px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 3px 10px rgba(217,119,6,0.4); border:1px solid #fbbf24;">' +
+                '<span>🛡️ Report #' + rNext2.report_id + ' ›</span>' +
+              '</div>' +
               '</div>';
         }
     };
@@ -2221,7 +2242,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         ?>
           <style>
             #pendingGuardReportStackWrapper {
-              padding-right: 36px;
+              padding-right: 56px;
               box-sizing: border-box;
               margin-bottom: 20px;
             }
@@ -2231,25 +2252,25 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               perspective: 1000px;
             }
             #pendingGuardReportStackContainer:hover #pendingGuardReportBanner {
-              transform: translateX(-12px) scale(0.99);
+              transform: translateX(-16px) scale(0.99);
             }
             #pendingGuardReportStackContainer:hover #cardStackRight1 {
-              right: -24px;
-              transform: scale(0.96) perspective(600px) rotateY(-4deg);
-              opacity: 0.98;
-              box-shadow: 6px 10px 24px rgba(0,0,0,0.12);
+              right: -32px;
+              transform: scale(0.97) perspective(600px) rotateY(-3deg);
+              opacity: 1;
+              box-shadow: 8px 12px 28px rgba(15,23,42,0.18);
             }
             #pendingGuardReportStackContainer:hover #cardStackRight2 {
-              right: -42px;
-              transform: scale(0.92) perspective(600px) rotateY(-8deg);
-              opacity: 0.85;
+              right: -52px;
+              transform: scale(0.93) perspective(600px) rotateY(-6deg);
+              opacity: 0.9;
             }
           </style>
           <div id="pendingGuardReportStackWrapper">
             <div id="pendingGuardReportStackContainer" title="Swipe left/right or click the card peeking to the right to switch">
               <!-- 3D Horizontal Coverflow Stacked Card Layers peeking to the RIGHT -->
-              <div id="cardStackRight2" style="position:absolute; top:12px; bottom:12px; right:-20px; width:100%; background:#fef3c7; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.7; transform:scale(0.92) perspective(600px) rotateY(-10deg); box-shadow:0 4px 12px rgba(0,0,0,0.06); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
-              <div id="cardStackRight1" style="position:absolute; top:6px; bottom:6px; right:-8px; width:100%; background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:14px; z-index:2; opacity:0.9; transform:scale(0.95) perspective(600px) rotateY(-6deg); box-shadow:4px 6px 18px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+              <div id="cardStackRight2" style="position:absolute; top:10px; bottom:10px; right:-22px; width:100%; background:#fffbeb; border:1.5px solid #fde68a; border-radius:14px; z-index:1; opacity:0.75; transform:scale(0.93) perspective(600px) rotateY(-10deg); box-shadow:0 4px 14px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+              <div id="cardStackRight1" style="position:absolute; top:5px; bottom:5px; right:-12px; width:100%; background:#f0f9ff; border:1.5px solid #7dd3fc; border-radius:14px; z-index:2; opacity:0.95; transform:scale(0.96) perspective(600px) rotateY(-5deg); box-shadow:4px 8px 20px rgba(0,0,0,0.1); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1);"></div>
 
               <!-- Active Banner Card -->
               <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 22px; box-shadow:0 10px 25px rgba(22,163,74,0.15); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
