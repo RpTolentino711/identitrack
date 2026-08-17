@@ -1838,24 +1838,33 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
 
+        function getOrdinal(n) {
+            const s = ["th", "st", "nd", "rd"];
+            const v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        }
+
         const applyDataUpdates = () => {
+            const ordStr = getOrdinal(idx + 1);
+
             // Update banner UI elements
             const badge = document.getElementById('bannerReportBadge');
-            if (badge) badge.textContent = 'Report #' + r.report_id;
+            if (badge) badge.textContent = ordStr + ' Report (# ' + r.report_id + ')';
 
             // Render interactive click-to-switch report pill tabs in carousel header
             const pillsContainer = document.getElementById('carouselReportPills');
             if (pillsContainer && window.guardReportsList && window.guardReportsList.length > 1) {
                 pillsContainer.innerHTML = window.guardReportsList.map((item, i) => {
                     const isActive = (i === idx);
-                    const activeStyle = 'background:#16a34a; color:#ffffff; font-weight:800; font-size:11px; padding:4px 12px; border-radius:12px; border:none; cursor:pointer; box-shadow:0 2px 6px rgba(22,163,74,0.35); transition:all 0.18s;';
-                    const inactiveStyle = 'background:#ffffff; color:#15803d; font-weight:700; font-size:11px; padding:4px 12px; border-radius:12px; border:1px solid #86efac; cursor:pointer; transition:all 0.18s;';
-                    return `<button type="button" onclick="selectGuardReportIndex(${i})" style="${isActive ? activeStyle : inactiveStyle}" title="Click to switch to Report #${item.report_id}">Report #${item.report_id}${isActive ? ' (Active)' : ''}</button>`;
+                    const label = getOrdinal(i + 1) + ' Report';
+                    const activeStyle = 'background:#16a34a; color:#ffffff; font-weight:800; font-size:11.5px; padding:5px 14px; border-radius:12px; border:none; cursor:pointer; box-shadow:0 2px 6px rgba(22,163,74,0.35); transition:all 0.18s;';
+                    const inactiveStyle = 'background:#ffffff; color:#15803d; font-weight:700; font-size:11.5px; padding:5px 14px; border-radius:12px; border:1px solid #86efac; cursor:pointer; transition:all 0.18s;';
+                    return `<button type="button" onclick="selectGuardReportIndex(${i})" style="${isActive ? activeStyle : inactiveStyle}" title="Click to switch to ${label} (Report #${item.report_id})">${isActive ? '🛡️ ' : ''}${label}${isActive ? ' (Active)' : ''}</button>`;
                 }).join('');
             }
 
             const counter = document.getElementById('carouselReportCounter');
-            if (counter) counter.textContent = 'Report ' + (idx + 1) + ' of ' + window.guardReportsList.length;
+            if (counter) counter.textContent = 'Showing ' + ordStr + ' Report of ' + window.guardReportsList.length;
 
             const prevBtn = document.getElementById('btnPrevReport');
             const nextBtn = document.getElementById('btnNextReport');
@@ -2264,7 +2273,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 <div id="guardCarouselHeader" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px dashed #86efac; flex-wrap:wrap; gap:10px;">
                   <div style="font-size:13px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span style="background:#dcfce7; color:#16a34a; padding:4px 10px; border-radius:10px; font-size:12px;">🛡️ Pending Security Guard Reports (<?php echo $pReportsCount; ?> Total)</span>
-                    <span id="carouselReportCounter" style="font-size:11.5px; color:#16a34a; font-weight:700;">Report 1 of <?php echo $pReportsCount; ?></span>
+                    <span id="carouselReportCounter" style="font-size:11.5px; color:#16a34a; font-weight:700;">Showing 1st Report of <?php echo $pReportsCount; ?></span>
                   </div>
 
                   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -2288,7 +2297,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                     <div>
                       <div style="font-size:14px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <span>Pending Security Guard Violation Report</span>
-                        <span id="bannerReportBadge" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:800; padding:2px 10px; border-radius:12px;">Report #<?php echo (int)($pendingGuardReport['report_id'] ?? 0); ?></span>
+                        <span id="bannerReportBadge" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:800; padding:2px 10px; border-radius:12px;">1st Report (#<?php echo (int)($pendingGuardReport['report_id'] ?? 0); ?>)</span>
                         <span style="background:#ffffff; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
                       </div>
                       <div id="bannerGuardMeta" style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
