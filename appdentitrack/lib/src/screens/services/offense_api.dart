@@ -68,6 +68,10 @@ class OffenseApi {
           explanationImage: m['explanation_image']?.toString(),
           explanationPdf: m['explanation_pdf']?.toString(),
           explanationAt: m['explanation_at']?.toString(),
+          hearingDate: m['hearing_date']?.toString(),
+          hearingTime: m['hearing_time']?.toString(),
+          hearingType: m['hearing_type']?.toString(),
+          studentHearingResponse: (m['student_hearing_response'] ?? 'PENDING').toString(),
         );
       }).toList(),
     );
@@ -358,6 +362,10 @@ class OffenseItem {
   final String? explanationImage;
   final String? explanationPdf;
   final String? explanationAt;
+  final String? hearingDate;
+  final String? hearingTime;
+  final String? hearingType;
+  final String studentHearingResponse;
 
   OffenseItem({
     required this.offenseId,
@@ -377,5 +385,9 @@ class OffenseItem {
     this.explanationImage,
     this.explanationPdf,
     this.explanationAt,
+    this.hearingDate,
+    this.hearingTime,
+    this.hearingType,
+    this.studentHearingResponse = 'PENDING',
   });
 }

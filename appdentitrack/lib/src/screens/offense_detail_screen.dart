@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart' as fp;
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import '../config.dart';
 import 'services/offense_api.dart';
+import 'services/alerts_api.dart';
 
 class OffenseDetailScreen extends StatefulWidget {
   final String studentName;
@@ -28,11 +29,43 @@ class OffenseDetailScreen extends StatefulWidget {
 class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
   bool _isExpanded = false;
   bool _isSubmittingExp = false;
+  bool _isSubmittingHearingResp = false;
+  String? _studentHearingResponse;
   final _explanationCtrl = TextEditingController();
   fp.PlatformFile? _selectedExpFile;
 
   static const blue = Color(0xFF193B8C);
   static const blueDark = Color(0xFF102B6B);
+
+  Future<void> _submitHearingResponse(String response) async {
+    final caseId = widget.offense.upccCaseId;
+    if (caseId == null || caseId <= 0) return;
+
+    setState(() => _isSubmittingHearingResp = true);
+    try {
+      final alertsApi = AlertsApi();
+      await alertsApi.respondToHearing(widget.studentId, caseId, response);
+      if (!mounted) return;
+      setState(() {
+        _studentHearingResponse = response;
+        _isSubmittingHearingResp = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response == 'ACCEPTED'
+              ? '✓ Hearing schedule accepted. You can now submit your 5-day written explanation.'
+              : '✕ Hearing schedule declined. You can now submit your 5-day written explanation.'),
+          backgroundColor: response == 'ACCEPTED' ? Colors.green.shade800 : Colors.orange.shade900,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmittingHearingResp = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
 
   Color _levelColor(String level) {
     if (widget.offense.isBundle) return const Color(0xFFC62828);
@@ -414,141 +447,316 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
       );
     }
 
-    // If Notice to Explain (Form F-005) HAS NOT been sent by Admin via email yet -> Gated banner
-    if (!o.hasNteSent) {
-      return Container(
-        margin: const EdgeInsets.only(top: 14),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFCBD5E1)),
-        ),
-        child: const Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.info_outline_rounded, color: Color(0xFF475569)),
-            SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    final currentHearingResp = _studentHearingResponse ?? o.studentHearingResponse;
+    final bool isHearingPending = (o.upccCaseId != null && o.upccCaseId! > 0) && (currentHearingResp == 'PENDING');
+
+    Widget? hearingRsvpCard;
+    if (o.upccCaseId != null && o.upccCaseId! > 0) {
+      final hDate = o.hearingDate ?? '';
+      final hTime = o.hearingTime ?? '';
+      final hType = (o.hearingType ?? 'FACE_TO_FACE').toUpperCase() == 'ONLINE' ? 'Online' : 'Face-to-Face';
+
+      if (currentHearingResp == 'PENDING') {
+        hearingRsvpCard = Container(
+          margin: const EdgeInsets.only(top: 14),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF93C5FD)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    'Notice to Explain (Form F-005) Pending',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B),
-                      fontSize: 14,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'The Student Discipline Office (SDO) has not issued/sent the official Notice to Explain (Form F-005) to your student Outlook email yet.\n\nSubmission of your 5-day written explanation will open automatically once the SDO sends the Notice to Explain to your Outlook email.',
-                    style: TextStyle(
-                      color: Color(0xFF475569),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12.5,
-                      height: 1.4,
+                  const Icon(Icons.event_available_rounded, color: Color(0xFF1D4ED8)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '📅 Hearing Schedule Attendance Required',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: Colors.blue.shade900,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Form to submit (When F-005 has been sent by Admin)
-    return Container(
-      margin: const EdgeInsets.only(top: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E1),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFFE082)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.edit_note_rounded, color: Color(0xFFE65100)),
-              SizedBox(width: 8),
+              const SizedBox(height: 8),
               Text(
-                'Submit Explanation (Form F-005)',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFFE65100),
-                  fontSize: 15,
+                'Your $hType hearing is scheduled${hDate.isNotEmpty ? " on $hDate" : ""}${hTime.isNotEmpty ? " at $hTime" : ""}. Please take action to confirm if you will attend or decline.',
+                style: TextStyle(color: Colors.blue.shade900, fontSize: 12.5, fontWeight: FontWeight.w600, height: 1.35),
+              ),
+              const SizedBox(height: 12),
+              _isSubmittingHearingResp
+                  ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _submitHearingResponse('ACCEPTED'),
+                            icon: const Icon(Icons.check_circle_rounded, size: 16),
+                            label: const Text('Will Attend'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF166534),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.vertical(10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _submitHearingResponse('DECLINED'),
+                            icon: const Icon(Icons.cancel_rounded, size: 16),
+                            label: const Text('Will Not Attend'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF991B1B),
+                              side: const BorderSide(color: Color(0xFFEF4444)),
+                              padding: const EdgeInsets.vertical(10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+            ],
+          ),
+        );
+      } else {
+        hearingRsvpCard = Container(
+          margin: const EdgeInsets.only(top: 14),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: currentHearingResp == 'ACCEPTED' ? const Color(0xFFF0FDF4) : const Color(0xFFFFF7ED),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: currentHearingResp == 'ACCEPTED' ? const Color(0xFFBBF7D0) : const Color(0xFFFFEDD5)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                currentHearingResp == 'ACCEPTED' ? Icons.check_circle_rounded : Icons.info_rounded,
+                color: currentHearingResp == 'ACCEPTED' ? const Color(0xFF166534) : const Color(0xFFC2410C),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  currentHearingResp == 'ACCEPTED'
+                      ? '✓ You confirmed attendance for the hearing schedule.'
+                      : '✕ You declined attendance for the hearing schedule.',
+                  style: TextStyle(
+                    color: currentHearingResp == 'ACCEPTED' ? const Color(0xFF166534) : const Color(0xFFC2410C),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text(
-            '📧 Notice to Explain (Form F-005): An official Form F-005 document has been sent to your student Outlook email. Please check your Outlook inbox for the attached document file.\n\nPer NU Lipa SDO Policy, you are required to submit your written explanation below within five (5) days upon receipt.',
-            style: TextStyle(
-              color: Color(0xFFBF360C),
-              fontWeight: FontWeight.w700,
-              fontSize: 12.5,
-              height: 1.4,
+        );
+      }
+    }
+
+    if (isHearingPending) {
+      return Column(
+        children: [
+          if (hearingRsvpCard != null) hearingRsvpCard,
+          Container(
+            margin: const EdgeInsets.only(top: 14),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFCBD5E1)),
             ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _explanationCtrl,
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: 'Enter your explanation...',
-              fillColor: Colors.white,
-              filled: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _isSubmittingExp
-                ? null
-                : () async {
-                    final result = await fp.FilePicker.pickFiles(
-                      type: fp.FileType.custom,
-                      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-                      withData: true,
-                    );
-                    if (result != null) {
-                      setState(() => _selectedExpFile = result.files.first);
-                    }
-                  },
-            icon: const Icon(Icons.attach_file),
-            label: Text(_selectedExpFile == null ? 'Attach Photo/PDF' : 'Change Attachment'),
-          ),
-          if (_selectedExpFile != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                'Selected: ${_selectedExpFile!.name}',
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: blueDark),
-              ),
-            ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isSubmittingExp ? null : _submitExplanation,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE65100),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: Text(
-                _isSubmittingExp ? 'Submitting...' : 'Submit Evidence',
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.lock_clock_rounded, color: Color(0xFF475569)),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Submit Explanation (Form F-005) Locked',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E293B),
+                          fontSize: 14,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Hearing Attendance Action Required: Please confirm whether you will attend or decline the scheduled hearing above before submitting your 5-day written explanation.',
+                        style: TextStyle(
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
-      ),
+      );
+    }
+
+    // If Notice to Explain (Form F-005) HAS NOT been sent by Admin via email yet -> Gated banner
+    if (!o.hasNteSent) {
+      return Column(
+        children: [
+          if (hearingRsvpCard != null) hearingRsvpCard,
+          Container(
+            margin: const EdgeInsets.only(top: 14),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFCBD5E1)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline_rounded, color: Color(0xFF475569)),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Notice to Explain (Form F-005) Pending',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E293B),
+                          fontSize: 14,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'The Student Discipline Office (SDO) has not issued/sent the official Notice to Explain (Form F-005) to your student Outlook email yet.\n\nSubmission of your 5-day written explanation will open automatically once the SDO sends the Notice to Explain to your Outlook email.',
+                        style: TextStyle(
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Form to submit (When F-005 has been sent by Admin AND Hearing RSVP completed)
+    return Column(
+      children: [
+        if (hearingRsvpCard != null) hearingRsvpCard,
+        Container(
+          margin: const EdgeInsets.only(top: 14),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8E1),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFFFE082)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.edit_note_rounded, color: Color(0xFFE65100)),
+                  SizedBox(width: 8),
+                  Text(
+                    'Submit Explanation (Form F-005)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFFE65100),
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '📧 Notice to Explain (Form F-005): An official Form F-005 document has been sent to your student Outlook email. Please check your Outlook inbox for the attached document file.\n\nPer NU Lipa SDO Policy, you are required to submit your written explanation below within five (5) days upon receipt.',
+                style: TextStyle(
+                  color: Color(0xFFBF360C),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12.5,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _explanationCtrl,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Enter your explanation...',
+                  fillColor: Colors.white,
+                  filled: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _isSubmittingExp
+                    ? null
+                    : () async {
+                        final result = await fp.FilePicker.pickFiles(
+                          type: fp.FileType.custom,
+                          allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+                          withData: true,
+                        );
+                        if (result != null) {
+                          setState(() => _selectedExpFile = result.files.first);
+                        }
+                      },
+                icon: const Icon(Icons.attach_file),
+                label: Text(_selectedExpFile == null ? 'Attach Photo/PDF' : 'Change Attachment'),
+              ),
+              if (_selectedExpFile != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Selected: ${_selectedExpFile!.name}',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: blueDark),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSubmittingExp ? null : _submitExplanation,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE65100),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: Text(
+                    _isSubmittingExp ? 'Submitting...' : 'Submit Evidence',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

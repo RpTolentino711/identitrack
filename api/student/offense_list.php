@@ -128,7 +128,11 @@ $rows = db_all(
       uc.student_explanation_image,
       uc.student_explanation_pdf,
       uc.student_explanation_at,
-      uc.status AS upcc_case_status
+      uc.status AS upcc_case_status,
+      uc.hearing_date,
+      uc.hearing_time,
+      uc.hearing_type,
+      uc.student_hearing_response
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
@@ -426,6 +430,10 @@ foreach ($majorList as $r) {
     'explanation_image' => $expImage,
     'explanation_pdf' => $expPdf,
     'explanation_at' => $expAt,
+    'hearing_date' => !empty($r['hearing_date']) ? (string)$r['hearing_date'] : null,
+    'hearing_time' => !empty($r['hearing_time']) ? (string)$r['hearing_time'] : null,
+    'hearing_type' => !empty($r['hearing_type']) ? (string)$r['hearing_type'] : null,
+    'student_hearing_response' => (string)($r['student_hearing_response'] ?? 'PENDING'),
   ];
 }
 
