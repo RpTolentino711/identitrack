@@ -11,7 +11,7 @@ $activeSidebar = 'offenses';
 $admin   = admin_current();
 $adminId = (int)($admin['admin_id'] ?? 0);
 
-$level = (string)($_GET['level'] ?? $_POST['level'] ?? 'MINOR');
+$level = strtoupper(trim((string)($_GET['level'] ?? $_POST['level'] ?? 'MINOR')));
 if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level = 'MINOR';
 
 $category = (int)($_GET['major_category'] ?? $_POST['major_category'] ?? 0);
@@ -4083,21 +4083,19 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
 
     function updateDescRequirement() {
-      const lvl = document.getElementById('levelSelect')?.value || 'MINOR';
-      const typeId = document.getElementById('offense_type_id')?.value || '';
+      const levelSelect = document.getElementById('levelSelect');
+      const lvl = (levelSelect ? levelSelect.value : '').toUpperCase();
+      const typeSelect = document.getElementById('offense_type_id');
+      const typeId = typeSelect ? typeSelect.value : '';
       const descOpt = document.getElementById('descOptional');
       const descInput = document.getElementById('description');
       const isRequired = (lvl === 'DISMISSED' || ['22', '23', '24'].includes(typeId));
 
       if (descOpt) {
         if (isRequired) {
-          descOpt.textContent = ' *';
-          descOpt.style.color = 'var(--red)';
-          descOpt.style.fontWeight = '800';
+          descOpt.innerHTML = ' <span style="color:#dc2626; font-weight:800; font-size:15px;">*</span>';
         } else {
-          descOpt.textContent = ' (optional)';
-          descOpt.style.color = '';
-          descOpt.style.fontWeight = '';
+          descOpt.innerHTML = ' <span style="color:#64748b; font-weight:normal;">(optional)</span>';
         }
       }
       if (descInput) {
