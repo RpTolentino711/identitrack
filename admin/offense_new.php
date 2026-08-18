@@ -381,9 +381,9 @@ if ($pendingGuardReport) {
     if (!empty($pendingGuardReport['created_at'])) {
       $postDate = ph_date('Y-m-d\TH:i', $pendingGuardReport['created_at'] ?? null);
     }
-    if (!empty($pendingGuardReport['offense_level'])) {
+    if (!isset($_GET['level']) && !isset($_POST['level']) && !empty($pendingGuardReport['offense_level'])) {
       $level = strtoupper((string)$pendingGuardReport['offense_level']);
-      if ($level !== 'MINOR' && $level !== 'MAJOR') $level = 'MINOR';
+      if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level = 'MINOR';
     }
     if (isset($pendingGuardReport['major_category'])) {
       $category = (int)$pendingGuardReport['major_category'];
@@ -393,7 +393,7 @@ if ($pendingGuardReport) {
     }
   }
 
-  // Reload offenseTypes to match the pending report's level and category
+  // Reload offenseTypes to match the level and category
   if ($level === 'MINOR') {
     $offenseTypes = db_all(
       "SELECT offense_type_id, code, name FROM offense_type
@@ -401,6 +401,13 @@ if ($pendingGuardReport) {
       []
     ) ?: [];
     $offenseTypes[] = ['offense_type_id' => 22, 'code' => 'OTHER', 'name' => 'Other / Custom Minor Offense'];
+  } else if ($level === 'DISMISSED') {
+    $offenseTypes = db_all(
+      "SELECT offense_type_id, code, name FROM offense_type
+       WHERE is_active = 1 AND level = 'DISMISSED' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
+      []
+    ) ?: [];
+    $offenseTypes[] = ['offense_type_id' => 24, 'code' => 'OTHER', 'name' => 'Other / Custom Dismissed Offense'];
   } else if ($level === 'MAJOR') {
     $sql = "SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR'";
     $params = [];
