@@ -212,7 +212,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ),
           if (alert.alertType == 'HEARING_SCHEDULE' || alert.alertType == 'HEARING_REMINDER')
             _buildHearingActions(alert),
-          if (pdfUrl.isNotEmpty) ...[
+          if (pdfUrl.isNotEmpty && alert.alertType != 'OFFENSE_LETTER') ...[
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -298,12 +298,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ),
         ],
       ),
-      child: (offenseId != null || caseId != null || pdfUrl.isNotEmpty)
+      child: (offenseId != null || caseId != null || (pdfUrl.isNotEmpty && alert.alertType != 'OFFENSE_LETTER')) && alert.alertType != 'OFFENSE_LETTER'
           ? Material(
               color: Colors.transparent,
               child: InkWell(
                 onTap: () async {
-                  if (pdfUrl.isNotEmpty) {
+                  if (pdfUrl.isNotEmpty && alert.alertType != 'OFFENSE_LETTER') {
                     try {
                       final uri = Uri.parse(pdfUrl);
                       if (await canLaunchUrl(uri)) {

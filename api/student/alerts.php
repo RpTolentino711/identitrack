@@ -93,7 +93,7 @@ try {
                 'letter_type' => $lType,
                 'file_path' => (string)($letter['file_path'] ?? ''),
                 'subject' => $subjectText,
-                'pdf_url' => !empty($letter['file_path']) ? 'https://identitrack.site/' . ltrim((string)$letter['file_path'], '/') : '',
+                'pdf_url' => '', // Official notice PDF is emailed directly to parent/guardian
             ],
         ];
     }
