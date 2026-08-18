@@ -581,113 +581,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } else { $regError = 'Please select a category (1-5) and write a final decision.'; }
     }
 
-    // Upload / Reupload Official Resolution Document for Resolved Cases
-    if ($_POST['action'] === 'upload_resolution') {
-        $case_id = (int)($_POST['case_id'] ?? 0);
-        if ($case_id <= 0) {
-            $regError = 'Invalid case ID.';
-        } elseif (!isset($_FILES['resolution_file']) || $_FILES['resolution_file']['error'] !== UPLOAD_ERR_OK) {
-            $regError = 'Please select a valid resolution document to upload.';
-        } else {
-            // ── FIX 1: Server-side authorization check ─────────────────────
-            // The upload form is only *displayed* in the UI for closed cases,
-            // but that is purely cosmetic. Without this check, a POST crafted
-            // directly (curl/devtools) could attach a "resolution document"
-            // to a case that is still PENDING or UNDER_INVESTIGATION, before
-            // any panel decision or consensus exists. Re-verify server-side.
-            $caseRow = db_one(
-                "SELECT status, resolution_file_path, resolution_date FROM upcc_case WHERE case_id = :id",
-                [':id' => $case_id]
-            );
-            if (!$caseRow) {
-                $regError = 'Case not found.';
-            } elseif (!in_array(strtoupper((string)$caseRow['status']), ['CLOSED', 'RESOLVED'], true)) {
-                $regError = 'Resolution documents can only be uploaded for closed cases.';
-            } else {
-                $file = $_FILES['resolution_file'];
-                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                $allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'doc'];
-                if (!in_array($ext, $allowedExts, true)) {
-                    $regError = 'Invalid file format. Allowed: PDF, PNG, JPG, JPEG, DOCX.';
-                } elseif ($file['size'] > 10 * 1024 * 1024) {
-                    $regError = 'File size exceeds maximum limit of 10MB.';
-                } else {
-                    $uploadDir = __DIR__ . '/uploads/resolutions/';
-                    if (!is_dir($uploadDir)) {
-                        // ── FIX 3: don't create world-writable directories ──
-                        @mkdir($uploadDir, 0755, true);
-                    }
 
-                    // ── FIX 4: unpredictable filename ───────────────────────
-                    // The old scheme ('resolution_case_<id>_<unix time>.<ext>')
-                    // is guessable: case_id is visible in the UI as
-                    // UPCC-YYYY-NNN, and time() only has second resolution.
-                    // If this directory is web-reachable, that made student
-                    // disciplinary documents guessable/scrapeable without
-                    // authentication. Use a random token instead.
-                    $fileName = 'resolution_' . bin2hex(random_bytes(16)) . '.' . $ext;
-                    $targetPath = $uploadDir . $fileName;
-                    $relPath = 'uploads/resolutions/' . $fileName;
-
-                    if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                        // ── FIX 2: don't silently overwrite resolution_date ─
-                        // resolution_date is meant to record when the case
-                        // was actually decided (set by resolve_case). Every
-                        // re-upload of the signed document (e.g. fixing a
-                        // typo) used to stomp this timestamp again, quietly
-                        // corrupting reporting/SLA data. Only set it if it
-                        // hasn't been set yet.
-                        $params = [
-                            ':path' => $relPath,
-                            ':id'   => $case_id,
-                        ];
-                        db_exec(
-                            "UPDATE upcc_case SET resolution_file_path = :path, resolution_date = NOW(), updated_at = NOW() WHERE case_id = :id",
-                            $params
-                        );
-
-                        // Clean up the previous file on re-upload so old
-                        // signed documents don't pile up on disk indefinitely.
-                        if (!empty($caseRow['resolution_file_path'])) {
-                            $oldPath = __DIR__ . '/' . $caseRow['resolution_file_path'];
-                            if (is_file($oldPath)) {
-                                @unlink($oldPath);
-                            }
-                        }
-
-                        upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'RESOLUTION_FILE_UPLOADED', [
-                            'file_path' => $relPath,
-                        ]);
-
-                        header("Location: upcc_cases.php?msg=resolution_uploaded");
-                        exit;
-                    } else {
-                        $regError = 'Failed to save uploaded file.';
-                    }
-                }
-            }
-        }
-    }
-
-    // Remove Official Resolution Document for Closed Cases
-    if ($_POST['action'] === 'remove_resolution') {
-        $case_id = (int)($_POST['case_id'] ?? 0);
-        if ($case_id <= 0) {
-            $regError = 'Invalid case ID.';
-        } else {
-            $caseRow = db_one("SELECT resolution_file_path FROM upcc_case WHERE case_id = :id", [':id' => $case_id]);
-            if ($caseRow && !empty($caseRow['resolution_file_path'])) {
-                $oldPath = __DIR__ . '/' . $caseRow['resolution_file_path'];
-                if (is_file($oldPath)) {
-                    @unlink($oldPath);
-                }
-                db_exec("UPDATE upcc_case SET resolution_file_path = NULL, updated_at = NOW() WHERE case_id = :id", [':id' => $case_id]);
-                upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'RESOLUTION_FILE_REMOVED', []);
-            }
-            header("Location: upcc_cases.php?msg=resolution_removed");
-            exit;
-        }
-    }
 
     // Upload / Reupload Notice of Formative Intervention (NFI) for Cat 1 & Cat 2 Cases
     if ($_POST['action'] === 'upload_nfi') {
@@ -1658,9 +1552,6 @@ function fmt_case_id(int $id, string $created): string {
                                     <div style="display:inline-flex; align-items:center; gap:4px;">
                                         <span class="badge <?= $statusBadgeClass ?>"><?= e($statusLabel) ?></span>
                                         <?php if ($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED'): ?>
-                                            <?php if (empty($c['resolution_file_path'])): ?>
-                                                <span onclick="event.stopPropagation(); locateMissingDoc(this, 'resolution');" style="color:#dc2626; font-weight:900; font-size:15px; cursor:pointer;" title="Missing Official Resolution Document — Click to locate upload section">❗</span>
-                                            <?php endif; ?>
                                             <?php
                                             $rowCatNum = (int)($c['decided_category'] ?? $c['hearing_vote_consensus_category'] ?? 0);
                                             if (($rowCatNum === 1 || $rowCatNum === 2) && empty($c['nfi_file_path'])):
@@ -1748,19 +1639,7 @@ function fmt_case_id(int $id, string $created): string {
                                     <button type="submit" class="btn-resolve">✓ Resolve Case</button>
                                 </form>
                             </div>
-                            <div id="resolution-upload-form" style="display:none; margin-top:14px; padding-top:14px; border-top:1px dashed #cbd5e1;">
-                                <div class="divider-label" id="res-doc-title">Official Resolution Document</div>
-                                <div id="res-doc-status" style="margin-bottom:10px;"></div>
-                                <form method="post" action="upcc_cases.php" enctype="multipart/form-data" id="real-res-upload-form" onsubmit="return handleResolutionUploadSubmit(event)">
-                                    <input type="hidden" name="action" value="upload_resolution">
-                                    <input type="hidden" name="case_id" id="upload_resolution_case_id">
-                                    <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">Attach/Reupload Signed Resolution File (PDF, PNG, JPG, DOCX):</div>
-                                    <input type="file" name="resolution_file" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc" required style="width:100%; font-size:12px; margin-bottom:10px; padding:6px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;">
-                                    <button type="submit" class="btn-primary" style="width:100%; padding:9px 14px; font-size:13px; background:#1b2b6b; color:#fff; border-radius:8px; border:none; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;">
-                                        <span id="btn-upload-res-label">📤 Upload Resolution Document</span>
-                                    </button>
-                                </form>
-                            </div>
+
                             <div id="nfi-upload-container" style="display:none; margin-top:14px; padding-top:14px; border-top:1px dashed #cbd5e1;">
                                 <div class="divider-label" id="nfi-doc-title">Notice of Formative Intervention (NFI)</div>
                                 <div id="nfi-doc-status" style="margin-bottom:10px;"></div>
@@ -2563,10 +2442,7 @@ function selectCase(row) {
         statusClass = 'db-awaiting';
         statusLabel = 'Awaiting Assignment';
     }
-    badgesHtml += `<span class="detail-badge ${statusClass}">${statusLabel}</span>`;
-    if (isClosedStatus && !row.dataset.resolutionFilePath) {
-        badgesHtml += `<span onclick="locateMissingDocTarget('resolution');" class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800; cursor:pointer;" title="Click to jump to Official Resolution Document upload form">❗ Missing Resolution File</span>`;
-    }
+
     const catNumHeader = parseInt(decidedCat || consensusCat || '0', 10);
     if (isClosedStatus && (catNumHeader === 1 || catNumHeader === 2) && !row.dataset.nfiFilePath) {
         badgesHtml += `<span onclick="locateMissingDocTarget('nfi');" class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800; cursor:pointer;" title="Click to jump to Notice of Formative Intervention (NFI) upload form">❗ Missing NFI File</span>`;
@@ -2664,74 +2540,7 @@ function selectCase(row) {
         waitDiv.style.display = 'block';
     }
 
-    // Resolution File Upload / Reupload handling for closed cases
-    const resFilePath = row.dataset.resolutionFilePath || '';
-    const resFormDiv = document.getElementById('resolution-upload-form');
-    const resStatusDiv = document.getElementById('res-doc-status');
-    const resCaseIdInput = document.getElementById('upload_resolution_case_id');
-    const resUploadBtnLabel = document.getElementById('btn-upload-res-label');
 
-    if (resFormDiv) {
-        if (isClosedStatus) {
-            resFormDiv.style.display = 'block';
-            if (resCaseIdInput) resCaseIdInput.value = caseId;
-
-            const uploadForm = document.getElementById('real-res-upload-form');
-
-            if (resFilePath) {
-                const resDateRaw = row.dataset.resolutionDate || '';
-                let resDateFormatted = '';
-                if (resDateRaw) {
-                    try {
-                        const d = new Date(resDateRaw);
-                        if (!isNaN(d.getTime())) {
-                            resDateFormatted = d.toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: true
-                            });
-                        }
-                    } catch(e){}
-                }
-
-                if (resStatusDiv) {
-                    resStatusDiv.innerHTML = `
-                        <div style="padding:12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; position:relative; box-sizing:border-box; width:100%;">
-                            <button type="button" onclick="confirmRemoveResolutionFile('${escapeHtml(caseId)}')" title="Reupload / Replace Document" style="position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; z-index:2;">✕</button>
-                            <div style="display:flex; align-items:flex-start; gap:10px; padding-right:32px;">
-                                <span style="font-size:22px; line-height:1;">📄</span>
-                                <div style="flex:1; min-width:0;">
-                                    <div style="font-size:12px; font-weight:800; color:#166534;">Resolution Document Attached</div>
-                                    <div style="font-size:11px; color:#15803d; margin-top:2px;">Official signed document attached</div>
-                                    ${resDateFormatted ? `<div style="font-size:11px; font-weight:600; color:#15803d; margin-top:5px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>🕒</span> <span>Submitted: <strong>${escapeHtml(resDateFormatted)}</strong></span></div>` : ''}
-                                    <div style="margin-top:10px;">
-                                        <a href="${escapeHtml(resFilePath)}" target="_blank" download style="padding:5px 12px; background:#166534; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View File</a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-                if (resUploadBtnLabel) resUploadBtnLabel.textContent = '🔄 Reupload Resolution File';
-                if (uploadForm) uploadForm.style.display = 'none';
-            } else {
-                if (resStatusDiv) {
-                    resStatusDiv.innerHTML = `
-                        <div style="padding:8px 10px; background:#fefce8; border:1px solid #fef08a; border-radius:8px; font-size:12px; color:#854d0e;">
-                            ⚠️ No official resolution document attached to this closed case yet.
-                        </div>
-                    `;
-                }
-                if (resUploadBtnLabel) resUploadBtnLabel.textContent = '📤 Upload Resolution Document';
-                if (uploadForm) uploadForm.style.display = 'block';
-            }
-        } else {
-            resFormDiv.style.display = 'none';
-        }
-    }
 
     // Notice of Formative Intervention (NFI) handling for Category 1 & Category 2 cases
     const nfiFilePath = row.dataset.nfiFilePath || '';
@@ -3285,77 +3094,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 setInterval(syncQueueRows, 15000);
 
-// Resolution Document Confirmation Modals
-let pendingResForm = null;
 
-function handleResolutionUploadSubmit(e) {
-    e.preventDefault();
-    const form = e.target || document.getElementById('real-res-upload-form');
-    const fileInput = form.querySelector('input[type="file"]');
-    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-        alert('Please choose a file to upload first.');
-        return false;
-    }
-
-    pendingResForm = form;
-    const caseIdInput = document.getElementById('upload_resolution_case_id');
-    const caseId = caseIdInput ? caseIdInput.value : '';
-
-    const icon = document.getElementById('confirm-res-icon');
-    const title = document.getElementById('confirm-res-title');
-    const msg = document.getElementById('confirm-res-msg');
-    const btn = document.getElementById('confirm-res-btn-action');
-
-    if (icon) icon.textContent = '🔄';
-    if (title) title.textContent = 'Reupload Resolution File?';
-    if (msg) msg.innerHTML = `Are you sure you want to reupload the resolution file for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><br><span style="color:#d97706; font-weight:600;">⚠️ This will replace the official document and send the updated file to the student's email.</span>`;
-    if (btn) {
-        btn.style.background = '#1b2b6b';
-        btn.textContent = 'Yes, Reupload File';
-        btn.onclick = function() {
-            closeConfirmResModal();
-            if (pendingResForm) {
-                HTMLFormElement.prototype.submit.call(pendingResForm);
-            }
-        };
-    }
-
-    const modal = document.getElementById('modal-confirm-resolution');
-    if (modal) modal.classList.add('open');
-    return false;
-}
-
-function confirmRemoveResolutionFile(caseId) {
-    const icon = document.getElementById('confirm-res-icon');
-    const title = document.getElementById('confirm-res-title');
-    const msg = document.getElementById('confirm-res-msg');
-    const btn = document.getElementById('confirm-res-btn-action');
-
-    if (icon) icon.textContent = '🔄';
-    if (title) title.textContent = 'Reupload Resolution File?';
-    if (msg) msg.innerHTML = `Are you sure you want to reupload/replace the official resolution file for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><br><span style="color:#d97706; font-weight:600;">⚠️ Confirming will allow you to select a new file to replace the current document.</span>`;
-    if (btn) {
-        btn.style.background = '#1b2b6b';
-        btn.textContent = 'Yes, Reupload File';
-        btn.onclick = function() {
-            closeConfirmResModal();
-            const uploadForm = document.getElementById('real-res-upload-form');
-            if (uploadForm) {
-                uploadForm.style.display = 'block';
-                uploadForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-            const fileInput = document.querySelector('#real-res-upload-form input[type="file"]');
-            if (fileInput) {
-                setTimeout(() => {
-                    fileInput.click();
-                }, 200);
-            }
-        };
-    }
-
-    const modal = document.getElementById('modal-confirm-resolution');
-    if (modal) modal.classList.add('open');
-}
 
 function closeConfirmResModal() {
     const modal = document.getElementById('modal-confirm-resolution');
@@ -3465,8 +3204,6 @@ function locateMissingDocTarget(docType) {
 
 window.locateMissingDoc = locateMissingDoc;
 window.locateMissingDocTarget = locateMissingDocTarget;
-window.handleResolutionUploadSubmit = handleResolutionUploadSubmit;
-window.confirmRemoveResolutionFile = confirmRemoveResolutionFile;
 window.handleNfiUploadSubmit = handleNfiUploadSubmit;
 window.confirmRemoveNfiFile = confirmRemoveNfiFile;
 window.closeConfirmResModal = closeConfirmResModal;
