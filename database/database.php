@@ -755,6 +755,29 @@ function ensure_hearing_workflow_schema(): void
     }
   } catch (\Throwable $e) {}
 
+  // Ensure offense_type.level supports DISMISSED if it's an ENUM
+  try {
+    $otLvlCol = db_one(
+      "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'offense_type'
+         AND COLUMN_NAME = 'level' LIMIT 1"
+    );
+    if ($otLvlCol && strpos((string)$otLvlCol['COLUMN_TYPE'], 'DISMISSED') === false && strpos(strtolower((string)$otLvlCol['COLUMN_TYPE']), 'enum') !== false) {
+      db_exec("ALTER TABLE offense_type MODIFY level ENUM('MINOR','MAJOR','DISMISSED') NOT NULL DEFAULT 'MINOR'");
+    }
+  } catch (\Throwable $e) {}
+
+  // Seed default DISMISSED offense types if none exist
+  try {
+    $hasDismissedTypes = db_one("SELECT 1 FROM offense_type WHERE level = 'DISMISSED' LIMIT 1");
+    if (!$hasDismissedTypes) {
+      db_exec("INSERT INTO offense_type (code, name, level, is_active, created_at, updated_at) VALUES 
+        ('DISM-01', 'Confiscated Item without Prohibited Component (e.g. Vape without battery/e-liquid)', 'DISMISSED', 1, NOW(), NOW()),
+        ('DISM-02', 'Informal Incident / Non-Actionable Administrative Tracking', 'DISMISSED', 1, NOW(), NOW())");
+    }
+  } catch (\Throwable $e) {}
+
   $statusCol = db_one(
     "SELECT COLUMN_TYPE
      FROM information_schema.COLUMNS

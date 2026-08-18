@@ -31,10 +31,16 @@ $categoryDescriptions = [
 $offenseTypes       = [];
 $postExistingTypeId = (int)($_POST['offense_type_id'] ?? 0);
 
-if ($level === 'MINOR' || $level === 'DISMISSED') {
+if ($level === 'MINOR') {
   $offenseTypes = db_all(
     "SELECT offense_type_id, code, name FROM offense_type
      WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
+    []
+  ) ?: [];
+} else if ($level === 'DISMISSED') {
+  $offenseTypes = db_all(
+    "SELECT offense_type_id, code, name FROM offense_type
+     WHERE is_active = 1 AND level = 'DISMISSED' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
     []
   ) ?: [];
 } else if ($level === 'MAJOR' && $category >= 1 && $category <= 5) {
@@ -45,8 +51,10 @@ if ($level === 'MINOR' || $level === 'DISMISSED') {
   ) ?: [];
 }
 // Append the "Other" option to the end of the list
-if ($level === 'MINOR' || $level === 'DISMISSED') {
+if ($level === 'MINOR') {
     $offenseTypes[] = ['offense_type_id' => 22, 'code' => 'OTHER', 'name' => 'Other / Custom Minor Offense'];
+} else if ($level === 'DISMISSED') {
+    $offenseTypes[] = ['offense_type_id' => 24, 'code' => 'OTHER', 'name' => 'Other / Custom Dismissed Offense'];
 } else if ($level === 'MAJOR') {
     $offenseTypes[] = ['offense_type_id' => 23, 'code' => 'OTHER', 'name' => 'Other / Custom Major Offense'];
 }
@@ -278,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
 
   if ($action === 'delete_offense_type') {
     $tid = (int)($_POST['offense_type_id'] ?? 0);
-    if ($tid > 0 && !in_array($tid, [22, 23], true)) {
+    if ($tid > 0 && !in_array($tid, [22, 23, 24], true)) {
         // Soft delete
         db_exec("UPDATE offense_type SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE offense_type_id = :id", [':id' => $tid]);
         echo json_encode(['ok' => true]);
@@ -294,6 +302,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
     if ($lvl === 'MAJOR' && $cat >= 1 && $cat <= 5) {
       $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR' AND major_category = :cat AND code NOT LIKE '%OTHER%' ORDER BY code ASC", [':cat' => $cat]) ?: [];
       $rows[] = ['offense_type_id' => 23, 'code' => 'OTHER', 'name' => 'Other / Custom Major Offense'];
+    } else if ($lvl === 'DISMISSED') {
+      $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'DISMISSED' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
+      $rows[] = ['offense_type_id' => 24, 'code' => 'OTHER', 'name' => 'Other / Custom Dismissed Offense'];
     } else {
       $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
       $rows[] = ['offense_type_id' => 22, 'code' => 'OTHER', 'name' => 'Other / Custom Minor Offense'];
@@ -2506,11 +2517,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   <div class="form-group">
                     <label for="offense_type_id">Offense Type *</label>
                     <select id="offense_type_id" name="offense_type_id" onchange="
-                      if(this.value == '22' || this.value == '23') { openAddModal(); this.value=''; }
+                      if(this.value == '22' || this.value == '23' || this.value == '24') { openAddModal(); this.value=''; }
                       const btnE = document.getElementById('btnEditType');
                       const btnD = document.getElementById('btnDeleteType');
                       const lbl = document.getElementById('typeActionLabel');
-                      if(this.value && this.value != '22' && this.value != '23') {
+                      if(this.value && this.value != '22' && this.value != '23' && this.value != '24') {
                           btnE.style.display = 'inline-flex';
                           btnD.style.display = 'inline-flex';
                           lbl.innerText = 'Manage selected offense type';
@@ -2720,6 +2731,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           <select id="type_level">
             <option value="MINOR">Minor</option>
             <option value="MAJOR">Major</option>
+            <option value="DISMISSED">Dismissed</option>
           </select>
         </div>
         <div class="form-group" id="modalCategoryGroup" style="display:none; margin-bottom:12px;">
@@ -3218,7 +3230,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   function editSelectedType() {
       const sel = document.getElementById('offense_type_id');
-      if (!sel.value || sel.value == '22' || sel.value == '23') return;
+      if (!sel.value || sel.value == '22' || sel.value == '23' || sel.value == '24') return;
       const opt = sel.options[sel.selectedIndex];
       const parts = opt.textContent.trim().split(' — ');
       if (parts.length >= 2) {
