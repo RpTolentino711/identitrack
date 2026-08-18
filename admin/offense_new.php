@@ -70,6 +70,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
   $dismissalReason  = trim((string)($_POST['dismissal_reason'] ?? ''));
   $existing_type_id = (int)($_POST['offense_type_id'] ?? 0);
 
+  if ($level === 'DISMISSED') {
+    if ($dismissalReason === '' && $description !== '') {
+      $dismissalReason = $description;
+    }
+    if ($description === '' && $dismissalReason !== '') {
+      $description = $dismissalReason;
+    }
+  }
+
   if ($student_id     === '') $errors[] = 'Student ID is required.';
   if ($date_committed === '') $errors[] = 'Date & time of incident is required.';
 
@@ -80,12 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
 
   if ($existing_type_id <= 0) {
     $errors[] = 'Please select an offense type.';
-  } else if ((in_array($existing_type_id, [22, 23, 24], true) || $level === 'DISMISSED') && $description === '') {
+  } else if ((in_array($existing_type_id, [22, 23, 24], true) || $level === 'DISMISSED') && $description === '' && $dismissalReason === '') {
     $errors[] = 'Please provide a detailed description/notes for this offense.';
-  }
-
-  if ($level === 'DISMISSED' && $dismissalReason === '') {
-    $errors[] = 'Reason for dismissal is required for Dismissed offenses.';
   }
 
   // Check for duplicate offense entry
@@ -2467,6 +2472,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 <form method="post" action="offense_new.php" id="offenseForm" enctype="multipart/form-data">
                   <input type="hidden" name="pending_report_id" id="pending_report_id" value="<?php echo (int)($pendingReportId ?? 0); ?>"/>
                   <input type="hidden" name="dismissal_reason" id="dismissal_reason_hidden" value=""/>
+                  <input type="hidden" name="dismissal_approval_confirmed" id="dismissal_approval_confirmed" value="0"/>
                   <input type="hidden" name="evidence_file_confirmed" id="evidence_file_confirmed" value="0"/>
                   <input type="file" name="evidence_file" id="evidence_file_input" style="display:none;" accept="image/*,.pdf"/>
 
@@ -4009,6 +4015,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
 
     function submitDismissedFormFinal() {
+      const confirmedInput = document.getElementById('dismissal_approval_confirmed');
+      if (confirmedInput) confirmedInput.value = '1';
       closeDismissalApprovalModal();
       const form = document.getElementById('offenseForm');
       if (form) {
@@ -4119,11 +4127,33 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
         // Check if DISMISSED
         if (lvl === 'DISMISSED') {
-          const reason = document.getElementById('dismissal_reason_hidden')?.value || '';
-          if (!reason) {
+          let reasonInput = document.getElementById('dismissal_reason_hidden');
+          let reason = reasonInput ? reasonInput.value : '';
+          const descVal = (document.getElementById('description')?.value || '').trim();
+          
+          if (!reason && descVal) {
+            reason = descVal;
+            if (reasonInput) reasonInput.value = descVal;
+          }
+          
+          const isConfirmedApproval = document.getElementById('dismissal_approval_confirmed')?.value === '1';
+
+          if (!isConfirmedApproval) {
             e.preventDefault();
             e.stopPropagation();
-            openDismissalReasonModal();
+            if (!reason) {
+              openDismissalReasonModal();
+            } else {
+              document.getElementById('approvalStudentText').textContent = document.getElementById('studentIdInput')?.value || 'Student';
+              document.getElementById('approvalDateText').textContent = (document.getElementById('date_committed')?.value || 'Now').replace('T', ' ');
+              const typeSelect = document.getElementById('offense_type_id');
+              const selectedTypeOption = typeSelect && typeSelect.selectedIndex >= 0 ? typeSelect.options[typeSelect.selectedIndex] : null;
+              document.getElementById('approvalOffenseTypeText').textContent = selectedTypeOption ? selectedTypeOption.text : 'Selected Offense Type';
+              document.getElementById('approvalReasonText').textContent = reason;
+
+              const appModal = document.getElementById('dismissalApprovalModal');
+              if (appModal) appModal.style.display = 'flex';
+            }
             return false;
           }
         }
