@@ -745,7 +745,7 @@ $showVotingPopup = $isRoundActive && $suggestedDetails !== null;
 
 // ── OTHER QUERIES ─────────────────────────────────────────────────────────
 $offenses = db_all(
-    "SELECT o.offense_id, o.level, " . db_decrypt_col('description', 'o') . " AS description, o.date_committed, o.status,
+    "SELECT o.offense_id, o.level, " . db_decrypt_col('description', 'o') . " AS description, o.dismissal_reason, o.evidence_file, o.date_committed, o.status,
             ot.code, ot.name AS offense_name, ot.major_category, ot.intervention_first, ot.intervention_second
      FROM upcc_case_offense uco
      JOIN offense o   ON o.offense_id = uco.offense_id
@@ -1206,6 +1206,53 @@ hr{border-color:var(--border-glass);margin:16px 0}
                             </form>
                         </div>
                     <?php else: ?>
+
+                         <!-- Incident Report & Photo Evidence Attachment Card -->
+                         <?php 
+                           $caseEvidenceFile = $case['evidence_file'] ?? null;
+                           if (!$caseEvidenceFile && !empty($offenses)) {
+                             foreach ($offenses as $off) {
+                               if (!empty($off['evidence_file'])) {
+                                 $caseEvidenceFile = $off['evidence_file'];
+                                 break;
+                               }
+                             }
+                           }
+                         ?>
+                         <?php if (!empty($caseEvidenceFile)): ?>
+                           <div style="margin-bottom: 24px; background: rgba(59, 130, 246, 0.1); border: 1.5px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 16px;">
+                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                               <span style="font-size: 12px; font-weight: 800; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 6px;">
+                                 <span>📷</span> Official Incident Report & Photo Evidence Attachment
+                               </span>
+                               <span style="font-size: 11px; color: var(--text-muted);">Attached during case registration</span>
+                             </div>
+                             <?php 
+                               $ext = strtolower(pathinfo($caseEvidenceFile, PATHINFO_EXTENSION));
+                               $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true);
+                             ?>
+                             <?php if ($isImg): ?>
+                               <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+                                 <a href="../<?= htmlspecialchars($caseEvidenceFile) ?>" target="_blank" title="Click to view full resolution evidence photo" style="display: block; border-radius: 10px; overflow: hidden; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: transform 0.2s;">
+                                   <img src="../<?= htmlspecialchars($caseEvidenceFile) ?>" style="max-width: 240px; max-height: 160px; display: block; object-fit: cover;">
+                                 </a>
+                                 <div style="font-size: 12px; color: var(--text-main); line-height: 1.5;">
+                                   <div style="font-weight: 700; color: #93c5fd; margin-bottom: 4px;">Incident Report Photo</div>
+                                   <a href="../<?= htmlspecialchars($caseEvidenceFile) ?>" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 12px; font-weight: 700; margin-top: 6px; box-shadow: 0 2px 8px rgba(37,99,235,0.4);">
+                                     🔍 Open High-Res Photo Lightbox
+                                   </a>
+                                 </div>
+                               </div>
+                             <?php else: ?>
+                               <div>
+                                 <a href="../<?= htmlspecialchars($caseEvidenceFile) ?>" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; text-decoration: none; color: #fca5a5; font-size: 12px; font-weight: 700;">
+                                   <span>📄 View Attached Incident Report Document (PDF)</span>
+                                 </a>
+                               </div>
+                             <?php endif; ?>
+                           </div>
+                         <?php endif; ?>
+
                         <!-- Student Explanation (Only displayed if student submitted) -->
                         <div id="studentExplanationBlock" style="<?= (!empty($case['student_explanation_text']) || !empty($case['student_explanation_at'])) ? 'display:block' : 'display:none' ?>; margin-bottom: 24px; background: rgba(79, 123, 255, 0.08); border: 1px solid rgba(79, 123, 255, 0.2); border-radius: 12px; padding: 16px;">
                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">

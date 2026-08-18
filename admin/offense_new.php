@@ -12,7 +12,7 @@ $admin   = admin_current();
 $adminId = (int)($admin['admin_id'] ?? 0);
 
 $level = (string)($_GET['level'] ?? $_POST['level'] ?? 'MINOR');
-if ($level !== 'MINOR' && $level !== 'MAJOR') $level = 'MINOR';
+if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level = 'MINOR';
 
 $category = (int)($_GET['major_category'] ?? $_POST['major_category'] ?? 0);
 if ($category < 0 || $category > 5) $category = 0;
@@ -31,7 +31,7 @@ $categoryDescriptions = [
 $offenseTypes       = [];
 $postExistingTypeId = (int)($_POST['offense_type_id'] ?? 0);
 
-if ($level === 'MINOR') {
+if ($level === 'MINOR' || $level === 'DISMISSED') {
   $offenseTypes = db_all(
     "SELECT offense_type_id, code, name FROM offense_type
      WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
@@ -45,7 +45,7 @@ if ($level === 'MINOR') {
   ) ?: [];
 }
 // Append the "Other" option to the end of the list
-if ($level === 'MINOR') {
+if ($level === 'MINOR' || $level === 'DISMISSED') {
     $offenseTypes[] = ['offense_type_id' => 22, 'code' => 'OTHER', 'name' => 'Other / Custom Minor Offense'];
 } else if ($level === 'MAJOR') {
     $offenseTypes[] = ['offense_type_id' => 23, 'code' => 'OTHER', 'name' => 'Other / Custom Major Offense'];
@@ -59,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
   $student_id       = trim((string)($_POST['student_id']     ?? ''));
   $date_committed   = trim((string)($_POST['date_committed'] ?? ''));
   $description      = trim((string)($_POST['description']    ?? ''));
+  $dismissalReason  = trim((string)($_POST['dismissal_reason'] ?? ''));
   $existing_type_id = (int)($_POST['offense_type_id'] ?? 0);
 
   if ($student_id     === '') $errors[] = 'Student ID is required.';
@@ -73,6 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
     $errors[] = 'Please select an offense type.';
   } else if (in_array($existing_type_id, [22, 23], true) && $description === '') {
     $errors[] = 'Please provide a detailed description for this custom offense.';
+  }
+
+  if ($level === 'DISMISSED' && $dismissalReason === '') {
+    $errors[] = 'Reason for dismissal is required for Dismissed offenses.';
   }
 
   // Check for duplicate offense entry
@@ -91,18 +96,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
 
   if (empty($errors)) {
 
+    // Process evidence file upload if provided
+    $evidenceFilePath = null;
+    if (isset($_FILES['evidence_file']) && $_FILES['evidence_file']['error'] === UPLOAD_ERR_OK) {
+      $uploadDir = __DIR__ . '/../uploads/incident_reports/';
+      if (!is_dir($uploadDir)) {
+        @mkdir($uploadDir, 0777, true);
+      }
+      $ext = strtolower(pathinfo($_FILES['evidence_file']['name'], PATHINFO_EXTENSION));
+      $allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+      if (in_array($ext, $allowedExts, true)) {
+        $filename = 'incident_' . time() . '_' . uniqid() . '.' . $ext;
+        $targetPath = $uploadDir . $filename;
+        if (move_uploaded_file($_FILES['evidence_file']['tmp_name'], $targetPath)) {
+          $evidenceFilePath = 'uploads/incident_reports/' . $filename;
+        }
+      }
+    }
+
+    $offenseStatus = ($level === 'DISMISSED') ? 'DISMISSED' : 'OPEN';
+
     $params = [
       ':sid'   => $student_id,
       ':admin' => $adminId,
       ':tid'   => $existing_type_id,
       ':lvl'   => $level,
       ':desc'  => ($description === '' ? null : $description),
+      ':dreason' => ($dismissalReason === '' ? null : $dismissalReason),
+      ':evfile'  => $evidenceFilePath,
       ':dt'    => $date_committed,
+      ':status' => $offenseStatus,
     ];
 
     db_exec(
-      "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, date_committed, status, created_at, updated_at)
-       VALUES (:sid, :admin, :tid, :lvl, " . db_encrypt_col('description', ':desc') . ", :dt, 'OPEN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+      "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, dismissal_reason, evidence_file, date_committed, status, created_at, updated_at)
+       VALUES (:sid, :admin, :tid, :lvl, " . db_encrypt_col('description', ':desc') . ", :dreason, :evfile, :dt, :status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
       $params
     );
 
@@ -122,7 +150,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
     }
 
     // ── AFTER INSERT LOGIC ────────────────────────────────────────────────
-    if ($level === 'MINOR') {
+    if ($level === 'DISMISSED') {
+      redirect('offenses.php?msg=' . urlencode('Offense recorded as DISMISSED for administrative record-keeping.'));
+    } elseif ($level === 'MINOR') {
       $afterRow = db_one(
         "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MINOR'",
         [':sid' => $student_id]
@@ -145,12 +175,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
 
       if ($afterMinor >= 3) {
         db_exec(
-          "INSERT INTO upcc_case (student_id, created_by, status, case_kind, case_summary, created_at, updated_at)
-           VALUES (:sid, :aid, 'PENDING', 'SECTION4_MINOR_ESCALATION', :summary, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+          "INSERT INTO upcc_case (student_id, created_by, status, case_kind, case_summary, evidence_file, created_at, updated_at)
+           VALUES (:sid, :aid, 'PENDING', 'SECTION4_MINOR_ESCALATION', :summary, :evfile, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
           [
             ':sid'     => $student_id,
             ':aid'     => $adminId,
             ':summary' => 'Section 4 Major — 3rd Minor attempt → Referred to UPCC panel for investigation and category assignment (1‑5).',
+            ':evfile'  => $evidenceFilePath,
           ]
         );
         $caseId = db_last_id();
@@ -179,12 +210,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
 
     } elseif ($level === 'MAJOR') {
       db_exec(
-        "INSERT INTO upcc_case (student_id, created_by, status, case_kind, case_summary, created_at, updated_at)
-         VALUES (:sid, :aid, 'PENDING', 'MAJOR_OFFENSE', :summary, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+        "INSERT INTO upcc_case (student_id, created_by, status, case_kind, case_summary, evidence_file, created_at, updated_at)
+         VALUES (:sid, :aid, 'PENDING', 'MAJOR_OFFENSE', :summary, :evfile, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
         [
           ':sid'     => $student_id,
           ':aid'     => $adminId,
           ':summary' => 'Major Offense - Category ' . $category . ' - UPCC investigation required',
+          ':evfile'  => $evidenceFilePath,
         ]
       );
       $caseId = db_last_id();
@@ -2400,8 +2432,25 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                 <?php endif; ?>
 
-                <form method="post" action="offense_new.php" id="offenseForm">
+                <?php if ($level === 'DISMISSED'): ?>
+                  <div class="alert-panel" style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-color: #cbd5e1; color: #334155; margin-bottom: 20px;">
+                    <div class="ap-icon" style="background: linear-gradient(135deg, #64748b, #475569); color: #fff;">
+                      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div class="ap-body">
+                      <div class="ap-title" style="color: #1e293b;">📋 DISMISSED OFFENSE RECORD (RECORD-KEEPING ONLY)</div>
+                      <div class="ap-desc" style="color: #475569; margin-bottom: 0;">
+                        This record is for administrative tracking purposes only. It will <strong>not</strong> count towards Minor/Major sanction escalations or trigger Section 4 UPCC cases.
+                      </div>
+                    </div>
+                  </div>
+                <?php endif; ?>
+
+                <form method="post" action="offense_new.php" id="offenseForm" enctype="multipart/form-data">
                   <input type="hidden" name="pending_report_id" id="pending_report_id" value="<?php echo (int)($pendingReportId ?? 0); ?>"/>
+                  <input type="hidden" name="dismissal_reason" id="dismissal_reason_hidden" value=""/>
+                  <input type="hidden" name="evidence_file_confirmed" id="evidence_file_confirmed" value="0"/>
+                  <input type="file" name="evidence_file" id="evidence_file_input" style="display:none;" accept="image/*,.pdf"/>
 
                   <div class="form-row">
                     <div class="form-group">
@@ -2409,6 +2458,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       <select id="levelSelect" name="level" onchange="onLevelChange(this.value)">
                         <option value="MINOR" <?php echo $level === 'MINOR' ? 'selected' : ''; ?>>Minor</option>
                         <option value="MAJOR" <?php echo $level === 'MAJOR' ? 'selected' : ''; ?>>Major</option>
+                        <option value="DISMISSED" <?php echo $level === 'DISMISSED' ? 'selected' : ''; ?>>Dismissed (Record Only)</option>
                       </select>
                     </div>
                     <div class="form-group">
@@ -3781,6 +3831,268 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
       }
   }
+  <!-- MODAL 1: DISMISSAL REASON -->
+  <div id="dismissalReasonModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.75); z-index:999999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#ffffff; border-radius:16px; max-width:540px; width:92%; padding:24px; box-shadow:0 20px 40px rgba(0,0,0,0.3); border:1px solid #cbd5e1; animation: apIn .25s ease;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:14px; margin-bottom:16px;">
+        <h3 style="font-size:17px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+          <span style="background:#e2e8f0; padding:6px; border-radius:8px; display:inline-flex;">📋</span> Reason for Dismissal
+        </h3>
+        <button type="button" class="modal-close" onclick="closeDismissalReasonModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#64748b;">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:13px; color:#475569; line-height:1.5; background:#f8fafc; padding:12px 14px; border-radius:10px; border:1px solid #e2e8f0;">
+          Specify why this offense is being recorded as <strong>DISMISSED</strong> (e.g., confiscated vape lacked battery or e-liquid, incident did not meet handbook criteria, recorded for administrative reference only).
+        </div>
+        <div>
+          <label style="font-weight:700; font-size:12px; color:#334155; display:block; margin-bottom:6px;">Dismissal Explanation / Admin Notes *</label>
+          <textarea id="modalDismissalReasonInput" rows="4" style="width:100%; border:1.5px solid #cbd5e1; border-radius:10px; padding:12px; font-family:inherit; font-size:13px; outline:none;" placeholder="Enter detailed reason why this offense is recorded as dismissed..."></textarea>
+          <div id="modalDismissalError" style="color:#dc2626; font-size:12px; font-weight:700; margin-top:4px; display:none;">Please enter a reason for dismissal before proceeding.</div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:14px;">
+        <button type="button" class="btn" onclick="closeDismissalReasonModal()" style="padding:10px 18px; border-radius:10px; font-weight:700;">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="proceedToDismissalApproval()" style="padding:10px 20px; border-radius:10px; font-weight:700; background:#2563eb; color:#fff; border:none; cursor:pointer;">Next: Second Approval &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: DISMISSAL SECOND APPROVAL -->
+  <div id="dismissalApprovalModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.8); z-index:999999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#ffffff; border-radius:16px; max-width:560px; width:92%; padding:24px; box-shadow:0 25px 50px rgba(0,0,0,0.35); border:1.5px solid #f59e0b; animation: apIn .25s ease;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #fef3c7; padding-bottom:14px; margin-bottom:16px; background:#fffbeb; margin:-24px -24px 16px -24px; padding:16px 24px; border-radius:16px 16px 0 0;">
+        <h3 style="font-size:17px; font-weight:800; color:#b45309; display:flex; align-items:center; gap:8px;">
+          <span>🛡️</span> Second Approval — Confirm Dismissal Record
+        </h3>
+        <button type="button" class="modal-close" onclick="closeDismissalApprovalModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#b45309;">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:13.5px; color:#1e293b; line-height:1.5; font-weight:600;">
+          Please review and grant second approval to record this offense as <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:800;">DISMISSED</span>.
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px; font-size:12.5px;">
+          <div><strong>Student:</strong> <span id="approvalStudentText">-</span></div>
+          <div><strong>Incident Date:</strong> <span id="approvalDateText">-</span></div>
+          <div><strong>Offense Type:</strong> <span id="approvalOffenseTypeText">-</span></div>
+          <div style="border-top:1px dashed #cbd5e1; padding-top:8px; margin-top:4px;">
+            <strong style="color:#b45309; display:block; margin-bottom:4px;">Reason for Dismissal:</strong>
+            <div id="approvalReasonText" style="color:#334155; font-style:italic; line-height:1.5; background:#ffffff; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">-</div>
+          </div>
+        </div>
+        <div style="font-size:12px; color:#64748b; background:#f1f5f9; padding:10px 12px; border-radius:8px;">
+          ℹ️ This record will be stored in database logs with level <strong>DISMISSED</strong>. It will not increase penalty counts or trigger Section 4 escalation.
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:14px;">
+        <button type="button" class="btn" onclick="backToDismissalReasonModal()" style="padding:10px 16px; border-radius:10px; font-weight:700; color:#475569; cursor:pointer;">&larr; Edit Reason</button>
+        <button type="button" class="btn" onclick="submitDismissedFormFinal()" style="padding:11px 22px; border-radius:10px; font-weight:800; background:#16a34a; color:#ffffff; border:none; box-shadow:0 4px 12px rgba(22,163,74,0.3); cursor:pointer;">
+          Approve & Save Dismissed Record
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: INCIDENT EVIDENCE / PHOTO UPLOAD FOR MAJOR & SECTION 4 -->
+  <div id="evidenceUploadModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.8); z-index:999999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#ffffff; border-radius:16px; max-width:580px; width:92%; padding:24px; box-shadow:0 25px 50px rgba(0,0,0,0.35); border:1.5px solid #3b82f6; animation: apIn .25s ease;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #dbeafe; padding-bottom:14px; margin-bottom:16px; background:#eff6ff; margin:-24px -24px 16px -24px; padding:16px 24px; border-radius:16px 16px 0 0;">
+        <h3 style="font-size:17px; font-weight:800; color:#1e40af; display:flex; align-items:center; gap:8px;">
+          <span>📷</span> Incident Report & Evidence Attachment
+        </h3>
+        <button type="button" class="modal-close" onclick="closeEvidenceUploadModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#1e40af;">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:13px; color:#1e3a8a; line-height:1.5; background:#eff6ff; padding:12px 14px; border-radius:10px; border:1px solid #bfdbfe;">
+          <strong>Major / Section 4 Offense Triggered!</strong> You can attach a photo or file of the Incident Report before registering. The UPCC Panel will be able to inspect this evidence during the hearing.
+        </div>
+        
+        <div id="modalDropZone" style="border:2px dashed #93c5fd; background:#f8fafc; border-radius:12px; padding:24px; text-align:center; cursor:pointer; transition:all 0.2s;" onclick="document.getElementById('modalFileSelectInput').click()">
+          <svg fill="none" stroke="#3b82f6" stroke-width="1.5" viewBox="0 0 24 24" style="width:42px; height:42px; margin-bottom:8px;"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <div style="font-weight:700; font-size:14px; color:#1e293b;" id="modalDropZoneTitle">Click to select Incident Report Photo or PDF</div>
+          <div style="font-size:12px; color:#64748b; margin-top:4px;">Supports JPG, PNG, WEBP images or PDF documents</div>
+          <input type="file" id="modalFileSelectInput" accept="image/*,.pdf" style="display:none;" onchange="handleModalFileSelected(this.files)">
+        </div>
+
+        <div id="modalFilePreviewBox" style="display:none; background:#f1f5f9; padding:12px; border-radius:10px; align-items:center; gap:12px; border:1px solid #cbd5e1;">
+          <div id="modalFileThumbnail" style="width:48px; height:48px; border-radius:8px; overflow:hidden; background:#e2e8f0; display:flex; align-items:center; justify-content:center; flex-shrink:0;"></div>
+          <div style="flex:1; min-width:0;">
+            <div id="modalFileName" style="font-weight:700; font-size:13px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">filename.jpg</div>
+            <div id="modalFileSize" style="font-size:11px; color:#64748b;">0 KB</div>
+          </div>
+          <button type="button" onclick="clearModalFileSelection()" style="background:#fee2e2; color:#dc2626; border:none; padding:6px 10px; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer;">Remove</button>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:14px;">
+        <button type="button" class="btn" onclick="skipEvidenceUploadAndSubmit()" style="padding:10px 16px; border-radius:10px; font-weight:700; color:#64748b; cursor:pointer;">Skip & Register Case</button>
+        <button type="button" class="btn btn-primary" onclick="submitFormWithEvidence()" style="padding:11px 22px; border-radius:10px; font-weight:800; background:#2563eb; color:#ffffff; border:none; box-shadow:0 4px 12px rgba(37,99,235,0.3); cursor:pointer;">
+          Upload & Register Case
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.__projectedMinorCount = <?php echo (int)($afterMinor ?? ($liveMinorCount + 1)); ?>;
+
+    function openDismissalReasonModal() {
+      const m = document.getElementById('dismissalReasonModal');
+      const input = document.getElementById('modalDismissalReasonInput');
+      const err = document.getElementById('modalDismissalError');
+      if (err) err.style.display = 'none';
+      if (input) input.value = document.getElementById('dismissal_reason_hidden')?.value || '';
+      if (m) m.style.display = 'flex';
+    }
+
+    function closeDismissalReasonModal() {
+      const m = document.getElementById('dismissalReasonModal');
+      if (m) m.style.display = 'none';
+    }
+
+    function proceedToDismissalApproval() {
+      const input = document.getElementById('modalDismissalReasonInput');
+      const err = document.getElementById('modalDismissalError');
+      const val = (input ? input.value : '').trim();
+      if (!val) {
+        if (err) err.style.display = 'block';
+        return;
+      }
+      if (err) err.style.display = 'none';
+      
+      document.getElementById('dismissal_reason_hidden').value = val;
+      closeDismissalReasonModal();
+
+      // Populate Modal 2 summary
+      const studentInput = document.getElementById('studentIdInput')?.value || '';
+      const dateInput = document.getElementById('date_committed')?.value || '';
+      const typeSelect = document.getElementById('offense_type_id');
+      const selectedTypeOption = typeSelect ? typeSelect.options[typeSelect.selectedIndex] : null;
+      const typeText = selectedTypeOption ? selectedTypeOption.text : 'Selected Offense Type';
+
+      document.getElementById('approvalStudentText').textContent = studentInput || 'Student';
+      document.getElementById('approvalDateText').textContent = dateInput ? dateInput.replace('T', ' ') : 'Now';
+      document.getElementById('approvalOffenseTypeText').textContent = typeText;
+      document.getElementById('approvalReasonText').textContent = val;
+
+      const appModal = document.getElementById('dismissalApprovalModal');
+      if (appModal) appModal.style.display = 'flex';
+    }
+
+    function closeDismissalApprovalModal() {
+      const appModal = document.getElementById('dismissalApprovalModal');
+      if (appModal) appModal.style.display = 'none';
+    }
+
+    function backToDismissalReasonModal() {
+      closeDismissalApprovalModal();
+      openDismissalReasonModal();
+    }
+
+    function submitDismissedFormFinal() {
+      closeDismissalApprovalModal();
+      const form = document.getElementById('offenseForm');
+      if (form) {
+        form.submit();
+      }
+    }
+
+    // Modal 3 Evidence Upload JS
+    function openEvidenceUploadModal() {
+      const m = document.getElementById('evidenceUploadModal');
+      if (m) m.style.display = 'flex';
+    }
+
+    function closeEvidenceUploadModal() {
+      const m = document.getElementById('evidenceUploadModal');
+      if (m) m.style.display = 'none';
+    }
+
+    function handleModalFileSelected(files) {
+      if (!files || files.length === 0) return;
+      const file = files[0];
+      const previewBox = document.getElementById('modalFilePreviewBox');
+      const fileNameEl = document.getElementById('modalFileName');
+      const fileSizeEl = document.getElementById('modalFileSize');
+      const thumbEl = document.getElementById('modalFileThumbnail');
+
+      if (fileNameEl) fileNameEl.textContent = file.name;
+      if (fileSizeEl) fileSizeEl.textContent = (file.size / 1024).toFixed(1) + ' KB';
+
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          if (thumbEl) thumbEl.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;" />`;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        if (thumbEl) thumbEl.innerHTML = `<span style="font-size:20px; color:#dc2626;">📄</span>`;
+      }
+
+      if (previewBox) previewBox.style.display = 'flex';
+
+      // Sync file to the hidden file input in #offenseForm
+      const mainInput = document.getElementById('evidence_file_input');
+      if (mainInput && window.DataTransfer) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        mainInput.files = dt.files;
+      }
+    }
+
+    function clearModalFileSelection() {
+      const previewBox = document.getElementById('modalFilePreviewBox');
+      const fileSelect = document.getElementById('modalFileSelectInput');
+      const mainInput = document.getElementById('evidence_file_input');
+      if (previewBox) previewBox.style.display = 'none';
+      if (fileSelect) fileSelect.value = '';
+      if (mainInput) mainInput.value = '';
+    }
+
+    function skipEvidenceUploadAndSubmit() {
+      document.getElementById('evidence_file_confirmed').value = '1';
+      closeEvidenceUploadModal();
+      const form = document.getElementById('offenseForm');
+      if (form) form.submit();
+    }
+
+    function submitFormWithEvidence() {
+      document.getElementById('evidence_file_confirmed').value = '1';
+      closeEvidenceUploadModal();
+      const form = document.getElementById('offenseForm');
+      if (form) form.submit();
+    }
+
+    // Intercept form submission
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('offenseForm');
+      if (!form) return;
+
+      form.addEventListener('submit', function(e) {
+        const lvl = document.getElementById('levelSelect')?.value || 'MINOR';
+        const isConfirmedEvidence = document.getElementById('evidence_file_confirmed')?.value === '1';
+
+        // Check if DISMISSED
+        if (lvl === 'DISMISSED') {
+          const reason = document.getElementById('dismissal_reason_hidden')?.value || '';
+          if (!reason) {
+            e.preventDefault();
+            e.stopPropagation();
+            openDismissalReasonModal();
+            return false;
+          }
+        }
+
+        // Check if Major or Section 4 escalation (3rd minor attempt)
+        const isMajorOrEscalation = (lvl === 'MAJOR') || (lvl === 'MINOR' && window.__projectedMinorCount >= 3);
+        if (isMajorOrEscalation && !isConfirmedEvidence) {
+          e.preventDefault();
+          e.stopPropagation();
+          openEvidenceUploadModal();
+          return false;
+        }
+
+        return true;
+      });
+    });
   </script>
 
 </body>

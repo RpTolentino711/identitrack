@@ -706,6 +706,7 @@ function ensure_hearing_workflow_schema(): void
     'student_hearing_response' => "ALTER TABLE upcc_case ADD COLUMN student_hearing_response ENUM('PENDING','ACCEPTED','DECLINED') NOT NULL DEFAULT 'PENDING'",
     'nfi_file_path' => "ALTER TABLE upcc_case ADD COLUMN nfi_file_path VARCHAR(255) DEFAULT NULL",
     'nfi_date' => "ALTER TABLE upcc_case ADD COLUMN nfi_date DATETIME DEFAULT NULL",
+    'evidence_file' => "ALTER TABLE upcc_case ADD COLUMN evidence_file VARCHAR(255) DEFAULT NULL",
   ];
 
   foreach ($columns as $column => $sql) {
@@ -722,6 +723,37 @@ function ensure_hearing_workflow_schema(): void
       db_exec($sql);
     }
   }
+
+  // Ensure offense table schema has dismissal_reason and evidence_file
+  $offenseCols = [
+    'dismissal_reason' => "ALTER TABLE offense ADD COLUMN dismissal_reason TEXT DEFAULT NULL",
+    'evidence_file' => "ALTER TABLE offense ADD COLUMN evidence_file VARCHAR(255) DEFAULT NULL",
+  ];
+  foreach ($offenseCols as $col => $sql) {
+    $exists = db_one(
+      "SELECT 1 FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'offense'
+         AND COLUMN_NAME = :col LIMIT 1",
+      [':col' => $col]
+    );
+    if (!$exists) {
+      try { db_exec($sql); } catch (\Throwable $e) {}
+    }
+  }
+
+  // Ensure offense.level supports DISMISSED if it's an ENUM or modify type
+  try {
+    $lvlCol = db_one(
+      "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'offense'
+         AND COLUMN_NAME = 'level' LIMIT 1"
+    );
+    if ($lvlCol && strpos((string)$lvlCol['COLUMN_TYPE'], 'DISMISSED') === false && strpos(strtolower((string)$lvlCol['COLUMN_TYPE']), 'enum') !== false) {
+      db_exec("ALTER TABLE offense MODIFY level ENUM('MINOR','MAJOR','DISMISSED') NOT NULL DEFAULT 'MINOR'");
+    }
+  } catch (\Throwable $e) {}
 
   $statusCol = db_one(
     "SELECT COLUMN_TYPE
