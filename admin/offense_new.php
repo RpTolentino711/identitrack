@@ -80,8 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
 
   if ($existing_type_id <= 0) {
     $errors[] = 'Please select an offense type.';
-  } else if (in_array($existing_type_id, [22, 23], true) && $description === '') {
-    $errors[] = 'Please provide a detailed description for this custom offense.';
+  } else if ((in_array($existing_type_id, [22, 23, 24], true) || $level === 'DISMISSED') && $description === '') {
+    $errors[] = 'Please provide a detailed description/notes for this offense.';
   }
 
   if ($level === 'DISMISSED' && $dismissalReason === '') {
@@ -2535,8 +2535,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       } else {
                           btnE.style.display = 'none';
                           btnD.style.display = 'none';
-                          lbl.innerText = 'Add new offense type';
-                      }
+                          updateDescRequirement();
                     ">
                       <option value="">— Select Offense Type —</option>
                       <?php foreach ($offenseTypes as $t): ?>
@@ -2571,10 +2570,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                 </div>
 
+                <?php
+                  $isDescRequired = ($level === 'DISMISSED' || in_array($postExistingTypeId, [22, 23, 24], true));
+                ?>
                 <div class="form-row full">
                   <div class="form-group">
-                    <label for="description" id="descLabel">Description / Notes <span id="descOptional">(optional)</span></label>
-                    <textarea id="description" name="description"
+                    <label for="description" id="descLabel">Description / Notes <span id="descOptional" style="<?php echo $isDescRequired ? 'color:var(--red); font-weight:800;' : ''; ?>"><?php echo $isDescRequired ? '*' : '(optional)'; ?></span></label>
+                    <textarea id="description" name="description" <?php echo $isDescRequired ? 'required' : ''; ?>
                               placeholder="Describe the incident in detail..."><?php echo htmlspecialchars($postDesc); ?></textarea>
                   </div>
                 </div>
@@ -4080,8 +4082,36 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       if (form) form.submit();
     }
 
+    function updateDescRequirement() {
+      const lvl = document.getElementById('levelSelect')?.value || 'MINOR';
+      const typeId = document.getElementById('offense_type_id')?.value || '';
+      const descOpt = document.getElementById('descOptional');
+      const descInput = document.getElementById('description');
+      const isRequired = (lvl === 'DISMISSED' || ['22', '23', '24'].includes(typeId));
+
+      if (descOpt) {
+        if (isRequired) {
+          descOpt.textContent = ' *';
+          descOpt.style.color = 'var(--red)';
+          descOpt.style.fontWeight = '800';
+        } else {
+          descOpt.textContent = ' (optional)';
+          descOpt.style.color = '';
+          descOpt.style.fontWeight = '';
+        }
+      }
+      if (descInput) {
+        if (isRequired) {
+          descInput.setAttribute('required', 'required');
+        } else {
+          descInput.removeAttribute('required');
+        }
+      }
+    }
+
     // Intercept form submission
     document.addEventListener('DOMContentLoaded', function() {
+      updateDescRequirement();
       const form = document.getElementById('offenseForm');
       if (!form) return;
 
