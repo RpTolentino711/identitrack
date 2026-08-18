@@ -3123,7 +3123,7 @@ function handleNfiUploadSubmit(e) {
 
     if (icon) icon.textContent = '📋';
     if (title) title.textContent = 'Upload Notice of Formative Intervention?';
-    if (msg) msg.innerHTML = `Are you sure you want to upload/replace the Notice of Formative Intervention (NFI) document for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><br><span style="color:#1d4ed8; font-weight:600;">ℹ️ This document will be attached to the student's resolution record and sent via email.</span>`;
+    if (msg) msg.innerHTML = `Are you sure you want to upload/replace the Notice of Formative Intervention (NFI) document for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-top:14px; text-align:left; font-size:13px; color:#1d4ed8; font-weight:600; line-height:1.4;">ℹ️ This document will be attached to the student's resolution record, sent to their official Outlook email, and viewable on the Student Mobile App.</div>`;
     if (btn) {
         btn.style.background = '#2563eb';
         btn.textContent = 'Yes, Upload NFI Document';
@@ -3148,7 +3148,7 @@ function confirmRemoveNfiFile(caseId) {
 
     if (icon) icon.textContent = '🔄';
     if (title) title.textContent = 'Reupload NFI Document?';
-    if (msg) msg.innerHTML = `Are you sure you want to reupload/replace the Notice of Formative Intervention (NFI) document for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><br><span style="color:#d97706; font-weight:600;">⚠️ Confirming will allow you to select a new file to replace the current NFI document.</span>`;
+    if (msg) msg.innerHTML = `Are you sure you want to reupload/replace the Notice of Formative Intervention (NFI) document for <strong>Case UPCC-${escapeHtml(caseId)}</strong>?<br><div style="background:#fffbe6; border:1px solid #ffe58f; border-radius:10px; padding:12px 14px; margin-top:14px; text-align:left; font-size:13px; color:#d97706; font-weight:600; line-height:1.4;">⚠️ Confirming will allow you to select a new file to replace the current NFI document.</div>`;
     if (btn) {
         btn.style.background = '#2563eb';
         btn.textContent = 'Yes, Reupload NFI';
