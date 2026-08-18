@@ -164,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
 
     // ── AFTER INSERT LOGIC ────────────────────────────────────────────────
     if ($level === 'DISMISSED') {
-      redirect('offenses.php?msg=' . urlencode('Offense recorded as DISMISSED for administrative record-keeping.'));
+      redirect('offense_new.php?level=DISMISSED&student_id=' . urlencode($student_id) . '&dismissed_success=1');
     } elseif ($level === 'MINOR') {
       $afterRow = db_one(
         "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MINOR'",
@@ -2335,6 +2335,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
       <div class="content-area">
 
+        <?php if (isset($_GET['dismissed_success']) && $_GET['dismissed_success'] == '1'): ?>
+          <div class="alert-ok" style="background:#f0fdf4; border:1.5px solid #86efac; color:#15803d; padding:14px 18px; border-radius:12px; font-weight:700; margin-bottom:20px; display:flex; align-items:center; gap:10px; box-shadow:0 4px 12px rgba(22,163,74,0.15);">
+            <span style="background:#16a34a; color:#ffffff; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:14px; font-weight:800;">✓</span>
+            <span>Dismissed offense record has been successfully registered and logged in the database!</span>
+          </div>
+        <?php endif; ?>
+
         <?php if ($successMsg): ?>
           <div class="alert-ok">
             ✓ <?php echo htmlspecialchars($successMsg); ?>
@@ -3889,13 +3896,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     <div class="modal-content" style="background:#ffffff; border-radius:16px; max-width:560px; width:92%; padding:24px; box-shadow:0 25px 50px rgba(0,0,0,0.35); border:1.5px solid #f59e0b; animation: apIn .25s ease;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #fef3c7; padding-bottom:14px; margin-bottom:16px; background:#fffbeb; margin:-24px -24px 16px -24px; padding:16px 24px; border-radius:16px 16px 0 0;">
         <h3 style="font-size:17px; font-weight:800; color:#b45309; display:flex; align-items:center; gap:8px;">
-          <span>🛡️</span> Second Approval — Confirm Dismissal Record
+          <span>🛡️</span> Second Approval — Confirm Record
         </h3>
         <button type="button" class="modal-close" onclick="closeDismissalApprovalModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#b45309;">&times;</button>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:14px;">
-        <div style="font-size:13.5px; color:#1e293b; line-height:1.5; font-weight:600;">
-          Please review and grant second approval to record this offense as <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:800;">DISMISSED</span>.
+        <div style="font-size:15px; color:#0f172a; line-height:1.5; font-weight:800; background:#fffbeb; padding:14px 16px; border-radius:10px; border:1px solid #fde68a;">
+          Are you sure you just want to record this offense as <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:800;">DISMISSED</span>?
         </div>
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px; font-size:12.5px;">
           <div><strong>Student:</strong> <span id="approvalStudentText">-</span></div>
@@ -3907,13 +3914,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           </div>
         </div>
         <div style="font-size:12px; color:#64748b; background:#f1f5f9; padding:10px 12px; border-radius:8px;">
-          ℹ️ This record will be stored in database logs with level <strong>DISMISSED</strong>. It will not increase penalty counts or trigger Section 4 escalation.
+          ℹ️ Recording as <strong>DISMISSED</strong> stores this in database logs for administrative tracking only. It will not increase minor/major counts or trigger Section 4 escalation.
         </div>
       </div>
       <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:14px;">
-        <button type="button" class="btn" onclick="backToDismissalReasonModal()" style="padding:10px 16px; border-radius:10px; font-weight:700; color:#475569; cursor:pointer;">&larr; Edit Reason</button>
-        <button type="button" class="btn" onclick="submitDismissedFormFinal()" style="padding:11px 22px; border-radius:10px; font-weight:800; background:#16a34a; color:#ffffff; border:none; box-shadow:0 4px 12px rgba(22,163,74,0.3); cursor:pointer;">
-          Approve & Save Dismissed Record
+        <button type="button" class="btn" onclick="closeDismissalApprovalModal()" style="padding:10px 18px; border-radius:10px; font-weight:700; color:#64748b; background:#f1f5f9; border:1px solid #cbd5e1; cursor:pointer;">No, Cancel</button>
+        <button type="button" class="btn" id="btnConfirmDismissedSave" onclick="submitDismissedFormFinal(this)" style="padding:11px 22px; border-radius:10px; font-weight:800; background:#16a34a; color:#ffffff; border:none; box-shadow:0 4px 12px rgba(22,163,74,0.3); cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          Yes, Record as Dismissed
         </button>
       </div>
     </div>
