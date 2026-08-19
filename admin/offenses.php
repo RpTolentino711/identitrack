@@ -1441,13 +1441,94 @@ $students = db_all($sql, $params) ?: [];
       }
 
       renderHistory(d.offenses || []);
-      renderNteHistory(d.nte_docs || [], d.student_id);
 
     } catch (err) {
       document.getElementById('dpHistory').innerHTML =
         '<div class="dp-error">Could not load offense history.<br><small>' + esc(err.message) + '</small></div>';
     }
   }
+
+  function renderHistory(offenses) {
+    if (!offenses.length) {
+      document.getElementById('dpHistory').innerHTML =
+        '<div class="dp-loading">No offenses recorded.</div>';
+      return;
+    }
+    document.getElementById('dpHistory').innerHTML = offenses.map(o => {
+      const code = (o.offense_code || '').toUpperCase();
+      const isDismissed = o.level === 'DISMISSED' || o.status === 'DISMISSED' || code.startsWith('DISM');
+      const level  = isDismissed ? 'DISMISSED' : (o.level  || 'MINOR').toUpperCase();
+      const status = isDismissed ? 'DISMISSED' : (o.status || 'OPEN').toUpperCase();
+
+      const levelBadge  = level === 'MAJOR'
+        ? '<span class="badge badge-major">Major</span>'
+        : (level === 'DISMISSED'
+            ? '<span class="badge badge-dismissed">Dismissed</span>'
+            : '<span class="badge badge-minor">Minor</span>');
+
+      const statusCls   = ['OPEN','RESOLVED','VOID','DISMISSED'].includes(status) ? status : (level === 'DISMISSED' ? 'DISMISSED' : 'OPEN');
+      const statusBadge = `<span class="status-badge status-${statusCls}">${esc(status)}</span>`;
+
+      let extraBadgesHtml = '';
+      if (level === 'MAJOR') {
+        const cat = o.decided_category ? parseInt(o.decided_category) : 0;
+        const caseStatus = o.case_status ? o.case_status.toUpperCase() : '';
+        const csrStatus = o.csr_status ? o.csr_status.toUpperCase() : '';
+        
+        let isManuallyCompleted = false;
+        try {
+            if (o.punishment_details) {
+                const pDetails = JSON.parse(o.punishment_details);
+                isManuallyCompleted = !!(pDetails && pDetails.completed);
+            }
+        } catch (e) {}
+
+        let pStatus = 'ONGOING';
+        if (isManuallyCompleted) {
+            pStatus = 'COMPLETED';
+        } else if (cat === 0) {
+            pStatus = 'ONGOING';
+        } else if (cat === 1) {
+            let isProbationActive = false;
+            if (o.probation_until) {
+                isProbationActive = (new Date(o.probation_until).getTime() > Date.now());
+            }
+            if (isProbationActive) {
+                pStatus = 'ONGOING';
+            } else if (['CLOSED', 'RESOLVED'].includes(caseStatus)) {
+                pStatus = 'COMPLETED';
+            } else {
+                pStatus = 'ONGOING';
+            }
+        } else if (cat === 2) {
+            if (csrStatus === 'COMPLETED') {
+                pStatus = 'COMPLETED';
+            } else {
+                pStatus = 'ONGOING';
+            }
+        } else {
+            if (['CLOSED', 'RESOLVED'].includes(caseStatus)) {
+                pStatus = 'COMPLETED';
+            } else {
+                pStatus = 'ONGOING';
+            }
+        }
+        
+        const categoryNames = {1: 'Probation', 2: 'Formative Intervention', 3: 'Non-Readmission', 4: 'Exclusion', 5: 'Expulsion'};
+        if (cat >= 1 && cat <= 5) {
+          extraBadgesHtml += `<span class="badge" style="background:var(--bg-mid);color:var(--text-2);margin-left:4px;font-weight:700;">Category ${cat} (${categoryNames[cat].toUpperCase()})</span>`;
+        }
+        
+        if (pStatus === 'COMPLETED') {
+          extraBadgesHtml += `<span class="badge" style="background:#d1e7dd;color:#0f5132;border:1px solid #badbcc;margin-left:4px;font-weight:700;">COMPLETED</span>`;
+        } else {
+          extraBadgesHtml += `<span class="badge" style="background:#fff3cd;color:#664d03;border:1px solid #ffecb5;margin-left:4px;font-weight:700;">ONGOING</span>`;
+        }
+      }
+
+      const date = o.date_committed
+        ? new Date(o.date_committed).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' })
+        : '';
 
       return `
       <div class="offense-card level-${esc(level)}">
