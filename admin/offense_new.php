@@ -3554,7 +3554,34 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     
     const r = await postForm('AJAX/offense_letter_preview.php', formData);
     if (r.ok && r.json?.ok && r.json?.pdf_url) {
-        preview.innerHTML = '<iframe src="' + r.json.pdf_url + '#view=FitH" style="width:100%; height:100%; border:none;"></iframe>';
+        const pdfUrl = r.json.pdf_url;
+        const studentName = r.json.student_name || '';
+        const studentId = r.json.student_id || '';
+        const dateGen = r.json.date_gen || '';
+        
+        preview.innerHTML = `
+          <div style="display:flex; flex-direction:column; height:100%; background:#fff; border-radius:8px; border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:10px 14px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+              <span style="font-size:12px; font-weight:700; color:#475569;">📄 Official Document Preview</span>
+              <a href="${pdfUrl}" target="_blank" style="font-size:12px; font-weight:700; color:#2563eb; text-decoration:none; display:inline-flex; align-items:center; gap:5px; background:#eff6ff; padding:4px 10px; border-radius:6px; border:1px solid #bfdbfe;">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Open Official PDF
+              </a>
+            </div>
+            <div style="flex:1; padding:20px; overflow-y:auto; font-family:'Segoe UI', system-ui, sans-serif; color:#1e293b; line-height:1.6; font-size:13px;">
+              <div style="font-size:18px; font-weight:800; color:#0f172a; font-family:'Times New Roman', serif;">Student Discipline Office</div>
+              <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:14px;">Official Student Conduct Notice · IdentiTrack System</div>
+              <div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">${escHtml(subject)}</div>
+              <div style="font-size:11px; color:#475569; margin-bottom:14px; line-height:1.5;">
+                <strong>To:</strong> ${escHtml(guardianEmail)}<br>
+                <strong>Student:</strong> ${escHtml(studentName)} (${escHtml(studentId)})<br>
+                <strong>Generated:</strong> ${escHtml(dateGen)}
+              </div>
+              <div style="border-top:1px solid #e2e8f0; padding-top:12px; font-size:13px; color:#1e293b;">
+                ${body}
+              </div>
+            </div>
+          </div>
+        `;
     }
     else preview.innerHTML = '<div style="padding:16px;color:var(--red);font-weight:600;">Failed to generate preview.</div>';
   }

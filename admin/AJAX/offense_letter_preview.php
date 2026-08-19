@@ -146,5 +146,9 @@ $pdfUrl = '../uploads/letters/' . $filename;
 echo json_encode([
   'ok' => true,
   'pdf_url' => $pdfUrl . '?v=' . time(),
+  'student_name' => $studentName,
+  'student_id' => (string)$row['student_id'],
+  'date_gen' => $dateGen,
+  'guardian_name' => $guardianName,
 ]);
 exit;
