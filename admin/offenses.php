@@ -147,6 +147,10 @@ $minorCount = (int)($minorRow['cnt'] ?? 0);
 
 $majorWhere = $statsWhere . ($statsWhere ? " AND " : " WHERE ") . "level = 'MAJOR'";
 $majorRow = db_one("SELECT COUNT(*) AS cnt FROM offense $majorWhere", $statsParams) ?: [];
+$dismissedWhere = $statsWhere . ($statsWhere ? " AND " : " WHERE ") . "(level = 'DISMISSED' OR status = 'DISMISSED')";
+$dismissedRow = db_one("SELECT COUNT(*) AS cnt FROM offense $dismissedWhere", $statsParams) ?: [];
+$dismissedCount = (int)($dismissedRow['cnt'] ?? 0);
+
 $rawMajorCount = (int)($majorRow['cnt'] ?? 0);
 
 // Students with 3+ minors are considered to have a major offense
@@ -179,37 +183,41 @@ if ($q !== '') {
   )";
 }
 
+$monthSql = "";
+if ($selectedMonth !== '') {
+  $monthSql = " AND (DATE_FORMAT(o2.date_committed, '%Y-%m') = :month OR DATE_FORMAT(o2.created_at, '%Y-%m') = :month)";
+  $params[':month'] = $selectedMonth;
+  db_add_encryption_key($params);
+}
+
 if ($filter === 'minor') {
   $whereParts[] = "EXISTS (
     SELECT 1 FROM offense o2
-    WHERE o2.student_id = s.student_id AND o2.level = 'MINOR'
+    WHERE o2.student_id = s.student_id AND o2.level = 'MINOR' $monthSql
   )";
 } elseif ($filter === 'major') {
   $whereParts[] = "(
     EXISTS (
       SELECT 1 FROM offense o2
-      WHERE o2.student_id = s.student_id AND o2.level = 'MAJOR'
+      WHERE o2.student_id = s.student_id AND o2.level = 'MAJOR' $monthSql
     )
     OR (
       SELECT COUNT(*) FROM offense o3
-      WHERE o3.student_id = s.student_id AND o3.level = 'MINOR'
+      WHERE o3.student_id = s.student_id AND o3.level = 'MINOR' $monthSql
     ) >= 3
   )";
 } elseif ($filter === 'dismissed') {
   $whereParts[] = "EXISTS (
     SELECT 1 FROM offense o2
-    WHERE o2.student_id = s.student_id AND o2.level = 'DISMISSED'
+    WHERE o2.student_id = s.student_id AND (o2.level = 'DISMISSED' OR o2.status = 'DISMISSED') $monthSql
   )";
-}
-
-if ($selectedMonth !== '') {
-  $whereParts[] = "EXISTS (
-    SELECT 1 FROM offense o4
-    WHERE o4.student_id = s.student_id
-      AND DATE_FORMAT(o4.date_committed, '%Y-%m') = :month
-  )";
-  $params[':month'] = $selectedMonth;
-  db_add_encryption_key($params);
+} else {
+  if ($selectedMonth !== '') {
+    $whereParts[] = "EXISTS (
+      SELECT 1 FROM offense o2
+      WHERE o2.student_id = s.student_id $monthSql
+    )";
+  }
 }
 
 // Only show students who have at least one offense
@@ -382,7 +390,7 @@ $students = db_all($sql, $params) ?: [];
     /* ── STATS ── */
     .stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 14px;
       margin-bottom: 22px;
     }
@@ -407,6 +415,7 @@ $students = db_all($sql, $params) ?: [];
     .stat.total::before { background: var(--blue); }
     .stat.minor::before { background: var(--amber); }
     .stat.major::before { background: var(--red); }
+    .stat.dismissed::before { background: #d97706; }
 
     .stat-icon {
       width: 38px; height: 38px;
@@ -419,6 +428,7 @@ $students = db_all($sql, $params) ?: [];
     .stat.total .stat-icon { background: var(--blue-soft); color: var(--blue); }
     .stat.minor .stat-icon { background: var(--amber-soft); color: var(--amber); }
     .stat.major .stat-icon { background: var(--red-soft); color: var(--red); }
+    .stat.dismissed .stat-icon { background: #fffbeb; color: #b45309; }
 
     .stat-val {
       font-size: 32px;
@@ -1052,6 +1062,13 @@ $students = db_all($sql, $params) ?: [];
             </div>
             <div class="stat-val"><?php echo $majorCount; ?></div>
             <div class="stat-lbl">Major Offenses</div>
+          </div>
+          <div class="stat dismissed">
+            <div class="stat-icon" style="font-size: 18px;">
+              🛡️
+            </div>
+            <div class="stat-val"><?php echo $dismissedCount; ?></div>
+            <div class="stat-lbl">Dismissed Records</div>
           </div>
         </div>
 
