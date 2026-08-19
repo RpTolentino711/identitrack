@@ -3534,10 +3534,23 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }, 500);
   };
 
+  function getLetterBody() {
+    if (window.quillLetterEditor && window.quillLetterEditor.root) {
+      return window.quillLetterEditor.root.innerHTML;
+    }
+    const qlEditor = document.querySelector('#letter_body_editor .ql-editor');
+    if (qlEditor) return qlEditor.innerHTML;
+    const rawDiv = document.getElementById('letter_body_editor');
+    if (rawDiv) return rawDiv.innerHTML;
+    const txt = document.getElementById('letter_body');
+    if (txt && txt.value) return txt.value;
+    return '';
+  }
+
   async function previewLetter() {
     const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
     const subject = document.getElementById('letter_subject')?.value || '';
-    const body    = window.quillLetterEditor ? window.quillLetterEditor.root.innerHTML : document.getElementById('letter_body')?.value;
+    const body    = getLetterBody();
     const preview = document.getElementById('previewContent');
     if (!preview) return;
     if (!guardianEmail) {
@@ -3588,7 +3601,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   async function sendLetter() {
     const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
     const subject = document.getElementById('letter_subject')?.value || '';
-    const body    = window.quillLetterEditor ? window.quillLetterEditor.root.innerHTML : document.getElementById('letter_body')?.value;
+    const body    = getLetterBody();
     const msg     = document.getElementById('letterMsg');
     
     if (!guardianEmail) {
