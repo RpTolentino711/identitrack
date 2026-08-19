@@ -244,10 +244,16 @@ $mail->Body = "
         <p>We are writing to formally inform you that an incident report involving your student, <strong>{$studentName}</strong>, has been filed and processed by our office.</p>
         <p>Because we hold our students to the highest standards of conduct, we believe it is essential to keep parents and guardians closely informed of any disciplinary matters. Attached to this email is the official notice detailing the nature of the offense, the date it occurred, and any associated sanctions or next steps.</p>
         <p>We strongly encourage you to review the attached PDF document carefully and discuss this matter with your student.</p>
-        <p style='margin-top:24px;margin-bottom:0;'>If you have any questions, require further clarification, or wish to schedule a meeting, please coordinate with the Student Discipline Office or the University Panel on Community Conduct.</p>
+        <div style='background-color:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:16px 20px; margin:20px 0; color:#1e3a8a; font-size:13.5px; line-height:1.5;'>
+          <p style='margin:0 0 6px 0; font-weight:700; color:#1d4ed8; font-size:14px;'>🤝 Parent & Guardian Formal Cooperation Request</p>
+          <p style='margin:0;'>Please formally cooperate with your student regarding this disciplinary notification to support their personal development, conduct compliance, and academic progress.</p>
+        </div>
+        <p style='margin-top:16px;margin-bottom:0;'>If you have any questions, require further clarification, or wish to schedule a meeting, please coordinate with the Student Discipline Office or the University Panel on Community Conduct.</p>
       </div>
       <div class='footer'>
-        &copy; " . date('Y') . " IdentiTrack System. All rights reserved.<br>This is an automated notification. Please do not reply.
+        <p style='margin:0 0 6px 0; font-weight:700; color:#475569;'>🤖 Automated System Notification — Please Do Not Reply</p>
+        <p style='margin:0 0 8px 0; font-size:12px; color:#64748b;'>This email was generated automatically by the IdentiTrack System. Please do not reply directly to this message as this mailbox is unmonitored.</p>
+        <div style='font-size:11px; color:#94a3b8;'>&copy; " . date('Y') . " IdentiTrack System. All rights reserved.</div>
       </div>
     </div>
   </div>
