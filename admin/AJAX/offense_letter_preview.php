@@ -90,16 +90,16 @@ $html = '
 <html>
 <head>
     <style>
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 10.5pt; color: #333; line-height: 1.3; }
-        .header { margin-bottom: 20px; }
-        .title { font-size: 14pt; font-weight: bold; margin-bottom: 12px; color: #000; }
-        .meta { margin-bottom: 15px; font-size: 10.5pt; }
-        .content { font-size: 10.5pt; }
-        .content p { margin: 0; padding: 0; }
-        .content ul, .content ol { margin: 0; padding-left: 20px; }
-        .content li { margin-bottom: 2px; }
-        .sdo { font-size: 16pt; font-family: "Times New Roman", Times, serif; margin-bottom: 5px; }
-        .official { font-size: 10pt; color: #666; margin-bottom: 25px; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 12pt; color: #1e293b; line-height: 1.55; }
+        .header { margin-bottom: 22px; border-bottom: 2px solid #e2e8f0; padding-bottom: 14px; }
+        .title { font-size: 16pt; font-weight: bold; margin-bottom: 14px; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; }
+        .meta { margin-bottom: 18px; font-size: 11.5pt; color: #334155; line-height: 1.6; }
+        .content { font-size: 12pt; color: #1e293b; line-height: 1.6; }
+        .content p { margin: 0 0 10px 0; padding: 0; }
+        .content ul, .content ol { margin: 8px 0; padding-left: 24px; }
+        .content li { margin-bottom: 4px; }
+        .sdo { font-size: 20pt; font-weight: bold; font-family: "Times New Roman", Times, serif; color: #0f172a; margin-bottom: 4px; }
+        .official { font-size: 11pt; color: #64748b; margin-bottom: 16px; font-weight: bold; }
     </style>
 </head>
 <body>

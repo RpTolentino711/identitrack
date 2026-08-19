@@ -1693,7 +1693,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       background: var(--surface-2);
       border: 1.5px solid var(--border);
       border-radius: var(--radius-sm);
-      height: 420px;
+      height: 520px;
       overflow: hidden;
       display: flex;
       align-items: center;
@@ -3554,7 +3554,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     
     const r = await postForm('AJAX/offense_letter_preview.php', formData);
     if (r.ok && r.json?.ok && r.json?.pdf_url) {
-        preview.innerHTML = '<iframe src="' + r.json.pdf_url + '" style="width:100%; height:100%; border:none;"></iframe>';
+        preview.innerHTML = '<iframe src="' + r.json.pdf_url + '#view=FitH" style="width:100%; height:100%; border:none;"></iframe>';
     }
     else preview.innerHTML = '<div style="padding:16px;color:var(--red);font-weight:600;">Failed to generate preview.</div>';
   }
