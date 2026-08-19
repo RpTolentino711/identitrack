@@ -54,6 +54,8 @@ try {
                 CASE WHEN o.level = 'DISMISSED' OR o.status = 'DISMISSED' OR ot.level = 'DISMISSED' OR ot.code LIKE 'DISM%' THEN 'DISMISSED' WHEN o.level = 'MAJOR' OR ot.level = 'MAJOR' THEN 'MAJOR' ELSE 'MINOR' END AS level,
                 ot.name        AS offense_name,
                 ot.code        AS offense_code,
+                o.incident_photo,
+                COALESCE(o.show_in_hearing, 1) AS show_in_hearing,
                 uc.decided_category,
                 uc.status      AS case_status,
                 uc.probation_until,

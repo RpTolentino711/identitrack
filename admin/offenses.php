@@ -1530,6 +1530,19 @@ $students = db_all($sql, $params) ?: [];
         ? new Date(o.date_committed).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' })
         : '';
 
+      const showInHearing = parseInt(o.show_in_hearing ?? 1) === 1;
+      const hearingPillBg = showInHearing ? '#dcfce7' : '#f1f5f9';
+      const hearingPillColor = showInHearing ? '#15803d' : '#64748b';
+      const hearingLabel = showInHearing ? 'YES (Shown in Hearing)' : 'NO (Private)';
+
+      const hearingToggleHtml = `
+        <div style="margin-top:8px; padding-top:6px; border-top:1px dashed #e2e8f0; display:flex; align-items:center; justify-content:space-between; font-size:11px;">
+          <span style="font-weight:700; color:#334155;">📷 Photo in Student Hearing:</span>
+          <button type="button" onclick="toggleHearingPhoto('offense', ${o.offense_id}, ${showInHearing ? 0 : 1}, this)" style="background:${hearingPillBg}; color:${hearingPillColor}; font-weight:800; font-size:10.5px; border:1px solid ${showInHearing ? '#86efac' : '#cbd5e1'}; padding:3px 8px; border-radius:12px; cursor:pointer;">
+            ${hearingLabel}
+          </button>
+        </div>`;
+
       return `
       <div class="offense-card level-${esc(level)}">
         <div class="offense-card-top">${levelBadge}${statusBadge}${extraBadgesHtml}</div>
@@ -1540,9 +1553,41 @@ $students = db_all($sql, $params) ?: [];
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           ${esc(date)}
         </div>` : ''}
+        ${hearingToggleHtml}
       </div>`;
     }).join('');
   }
+
+  window.toggleHearingPhoto = async function(type, id, nextShow, btnEl) {
+    const fd = new FormData();
+    fd.append('type', type);
+    fd.append('id', id);
+    fd.append('show', nextShow);
+    
+    btnEl.disabled = true;
+    const oldText = btnEl.textContent;
+    btnEl.textContent = 'Updating...';
+    
+    try {
+      const res = await fetch('AJAX/toggle_hearing_photo.php', { method: 'POST', body: fd });
+      const json = await res.json().catch(() => null);
+      if (json && json.ok) {
+        const isYes = json.show === 1;
+        btnEl.style.background = isYes ? '#dcfce7' : '#f1f5f9';
+        btnEl.style.color = isYes ? '#15803d' : '#64748b';
+        btnEl.style.borderColor = isYes ? '#86efac' : '#cbd5e1';
+        btnEl.textContent = isYes ? 'YES (Shown in Hearing)' : 'NO (Private)';
+        btnEl.setAttribute('onclick', `toggleHearingPhoto('${type}', ${id}, ${isYes ? 0 : 1}, this)`);
+      } else {
+        alert('Failed to update status: ' + (json?.message || 'Unknown error'));
+        btnEl.textContent = oldText;
+      }
+    } catch(err) {
+      alert('Error updating status.');
+      btnEl.textContent = oldText;
+    }
+    btnEl.disabled = false;
+  };
 
   // ── AJAX Search ─────────────────────────────────────────────────────────────
   const searchInput   = document.getElementById('searchInput');
