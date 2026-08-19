@@ -247,12 +247,12 @@ $sql = "
     s.section,
 
     COALESCE(COUNT(o.offense_id), 0)                                            AS total_offenses,
-    COALESCE(SUM(CASE WHEN o.level = 'MINOR' THEN 1 ELSE 0 END), 0)            AS minor_offenses,
-    COALESCE(SUM(CASE WHEN o.level = 'MAJOR' THEN 1 ELSE 0 END), 0)            AS major_offenses_explicit,
-    COALESCE(SUM(CASE WHEN o.level = 'DISMISSED' THEN 1 ELSE 0 END), 0)        AS dismissed_offenses,
+    COALESCE(SUM(CASE WHEN (o.level = 'MINOR' AND o.status <> 'DISMISSED' AND (ot.code IS NULL OR ot.code NOT LIKE 'DISM%')) THEN 1 ELSE 0 END), 0) AS minor_offenses,
+    COALESCE(SUM(CASE WHEN (o.level = 'MAJOR' AND o.status <> 'DISMISSED' AND (ot.code IS NULL OR ot.code NOT LIKE 'DISM%')) THEN 1 ELSE 0 END), 0) AS major_offenses_explicit,
+    COALESCE(SUM(CASE WHEN (o.level = 'DISMISSED' OR o.status = 'DISMISSED' OR ot.level = 'DISMISSED' OR ot.code LIKE 'DISM%') THEN 1 ELSE 0 END), 0) AS dismissed_offenses,
 
     CASE
-      WHEN COALESCE(SUM(CASE WHEN o.level = 'MINOR' THEN 1 ELSE 0 END), 0) >= 3
+      WHEN COALESCE(SUM(CASE WHEN (o.level = 'MINOR' AND o.status <> 'DISMISSED' AND (ot.code IS NULL OR ot.code NOT LIKE 'DISM%')) THEN 1 ELSE 0 END), 0) >= 3
       THEN 1 ELSE 0
     END AS has_escalated_major,  -- internal flag, not displayed
 
@@ -269,7 +269,8 @@ $sql = "
      WHERE o2.student_id = s.student_id
      ORDER BY o2.date_committed DESC LIMIT 1)  AS last_offense_code,
 
-    (SELECT o2.level FROM offense o2
+    (SELECT CASE WHEN o2.level = 'DISMISSED' OR o2.status = 'DISMISSED' OR ot2.level = 'DISMISSED' OR ot2.code LIKE 'DISM%' THEN 'DISMISSED' ELSE o2.level END FROM offense o2
+     LEFT JOIN offense_type ot2 ON ot2.offense_type_id = o2.offense_type_id
      WHERE o2.student_id = s.student_id
      ORDER BY o2.date_committed DESC LIMIT 1)  AS last_offense_level,
 
@@ -277,11 +278,12 @@ $sql = "
      WHERE o2.student_id = s.student_id
      ORDER BY o2.date_committed DESC LIMIT 1)  AS last_description,
      
-     -- Debug: Is decryption actually working?
-     (SELECT CASE WHEN " . db_decrypt_col('student_fn', 's') . " IS NULL THEN 1 ELSE 0 END) AS _dec_fail
+     -- Debug: Is decryption actually working? (fixed: direct CASE expression, not a subquery)
+     CASE WHEN " . db_decrypt_col('student_fn', 's') . " IS NULL THEN 1 ELSE 0 END AS _dec_fail
 
   FROM student s
   LEFT JOIN offense o ON o.student_id = s.student_id $joinMonthSql
+  LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
 
   $where
 
@@ -1453,8 +1455,10 @@ $students = db_all($sql, $params) ?: [];
       return;
     }
     document.getElementById('dpHistory').innerHTML = offenses.map(o => {
-      const level  = (o.level  || 'MINOR').toUpperCase();
-      const status = (o.status || 'OPEN').toUpperCase();
+      const code = (o.offense_code || '').toUpperCase();
+      const isDismissed = o.level === 'DISMISSED' || o.status === 'DISMISSED' || code.startsWith('DISM');
+      const level  = isDismissed ? 'DISMISSED' : (o.level  || 'MINOR').toUpperCase();
+      const status = isDismissed ? 'DISMISSED' : (o.status || 'OPEN').toUpperCase();
 
       const levelBadge  = level === 'MAJOR'
         ? '<span class="badge badge-major">Major</span>'

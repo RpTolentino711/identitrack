@@ -1938,5 +1938,21 @@ function ensure_student_privacy_columns(): void {
     try { db_exec("ALTER TABLE student ADD COLUMN app_registered_at DATETIME DEFAULT NULL;"); } catch (\Throwable $e) {}
     $done = true;
 }
+
+function ensure_dismissed_records_migrated(): void {
+    static $done = false;
+    if ($done) return;
+    try {
+        db_exec("UPDATE offense_type SET level = 'DISMISSED' WHERE code LIKE 'DISM%' OR name LIKE '%Dismiss%' OR name LIKE '%Vape%'");
+    } catch (\Throwable $e) {}
+    try {
+        db_exec("UPDATE offense o
+                 JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+                 SET o.level = 'DISMISSED', o.status = 'DISMISSED'
+                 WHERE ot.level = 'DISMISSED' OR ot.code LIKE 'DISM%' OR o.level = 'DISMISSED' OR o.status = 'DISMISSED'");
+    } catch (\Throwable $e) {}
+    $done = true;
+}
+ensure_dismissed_records_migrated();
 ensure_notice_to_explain_table();
 ?>
