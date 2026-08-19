@@ -70,6 +70,18 @@ try {
         $offParams
     );
 
+    // ── Form F-005 (NTE) documents ──
+    $nteParams = [':sid' => $studentId];
+    db_add_encryption_key($nteParams);
+    $nteDocs = db_all(
+        "SELECT n.nte_id, n.case_id, n.incident_report_no, n.attachment_path, n.created_at,
+                n.incident_photo, COALESCE(n.show_in_hearing, 1) AS show_in_hearing
+         FROM nte_document n
+         WHERE n.student_id = :sid
+         ORDER BY n.created_at DESC",
+        $nteParams
+    );
+
     // Year suffix: 1 → 1st, 2 → 2nd, 3 → 3rd, 4+ → 4th
     $yl       = (int)($student['year_level'] ?? 0);
     $suffixes = ['', 'st', 'nd', 'rd'];
@@ -93,6 +105,7 @@ try {
             'phone'      => $student['phone_number']  ?? '',
             'email'      => $student['student_email'] ?? '',
             'offenses'   => $offenses ?: [],
+            'nte_docs'   => $nteDocs ?: [],
         ],
     ]);
 

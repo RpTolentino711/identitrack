@@ -1321,6 +1321,21 @@ $students = db_all($sql, $params) ?: [];
               <div id="dpHistory">
                 <div class="dp-loading">Select a student to view their offense history.</div>
               </div>
+
+              <div style="margin-top: 14px;">
+                <details style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+                  <summary style="padding: 10px 14px; font-size: 12px; font-weight: 700; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; color: var(--text-2); user-select: none;">
+                    <span style="display:flex; align-items:center; gap:6px;">
+                      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                      <span id="nteHistoryTitle">View Form F-005 History (0)</span>
+                    </span>
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 14px; height: 14px; transition: transform 0.2s;"><path d="M6 9l6 6 6-6"/></svg>
+                  </summary>
+                  <div id="dpNteHistory" style="padding: 12px; border-top: 1px solid var(--border); background: var(--surface); max-height: 250px; overflow-y: auto;">
+                    <div style="font-size:12px; color:var(--text-3); text-align:center;">Select a student to view Form F-005 records.</div>
+                  </div>
+                </details>
+              </div>
             </div>
 
           </aside>
@@ -1441,11 +1456,63 @@ $students = db_all($sql, $params) ?: [];
       }
 
       renderHistory(d.offenses || []);
+      renderNteHistory(d.nte_docs || [], d.student_id);
 
     } catch (err) {
       document.getElementById('dpHistory').innerHTML =
         '<div class="dp-error">Could not load offense history.<br><small>' + esc(err.message) + '</small></div>';
     }
+  }
+
+  function renderNteHistory(nteDocs, studentId) {
+    const titleEl = document.getElementById('nteHistoryTitle');
+    const container = document.getElementById('dpNteHistory');
+    if (titleEl) titleEl.textContent = `View Form F-005 History (${nteDocs.length})`;
+    
+    if (!container) return;
+    if (!nteDocs.length) {
+      container.innerHTML = `
+        <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px; text-align: center;">
+          <div style="font-size:11px; font-weight:800; color:#92400e; margin-bottom:2px;">⚠️ Form F-005 Skipped / Not Sent</div>
+          <div style="font-size:11px; color:#78350f;">No Form F-005 document has been sent for this student yet.</div>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = nteDocs.map(nte => {
+      const nteId = nte.nte_id;
+      const dateStr = nte.created_at ? new Date(nte.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '';
+      const irNo = esc(nte.incident_report_no || ('IR-' + nteId));
+      const fileUrl = nte.attachment_path ? ('../' + esc(nte.attachment_path)) : '';
+
+      const showInHearing = parseInt(nte.show_in_hearing ?? 1) === 1;
+      const hearingPillBg = showInHearing ? '#dcfce7' : '#f1f5f9';
+      const hearingPillColor = showInHearing ? '#15803d' : '#64748b';
+      const hearingLabel = showInHearing ? 'YES (Shown in Hearing)' : 'NO (Private)';
+
+      const hearingToggleBtn = `
+        <div style="margin-top:6px; padding-top:6px; border-top:1px dashed #bbf7d0; display:flex; align-items:center; justify-content:space-between; font-size:11px;">
+          <span style="font-weight:700; color:#166534;">📷 Photo in Hearing:</span>
+          <button type="button" onclick="toggleHearingPhoto('nte', ${nteId}, ${showInHearing ? 0 : 1}, this)" style="background:${hearingPillBg}; color:${hearingPillColor}; font-weight:800; font-size:10.5px; border:1px solid ${showInHearing ? '#86efac' : '#cbd5e1'}; padding:3px 8px; border-radius:12px; cursor:pointer;">
+            ${hearingLabel}
+          </button>
+        </div>`;
+
+      return `
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+            <span style="font-size:11px; font-weight:800; color:#166534;">✅ Form F-005 Sent</span>
+            <span style="font-size:10px; color:#15803d; font-weight:600; white-space:nowrap;">${irNo}</span>
+          </div>
+          <div style="font-size:11px; color:#334155; margin-bottom:6px;">
+            Submitted: <strong>${dateStr}</strong>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            ${fileUrl ? `<a href="${fileUrl}" target="_blank" download style="color:var(--blue); font-weight:700; font-size:11px; text-decoration:underline;">Download Form F-005</a>` : ''}
+          </div>
+          ${hearingToggleBtn}
+        </div>`;
+    }).join('');
   }
 
   function renderHistory(offenses) {
