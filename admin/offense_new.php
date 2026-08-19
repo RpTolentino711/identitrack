@@ -2557,28 +2557,30 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                     </div>
                   </div>
 
+                  <div class="form-row full" id="categoryGroup" style="<?php echo ($level === 'MAJOR') ? '' : 'display:none;'; ?> margin-top: 14px;">
+                    <div class="form-group">
+                      <label for="major_category" style="font-weight: 800; color: #dc2626;">Major Category (1–5) *</label>
+                      <select id="major_category" name="major_category" onchange="onCategoryChange(this.value)" style="border: 2px solid #dc2626; background: #fff5f5; font-weight: 700; font-size: 14px; padding: 10px; border-radius: 8px; width: 100%;">
+                        <option value="">— Select Category (1–5) —</option>
+                        <option value="1" <?php echo $category === 1 ? 'selected' : ''; ?>>Category 1 — Probation</option>
+                        <option value="2" <?php echo $category === 2 ? 'selected' : ''; ?>>Category 2 — Formative Intervention</option>
+                        <option value="3" <?php echo $category === 3 ? 'selected' : ''; ?>>Category 3 — Non-Readmission</option>
+                        <option value="4" <?php echo $category === 4 ? 'selected' : ''; ?>>Category 4 — Exclusion</option>
+                        <option value="5" <?php echo $category === 5 ? 'selected' : ''; ?>>Category 5 — Expulsion</option>
+                      </select>
+                      <?php if ($category >= 1 && $category <= 5): ?>
+                        <div class="category-desc" style="margin-top: 8px; padding: 10px 14px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b; font-size: 12.5px; line-height: 1.5;">
+                          <strong>Category <?php echo $category; ?> Description:</strong> <?php echo htmlspecialchars($categoryDescriptions[$category]); ?>
+                        </div>
+                      <?php endif; ?>
+                    </div>
+                  </div>
+
                 <div class="form-row" id="row2">
                   <div class="form-group">
                     <label for="date_committed">Date &amp; Time of Incident *</label>
                     <input id="date_committed" name="date_committed" type="datetime-local"
                            value="<?php echo htmlspecialchars($postDate); ?>"/>
-                  </div>
-
-                  <div class="form-group" id="categoryGroup" style="<?php echo ($level === 'MAJOR') ? '' : 'display:none;'; ?>">
-                    <label for="major_category">Major Category *</label>
-                    <select id="major_category" name="major_category" onchange="onCategoryChange(this.value)">
-                      <option value="">— Select Category (1–5) —</option>
-                      <?php for ($i = 1; $i <= 5; $i++): ?>
-                        <option value="<?php echo $i; ?>" <?php echo $category === $i ? 'selected' : ''; ?>>
-                          Category <?php echo $i; ?>
-                        </option>
-                      <?php endfor; ?>
-                    </select>
-                    <?php if ($category >= 1 && $category <= 5): ?>
-                      <div class="category-desc">
-                        <strong>Category <?php echo $category; ?>:</strong> <?php echo htmlspecialchars($categoryDescriptions[$category]); ?>
-                      </div>
-                    <?php endif; ?>
                   </div>
                 </div>
 
