@@ -916,6 +916,7 @@ $students = db_all($sql, $params) ?: [];
     }
     .badge-minor { background: var(--amber-soft); color: var(--amber); border: 1px solid var(--amber-mid); }
     .badge-major { background: var(--red-soft); color: var(--red); border: 1px solid var(--red-mid); }
+    .badge-dismissed { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 
     .status-badge {
       font-size: 10px;
@@ -923,9 +924,10 @@ $students = db_all($sql, $params) ?: [];
       padding: 2px 7px;
       border-radius: 5px;
     }
-    .status-OPEN     { background: var(--blue-soft); color: var(--blue); border: 1px solid var(--blue-mid); }
-    .status-RESOLVED { background: var(--green-soft); color: var(--green); border: 1px solid var(--green-mid); }
-    .status-VOID     { background: var(--surface-2); color: var(--text-4); border: 1px solid var(--border); text-decoration: line-through; }
+    .status-OPEN      { background: var(--blue-soft); color: var(--blue); border: 1px solid var(--blue-mid); }
+    .status-RESOLVED  { background: var(--green-soft); color: var(--green); border: 1px solid var(--green-mid); }
+    .status-VOID      { background: var(--surface-2); color: var(--text-4); border: 1px solid var(--border); text-decoration: line-through; }
+    .status-DISMISSED { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 
     .offense-name { font-size: 12.5px; font-weight: 700; color: var(--text-1); line-height: 1.3; }
     .offense-code {
@@ -1403,9 +1405,11 @@ $students = db_all($sql, $params) ?: [];
 
       const levelBadge  = level === 'MAJOR'
         ? '<span class="badge badge-major">Major</span>'
-        : '<span class="badge badge-minor">Minor</span>';
+        : (level === 'DISMISSED'
+            ? '<span class="badge badge-dismissed">Dismissed</span>'
+            : '<span class="badge badge-minor">Minor</span>');
 
-      const statusCls   = ['OPEN','RESOLVED','VOID'].includes(status) ? status : 'OPEN';
+      const statusCls   = ['OPEN','RESOLVED','VOID','DISMISSED'].includes(status) ? status : (level === 'DISMISSED' ? 'DISMISSED' : 'OPEN');
       const statusBadge = `<span class="status-badge status-${statusCls}">${esc(status)}</span>`;
 
       let extraBadgesHtml = '';
