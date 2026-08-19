@@ -1712,6 +1712,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .letter-msg { font-size: 12.5px; font-weight: 600; margin-top: 12px; }
 
+    #letter_body_editor .ql-container {
+      flex: 1;
+      height: auto !important;
+      overflow-y: auto !important;
+      font-family: inherit;
+    }
+    #letter_body_editor .ql-editor {
+      min-height: 100%;
+      padding: 14px 16px;
+    }
+
     /* Modal */
     .modal {
       display: none;
@@ -2736,11 +2747,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       // Convert the \n newlines to <br> for the Quill editor initial content
                       $defaultBodyHtml = nl2br(htmlspecialchars($defaultBody));
                     ?>
-                    <div id="letter_body_editor" style="height: 400px; background: #fff; border-radius: 0 0 6px 6px;"><?php echo $defaultBodyHtml; ?></div>
+                    <div id="letter_body_editor" style="height: 320px; background: #fff; border-radius: 0 0 6px 6px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border);"><?php echo $defaultBodyHtml; ?></div>
                     <textarea id="letter_body" style="display:none;"></textarea>
                   </div>
-                  <div class="form-actions" style="border:none;padding:0;margin:0;margin-top:20px;">
-                    <button type="button" class="btn" id="btn_send_letter" style="background:#15803d;color:#fff;border-color:#15803d;" onclick="sendLetter()">
+                  <div class="form-actions" style="border:none; padding:0; margin:16px 0 0 0; display:flex; gap:10px; position:relative; z-index:10;">
+                    <button type="button" class="btn" id="btn_send_letter" style="background:#15803d; color:#fff; border-color:#15803d; padding: 10px 22px; font-weight: 700; border-radius: 8px; font-size: 13.5px;" onclick="sendLetter()">
                       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                       Send Email
                     </button>
