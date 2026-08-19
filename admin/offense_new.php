@@ -1480,6 +1480,34 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     .alert-panel--critical { background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);  border-color: #fbcfe8; color: #9d174d; }
     .alert-panel--major    { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);   border-color: #fecaca; color: #991b1b; }
     
+    /* Red Glowing Pulse for DISMISSED card banner */
+    .alert-panel--dismissed-glow {
+      background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%) !important;
+      border: 1.5px solid #f43f5e !important;
+      color: #881337 !important;
+      margin-bottom: 20px !important;
+      animation: alertRedGlowPulse 1.8s infinite ease-in-out !important;
+    }
+    @keyframes alertRedGlowPulse {
+      0% {
+        box-shadow: 0 0 10px rgba(244, 63, 94, 0.45), 0 4px 16px rgba(225, 29, 72, 0.25);
+        border-color: #f43f5e;
+      }
+      50% {
+        box-shadow: 0 0 26px rgba(244, 63, 94, 0.85), 0 6px 22px rgba(225, 29, 72, 0.5);
+        border-color: #e11d48;
+      }
+      100% {
+        box-shadow: 0 0 10px rgba(244, 63, 94, 0.45), 0 4px 16px rgba(225, 29, 72, 0.25);
+        border-color: #f43f5e;
+      }
+    }
+    .alert-panel--dismissed-glow .ap-icon {
+      background: linear-gradient(135deg, #e11d48 0%, #be123c 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 2px 10px rgba(225, 29, 72, 0.45) !important;
+    }
+    
     .ap-icon {
       width: 40px; height: 40px;
       border-radius: 12px;
@@ -2463,13 +2491,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 <?php endif; ?>
 
                 <?php if ($level === 'DISMISSED'): ?>
-                  <div class="alert-panel" style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-color: #cbd5e1; color: #334155; margin-bottom: 20px;">
-                    <div class="ap-icon" style="background: linear-gradient(135deg, #64748b, #475569); color: #fff;">
+                  <div class="alert-panel alert-panel--dismissed-glow" id="dismissedAlertBanner">
+                    <div class="ap-icon">
                       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
                     <div class="ap-body">
-                      <div class="ap-title" style="color: #1e293b;">📋 DISMISSED OFFENSE RECORD (RECORD-KEEPING ONLY)</div>
-                      <div class="ap-desc" style="color: #475569; margin-bottom: 0;">
+                      <div class="ap-title" style="color: #9f1239; font-weight: 800; font-size: 15px;">📋 DISMISSED OFFENSE RECORD (RECORD-KEEPING ONLY)</div>
+                      <div class="ap-desc" style="color: #881337; margin-bottom: 0; font-weight: 500;">
                         This record is for administrative tracking purposes only. It will <strong>not</strong> count towards Minor/Major sanction escalations or trigger Section 4 UPCC cases.
                       </div>
                     </div>
