@@ -14,12 +14,33 @@ if ($id <= 0) {
 }
 
 try {
+  $uploadedFilePath = null;
+  if (isset($_FILES['photo_file']) && $_FILES['photo_file']['error'] === UPLOAD_ERR_OK) {
+    $uploadDir = __DIR__ . '/../../uploads/incident_reports/';
+    if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
+    $ext = strtolower(pathinfo($_FILES['photo_file']['name'], PATHINFO_EXTENSION));
+    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true)) {
+      $filename = 'evidence_' . time() . '_' . uniqid() . '.' . $ext;
+      if (move_uploaded_file($_FILES['photo_file']['tmp_name'], $uploadDir . $filename)) {
+        $uploadedFilePath = 'uploads/incident_reports/' . $filename;
+      }
+    }
+  }
+
   if ($type === 'nte') {
     db_exec("UPDATE nte_document SET show_in_hearing = :show WHERE nte_id = :id", [':show' => $show, ':id' => $id]);
   } elseif ($type === 'offense') {
-    db_exec("UPDATE offense SET show_in_hearing = :show WHERE offense_id = :id", [':show' => $show, ':id' => $id]);
+    if ($uploadedFilePath) {
+      db_exec("UPDATE offense SET show_in_hearing = :show, evidence_file = :evfile WHERE offense_id = :id", [':show' => $show, ':evfile' => $uploadedFilePath, ':id' => $id]);
+    } else {
+      db_exec("UPDATE offense SET show_in_hearing = :show WHERE offense_id = :id", [':show' => $show, ':id' => $id]);
+    }
   } elseif ($type === 'case') {
-    db_exec("UPDATE upcc_case SET show_in_hearing = :show WHERE case_id = :id", [':show' => $show, ':id' => $id]);
+    if ($uploadedFilePath) {
+      db_exec("UPDATE upcc_case SET show_in_hearing = :show, evidence_file = :evfile WHERE case_id = :id", [':show' => $show, ':evfile' => $uploadedFilePath, ':id' => $id]);
+    } else {
+      db_exec("UPDATE upcc_case SET show_in_hearing = :show WHERE case_id = :id", [':show' => $show, ':id' => $id]);
+    }
   }
 
   echo json_encode(['ok' => true, 'show' => $show, 'message' => 'Hearing photo status updated successfully.']);

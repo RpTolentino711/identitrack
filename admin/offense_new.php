@@ -2974,7 +2974,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; padding:0;">
         <div style="font-size:13.5px; color:#334155; line-height:1.5;">
-          Would you like to include the incident photo evidence in the student's UPCC Hearing case file?
+          Attach or select the incident photo evidence, and choose whether to share it with the UPCC Hearing panel:
+        </div>
+
+        <!-- Photo / Evidence File Upload Input -->
+        <div style="background:#f8fafc; border:1.5px dashed #2563eb; border-radius:12px; padding:14px; margin-bottom:4px;">
+          <label style="font-size:12px; font-weight:800; text-transform:uppercase; color:#1e40af; display:block; margin-bottom:6px;">
+            📷 Attach / Upload Incident Photo Evidence (Optional)
+          </label>
+          <input type="file" id="modal_hearing_photo_file" accept="image/*,.pdf" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#ffffff; font-size:13px;">
+          <div style="font-size:11px; color:#64748b; margin-top:4px;">Upload JPG, PNG, WEBP or PDF evidence file for this offense record.</div>
         </div>
         
         <!-- Option YES -->
@@ -3270,12 +3279,18 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const selectedRadio = document.querySelector('input[name="modal_hearing_choice"]:checked');
     const showVal = selectedRadio ? parseInt(selectedRadio.value) : 1;
     const btn = document.getElementById('btnSaveHearingChoice');
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+    const photoFileInput = document.getElementById('modal_hearing_photo_file');
+
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving Photo & Choice...'; }
 
     const fd = new FormData();
     fd.append('type', 'offense');
     fd.append('id', OFFENSE_ID);
     fd.append('show', showVal);
+
+    if (photoFileInput && photoFileInput.files && photoFileInput.files[0]) {
+      fd.append('photo_file', photoFileInput.files[0]);
+    }
 
     await fetch('AJAX/toggle_hearing_photo.php', { method: 'POST', body: fd }).catch(() => null);
 
