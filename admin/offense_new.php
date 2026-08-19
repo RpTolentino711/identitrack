@@ -630,7 +630,10 @@ function renderMajorAlert(int $majorCount, array $upccCases): string {
       $offenseType  = 'Under Investigation';
       $offenseStatus = '';
 
-      if (strpos($summary, 'Section 4') !== false || ($c['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION') {
+      if (preg_match('/Section 4 Major \((.*? Escalation)\)/', $summary, $escMatch)) {
+        $offenseType   = 'Section 4 Panel Case (' . $escMatch[1] . ')';
+        $offenseStatus = 'Awaiting category';
+      } elseif (strpos($summary, 'Section 4') !== false || ($c['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION') {
         $offenseType   = 'Section 4 Panel Case';
         $offenseStatus = 'Awaiting category';
       } elseif (preg_match('/Major Offense - Category (\d)/', $summary, $m)) {
@@ -3101,7 +3104,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       casesHtml = upccCases.map(c => {
         const summary = String(c.case_summary || '');
         let offenseType = 'Under Investigation', offenseStatus = '';
-        if (summary.includes('Section 4') || c.case_kind === 'SECTION4_MINOR_ESCALATION') {
+        const escMatch = summary.match(/Section 4 Major \((.*? Escalation)\)/);
+        if (escMatch) {
+          offenseType = `Section 4 Panel Case (${escMatch[1]})`;
+          offenseStatus = 'Awaiting category';
+        } else if (summary.includes('Section 4') || c.case_kind === 'SECTION4_MINOR_ESCALATION') {
           offenseType = 'Section 4 Panel Case'; offenseStatus = 'Awaiting category';
         } else {
           const m = summary.match(/Major Offense - Category (\d)/);
