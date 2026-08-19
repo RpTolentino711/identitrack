@@ -2960,6 +2960,46 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </div>
   </div>
 
+  <!-- MODAL 3: Dedicated Evidence Photo Choice (YES / NO) -->
+  <div class="modal" id="modal-evidence-photo-choice" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 520px; width: 92%; padding: 24px; border-radius: 16px; border: 1.5px solid #2563eb;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
+        <h3 style="font-size:18px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px; margin:0;">
+          <span>📷</span> Step 3: Photo Evidence in Student Hearing
+        </h3>
+        <button class="modal-close" onclick="closeEvidencePhotoChoiceModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; padding:0;">
+        <div style="font-size:13.5px; color:#334155; line-height:1.5;">
+          Would you like to include the incident photo evidence in the student's UPCC Hearing case file?
+        </div>
+        
+        <!-- Option YES -->
+        <label id="boxHearingYes" onclick="selectModalHearingChoice(1)" style="display:flex; align-items:flex-start; gap:12px; background:#eff6ff; border:2px solid #2563eb; padding:14px; border-radius:12px; cursor:pointer; transition:all 0.2s;">
+          <input type="radio" name="modal_hearing_choice" value="1" checked style="margin-top:3px; width:18px; height:18px; accent-color:#2563eb;" />
+          <div>
+            <div style="font-weight:800; font-size:14px; color:#1e40af;">📷 YES — Include Photo Evidence in Student Hearing</div>
+            <div style="font-size:12px; color:#3b82f6; margin-top:2px;">Panel board members will be able to inspect this evidence photo during the UPCC hearing.</div>
+          </div>
+        </label>
+
+        <!-- Option NO -->
+        <label id="boxHearingNo" onclick="selectModalHearingChoice(0)" style="display:flex; align-items:flex-start; gap:12px; background:#f8fafc; border:2px solid #cbd5e1; padding:14px; border-radius:12px; cursor:pointer; transition:all 0.2s;">
+          <input type="radio" name="modal_hearing_choice" value="0" style="margin-top:3px; width:18px; height:18px; accent-color:#dc2626;" />
+          <div>
+            <div style="font-weight:800; font-size:14px; color:#475569;">🔒 NO — Keep Photo Evidence Private</div>
+            <div style="font-size:12px; color:#64748b; margin-top:2px;">Photo will remain private for SDO administrative record-keeping only.</div>
+          </div>
+        </label>
+      </div>
+      <div class="modal-footer" style="margin-top:20px; border-top:1px solid #e2e8f0; padding-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" class="btn" id="btnSaveHearingChoice" onclick="saveEvidencePhotoChoiceAndFinish()" style="background:#2563eb; color:#ffffff; font-weight:800; padding:11px 22px; border-radius:10px; border:none; font-size:13.5px; cursor:pointer; box-shadow:0 4px 12px rgba(37,99,235,0.3);">
+          ✓ Save Choice & Finish Registration
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Confirm Skip Form F-005 File -->
   <div id="confirmSkipNteModal" class="modal">
     <div class="modal-content" style="max-width: 420px; text-align: center; border-radius: 16px; overflow: hidden; padding: 24px;">
@@ -3137,11 +3177,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     if (confirmModal) confirmModal.classList.remove('active');
   }
 
+  window.__pendingNteSentStatus = false;
+
   function confirmSkipNteFile() {
     closeConfirmSkipNteModal();
     const nteModal = document.getElementById('modal-nte-editor');
     if (nteModal) nteModal.classList.remove('active');
-    showFinalSuccessModal(false);
+    window.__pendingNteSentStatus = false;
+    openEvidencePhotoChoiceModal(OFFENSE_ID);
   }
 
   function openNteEditorModal() {
@@ -3182,12 +3225,62 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     if (res.ok && res.json?.ok) {
         const nteModal = document.getElementById('modal-nte-editor');
         if (nteModal) nteModal.classList.remove('active');
-        showFinalSuccessModal(true);
+        window.__pendingNteSentStatus = true;
+        openEvidencePhotoChoiceModal(OFFENSE_ID);
     } else {
         alert('❌ Error: ' + (res.json?.error || 'Failed to send Form F-005.'));
         if (btn) { btn.disabled = false; btn.textContent = '📄 Upload & Send Form F-005 to Student'; }
     }
   }
+
+  window.openEvidencePhotoChoiceModal = function(offenseId) {
+    const nteModal = document.getElementById('modal-nte-editor');
+    if (nteModal) nteModal.classList.remove('active');
+    
+    const choiceModal = document.getElementById('modal-evidence-photo-choice');
+    if (choiceModal) choiceModal.classList.add('active');
+  };
+
+  window.closeEvidencePhotoChoiceModal = function() {
+    const choiceModal = document.getElementById('modal-evidence-photo-choice');
+    if (choiceModal) choiceModal.classList.remove('active');
+    showFinalSuccessModal(window.__pendingNteSentStatus);
+  };
+
+  window.selectModalHearingChoice = function(val) {
+    const radios = document.getElementsByName('modal_hearing_choice');
+    radios.forEach(r => r.checked = (parseInt(r.value) === val));
+    
+    const boxYes = document.getElementById('boxHearingYes');
+    const boxNo  = document.getElementById('boxHearingNo');
+    if (val === 1) {
+      if (boxYes) { boxYes.style.background = '#eff6ff'; boxYes.style.borderColor = '#2563eb'; }
+      if (boxNo)  { boxNo.style.background = '#f8fafc'; boxNo.style.borderColor = '#cbd5e1'; }
+    } else {
+      if (boxYes) { boxYes.style.background = '#f8fafc'; boxYes.style.borderColor = '#cbd5e1'; }
+      if (boxNo)  { boxNo.style.background = '#fef2f2'; boxNo.style.borderColor = '#dc2626'; }
+    }
+  };
+
+  window.saveEvidencePhotoChoiceAndFinish = async function() {
+    const selectedRadio = document.querySelector('input[name="modal_hearing_choice"]:checked');
+    const showVal = selectedRadio ? parseInt(selectedRadio.value) : 1;
+    const btn = document.getElementById('btnSaveHearingChoice');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+    const fd = new FormData();
+    fd.append('type', 'offense');
+    fd.append('id', OFFENSE_ID);
+    fd.append('show', showVal);
+
+    await fetch('AJAX/toggle_hearing_photo.php', { method: 'POST', body: fd }).catch(() => null);
+
+    const choiceModal = document.getElementById('modal-evidence-photo-choice');
+    if (choiceModal) choiceModal.classList.remove('active');
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Save Choice & Finish Registration'; }
+
+    showFinalSuccessModal(window.__pendingNteSentStatus);
+  };
 
   const studentIdInput    = document.getElementById('studentIdInput');
   const levelSelect       = document.getElementById('levelSelect');
