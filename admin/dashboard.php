@@ -585,7 +585,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       opacity: 1; visibility: visible; pointer-events: auto;
     }
     .guard-modal {
-      width: min(500px, 96vw);
+      width: min(580px, 96vw);
       background: #fff;
       border: 1px solid #e5e7eb;
       border-radius: 16px;
@@ -662,7 +662,16 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     .guard-modal-actions {
       padding: 14px 20px 16px;
       border-top: 1px solid #f3f4f6;
-      display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;
+      display: flex; gap: 8px; justify-content: space-between; align-items: center; flex-wrap: nowrap;
+    }
+    .guard-modal-actions .gm-btn {
+      flex: 1;
+      height: 36px;
+      padding: 0 10px;
+      white-space: nowrap;
+      text-align: center;
+      justify-content: center;
+      font-size: 11.5px;
     }
     .gm-btn {
       height: 34px; padding: 0 16px;
