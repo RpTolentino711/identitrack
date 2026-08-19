@@ -40,6 +40,8 @@ $scanFlash = '';
 $guardReviewFlashKey = trim((string)($_GET['gr_msg'] ?? ''));
 if ($guardReviewFlashKey === 'approved') {
   $guardReviewFlash = 'Guard report approved and offense record created.';
+} elseif ($guardReviewFlashKey === 'dismissed') {
+  $guardReviewFlash = 'Guard report recorded as DISMISSED for administrative tracking.';
 } elseif ($guardReviewFlashKey === 'rejected') {
   $guardReviewFlash = 'Guard report rejected.';
 } elseif ($guardReviewFlashKey === 'failed') {
@@ -59,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = (string)($_POST['action'] ?? '');
   $reportId = (int)($_POST['report_id'] ?? 0);
 
-  if ($reportId > 0 && ($action === 'approve_guard_report' || $action === 'reject_guard_report')) {
+  if ($reportId > 0 && ($action === 'approve_guard_report' || $action === 'reject_guard_report' || $action === 'dismiss_guard_report')) {
     $report = db_one(
       "SELECT report_id, student_id, offense_type_id, date_committed, description, status
        FROM guard_violation_report
@@ -69,7 +71,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     );
 
     if ($report && strtoupper((string)$report['status']) === 'PENDING') {
-      if ($action === 'approve_guard_report') {
+      if ($action === 'dismiss_guard_report') {
+        $reason = trim((string)($report['description'] ?? 'Dismissed record via Guard Report Review.'));
+        if ($reason === '') $reason = 'Dismissed record via Guard Report Review.';
+
+        $insParams = [
+          ':sid' => (string)$report['student_id'],
+          ':admin' => $adminId,
+          ':tid' => (int)$report['offense_type_id'],
+          ':lvl' => 'DISMISSED',
+          ':descr' => trim((string)($report['description'] ?? '')) === '' ? null : $report['description'],
+          ':dreason' => $reason,
+          ':dt' => (string)$report['date_committed'],
+        ];
+        db_add_encryption_key($insParams);
+
+        db_exec(
+          "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, dismissal_reason, date_committed, status, created_at, updated_at)
+           VALUES (:sid, :admin, :tid, :lvl, " . db_encrypt_col('description', ':descr') . ", :dreason, :dt, 'DISMISSED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+          $insParams
+        );
+
+        db_exec(
+          "UPDATE guard_violation_report
+           SET status = 'APPROVED', reviewed_by = :admin, reviewed_at = NOW(), review_notes = 'Recorded as DISMISSED by admin via student view.'
+           WHERE report_id = :rid",
+          [':admin' => $adminId, ':rid' => $reportId]
+        );
+
+        db_exec(
+          "UPDATE notification
+           SET is_read = 1, is_deleted = 1
+           WHERE type = 'GUARD_REPORT'
+             AND related_table = 'guard_violation_report'
+             AND related_id = :rid",
+          [':rid' => $reportId]
+        );
+
+        $nextPending = db_one(
+          "SELECT report_id FROM guard_violation_report 
+           WHERE student_id = :sid AND status = 'PENDING' AND is_deleted = 0 
+           ORDER BY created_at ASC LIMIT 1",
+          [':sid' => $studentId]
+        );
+        $nextIdParam = $nextPending ? '&pending_report_id=' . (int)$nextPending['report_id'] : '';
+
+        redirect('offenses_student_view.php?student_id=' . urlencode($studentId) . '&gr_msg=dismissed' . $nextIdParam);
+      } elseif ($action === 'approve_guard_report') {
         $offenseType = db_one(
           "SELECT level, major_category FROM offense_type WHERE offense_type_id = :oid LIMIT 1",
           [':oid' => (int)$report['offense_type_id']]
@@ -371,13 +419,15 @@ $history = db_all(
   $historyParams
 );
 
-$totalOffenses   = count($history);
-$rawMajorCount   = count(array_filter($history, fn($h) => $h['level'] === 'MAJOR'));
-$minorCount      = $totalOffenses - $rawMajorCount;
+// Separate minors, majors, and dismissed
+$allMinors    = array_values(array_filter($history, fn($h) => $h['level'] === 'MINOR'));
+$allMajors    = array_values(array_filter($history, fn($h) => $h['level'] === 'MAJOR'));
+$allDismissed = array_values(array_filter($history, fn($h) => $h['level'] === 'DISMISSED'));
 
-// Separate minors and majors
-$allMinors = array_values(array_filter($history, fn($h) => $h['level'] === 'MINOR'));
-$allMajors = array_filter($history, fn($h) => $h['level'] === 'MAJOR');
+$minorCount     = count($allMinors);
+$rawMajorCount  = count($allMajors);
+$dismissedCount = count($allDismissed);
+$totalOffenses  = $minorCount + $rawMajorCount;
 
 // Fetch notice_to_explain records for history log timestamp display
 ensure_notice_to_explain_table();
@@ -1559,12 +1609,18 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                 <div><strong>Submitted:</strong> <?php echo e(date('M d, Y h:i A', strtotime((string)$pendingGuardReport['created_at']))); ?></div>
               </div>
 
-              <div class="guard-review-actions">
+              <div class="guard-review-actions" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
 
                 <form method="post" style="margin:0;" id="guardApproveForm">
                   <input type="hidden" name="action" value="approve_guard_report" />
                   <input type="hidden" name="report_id" value="<?php echo (int)$pendingGuardReport['report_id']; ?>" />
                   <button type="button" class="guard-pill guard-pill-approve" id="guardApproveBtn">Approve and Record</button>
+                </form>
+
+                <form method="post" style="margin:0;" id="guardDismissForm">
+                  <input type="hidden" name="action" value="dismiss_guard_report" />
+                  <input type="hidden" name="report_id" value="<?php echo (int)$pendingGuardReport['report_id']; ?>" />
+                  <button type="button" class="guard-pill" style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; font-weight:700;" id="guardDismissBtn" onclick="if(confirm('Record this report as DISMISSED for administrative tracking only?')) this.form.submit();">Dismiss (Record Only)</button>
                 </form>
 
                 <form method="post" style="margin:0;" id="guardRejectForm">
@@ -1581,18 +1637,21 @@ $majorCount = $rawMajorCount + count($escalationGroups);
               <div class="card-header__left">
                 <div class="card-header__title">Offense History</div>
                 <div class="card-header__sub">
-                  <?php echo $totalOffenses; ?> record<?php echo $totalOffenses !== 1 ? 's' : ''; ?> found
+                  <?php echo ($totalOffenses + $dismissedCount); ?> record<?php echo ($totalOffenses + $dismissedCount) !== 1 ? 's' : ''; ?> found
                 </div>
               </div>
               <div class="filter-bar">
                 <button class="filter-chip active" id="filterAll" onclick="filterOffenses('all')">
-                  All <span class="count-pill" style="margin-left:4px;"><?php echo $totalOffenses; ?></span>
+                  All <span class="count-pill" style="margin-left:4px;"><?php echo ($totalOffenses + $dismissedCount); ?></span>
                 </button>
                 <button class="filter-chip" id="filterMajor" onclick="filterOffenses('major')">
-                  Major <span class="count-pill" style="margin-left:4px;"><?php echo $majorCount; ?></span>
+                  Major <span class="count-pill" style="margin-left:4px;"><?php echo $rawMajorCount; ?></span>
                 </button>
                 <button class="filter-chip" id="filterMinor" onclick="filterOffenses('minor')">
                   Minor <span class="count-pill" style="margin-left:4px;"><?php echo $minorCount; ?></span>
+                </button>
+                <button class="filter-chip" id="filterDismissed" onclick="filterOffenses('dismissed')">
+                  Dismissed <span class="count-pill" style="margin-left:4px;"><?php echo $dismissedCount; ?></span>
                 </button>
               </div>
             </div>
@@ -1975,6 +2034,43 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                       </div>
                     </div>
                   <?php endforeach; ?>
+
+                  <?php foreach ($allDismissed as $dismissed): ?>
+                    <div class="off-card dismissed" data-level="dismissed" style="border: 1px solid #fde68a; background: #fffbeb;">
+                      <div class="off-top">
+                        <div class="off-badges">
+                          <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;"><span class="badge-dot" style="background:#d97706;"></span>Dismissed</span>
+                          <span class="badge" style="background:#f1f5f9; color:#475569;">Record Only</span>
+                        </div>
+                        <span class="badge" style="background:#fef3c7; color:#92400e;">DISMISSED</span>
+                      </div>
+                      <div class="off-name"><?php echo e((string)$dismissed['name']); ?></div>
+                      <?php if (!empty($dismissed['description'])): ?>
+                        <div class="off-desc"><?php echo e((string)$dismissed['description']); ?></div>
+                      <?php endif; ?>
+                      <?php if (!empty($dismissed['dismissal_reason'])): ?>
+                        <div style="margin-top:8px; font-size:12px; color:#b45309; font-style:italic; background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #fde68a;">
+                          <strong>Dismissal Reason:</strong> "<?php echo e((string)$dismissed['dismissal_reason']); ?>"
+                        </div>
+                      <?php endif; ?>
+                      <div class="off-footer" style="border-top:1px solid #fde68a; padding-top:10px; margin-top:10px;">
+                        <?php if (!empty($dismissed['code'])): ?>
+                          <span class="off-code" style="color:#b45309; border-color:#fde68a; background:#fef3c7;"><?php echo e((string)$dismissed['code']); ?></span>
+                        <?php else: ?>
+                          <span></span>
+                        <?php endif; ?>
+                        <div class="off-date" style="color:#b45309;">
+                          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                          </svg>
+                          <?php echo date('M j, Y', strtotime((string)$dismissed['date_committed'])); ?>
+                        </div>
+                      </div>
+                    </div>
+                  <?php endforeach; ?>
                 </div>
 
                 <!-- Filter empty state -->
@@ -2090,7 +2186,7 @@ $majorCount = $rawMajorCount + count($escalationGroups);
 
   <script>
   (function () {
-    const filterMap = { all: 'filterAll', major: 'filterMajor', minor: 'filterMinor' };
+    const filterMap = { all: 'filterAll', major: 'filterMajor', minor: 'filterMinor', dismissed: 'filterDismissed' };
 
     function filterOffenses(type) {
       const list        = document.getElementById('offenseList');
@@ -2109,13 +2205,14 @@ $majorCount = $rawMajorCount + count($escalationGroups);
 
       // Update chip styles
       document.querySelectorAll('.filter-chip').forEach(b => {
-        b.classList.remove('active', 'active-major', 'active-minor');
+        b.classList.remove('active', 'active-major', 'active-minor', 'active-dismissed');
       });
       const activeBtn = document.getElementById(filterMap[type]);
       if (activeBtn) {
         activeBtn.classList.add('active');
         if (type === 'major') activeBtn.classList.add('active-major');
         if (type === 'minor') activeBtn.classList.add('active-minor');
+        if (type === 'dismissed') activeBtn.classList.add('active-dismissed');
       }
 
       // Empty state
@@ -2128,6 +2225,9 @@ $majorCount = $rawMajorCount + count($escalationGroups);
           } else if (type === 'major') {
             emptyTitle.textContent = 'No Major Offenses';
             emptyText.textContent = 'This student has no major offense records.';
+          } else if (type === 'dismissed') {
+            emptyTitle.textContent = 'No Dismissed Records';
+            emptyText.textContent = 'This student has no dismissed offense records.';
           } else {
             emptyTitle.textContent = 'No Records Found';
             emptyText.textContent = 'No offense records available.';
