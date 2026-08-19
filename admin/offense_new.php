@@ -2564,11 +2564,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                            value="<?php echo htmlspecialchars($postDate); ?>"/>
                   </div>
 
-                  <?php if ($level === 'MAJOR'): ?>
-                  <div class="form-group" id="categoryGroup">
+                  <div class="form-group" id="categoryGroup" style="<?php echo ($level === 'MAJOR') ? '' : 'display:none;'; ?>">
                     <label for="major_category">Major Category *</label>
                     <select id="major_category" name="major_category" onchange="onCategoryChange(this.value)">
-                      <option value="">— Select Category —</option>
+                      <option value="">— Select Category (1–5) —</option>
                       <?php for ($i = 1; $i <= 5; $i++): ?>
                         <option value="<?php echo $i; ?>" <?php echo $category === $i ? 'selected' : ''; ?>>
                           Category <?php echo $i; ?>
@@ -2581,9 +2580,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       </div>
                     <?php endif; ?>
                   </div>
-                  <?php else: ?>
-                  <div></div>
-                  <?php endif; ?>
                 </div>
 
                 <div class="form-row full">
@@ -3493,6 +3489,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   function onLevelChange(newLevel) {
+    const catGroup = document.getElementById('categoryGroup');
+    if (catGroup) {
+      catGroup.style.display = (newLevel === 'MAJOR') ? '' : 'none';
+    }
     const studentId = (studentIdInput?.value || '').trim();
     const params    = new URLSearchParams({ level: newLevel });
     if (studentId) params.set('student_id', studentId);
