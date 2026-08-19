@@ -181,6 +181,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
       $cyclePos = $afterMinor % 3;
 
       if ($cyclePos === 0 && $afterMinor >= 3) {
+        $escNum = (int)($afterMinor / 3);
+        $ordStr = getOrdinal($escNum);
+        $summaryStr = 'Section 4 Major (' . $ordStr . ' Escalation) — Minor Offense #' . $afterMinor . ' attempt → Referred to UPCC panel for investigation and category assignment (1‑5).';
+
         // Every 3rd minor in cycle triggers Section 4 Escalation & Full 3-Modal Workflow
         db_exec(
           "INSERT INTO upcc_case (student_id, created_by, status, case_kind, case_summary, evidence_file, created_at, updated_at)
@@ -188,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
           [
             ':sid'     => $student_id,
             ':aid'     => $adminId,
-            ':summary' => 'Section 4 Major — Minor Offense #' . $afterMinor . ' attempt → Referred to UPCC panel for investigation and category assignment (1‑5).',
+            ':summary' => $summaryStr,
             ':evfile'  => $evidenceFilePath,
           ]
         );
@@ -531,7 +535,13 @@ if (isset($_GET['msg'])) {
     $successMsg = 'Offense registered successfully.';
 }
 
-// ── Helper: render alert panel HTML ──────────────────────────────────────────
+// ── Helper functions ──────────────────────────────────────────────────────────
+function getOrdinal(int $n): string {
+    $ends = ['th','st','nd','rd','th','th','th','th','th','th'];
+    if (($n % 100) >= 11 && ($n % 100) <= 13) return $n . 'th';
+    return $n . ($ends[$n % 10] ?? 'th');
+}
+
 function renderMinorAlert(int $projectedCount, string $guardianEmail, int $currentCount = -1, bool $hasActiveSection4 = false, int $postSection4Minors = 0): string {
   if ($currentCount < 0) $currentCount = $projectedCount - 1;
 
@@ -738,15 +748,19 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
     foreach ($chronological as $o) {
       $isMajor = ($o['level'] === 'MAJOR');
       $isSection4 = false;
+      $section4Tag = '';
       if (!$isMajor) {
           $minorCounter++;
-          if ($minorCounter <= $completedSection4Minors) {
+          if ($minorCounter % 3 === 0) {
               $isSection4 = true;
+              $escNum = (int)($minorCounter / 3);
+              $section4Tag = 'SECTION 4 (' . getOrdinal($escNum) . ' Escalation)';
           }
       }
       
       $o['isRed'] = $isMajor || $isSection4;
       $o['isSection4Label'] = $isSection4;
+      $o['section4Tag'] = $section4Tag;
       $processed[] = $o;
     }
     
@@ -764,7 +778,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       
       $labelHtml = '';
       if ($isSection4Label) {
-          $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">SECTION 4</div><br>';
+          $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">' . htmlspecialchars($o['section4Tag'] ?: 'SECTION 4') . '</div><br>';
       } else if ($o['level'] === 'MAJOR') {
           $cat = isset($o['decided_category']) ? (int)$o['decided_category'] : 0;
           $caseStatus = isset($o['case_status']) ? (string)$o['case_status'] : '';
