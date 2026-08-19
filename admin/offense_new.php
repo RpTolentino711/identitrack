@@ -3581,6 +3581,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               </a>
             </div>
             <div style="flex:1; padding:20px; overflow-y:auto; font-family:'Segoe UI', system-ui, sans-serif; color:#1e293b; line-height:1.6; font-size:13px;">
+              <div style="margin-bottom:10px;"><img src="../assets/guardian_letterhead.png" style="max-width:240px; height:auto; display:block;" alt="NU Lipa Student Discipline Office" /></div>
               <div style="font-size:18px; font-weight:800; color:#0f172a; font-family:'Times New Roman', serif;">Student Discipline Office</div>
               <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:14px;">Official Student Conduct Notice · IdentiTrack System</div>
               <div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">${escHtml(subject)}</div>

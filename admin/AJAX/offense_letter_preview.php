@@ -85,6 +85,14 @@ if (isset($_FILES['letter_image']) && $_FILES['letter_image']['error'] === UPLOA
     $imgHtml = '<div style="margin-top: 40px; margin-left: '.($imgX - 72).'px;"><img src="'.$base64.'" width="'.$imgW.'" style="position: relative; top: '.$imgYOffset.'px;" /></div>';
 }
 
+$letterheadPath = realpath(__DIR__ . '/../../assets/guardian_letterhead.png');
+$letterheadImg = '';
+if ($letterheadPath && file_exists($letterheadPath)) {
+    $lhData = file_get_contents($letterheadPath);
+    $lhBase64 = 'data:image/png;base64,' . base64_encode($lhData);
+    $letterheadImg = '<div style="margin-bottom: 12px;"><img src="' . $lhBase64 . '" style="max-width: 280px; height: auto;" /></div>';
+}
+
 $html = '
 <!DOCTYPE html>
 <html>
@@ -104,8 +112,9 @@ $html = '
 </head>
 <body>
     <div class="header">
+        ' . $letterheadImg . '
         <div class="sdo">Student Discipline Office</div>
-        <div class="official">Official Student Conduct Notice<br>IdentiTrack System</div>
+        <div class="official">Official Student Conduct Notice · IdentiTrack System</div>
         <div class="title">' . htmlspecialchars($subject) . '</div>
         <div class="meta">
             <strong>To:</strong> ' . htmlspecialchars($guardianName) . '<br>
