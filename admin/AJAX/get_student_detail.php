@@ -54,8 +54,6 @@ try {
                 CASE WHEN o.level = 'DISMISSED' OR o.status = 'DISMISSED' OR ot.level = 'DISMISSED' OR ot.code LIKE 'DISM%' THEN 'DISMISSED' WHEN o.level = 'MAJOR' OR ot.level = 'MAJOR' THEN 'MAJOR' ELSE 'MINOR' END AS level,
                 ot.name        AS offense_name,
                 ot.code        AS offense_code,
-                o.incident_photo,
-                COALESCE(o.show_in_hearing, 1) AS show_in_hearing,
                 uc.decided_category,
                 uc.status      AS case_status,
                 uc.probation_until,
@@ -68,18 +66,6 @@ try {
          WHERE  o.student_id = :sid
          ORDER  BY o.date_committed DESC",
         $offParams
-    );
-
-    // ── Form F-005 (NTE) documents ──
-    $nteParams = [':sid' => $studentId];
-    db_add_encryption_key($nteParams);
-    $nteDocs = db_all(
-        "SELECT n.nte_id, n.case_id, n.incident_report_no, n.attachment_path, n.created_at,
-                n.incident_photo, COALESCE(n.show_in_hearing, 1) AS show_in_hearing
-         FROM nte_document n
-         WHERE n.student_id = :sid
-         ORDER BY n.created_at DESC",
-        $nteParams
     );
 
     // Year suffix: 1 → 1st, 2 → 2nd, 3 → 3rd, 4+ → 4th
@@ -105,7 +91,6 @@ try {
             'phone'      => $student['phone_number']  ?? '',
             'email'      => $student['student_email'] ?? '',
             'offenses'   => $offenses ?: [],
-            'nte_docs'   => $nteDocs ?: [],
         ],
     ]);
 
