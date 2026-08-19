@@ -3885,7 +3885,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   const HAS_ERRORS = <?php echo empty($errors) ? 'false' : 'true'; ?>;
-  if (SUCCESS_MODE && successModal && !HAS_ERRORS) {
+  if (SUCCESS_MODE && successModal && !HAS_ERRORS && !LETTER_MODE) {
       // Strip ONLY success parameter from the URL so refreshing doesn't trigger success again.
       // (Letter parameters are kept so the email modal persists on refresh if not sent).
       if (window.history && window.history.replaceState) {
