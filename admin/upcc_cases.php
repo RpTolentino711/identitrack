@@ -1527,6 +1527,8 @@ function fmt_case_id(int $id, string $created): string {
                                 data-resolution-date="<?= e((string)($c['resolution_date'] ?? $c['updated_at'] ?? '')) ?>"
                                 data-nfi-file-path="<?= e($c['nfi_file_path'] ?? '') ?>"
                                 data-nfi-date="<?= e((string)($c['nfi_date'] ?? '')) ?>"
+                                data-incident-photo="<?= e($c['incident_photo'] ?? '') ?>"
+                                data-show-in-hearing="<?= (int)($c['show_in_hearing'] ?? 1) ?>"
                                 onclick="selectCase(this)">
                                 <td><div class="case-id"><?= e($caseLabel) ?></div></td>
                                 <td>
@@ -1608,6 +1610,21 @@ function fmt_case_id(int $id, string $created): string {
                             <div class="detail-row" id="row-hearing"><span class="detail-row-label">Hearing</span><span class="detail-row-value" id="d-hearing"></span></div>
                             <div class="detail-row" id="row-dept"><span class="detail-row-label">Assigned Dept</span><span class="detail-row-value" id="d-dept"></span></div>
                             <div class="detail-row" id="row-decision" style="display:none;"><span class="detail-row-label">Final Decision</span><span class="detail-row-value" id="d-decision"></span></div>
+                            <div class="detail-row" id="row-incident-photo" style="display:none; flex-direction:column; align-items:flex-start; gap:8px; background:#eff6ff; padding:12px; border-radius:10px; border:1px solid #bfdbfe; margin-top:10px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                                    <span style="font-size:12px; font-weight:800; color:#1e40af; display:flex; align-items:center; gap:6px;">
+                                        📷 INCIDENT PHOTO EVIDENCE FOR HEARING
+                                    </span>
+                                    <span id="d-hearing-photo-status-badge" style="font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:10px; background:#dcfce7; color:#15803d; border:1px solid #86efac;">
+                                        YES (Shown in Hearing)
+                                    </span>
+                                </div>
+                                <div id="d-incident-photo-container" style="width:100%; text-align:center;">
+                                    <a id="d-incident-photo-link" href="#" target="_blank">
+                                        <img id="d-incident-photo-img" src="" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid #cbd5e1; object-fit:contain; cursor:pointer;" title="Click to view full incident photo" />
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                         <div class="detail-forms">
                             <div id="assignment-form" style="display:none;">
@@ -2484,6 +2501,28 @@ function selectCase(row) {
         document.getElementById('row-decision').style.display = 'flex';
     } else {
         document.getElementById('row-decision').style.display = 'none';
+    }
+
+    const incidentPhoto = row.dataset.incidentPhoto || row.dataset.nfiFilePath || '';
+    const showInHearing = row.dataset.showInHearing !== '0';
+    const photoRow = document.getElementById('row-incident-photo');
+    const photoImg = document.getElementById('d-incident-photo-img');
+    const photoLink = document.getElementById('d-incident-photo-link');
+    const photoBadge = document.getElementById('d-hearing-photo-status-badge');
+
+    if (incidentPhoto && photoRow) {
+      photoRow.style.display = 'flex';
+      const fileUrl = incidentPhoto.startsWith('../') ? incidentPhoto : ('../' + incidentPhoto);
+      if (photoImg) photoImg.src = fileUrl;
+      if (photoLink) photoLink.href = fileUrl;
+      if (photoBadge) {
+        photoBadge.style.background = showInHearing ? '#dcfce7' : '#f1f5f9';
+        photoBadge.style.color = showInHearing ? '#15803d' : '#64748b';
+        photoBadge.style.borderColor = showInHearing ? '#86efac' : '#cbd5e1';
+        photoBadge.textContent = showInHearing ? 'YES (Shown in Hearing)' : 'NO (Private)';
+      }
+    } else if (photoRow) {
+      photoRow.style.display = 'none';
     }
 
     // Show assignment form if pending or investigating and no panel yet

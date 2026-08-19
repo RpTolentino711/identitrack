@@ -925,6 +925,19 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $reuploadBtn = '
       <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . htmlspecialchars($student['student_id']) . '" onclick="window.openDirectNteUploadModal(this, event, ' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
 
+      $showInHearing = (int)($nte['show_in_hearing'] ?? 1);
+      $hearingPillBg = $showInHearing ? '#dcfce7' : '#f1f5f9';
+      $hearingPillColor = $showInHearing ? '#15803d' : '#64748b';
+      $hearingLabel = $showInHearing ? 'YES (Shown in Hearing)' : 'NO (Private)';
+
+      $hearingToggleBtn = '
+      <div style="margin-top:6px; padding-top:6px; border-top:1px dashed #bbf7d0; display:flex; align-items:center; justify-content:space-between; font-size:11px;">
+        <span style="font-weight:700; color:#166534;">📷 Photo in Student Hearing:</span>
+        <button type="button" onclick="toggleHearingPhoto(\'nte\', ' . $nteId . ', ' . ($showInHearing ? 0 : 1) . ', this)" style="background:' . $hearingPillBg . '; color:' . $hearingPillColor . '; font-weight:800; font-size:10.5px; border:1px solid ' . ($showInHearing ? '#86efac' : '#cbd5e1') . '; padding:3px 8px; border-radius:12px; cursor:pointer;">
+          ' . $hearingLabel . '
+        </button>
+      </div>';
+
       $nteHistoryHtml .= '
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
@@ -938,6 +951,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           ' . ($fileLink ?: '<div></div>') . '
           ' . $reuploadBtn . '
         </div>
+        ' . $hearingToggleBtn . '
       </div>';
   }
 
@@ -3887,8 +3901,36 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         clearScanTimer();
         scanTimer = setTimeout(flushScanBuffer, 180);
       }
-    });
-  })();
+  window.toggleHearingPhoto = async function(type, id, nextShow, btnEl) {
+    const fd = new FormData();
+    fd.append('type', type);
+    fd.append('id', id);
+    fd.append('show', nextShow);
+    
+    btnEl.disabled = true;
+    const oldText = btnEl.textContent;
+    btnEl.textContent = 'Updating...';
+    
+    try {
+      const res = await fetch('AJAX/toggle_hearing_photo.php', { method: 'POST', body: fd });
+      const json = await res.json().catch(() => null);
+      if (json && json.ok) {
+        const isYes = json.show === 1;
+        btnEl.style.background = isYes ? '#dcfce7' : '#f1f5f9';
+        btnEl.style.color = isYes ? '#15803d' : '#64748b';
+        btnEl.style.borderColor = isYes ? '#86efac' : '#cbd5e1';
+        btnEl.textContent = isYes ? 'YES (Shown in Hearing)' : 'NO (Private)';
+        btnEl.setAttribute('onclick', `toggleHearingPhoto('${type}', ${id}, ${isYes ? 0 : 1}, this)`);
+      } else {
+        alert('Failed to update status: ' + (json?.message || 'Unknown error'));
+        btnEl.textContent = oldText;
+      }
+    } catch(err) {
+      alert('Error updating status.');
+      btnEl.textContent = oldText;
+    }
+    btnEl.disabled = false;
+  };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
@@ -4043,6 +4085,18 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           </div>
           <button type="button" onclick="clearModalFileSelection()" style="background:#fee2e2; color:#dc2626; border:none; padding:6px 10px; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer;">Remove</button>
         </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-size:13px; font-weight:700; color:#1e293b;">📷 Show Photo Evidence in Student Hearing?</div>
+            <div style="font-size:11px; color:#64748b;">If YES, UPCC panel members can inspect this photo during the student hearing.</div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button type="button" id="btnShowInHearingYes" onclick="setHearingChoice(1)" style="padding:6px 14px; border-radius:8px; font-weight:800; font-size:12px; border:1px solid #2563eb; background:#2563eb; color:#fff; cursor:pointer;">YES</button>
+            <button type="button" id="btnShowInHearingNo" onclick="setHearingChoice(0)" style="padding:6px 14px; border-radius:8px; font-weight:800; font-size:12px; border:1px solid #cbd5e1; background:#f1f5f9; color:#64748b; cursor:pointer;">NO</button>
+            <input type="hidden" id="show_in_hearing_input" name="show_in_hearing" value="1" />
+          </div>
+        </div>
       </div>
       <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:14px;">
         <button type="button" class="btn" onclick="skipEvidenceUploadAndSubmit()" style="padding:10px 16px; border-radius:10px; font-weight:700; color:#64748b; cursor:pointer;">Skip & Register Case</button>
@@ -4054,6 +4108,20 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   </div>
 
   <script>
+    window.setHearingChoice = function(val) {
+      const input = document.getElementById('show_in_hearing_input');
+      const btnYes = document.getElementById('btnShowInHearingYes');
+      const btnNo = document.getElementById('btnShowInHearingNo');
+      if (input) input.value = val;
+      if (val === 1) {
+        if (btnYes) { btnYes.style.background = '#2563eb'; btnYes.style.borderColor = '#2563eb'; btnYes.style.color = '#fff'; }
+        if (btnNo) { btnNo.style.background = '#f1f5f9'; btnNo.style.borderColor = '#cbd5e1'; btnNo.style.color = '#64748b'; }
+      } else {
+        if (btnYes) { btnYes.style.background = '#f1f5f9'; btnYes.style.borderColor = '#cbd5e1'; btnYes.style.color = '#64748b'; }
+        if (btnNo) { btnNo.style.background = '#dc2626'; btnNo.style.borderColor = '#dc2626'; btnNo.style.color = '#fff'; }
+      }
+    };
+
     window.__projectedMinorCount = <?php echo (int)($afterMinor ?? ($liveMinorCount + 1)); ?>;
 
     function openDismissalReasonModal() {

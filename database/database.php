@@ -1953,6 +1953,18 @@ function ensure_dismissed_records_migrated(): void {
     } catch (\Throwable $e) {}
     $done = true;
 }
+function ensure_hearing_photo_column(): void {
+    static $done = false;
+    if ($done) return;
+    try { db_exec("ALTER TABLE offense ADD COLUMN incident_photo VARCHAR(255) DEFAULT NULL;"); } catch (\Throwable $e) {}
+    try { db_exec("ALTER TABLE offense ADD COLUMN show_in_hearing TINYINT(1) DEFAULT 1;"); } catch (\Throwable $e) {}
+    try { db_exec("ALTER TABLE upcc_case ADD COLUMN incident_photo VARCHAR(255) DEFAULT NULL;"); } catch (\Throwable $e) {}
+    try { db_exec("ALTER TABLE upcc_case ADD COLUMN show_in_hearing TINYINT(1) DEFAULT 1;"); } catch (\Throwable $e) {}
+    try { db_exec("ALTER TABLE nte_document ADD COLUMN incident_photo VARCHAR(255) DEFAULT NULL;"); } catch (\Throwable $e) {}
+    try { db_exec("ALTER TABLE nte_document ADD COLUMN show_in_hearing TINYINT(1) DEFAULT 1;"); } catch (\Throwable $e) {}
+    $done = true;
+}
 ensure_dismissed_records_migrated();
 ensure_notice_to_explain_table();
+ensure_hearing_photo_column();
 ?>
