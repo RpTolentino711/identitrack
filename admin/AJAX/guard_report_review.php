@@ -80,10 +80,16 @@ function send_guardian_notice(string $studentId, string $subject, string $letter
               <div class='content'>
                 <p style='font-weight:600;font-size:16px;color:#1e293b;margin-top:0;'>Dear Parent/Guardian,</p>
                 <p>Please review the attached official notice letter regarding the disciplinary record of <strong>{$studentName}</strong>.</p>
-                <p style='margin-top:24px;margin-bottom:0;'>If you have any questions, please coordinate with the Student Discipline Office or the University Panel on Community Conduct.</p>
+                <div style='background-color:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:16px 20px; margin:20px 0; color:#1e3a8a; font-size:13.5px; line-height:1.5;'>
+                  <p style='margin:0 0 6px 0; font-weight:700; color:#1d4ed8; font-size:14px;'>🤝 Parent & Guardian Formal Cooperation Request</p>
+                  <p style='margin:0;'>Please formally cooperate with your student regarding this disciplinary notification to support their personal development, conduct compliance, and academic progress.</p>
+                </div>
+                <p style='margin-top:16px;margin-bottom:0;'>If you have any questions, please coordinate with the Student Discipline Office or the University Panel on Community Conduct.</p>
               </div>
               <div class='footer'>
-                &copy; " . date('Y') . " IdentiTrack System. All rights reserved.<br>This is an automated notification. Please do not reply.
+                <p style='margin:0 0 6px 0; font-weight:700; color:#475569;'>🤖 Automated System Notification — Please Do Not Reply</p>
+                <p style='margin:0 0 8px 0; font-size:12px; color:#64748b;'>This email was generated automatically by the IdentiTrack System. Please do not reply directly to this message as this mailbox is unmonitored.</p>
+                <div style='font-size:11px; color:#94a3b8;'>&copy; " . date('Y') . " IdentiTrack System. All rights reserved.</div>
               </div>
             </div>
           </div>
