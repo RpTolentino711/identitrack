@@ -195,6 +195,11 @@ if ($filter === 'minor') {
       WHERE o3.student_id = s.student_id AND o3.level = 'MINOR'
     ) >= 3
   )";
+} elseif ($filter === 'dismissed') {
+  $whereParts[] = "EXISTS (
+    SELECT 1 FROM offense o2
+    WHERE o2.student_id = s.student_id AND o2.level = 'DISMISSED'
+  )";
 }
 
 if ($selectedMonth !== '') {
@@ -228,6 +233,7 @@ $sql = "
     COALESCE(COUNT(o.offense_id), 0)                                            AS total_offenses,
     COALESCE(SUM(CASE WHEN o.level = 'MINOR' THEN 1 ELSE 0 END), 0)            AS minor_offenses,
     COALESCE(SUM(CASE WHEN o.level = 'MAJOR' THEN 1 ELSE 0 END), 0)            AS major_offenses_explicit,
+    COALESCE(SUM(CASE WHEN o.level = 'DISMISSED' THEN 1 ELSE 0 END), 0)        AS dismissed_offenses,
 
     CASE
       WHEN COALESCE(SUM(CASE WHEN o.level = 'MINOR' THEN 1 ELSE 0 END), 0) >= 3
@@ -1098,12 +1104,15 @@ $students = db_all($sql, $params) ?: [];
 
               <!-- Filters -->
               <div class="filters">
-                <a class="filter-btn <?php echo $filter === 'all'   ? 'active'       : ''; ?>"
+                <a class="filter-btn <?php echo $filter === 'all'       ? 'active'              : ''; ?>"
                    href="offenses.php?filter=all<?php   echo $q !== '' ? '&q=' . urlencode($q) : ''; ?><?php echo $selectedMonth !== '' ? '&month=' . urlencode($selectedMonth) : ''; ?>">All</a>
-                <a class="filter-btn <?php echo $filter === 'minor' ? 'active active-minor' : ''; ?>"
+                <a class="filter-btn <?php echo $filter === 'minor'     ? 'active active-minor' : ''; ?>"
                    href="offenses.php?filter=minor<?php echo $q !== '' ? '&q=' . urlencode($q) : ''; ?><?php echo $selectedMonth !== '' ? '&month=' . urlencode($selectedMonth) : ''; ?>">Minor Only</a>
-                <a class="filter-btn <?php echo $filter === 'major' ? 'active active-major' : ''; ?>"
+                <a class="filter-btn <?php echo $filter === 'major'     ? 'active active-major' : ''; ?>"
                    href="offenses.php?filter=major<?php echo $q !== '' ? '&q=' . urlencode($q) : ''; ?><?php echo $selectedMonth !== '' ? '&month=' . urlencode($selectedMonth) : ''; ?>">Major Only</a>
+                <a class="filter-btn <?php echo $filter === 'dismissed' ? 'active'              : ''; ?>"
+                   style="<?php echo $filter === 'dismissed' ? 'background:#fffbeb; color:#b45309; border-color:#fde68a;' : ''; ?>"
+                   href="offenses.php?filter=dismissed<?php echo $q !== '' ? '&q=' . urlencode($q) : ''; ?><?php echo $selectedMonth !== '' ? '&month=' . urlencode($selectedMonth) : ''; ?>">Dismissed Only</a>
 
                 <select id="monthFilter" class="filter-btn" onchange="window.location='offenses.php?filter=<?php echo $filter; ?>&q=<?php echo urlencode($q); ?>&month=' + this.value">
                   <option value="">All Months</option>
@@ -1141,6 +1150,7 @@ $students = db_all($sql, $params) ?: [];
                       $majExp    = (int)($s['major_offenses_explicit'] ?? 0);
                       $hasEsc    = (int)($s['has_escalated_major']    ?? 0); // not displayed, only for counting
                       $totalMaj  = $majExp + $hasEsc;
+                      $dism      = (int)($s['dismissed_offenses']     ?? 0);
                       $last      = (string)($s['last_offense_date']   ?? '');
                       $lastName  = (string)($s['last_offense_name']   ?? '');
                       $lastCode  = (string)($s['last_offense_code']   ?? '');
@@ -1158,6 +1168,7 @@ $students = db_all($sql, $params) ?: [];
                          data-total="<?php      echo $total;    ?>"
                          data-minor="<?php      echo $min;      ?>"
                          data-major="<?php      echo $totalMaj; ?>"
+                         data-dismissed="<?php  echo $dism;     ?>"
                          data-last="<?php       echo $last ? e(date('n/j/Y', strtotime($last))) : ''; ?>"
                          data-last-type="<?php  echo e($lastName); ?>"
                          data-last-code="<?php  echo e($lastCode); ?>"
@@ -1198,6 +1209,11 @@ $students = db_all($sql, $params) ?: [];
                         <span class="meta-badge meta-major">
                           Major: <?php echo $totalMaj; ?>
                         </span>
+                        <?php if ($dism > 0): ?>
+                          <span class="meta-badge meta-dismissed" style="background:#fffbeb; color:#b45309; border:1px solid #fde68a;">
+                            Dismissed: <?php echo $dism; ?>
+                          </span>
+                        <?php endif; ?>
                         <?php if ($last): ?>
                           <span class="card-last">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
