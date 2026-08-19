@@ -183,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
       );
 
       if ($existingSection4Case) {
-        redirect('offenses.php?msg=Minor+offense+recorded.+Student+already+under+Section+4+investigation.');
+        redirect('offense_new.php?level=MINOR&student_id=' . urlencode($student_id) . '&success=1&msg=Minor+offense+recorded.+Student+already+under+Section+4+investigation.');
       }
 
       if ($afterMinor >= 3) {
@@ -2921,9 +2921,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           ✅ Guardian notification email sent.<br>
           <span id="finalNteStatusText">✅ Form F-005 Notice to Explain issued to student app.</span>
         </p>
-        <div style="display:flex; gap: 10px;">
-            <button class="btn" type="button" onclick="dismissFinalSuccessModal()" style="flex: 1; justify-content: center;">Stay on page</button>
-            <a href="offenses.php" class="btn btn-primary" style="flex: 1; justify-content: center;">Go to Offenses</a>
+        <div style="display:flex; justify-content:center;">
+            <button class="btn btn-primary" type="button" onclick="closeFinalSuccessModal()" style="width:100%; padding:12px; font-weight:800; background:#10b981; border:none; justify-content:center;">✓ Done (Stay on Page)</button>
         </div>
         <div id="finalSuccessProgress" style="position: absolute; bottom: 0; left: 0; height: 4px; background-color: #10b981; width: 100%;"></div>
       </div>
@@ -3827,7 +3826,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   function closeFinalSuccessModal() {
       dismissFinalSuccessModal();
-      window.location.href = 'offenses.php?msg=Process+completed+successfully.';
+      if (window.history && window.history.replaceState) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('success');
+          url.searchParams.delete('letter');
+          url.searchParams.delete('offense_id');
+          url.searchParams.delete('type');
+          url.searchParams.delete('minor_no');
+          window.history.replaceState(null, '', url.pathname + url.search);
+      }
   }
 
   let previewDebounce = null;
