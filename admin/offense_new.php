@@ -2576,11 +2576,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                         <option value="4" <?php echo $category === 4 ? 'selected' : ''; ?>>Category 4 — Exclusion</option>
                         <option value="5" <?php echo $category === 5 ? 'selected' : ''; ?>>Category 5 — Expulsion</option>
                       </select>
-                      <?php if ($category >= 1 && $category <= 5): ?>
-                        <div class="category-desc" style="margin-top: 8px; padding: 10px 14px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b; font-size: 12.5px; line-height: 1.5;">
-                          <strong>Category <?php echo $category; ?> Description:</strong> <?php echo htmlspecialchars($categoryDescriptions[$category]); ?>
-                        </div>
-                      <?php endif; ?>
+                      <div id="categoryDescBox" class="category-desc" style="margin-top: 8px; padding: 10px 14px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b; font-size: 12.5px; line-height: 1.5; <?php echo ($category >= 1 && $category <= 5) ? '' : 'display:none;'; ?>">
+                        <strong id="categoryDescTitle">Category <?php echo $category; ?> Description:</strong> <span id="categoryDescText"><?php echo htmlspecialchars($categoryDescriptions[$category] ?? ''); ?></span>
+                      </div>
                     </div>
                   </div>
 
@@ -3523,7 +3521,30 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     refreshOffenseTypes();
   }
 
+  const categoryDescriptionsMap = {
+    1: 'Probation for three (3) academic terms and referral for counseling.',
+    2: 'Formative Intervention (university service, counseling, education program).',
+    3: 'Non-Readmission for the next term.',
+    4: 'Exclusion (immediate removal from roll).',
+    5: 'Expulsion (disqualified from all HEIs in Philippines).'
+  };
+
+  function updateCategoryDesc(cat) {
+    const box = document.getElementById('categoryDescBox');
+    const title = document.getElementById('categoryDescTitle');
+    const text = document.getElementById('categoryDescText');
+    const catNum = parseInt(cat) || 0;
+    if (box && catNum >= 1 && catNum <= 5) {
+      if (title) title.textContent = 'Category ' + catNum + ' Description:';
+      if (text) text.textContent = categoryDescriptionsMap[catNum] || '';
+      box.style.display = 'block';
+    } else if (box) {
+      box.style.display = 'none';
+    }
+  }
+
   function onCategoryChange(cat) {
+    updateCategoryDesc(cat);
     if (window.history && window.history.replaceState) {
       const url = new URL(window.location.href);
       url.searchParams.set('level', 'MAJOR');
