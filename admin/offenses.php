@@ -183,51 +183,59 @@ if ($q !== '') {
   )";
 }
 
-$monthSql = "";
-if ($selectedMonth !== '') {
-  $monthSql = " AND (DATE_FORMAT(o2.date_committed, '%Y-%m') = :month OR DATE_FORMAT(o2.created_at, '%Y-%m') = :month)";
+$getMonthSql = function(string $alias) use ($selectedMonth, &$params): string {
+  if ($selectedMonth === '') return '';
   $params[':month'] = $selectedMonth;
   db_add_encryption_key($params);
-}
+  return " AND (DATE_FORMAT({$alias}.date_committed, '%Y-%m') = :month OR DATE_FORMAT({$alias}.created_at, '%Y-%m') = :month)";
+};
 
 if ($filter === 'minor') {
+  $mSql = $getMonthSql('o2');
   $whereParts[] = "EXISTS (
     SELECT 1 FROM offense o2
-    WHERE o2.student_id = s.student_id AND o2.level = 'MINOR' $monthSql
+    WHERE o2.student_id = s.student_id AND o2.level = 'MINOR' $mSql
   )";
 } elseif ($filter === 'major') {
+  $mSql2 = $getMonthSql('o2');
+  $mSql3 = $getMonthSql('o3');
   $whereParts[] = "(
     EXISTS (
       SELECT 1 FROM offense o2
-      WHERE o2.student_id = s.student_id AND o2.level = 'MAJOR' $monthSql
+      WHERE o2.student_id = s.student_id AND o2.level = 'MAJOR' $mSql2
     )
     OR (
       SELECT COUNT(*) FROM offense o3
-      WHERE o3.student_id = s.student_id AND o3.level = 'MINOR' $monthSql
+      WHERE o3.student_id = s.student_id AND o3.level = 'MINOR' $mSql3
     ) >= 3
   )";
 } elseif ($filter === 'dismissed') {
+  $mSql = $getMonthSql('o2');
   $whereParts[] = "EXISTS (
     SELECT 1 FROM offense o2
-    WHERE o2.student_id = s.student_id AND (o2.level = 'DISMISSED' OR o2.status = 'DISMISSED') $monthSql
+    WHERE o2.student_id = s.student_id AND (o2.level = 'DISMISSED' OR o2.status = 'DISMISSED') $mSql
   )";
 } else {
   if ($selectedMonth !== '') {
+    $mSql = $getMonthSql('o2');
     $whereParts[] = "EXISTS (
       SELECT 1 FROM offense o2
-      WHERE o2.student_id = s.student_id $monthSql
+      WHERE o2.student_id = s.student_id $mSql
     )";
   }
 }
 
-// Only show students who have at least one offense
+// Only show students who have at least one matching offense
+$mSqlOx = $getMonthSql('ox');
 $whereParts[] = "EXISTS (
-  SELECT 1 FROM offense ox WHERE ox.student_id = s.student_id
+  SELECT 1 FROM offense ox WHERE ox.student_id = s.student_id $mSqlOx
 )";
 
 $where = !empty($whereParts)
   ? 'WHERE ' . implode(' AND ', $whereParts)
   : '';
+
+$joinMonthSql = $getMonthSql('o');
 
 $sql = "
   SELECT
@@ -273,7 +281,7 @@ $sql = "
      (SELECT CASE WHEN " . db_decrypt_col('student_fn', 's') . " IS NULL THEN 1 ELSE 0 END) AS _dec_fail
 
   FROM student s
-  LEFT JOIN offense o ON o.student_id = s.student_id
+  LEFT JOIN offense o ON o.student_id = s.student_id $joinMonthSql
 
   $where
 
