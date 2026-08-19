@@ -49,6 +49,12 @@ if ($level === 'MINOR') {
      WHERE is_active = 1 AND level = 'MAJOR' AND major_category = :cat AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
     [':cat' => $category]
   ) ?: [];
+} else if ($level === 'MAJOR') {
+  $offenseTypes = db_all(
+    "SELECT offense_type_id, code, name FROM offense_type
+     WHERE is_active = 1 AND level = 'MAJOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
+    []
+  ) ?: [];
 }
 // Append the "Other" option to the end of the list
 if ($level === 'MINOR') {
@@ -304,8 +310,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
   if ($action === 'list_offense_types') {
     $lvl = $_POST['level'] ?? 'MINOR';
     $cat = isset($_POST['major_category']) ? (int)$_POST['major_category'] : 0;
-    if ($lvl === 'MAJOR' && $cat >= 1 && $cat <= 5) {
-      $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR' AND major_category = :cat AND code NOT LIKE '%OTHER%' ORDER BY code ASC", [':cat' => $cat]) ?: [];
+    if ($lvl === 'MAJOR') {
+      if ($cat >= 1 && $cat <= 5) {
+        $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR' AND major_category = :cat AND code NOT LIKE '%OTHER%' ORDER BY code ASC", [':cat' => $cat]) ?: [];
+      } else {
+        $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
+      }
       $rows[] = ['offense_type_id' => 23, 'code' => 'OTHER', 'name' => 'Other / Custom Major Offense'];
     } else if ($lvl === 'DISMISSED') {
       $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'DISMISSED' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
