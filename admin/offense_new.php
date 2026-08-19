@@ -3043,6 +3043,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   const SHOW_STUDENT_RECORD_MODAL = <?php echo json_encode($studentInfo && ($liveMinorCount + $liveMajorCount > 0 || count($liveActiveUpccCases) > 0)); ?>;
   let currentLevel    = INIT_LEVEL;
   let currentCategory = <?php echo $category; ?>;
+  window.__projectedMinorCount = <?php echo (int)($liveMinorCount + 1); ?>;
 
   function escHtml(str) {
     return String(str)
@@ -4027,6 +4028,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         clearScanTimer();
         scanTimer = setTimeout(flushScanBuffer, 180);
       }
+    });
+  })();
+
   window.toggleHearingPhoto = async function(type, id, nextShow, btnEl) {
     const fd = new FormData();
     fd.append('type', type);
