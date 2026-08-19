@@ -2713,11 +2713,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                               "SELECT o.date_committed, " . db_decrypt_col('description', 'o') . " AS description, o.level AS o_level, o.status AS o_status, ot.level AS ot_level, ot.code, ot.name
                                FROM offense o
                                JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-                               WHERE o.student_id = :sid AND o.level <> 'DISMISSED' AND o.status <> 'DISMISSED' AND ot.level <> 'DISMISSED' AND ot.code NOT LIKE 'DISM%'
+                               WHERE o.student_id = :sid AND o.offense_id <> :current_oid AND o.level <> 'DISMISSED' AND o.status <> 'DISMISSED' AND ot.level <> 'DISMISSED' AND ot.code NOT LIKE 'DISM%'
                                ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30",
-                              [':sid' => $studentInfo['student_id']]
+                              [':sid' => $studentInfo['student_id'], ':current_oid' => $letterOffenseId]
                           );
-                          $defaultBody .= "OFFENSE HISTORY (Most recent first):\n";
+                          $defaultBody .= "PRIOR OFFENSE HISTORY (Most recent first):\n";
                           if (empty($history)) {
                               $defaultBody .= "(No prior sanction offenses found.)\n";
                           } else {
