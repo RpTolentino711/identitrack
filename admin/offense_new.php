@@ -178,38 +178,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
       );
       $afterMinor = (int)($afterRow['cnt'] ?? 0);
 
-      $existingSection4Case = db_one(
-        "SELECT case_id, created_at FROM upcc_case
-         WHERE student_id = :sid
-           AND status IN ('PENDING','UNDER_APPEAL')
-           AND case_kind = 'SECTION4_MINOR_ESCALATION'
-         ORDER BY created_at ASC
-         LIMIT 1",
-        [':sid' => $student_id]
-      );
+      $cyclePos = $afterMinor % 3;
 
-      if ($existingSection4Case) {
-        redirect('offense_new.php?level=MINOR&student_id=' . urlencode($student_id) . '&success=1&msg=Minor+offense+recorded.+Student+already+under+Section+4+investigation.');
-      }
-
-      if ($afterMinor >= 3) {
+      if ($cyclePos === 0 && $afterMinor >= 3) {
+        // Every 3rd minor in cycle triggers Section 4 Escalation & Full 3-Modal Workflow
         db_exec(
           "INSERT INTO upcc_case (student_id, created_by, status, case_kind, case_summary, evidence_file, created_at, updated_at)
            VALUES (:sid, :aid, 'PENDING', 'SECTION4_MINOR_ESCALATION', :summary, :evfile, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
           [
             ':sid'     => $student_id,
             ':aid'     => $adminId,
-            ':summary' => 'Section 4 Major — 3rd Minor attempt → Referred to UPCC panel for investigation and category assignment (1‑5).',
+            ':summary' => 'Section 4 Major — Minor Offense #' . $afterMinor . ' attempt → Referred to UPCC panel for investigation and category assignment (1‑5).',
             ':evfile'  => $evidenceFilePath,
           ]
         );
         $caseId = db_last_id();
 
-        // Fetch the 3 oldest minor offenses (the ones that triggered Section 4)
+        // Fetch the 3 recent minor offenses for this cycle
         $triggerMinors = db_all(
           "SELECT offense_id FROM offense
            WHERE student_id = :sid AND level = 'MINOR'
-           ORDER BY date_committed ASC
+           ORDER BY date_committed DESC
            LIMIT 3",
           [':sid' => $student_id]
         );
@@ -221,11 +210,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
         }
 
         redirect('offense_new.php?level=MINOR&student_id=' . urlencode($student_id) . '&letter=1&offense_id=' . $newOffenseId . '&type=escalation&success=1');
-      } elseif ($afterMinor >= 2) {
+      } elseif ($cyclePos === 2) {
+        // 2nd minor in cycle triggers Guardian Warning Letter Modal
         redirect('offense_new.php?level=MINOR&student_id=' . urlencode($student_id) . '&letter=1&offense_id=' . $newOffenseId . '&type=letter&minor_no=' . $afterMinor . '&success=1');
+      } else {
+        // 1st minor in cycle is Warning only
+        redirect('offense_new.php?level=MINOR&student_id=' . urlencode($student_id) . '&success=1');
       }
-
-      redirect('offense_new.php?level=MINOR&student_id=' . urlencode($student_id) . '&success=1');
 
     } elseif ($level === 'MAJOR') {
       db_exec(
@@ -542,68 +533,22 @@ if (isset($_GET['msg'])) {
 
 // ── Helper: render alert panel HTML ──────────────────────────────────────────
 function renderMinorAlert(int $projectedCount, string $guardianEmail, int $currentCount = -1, bool $hasActiveSection4 = false, int $postSection4Minors = 0): string {
-
-  if ($hasActiveSection4) {
-    // New minor recorded after Section 4 is open:
-    // Top bar = 3/3 locked (original trigger)
-    // Bottom bar = fresh counter starting from 1/3
-    $postProjected = $postSection4Minors + 1;
-    $postPct       = min($postProjected, 3) / 3 * 100;
-    $warningNote   = ($postProjected >= 3)
-      ? '<div class="ap-warning">⚠️ This will be the 3rd offense since Section 4 — consider escalating to the panel.</div>'
-      : '<div class="ap-subdesc">' . (3 - $postProjected) . ' more offense(s) recorded here will prompt another panel review.</div>';
-
-    return '
-    <div class="alert-panel alert-panel--critical">
-      <div class="ap-icon">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-        </svg>
-      </div>
-      <div class="ap-body">
-        <div class="ap-title">Active Section 4 Investigation</div>
-        <div class="ap-desc">
-          This student already has an open Section 4 case. This offense will <strong>not</strong> open a new case — it is tracked separately below.
-        </div>
-
-        <div class="ap-track-label">Original trigger</div>
-        <div class="ap-progress" style="margin-bottom:14px;padding:10px 12px;background:rgba(0,0,0,.04);border-radius:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <span style="font-size:11px;font-weight:600;">Section 4 triggered</span>
-            <span style="font-size:11px;font-weight:800;color:var(--pink);">3 / 3 — Section 4 Major Investigation</span>
-          </div>
-          <div class="ap-progress-track">
-            <div class="ap-progress-fill ap-progress--critical" style="width:100%"></div>
-          </div>
-        </div>
-
-        <div class="ap-track-label">Additional Violations</div>
-        <div class="ap-progress" style="padding:10px 12px;background:rgba(0,0,0,.04);border-radius:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <span style="font-size:11px;font-weight:600;">Post-Escalation Minors</span>
-            <span style="font-size:11px;font-weight:800;color:var(--red);">' . $postProjected . ' Recorded</span>
-          </div>
-          <div class="ap-progress-track">
-            <div class="ap-progress-fill ap-progress--critical" style="width:100%"></div>
-          </div>
-        </div>
-        <div class="ap-warning" style="margin-top:8px;">⚠️ The student is already under a <strong>Section 4 Major</strong> investigation. Any further minor offenses are considered a critical breach of conduct and will be added to the current UPCC case for immediate escalation.</div>
-      </div>
-    </div>';
-  }
-
   if ($currentCount < 0) $currentCount = $projectedCount - 1;
-  $pctMap = [1 => 33, 2 => 66, 3 => 100];
-  $pct    = $pctMap[min($projectedCount, 3)] ?? 100;
 
-  if ($projectedCount === 1) {
+  $cyclePos = $projectedCount % 3;
+  if ($cyclePos === 0 && $projectedCount > 0) $cyclePos = 3;
+
+  $pctMap = [1 => 33, 2 => 66, 3 => 100];
+  $pct    = $pctMap[$cyclePos] ?? 33;
+
+  if ($cyclePos === 1) {
     return '
     <div class="alert-panel alert-panel--info">
       <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
       <div class="ap-body">
-        <div class="ap-title">1st Minor – Warning</div>
-        <div class="ap-projected-badge ap-projected--info">📋 Currently ' . $currentCount . ' → becomes <strong>1/3</strong></div>
-        <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--info" style="width:' . $pct . '%"></div></div><span class="ap-progress-label">1/3 – 2 more to Section 4</span></div>
+        <div class="ap-title">1st Minor – Warning (Offense #' . $projectedCount . ')</div>
+        <div class="ap-projected-badge ap-projected--info">📋 Currently ' . $currentCount . ' → becomes <strong>1/3 in current cycle</strong></div>
+        <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--info" style="width:' . $pct . '%"></div></div><span class="ap-progress-label">1/3 – 2 more to Section 4 Escalation</span></div>
         <div class="ap-desc">Warning only. No letter required.</div>
         <div class="ap-steps">
           <div class="ap-step ap-step--next">1st Minor ⬅ Warning</div>
@@ -614,7 +559,7 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
     </div>';
   }
 
-  if ($projectedCount === 2) {
+  if ($cyclePos === 2) {
     $emailHtml = $guardianEmail
       ? '<div class="ap-email"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' . htmlspecialchars($guardianEmail) . '</div>'
       : '<div class="ap-email ap-email--warn"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>No guardian email on file</div>';
@@ -622,9 +567,9 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
     <div class="alert-panel alert-panel--warning">
       <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
       <div class="ap-body">
-        <div class="ap-title">2nd Minor – Letter to Guardian</div>
-        <div class="ap-projected-badge ap-projected--warning">📋 Currently ' . $currentCount . ' → becomes <strong>2/3</strong></div>
-        <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:' . $pct . '%"></div></div><span class="ap-progress-label">2/3 – 1 more to Section 4</span></div>
+        <div class="ap-title">2nd Minor – Letter to Guardian (Offense #' . $projectedCount . ')</div>
+        <div class="ap-projected-badge ap-projected--warning">📋 Currently ' . $currentCount . ' → becomes <strong>2/3 in current cycle</strong></div>
+        <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:' . $pct . '%"></div></div><span class="ap-progress-label">2/3 – 1 more to Section 4 Escalation</span></div>
         <div class="ap-desc">A formal notice will be sent to the guardian after saving.</div>
         ' . $emailHtml . '
         <div class="ap-steps">
@@ -636,8 +581,8 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
     </div>';
   }
 
-  // projectedCount >= 3
-  $emailHtml = $guardianEmail
+  // cyclePos === 3 (3rd minor in cycle)
+  $emailHtml2 = $guardianEmail
     ? '<div class="ap-email"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' . htmlspecialchars($guardianEmail) . '</div>'
     : '<div class="ap-email ap-email--warn"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>No guardian email on file</div>';
 
@@ -645,11 +590,11 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
   <div class="alert-panel alert-panel--critical">
     <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
     <div class="ap-body">
-      <div class="ap-title">⚖️ 3rd Minor – Becomes Section 4 Major</div>
-      <div class="ap-projected-badge ap-projected--critical">🚨 Currently ' . $currentCount . ' → becomes <strong>' . $projectedCount . '/3 – SECTION 4 MAJOR</strong></div>
+      <div class="ap-title">⚖️ 3rd Minor – Triggers Section 4 Panel (Offense #' . $projectedCount . ')</div>
+      <div class="ap-projected-badge ap-projected--critical">🚨 Currently ' . $currentCount . ' → becomes <strong>3/3 – SECTION 4 MAJOR</strong></div>
       <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--critical" style="width:100%"></div></div><span class="ap-progress-label">3/3 – Panel investigation triggered</span></div>
       <div class="ap-desc">Student referred to UPCC panel. The panel will assign a Category 1–5 sanction.</div>
-      ' . $emailHtml . '
+      ' . $emailHtml2 . '
       <div class="ap-checklist">
         <div class="ap-check">✓ UPCC case will be created</div>
         <div class="ap-check">✓ Panel assigns category (1–5)</div>
@@ -4487,8 +4432,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           }
         }
 
-        // Check if Major or Section 4 escalation (3rd minor attempt)
-        const isMajorOrEscalation = (lvl === 'MAJOR') || (lvl === 'MINOR' && window.__projectedMinorCount >= 3);
+        // Check if Major or Section 4 escalation (3rd minor of any cycle, e.g. 3, 6, 9...)
+        const isMajorOrEscalation = (lvl === 'MAJOR') || (lvl === 'MINOR' && window.__projectedMinorCount > 0 && window.__projectedMinorCount % 3 === 0);
         if (isMajorOrEscalation && !isConfirmedEvidence) {
           e.preventDefault();
           e.stopPropagation();
