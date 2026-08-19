@@ -2709,14 +2709,22 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                               $dt = ph_date('F j, Y g:i A', $coff['date_committed']);
                               $defaultBody .= "CURRENT OFFENSE:\n- {$coff['code']} — {$coff['name']}\n- Level: {$coff['level']}\n- Date: {$dt}\n- Notes: " . ($coff['description'] ?: '(none)') . "\n\n";
                           }
-                          $history = db_all("SELECT o.date_committed, o.description, ot.level, ot.code, ot.name FROM offense o JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id WHERE o.student_id = :sid ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30", [':sid' => $studentInfo['student_id']]);
+                          $history = db_all(
+                              "SELECT o.date_committed, " . db_decrypt_col('description', 'o') . " AS description, o.level AS o_level, o.status AS o_status, ot.level AS ot_level, ot.code, ot.name
+                               FROM offense o
+                               JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+                               WHERE o.student_id = :sid AND o.level <> 'DISMISSED' AND o.status <> 'DISMISSED' AND ot.level <> 'DISMISSED' AND ot.code NOT LIKE 'DISM%'
+                               ORDER BY o.date_committed DESC, o.offense_id DESC LIMIT 30",
+                              [':sid' => $studentInfo['student_id']]
+                          );
                           $defaultBody .= "OFFENSE HISTORY (Most recent first):\n";
                           if (empty($history)) {
-                              $defaultBody .= "(No offenses found.)\n";
+                              $defaultBody .= "(No prior sanction offenses found.)\n";
                           } else {
                               foreach ($history as $i => $h) {
                                   $dt = ph_date('M j, Y g:i A', $h['date_committed']);
-                                  $defaultBody .= ($i + 1) . ". [{$h['level']}] {$h['code']} — {$h['name']} ({$dt})\n";
+                                  $lvl = (strtoupper((string)($h['o_level'] ?? '')) === 'MAJOR' || strtoupper((string)($h['ot_level'] ?? '')) === 'MAJOR') ? 'MAJOR' : 'MINOR';
+                                  $defaultBody .= ($i + 1) . ". [{$lvl}] {$h['code']} — {$h['name']} ({$dt})\n";
                                   $hDesc = trim((string)($h['description'] ?? ''));
                                   if ($hDesc !== '') $defaultBody .= "   Notes: " . $hDesc . "\n";
                               }
