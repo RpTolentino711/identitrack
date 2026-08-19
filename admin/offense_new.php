@@ -3908,10 +3908,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       setTimeout(() => {
           checkEmailRequired();
           if (typeof previewLetter === 'function') previewLetter();
-          if (!SUCCESS_MODE || HAS_ERRORS) {
-              const letterModal = document.getElementById('modal-guardian-letter');
-              if (letterModal) letterModal.classList.add('active');
-          }
+          const letterModal = document.getElementById('modal-guardian-letter');
+          if (letterModal) letterModal.classList.add('active');
       }, 500);
   }
 
