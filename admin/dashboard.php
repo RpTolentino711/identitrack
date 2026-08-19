@@ -682,6 +682,8 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     .gm-btn.view:hover { background: #dbeafe; }
     .gm-btn.reject  { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
     .gm-btn.reject:hover { background: #fee2e2; }
+    .gm-btn.dismiss { background: #fffbeb; border-color: #fde68a; color: #b45309; }
+    .gm-btn.dismiss:hover { background: #fef3c7; }
     .gm-btn.approve { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
     .gm-btn.approve:hover { background: #dcfce7; }
 
@@ -1018,6 +1020,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       <div class="guard-modal-actions">
         <a id="gmViewStudent" class="gm-btn view" href="#">View Student Record</a>
         <button id="gmRejectBtn"  type="button" class="gm-btn reject">Reject</button>
+        <button id="gmDismissBtn" type="button" class="gm-btn dismiss">Dismiss (Record Only)</button>
         <button id="gmApproveBtn" type="button" class="gm-btn approve">Approve &amp; Record</button>
       </div>
     </div>
@@ -1034,6 +1037,21 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       <div class="guard-confirm-actions">
         <button id="guardRejectCancel" type="button" class="gm-btn neutral">Cancel</button>
         <button id="guardRejectConfirmBtn" type="button" class="gm-btn reject">Yes, Reject & Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Dismiss Confirm ── -->
+  <div id="guardDismissConfirm" class="guard-confirm-overlay" aria-hidden="true">
+    <div class="guard-confirm-box" role="dialog" aria-modal="true">
+      <div class="guard-confirm-icon" style="background:#fffbeb; color:#b45309; font-size:20px;">
+        🛡️
+      </div>
+      <h4 class="guard-confirm-title">Record as Dismissed?</h4>
+      <p class="guard-confirm-text">This report will be logged as a <strong>DISMISSED</strong> offense for administrative tracking. It will not count towards student sanctions or trigger Section 4 escalation.</p>
+      <div class="guard-confirm-actions">
+        <button id="guardDismissCancel" type="button" class="gm-btn neutral">Cancel</button>
+        <button id="guardDismissConfirmBtn" type="button" class="gm-btn dismiss" style="background:#d97706; color:#ffffff; border:none;">Yes, Record as Dismissed</button>
       </div>
     </div>
   </div>
@@ -1099,10 +1117,14 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     var gmDescription = document.getElementById('gmDescription');
     var gmViewStudent = document.getElementById('gmViewStudent');
     var gmRejectBtn   = document.getElementById('gmRejectBtn');
+    var gmDismissBtn  = document.getElementById('gmDismissBtn');
     var gmApproveBtn  = document.getElementById('gmApproveBtn');
     var rejectConfirm         = document.getElementById('guardRejectConfirm');
     var rejectCancel          = document.getElementById('guardRejectCancel');
     var rejectConfirmBtn      = document.getElementById('guardRejectConfirmBtn');
+    var dismissConfirm        = document.getElementById('guardDismissConfirm');
+    var dismissCancel         = document.getElementById('guardDismissCancel');
+    var dismissConfirmBtn     = document.getElementById('guardDismissConfirmBtn');
     var approveConfirm        = document.getElementById('guardApproveConfirm');
     var approveCancel         = document.getElementById('guardApproveCancel');
     var approveConfirmBtn     = document.getElementById('guardApproveConfirmBtn');
@@ -1287,6 +1309,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       modalEl.setAttribute('aria-hidden', 'true');
       selectedId = '';
       closeRejectConfirm();
+      closeDismissConfirm();
       closeApproveConfirm();
       if (lastFocus && lastFocus.focus) lastFocus.focus();
     }
@@ -1300,6 +1323,17 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     function closeRejectConfirm() {
       rejectConfirm.classList.remove('show');
       rejectConfirm.setAttribute('aria-hidden', 'true');
+      if (lastConfFocus && lastConfFocus.focus) lastConfFocus.focus();
+    }
+    function openDismissConfirm() {
+      lastConfFocus = document.activeElement;
+      dismissConfirm.classList.add('show');
+      dismissConfirm.setAttribute('aria-hidden', 'false');
+      if (dismissConfirmBtn) dismissConfirmBtn.focus();
+    }
+    function closeDismissConfirm() {
+      dismissConfirm.classList.remove('show');
+      dismissConfirm.setAttribute('aria-hidden', 'true');
       if (lastConfFocus && lastConfFocus.focus) lastConfFocus.focus();
     }
     function openApproveConfirm() {
@@ -1319,6 +1353,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
       if (!selectedId) return;
       gmApproveBtn.disabled = true;
       gmRejectBtn.disabled  = true;
+      if (gmDismissBtn) gmDismissBtn.disabled = true;
       var fd = new FormData();
       fd.append('action', action);
       fd.append('report_id', selectedId);
@@ -1433,6 +1468,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
         .finally(function () {
           gmApproveBtn.disabled = false;
           gmRejectBtn.disabled  = false;
+          if (gmDismissBtn) gmDismissBtn.disabled = false;
         });
     }
 
@@ -1597,11 +1633,16 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     modalEl.addEventListener('click', function (e) { if (e.target === modalEl) closeModal(); });
 
     if (gmApproveBtn) gmApproveBtn.addEventListener('click', openApproveConfirm);
+    if (gmDismissBtn) gmDismissBtn.addEventListener('click', openDismissConfirm);
     if (gmRejectBtn)  gmRejectBtn.addEventListener('click', openRejectConfirm);
 
     if (rejectCancel)     rejectCancel.addEventListener('click', closeRejectConfirm);
     if (rejectConfirmBtn) rejectConfirmBtn.addEventListener('click', function () { closeRejectConfirm(); runAction('reject_guard_report'); });
     rejectConfirm.addEventListener('click', function (e) { if (e.target === rejectConfirm) closeRejectConfirm(); });
+
+    if (dismissCancel)     dismissCancel.addEventListener('click', closeDismissConfirm);
+    if (dismissConfirmBtn) dismissConfirmBtn.addEventListener('click', function () { closeDismissConfirm(); runAction('dismiss_guard_report'); });
+    dismissConfirm.addEventListener('click', function (e) { if (e.target === dismissConfirm) closeDismissConfirm(); });
 
     if (approveCancel)     approveCancel.addEventListener('click', closeApproveConfirm);
     if (approveConfirmBtn) approveConfirmBtn.addEventListener('click', function () { closeApproveConfirm(); runAction('approve_guard_report'); });

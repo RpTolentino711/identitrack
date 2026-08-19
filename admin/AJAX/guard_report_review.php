@@ -98,7 +98,7 @@ function send_guardian_notice(string $studentId, string $subject, string $letter
     }
 }
 
-if ($reportId <= 0 || ($action !== 'approve_guard_report' && $action !== 'reject_guard_report' && $action !== 'reject' && $action !== 'approve')) {
+if ($reportId <= 0 || ($action !== 'approve_guard_report' && $action !== 'reject_guard_report' && $action !== 'reject' && $action !== 'approve' && $action !== 'dismiss_guard_report' && $action !== 'dismiss')) {
   echo json_encode(['ok' => false, 'message' => 'Invalid review request.']);
   exit;
 }
@@ -126,6 +126,50 @@ if ($action === 'reject_guard_report' || $action === 'reject') {
     [':rid' => $reportId]
   );
   echo json_encode(['ok' => true, 'message' => 'Report rejected and dismissed.']);
+  exit;
+}
+
+if ($action === 'dismiss_guard_report' || $action === 'dismiss') {
+  $studentId = (string)$report['student_id'];
+  $reason = trim((string)($_POST['dismissal_reason'] ?? $report['description'] ?? 'Dismissed record via Guard Report Review.'));
+  if ($reason === '') $reason = 'Dismissed record via Guard Report Review.';
+
+  $insParams = [
+    ':sid' => $studentId,
+    ':admin' => $adminId,
+    ':tid' => (int)$report['offense_type_id'],
+    ':lvl' => 'DISMISSED',
+    ':descr' => trim((string)($report['description'] ?? '')) === '' ? null : $report['description'],
+    ':dreason' => $reason,
+    ':dt' => (string)$report['date_committed'],
+  ];
+  db_add_encryption_key($insParams);
+
+  db_exec(
+    "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, dismissal_reason, date_committed, status, created_at, updated_at)
+     VALUES (:sid, :admin, :tid, :lvl, " . db_encrypt_col('description', ':descr') . ", :dreason, :dt, 'DISMISSED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+    $insParams
+  );
+
+  db_exec(
+    "UPDATE guard_violation_report
+     SET status = 'APPROVED', reviewed_by = :admin, reviewed_at = NOW(), review_notes = :note
+     WHERE report_id = :rid",
+    [':admin' => $adminId, ':note' => 'Recorded as DISMISSED by admin via dashboard modal.', ':rid' => $reportId]
+  );
+
+  db_exec(
+    "UPDATE notification
+     SET is_read = 1
+     WHERE (type = 'GUARD_REPORT' AND related_id = :rid)
+        OR (related_table = 'guard_violation_report' AND related_id = :rid)",
+    [':rid' => $reportId]
+  );
+
+  echo json_encode([
+    'ok' => true,
+    'message' => 'Guard report recorded as DISMISSED for administrative record-keeping.'
+  ]);
   exit;
 }
 
