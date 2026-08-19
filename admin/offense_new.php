@@ -2525,8 +2525,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                 <?php endif; ?>
 
-                <?php if ($level === 'DISMISSED'): ?>
-                  <div class="alert-panel alert-panel--dismissed-glow" id="dismissedAlertBanner">
+                  <div class="alert-panel alert-panel--dismissed-glow" id="dismissedAlertBanner" style="<?php echo ($level === 'DISMISSED') ? '' : 'display:none;'; ?>">
                     <div class="ap-icon">
                       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
@@ -2537,7 +2536,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       </div>
                     </div>
                   </div>
-                <?php endif; ?>
 
                 <form method="post" action="offense_new.php" id="offenseForm" enctype="multipart/form-data">
                   <input type="hidden" name="pending_report_id" id="pending_report_id" value="<?php echo (int)($pendingReportId ?? 0); ?>"/>
@@ -3501,20 +3499,38 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   function onLevelChange(newLevel) {
+    const lvl = (newLevel || 'MINOR').toUpperCase();
+    currentLevel = lvl;
+
     const catGroup = document.getElementById('categoryGroup');
     if (catGroup) {
-      catGroup.style.display = (newLevel === 'MAJOR') ? '' : 'none';
+      catGroup.style.display = (lvl === 'MAJOR') ? 'block' : 'none';
     }
-    const studentId = (studentIdInput?.value || '').trim();
-    const params    = new URLSearchParams({ level: newLevel });
-    if (studentId) params.set('student_id', studentId);
-    window.location.href = 'offense_new.php?' + params.toString();
+
+    const disBanner = document.getElementById('dismissedAlertBanner');
+    if (disBanner) {
+      disBanner.style.display = (lvl === 'DISMISSED') ? 'flex' : 'none';
+    }
+
+    if (window.history && window.history.replaceState) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('level', lvl);
+      if (lvl !== 'MAJOR') url.searchParams.delete('major_category');
+      window.history.replaceState(null, '', url.pathname + url.search);
+    }
+
+    refreshOffenseTypes();
   }
+
   function onCategoryChange(cat) {
-    const studentId = (studentIdInput?.value || '').trim();
-    const params    = new URLSearchParams({ level: 'MAJOR', major_category: cat });
-    if (studentId) params.set('student_id', studentId);
-    window.location.href = 'offense_new.php?' + params.toString();
+    if (window.history && window.history.replaceState) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('level', 'MAJOR');
+      if (cat) url.searchParams.set('major_category', cat);
+      else url.searchParams.delete('major_category');
+      window.history.replaceState(null, '', url.pathname + url.search);
+    }
+    refreshOffenseTypes();
   }
 
   function lookupStudentId(overrideId) {
