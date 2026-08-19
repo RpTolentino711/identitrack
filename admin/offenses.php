@@ -11,7 +11,7 @@ if ($fullName === '') $fullName = (string)($admin['username'] ?? 'User');
 
 $q      = trim((string)($_GET['q']      ?? ''));
 $filter = (string)($_GET['filter'] ?? 'all');
-if (!in_array($filter, ['all', 'minor', 'major'], true)) $filter = 'all';
+if (!in_array($filter, ['all', 'minor', 'major', 'dismissed'], true)) $filter = 'all';
 
 $selectedMonth = trim((string)($_GET['month'] ?? ''));
 
@@ -810,7 +810,7 @@ $students = db_all($sql, $params) ?: [];
     /* Stats row */
     .detail-stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       border-bottom: 1px solid var(--border);
     }
     .detail-stat {
@@ -825,6 +825,10 @@ $students = db_all($sql, $params) ?: [];
       letter-spacing: -1px;
       line-height: 1;
     }
+    .dsv-total     { color: var(--text-1); }
+    .dsv-minor     { color: var(--amber); }
+    .dsv-major     { color: var(--red); }
+    .dsv-dismissed { color: #b45309; }
     .detail-stat-lbl {
       font-size: 9.5px;
       font-weight: 600;
@@ -1267,6 +1271,10 @@ $students = db_all($sql, $params) ?: [];
                 <div class="detail-stat-val dsv-major" id="dpMajor">0</div>
                 <div class="detail-stat-lbl">Major</div>
               </div>
+              <div class="detail-stat">
+                <div class="detail-stat-val dsv-dismissed" id="dpDismissed">0</div>
+                <div class="detail-stat-lbl">Dismissed</div>
+              </div>
             </div>
 
             <div class="detail-info" id="dpInfoArea"></div>
@@ -1319,16 +1327,17 @@ $students = db_all($sql, $params) ?: [];
     document.querySelectorAll('.student-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
 
-    const id       = card.dataset.id      || '';
-    const name     = card.dataset.name    || '';
-    const init     = card.dataset.init    || '??';
-    const total    = card.dataset.total   || '0';
-    const minor    = card.dataset.minor   || '0';
-    const major    = card.dataset.major   || '0';
-    const year     = card.dataset.year    || '';
-    const program  = card.dataset.program || '';
-    const school   = card.dataset.school  || '';
-    const section  = card.dataset.section || '';
+    const id        = card.dataset.id        || '';
+    const name      = card.dataset.name      || '';
+    const init      = card.dataset.init      || '??';
+    const total     = card.dataset.total     || '0';
+    const minor     = card.dataset.minor     || '0';
+    const major     = card.dataset.major     || '0';
+    const dismissed = card.dataset.dismissed || '0';
+    const year      = card.dataset.year      || '';
+    const program   = card.dataset.program   || '';
+    const school    = card.dataset.school    || '';
+    const section   = card.dataset.section   || '';
 
     document.getElementById('dpAvatar').textContent = init;
     document.getElementById('dpName').textContent   = name;
@@ -1336,6 +1345,9 @@ $students = db_all($sql, $params) ?: [];
     document.getElementById('dpTotal').textContent  = total;
     document.getElementById('dpMinor').textContent  = minor;
     document.getElementById('dpMajor').textContent  = major;
+    if (document.getElementById('dpDismissed')) {
+      document.getElementById('dpDismissed').textContent = dismissed;
+    }
 
     const yearEl = document.getElementById('dpYear');
     if (year) { yearEl.textContent = year; yearEl.style.display = 'inline-block'; }
