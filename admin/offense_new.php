@@ -2967,46 +2967,31 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </div>
   </div>
 
-  <!-- MODAL 3: Dedicated Evidence Photo Choice (YES / NO) -->
+  <!-- MODAL 3: Dedicated Evidence Photo Upload (Admin & Panel) -->
   <div class="modal" id="modal-evidence-photo-choice" style="z-index: 2600;">
     <div class="modal-content" style="max-width: 520px; width: 92%; padding: 24px; border-radius: 16px; border: 1.5px solid #2563eb;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
         <h3 style="font-size:18px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px; margin:0;">
-          <span>📷</span> Step 3: Photo Evidence in Student Hearing
+          <span>📷</span> Step 3: Attach Incident Photo Evidence
         </h3>
         <button class="modal-close" onclick="closeEvidencePhotoChoiceModal()">&times;</button>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; padding:0;">
         <div style="font-size:13.5px; color:#334155; line-height:1.5;">
-          Attach or select the incident photo evidence, and choose whether to share it with the UPCC Hearing panel:
+          Attach or select the official incident photo evidence for this offense record. This evidence will be accessible to the SDO Admin and UPCC Panel members:
         </div>
 
-        <!-- Photo / Evidence File Upload Input -->
-        <div style="background:#f8fafc; border:1.5px dashed #2563eb; border-radius:12px; padding:14px; margin-bottom:4px;">
-          <label style="font-size:12px; font-weight:800; text-transform:uppercase; color:#1e40af; display:block; margin-bottom:6px;">
-            📷 Attach / Upload Incident Photo Evidence (Optional)
+        <!-- Photo / Evidence File Upload Input Box -->
+        <div style="background:#eff6ff; border:2px dashed #2563eb; border-radius:14px; padding:20px; text-align:center;">
+          <div style="color:#2563eb; margin-bottom:8px;">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:38px; height:38px; margin:0 auto;"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <label style="font-size:13px; font-weight:800; color:#1e40af; display:block; margin-bottom:8px;">
+            Upload Photo Evidence File (Optional)
           </label>
-          <input type="file" id="modal_hearing_photo_file" accept="image/*,.pdf" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#ffffff; font-size:13px;">
-          <div style="font-size:11px; color:#64748b; margin-top:4px;">Upload JPG, PNG, WEBP or PDF evidence file for this offense record.</div>
+          <input type="file" id="modal_hearing_photo_file" accept="image/*,.pdf" style="width:100%; max-width:360px; padding:8px 12px; border-radius:8px; border:1px solid #bfdbfe; background:#ffffff; font-size:13px;">
+          <div style="font-size:11.5px; color:#475569; margin-top:8px;">Supported formats: JPG, PNG, WEBP, or PDF (Max 5MB).</div>
         </div>
-        
-        <!-- Option YES -->
-        <label id="boxHearingYes" onclick="selectModalHearingChoice(1)" style="display:flex; align-items:flex-start; gap:12px; background:#eff6ff; border:2px solid #2563eb; padding:14px; border-radius:12px; cursor:pointer; transition:all 0.2s;">
-          <input type="radio" name="modal_hearing_choice" value="1" checked style="margin-top:3px; width:18px; height:18px; accent-color:#2563eb;" />
-          <div>
-            <div style="font-weight:800; font-size:14px; color:#1e40af;">📷 YES — Include Photo Evidence in Student Hearing</div>
-            <div style="font-size:12px; color:#3b82f6; margin-top:2px;">Panel board members will be able to inspect this evidence photo during the UPCC hearing.</div>
-          </div>
-        </label>
-
-        <!-- Option NO -->
-        <label id="boxHearingNo" onclick="selectModalHearingChoice(0)" style="display:flex; align-items:flex-start; gap:12px; background:#f8fafc; border:2px solid #cbd5e1; padding:14px; border-radius:12px; cursor:pointer; transition:all 0.2s;">
-          <input type="radio" name="modal_hearing_choice" value="0" style="margin-top:3px; width:18px; height:18px; accent-color:#dc2626;" />
-          <div>
-            <div style="font-weight:800; font-size:14px; color:#475569;">🔒 NO — Keep Photo Evidence Private</div>
-            <div style="font-size:12px; color:#64748b; margin-top:2px;">Photo will remain private for SDO administrative record-keeping only.</div>
-          </div>
-        </label>
       </div>
       <div class="modal-footer" style="margin-top:20px; border-top:1px solid #e2e8f0; padding-top:14px; display:flex; justify-content:flex-end; gap:10px;">
         <button type="button" class="btn" id="btnSaveHearingChoice" onclick="saveEvidencePhotoChoiceAndFinish()" style="background:#2563eb; color:#ffffff; font-weight:800; padding:11px 22px; border-radius:10px; border:none; font-size:13.5px; cursor:pointer; box-shadow:0 4px 12px rgba(37,99,235,0.3);">
@@ -3276,12 +3261,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   };
 
   window.saveEvidencePhotoChoiceAndFinish = async function() {
-    const selectedRadio = document.querySelector('input[name="modal_hearing_choice"]:checked');
-    const showVal = selectedRadio ? parseInt(selectedRadio.value) : 1;
+    const showVal = 1;
     const btn = document.getElementById('btnSaveHearingChoice');
     const photoFileInput = document.getElementById('modal_hearing_photo_file');
 
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving Photo & Choice...'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving Evidence...'; }
 
     const fd = new FormData();
     fd.append('type', 'offense');
@@ -3296,7 +3280,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
     const choiceModal = document.getElementById('modal-evidence-photo-choice');
     if (choiceModal) choiceModal.classList.remove('active');
-    if (btn) { btn.disabled = false; btn.textContent = '✓ Save Choice & Finish Registration'; }
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Save Evidence & Finish Registration'; }
 
     showFinalSuccessModal(window.__pendingNteSentStatus);
   };
