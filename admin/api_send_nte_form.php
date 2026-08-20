@@ -93,6 +93,7 @@ if ($existing) {
         UPDATE notice_to_explain 
         SET case_id = COALESCE(:cid, case_id),
             offense_id = COALESCE(:oid, offense_id),
+            student_id = COALESCE(:sid, student_id),
             incident_report_no = :ir,
             alleged_details = :alleged,
             handbook_section = :sec,
@@ -106,6 +107,7 @@ if ($existing) {
     ", [
         ':cid' => $caseId > 0 ? $caseId : null,
         ':oid' => $offenseId > 0 ? $offenseId : null,
+        ':sid' => $studentId !== '' ? $studentId : null,
         ':ir' => $irNo,
         ':alleged' => $alleged,
         ':sec' => $section,
