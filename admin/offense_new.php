@@ -3214,9 +3214,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     
     const nteModal = document.getElementById('modal-nte-editor');
     if (nteModal) {
+      // Force display and z-index to ensure visibility
       nteModal.style.display = 'flex';
+      nteModal.style.zIndex = '999999';
       nteModal.classList.add('active');
+      console.log('NTE modal opened successfully.');
     } else {
+      console.warn('NTE modal not found, falling back to evidence photo choice.');
       openEvidencePhotoChoiceModal(OFFENSE_ID);
     }
   }
@@ -3791,6 +3795,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
     else preview.innerHTML = '<div style="padding:16px;color:var(--red);font-weight:600;">Failed to generate preview.</div>';
   }
+
   async function sendLetter() {
     const guardianEmail = document.getElementById('letter_guardian_email')?.value.trim() || '';
     const subject = document.getElementById('letter_subject')?.value || '';
@@ -3844,7 +3849,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       });
 
       // Set LETTER_MODE to false globally so page state knows email has been sent
-      if (typeof LETTER_MODE !== 'undefined') LETTER_MODE = false;
+      try { LETTER_MODE = false; } catch (e) {}
+      window.LETTER_MODE = false;
 
       // Strip letter parameters from the URL
       if (window.history && window.history.replaceState) {
@@ -3861,9 +3867,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                                   (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation')) ||
                                   (typeof currentLevel !== 'undefined' && currentLevel === 'MAJOR');
 
+      console.log('isEscalationOrMajor:', isEscalationOrMajor);
       if (isEscalationOrMajor) {
+          console.log('Attempting to open NTE modal...');
           openNteEditorModal();
       } else {
+          console.log('Not a major/escalation offense, showing final success modal.');
           showFinalSuccessModal();
       }
     }
@@ -3876,8 +3885,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
     }
   }
-
-
 
   function showFinalSuccessModal(nteSent = false) {
       const modal = document.getElementById('finalProcessSuccessModal');
