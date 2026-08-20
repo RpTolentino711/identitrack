@@ -67,13 +67,23 @@ $signature = trim((string)($_POST['admin_signature'] ?? $adminName));
 
 $attachmentPath = null;
 $uploadedFileName = null;
+
+$fileKey = null;
 if (isset($_FILES['nte_file']) && !empty($_FILES['nte_file']['name'])) {
-    if ($_FILES['nte_file']['error'] !== UPLOAD_ERR_OK) {
-        echo json_encode(['ok' => false, 'error' => 'File upload error code: ' . $_FILES['nte_file']['error']]);
+    $fileKey = 'nte_file';
+} elseif (isset($_FILES['file']) && !empty($_FILES['file']['name'])) {
+    $fileKey = 'file';
+} elseif (isset($_FILES['attachment']) && !empty($_FILES['attachment']['name'])) {
+    $fileKey = 'attachment';
+}
+
+if ($fileKey) {
+    if ($_FILES[$fileKey]['error'] !== UPLOAD_ERR_OK) {
+        echo json_encode(['ok' => false, 'error' => 'File upload error code: ' . $_FILES[$fileKey]['error']]);
         exit;
     }
-    $fileTmp = $_FILES['nte_file']['tmp_name'];
-    $uploadedFileName = basename($_FILES['nte_file']['name']);
+    $fileTmp = $_FILES[$fileKey]['tmp_name'];
+    $uploadedFileName = basename($_FILES[$fileKey]['name']);
     $ext = strtolower(pathinfo($uploadedFileName, PATHINFO_EXTENSION));
     
     $uploadDir = __DIR__ . '/../uploads/nte/';
@@ -102,6 +112,9 @@ if ($caseId > 0) {
 if (!$existing && $offenseId > 0) {
     $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
 }
+if (!$existing && !empty($studentId)) {
+    $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE student_id = :sid ORDER BY nte_id DESC LIMIT 1", [':sid' => $studentId]);
+}
 
 $finalAttachment = $attachmentPath ?: ($existing['attachment_path'] ?? null);
 
@@ -116,7 +129,7 @@ if ($existing) {
             handbook_page = :page,
             custom_instructions = :inst,
             admin_signature = :sig,
-            attachment_path = :att,
+            attachment_path = COALESCE(:att, attachment_path),
             status = 'SENT',
             updated_at = NOW()
         WHERE nte_id = :nid
@@ -150,6 +163,15 @@ if ($existing) {
         ':att' => $finalAttachment
     ]);
     $nteId = (int)db_last_id();
+}
+
+if (!empty($finalAttachment)) {
+    if ($caseId > 0) {
+        db_exec("UPDATE notice_to_explain SET attachment_path = :att, status = 'SENT' WHERE case_id = :cid", [':att' => $finalAttachment, ':cid' => $caseId]);
+    }
+    if (!empty($studentId)) {
+        db_exec("UPDATE notice_to_explain SET attachment_path = :att, status = 'SENT' WHERE student_id = :sid AND (attachment_path IS NULL OR attachment_path = '')", [':att' => $finalAttachment, ':sid' => $studentId]);
+    }
 }
 
 // ── FETCH STUDENT EMAIL & NAME FOR OUTLOOK EMAIL DIRECT DELIVERY ──────────────
