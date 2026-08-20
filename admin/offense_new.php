@@ -925,9 +925,11 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
               ensure_notice_to_explain_table();
           }
           $nteRows = db_all("SELECT nte.*, 
-                     COALESCE(nte.case_id, uco.case_id) AS resolved_case_id
+                     COALESCE(nte.case_id, uco.case_id) AS resolved_case_id,
+                     uc.evidence_file AS case_evidence_file
               FROM notice_to_explain nte
               LEFT JOIN upcc_case_offense uco ON uco.offense_id = nte.offense_id
+              LEFT JOIN upcc_case uc ON uc.case_id = COALESCE(nte.case_id, uco.case_id)
               WHERE nte.student_id = :sid 
               ORDER BY nte.created_at DESC
           ", [':sid' => $student['student_id']]) ?: [];
@@ -973,9 +975,27 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $hearingPillColor = $showInHearing ? '#15803d' : '#64748b';
       $hearingLabel = $showInHearing ? 'YES (Shown in Hearing)' : 'NO (Private)';
 
+      $evFile = !empty($nte['case_evidence_file']) ? $nte['case_evidence_file'] : '';
+      
+      $photoUploadBtn = '';
+      if (!empty($evFile)) {
+          $photoUrl = '../' . htmlspecialchars($evFile);
+          $photoUploadBtn = '
+          <div style="display:inline-flex; align-items:center; gap:6px;">
+            <a href="' . $photoUrl . '" target="_blank" style="color:#15803d; font-size:10px; font-weight:700; text-decoration:underline;">📷 View Photo</a>
+            <button type="button" onclick="openDirectPhotoUploadModal(' . $caseIdForNte . ', ' . $nteId . '); return false;" style="background:#dcfce7; color:#15803d; font-weight:800; font-size:10px; border:1px solid #86efac; padding:2px 6px; border-radius:10px; cursor:pointer;" title="Re-upload photo evidence">🔄 Re-upload Photo</button>
+          </div>';
+      } else {
+          $photoUploadBtn = '
+          <button type="button" onclick="openDirectPhotoUploadModal(' . $caseIdForNte . ', ' . $nteId . '); return false;" style="background:#fffbeb; color:#92400e; font-weight:800; font-size:10px; border:1px solid #fde68a; padding:2px 8px; border-radius:10px; cursor:pointer;" title="Upload photo evidence">📷 Upload Photo Evidence</button>';
+      }
+
       $hearingToggleBtn = '
-      <div style="margin-top:6px; padding-top:6px; border-top:1px dashed #bbf7d0; display:flex; align-items:center; justify-content:space-between; font-size:11px;">
-        <span style="font-weight:700; color:#166534;">📷 Photo in Student Hearing:</span>
+      <div style="margin-top:6px; padding-top:6px; border-top:1px dashed #bbf7d0; display:flex; align-items:center; justify-content:space-between; font-size:11px; flex-wrap:wrap; gap:4px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-weight:700; color:#166534;">📷 Hearing Photo:</span>
+          ' . $photoUploadBtn . '
+        </div>
         <button type="button" onclick="toggleHearingPhoto(\'nte\', ' . $nteId . ', ' . ($showInHearing ? 0 : 1) . ', this)" style="background:' . $hearingPillBg . '; color:' . $hearingPillColor . '; font-weight:800; font-size:10.5px; border:1px solid ' . ($showInHearing ? '#86efac' : '#cbd5e1') . '; padding:3px 8px; border-radius:12px; cursor:pointer;">
           ' . $hearingLabel . '
         </button>
@@ -2377,6 +2397,38 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         }
     }, true);
   </script>
+
+  <!-- MODAL: Direct Incident Photo Evidence Upload -->
+  <div id="directPhotoUploadModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.75); z-index:999999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#fff; width:100%; max-width:440px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:17px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;">
+          📷 Upload Incident Photo Evidence
+        </h3>
+        <button type="button" onclick="closeDirectPhotoUploadModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
+      </div>
+      <form id="directPhotoUploadForm" onsubmit="submitDirectPhotoUpload(event)">
+        <input type="hidden" name="type" id="directPhotoType" value="case">
+        <input type="hidden" name="id" id="directPhotoId" value="0">
+        <input type="hidden" name="show" value="1">
+        
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Select Incident Photo File (JPG, PNG, PDF)</label>
+          <input type="file" name="photo_file" id="directPhotoFileInput" accept="image/*,.pdf" required style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;">
+          <div style="font-size:11px; color:#64748b; margin-top:4px;">Supported: JPG, PNG, WEBP, PDF (Max 10MB)</div>
+        </div>
+
+        <div id="directPhotoUploadMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button type="button" class="btn" onclick="closeDirectPhotoUploadModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
+          <button type="submit" id="btnSubmitDirectPhoto" class="btn btn-primary" style="background:#166534; border-color:#166534; padding:8px 20px; border-radius:8px; font-weight:700;">
+            📤 Upload Evidence
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- MODAL: Direct Upload & Send Form F-005 -->
   <div id="directNteUploadModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.75); z-index:999999; align-items:center; justify-content:center;">
@@ -4365,6 +4417,58 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               }, 1200);
           } else {
               if (msg) { msg.innerHTML = '❌ Failed: ' + (data.error || data.message || 'Error occurred'); msg.style.color = '#b91c1c'; }
+              if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+          }
+      } catch (err) {
+          if (msg) { msg.innerHTML = '❌ Upload error: ' + err.message; msg.style.color = '#b91c1c'; }
+          if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+      }
+  }
+
+  window.openDirectPhotoUploadModal = function(caseId, nteId) {
+      const idEl = document.getElementById('directPhotoId');
+      const typeEl = document.getElementById('directPhotoType');
+      const msgEl = document.getElementById('directPhotoUploadMsg');
+      if (idEl) idEl.value = (caseId > 0) ? caseId : nteId;
+      if (typeEl) typeEl.value = (caseId > 0) ? 'case' : 'nte';
+      if (msgEl) msgEl.innerHTML = '';
+      const modal = document.getElementById('directPhotoUploadModal');
+      if (modal) {
+          modal.style.cssText = 'display:flex !important; position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; background:rgba(15,23,42,0.75) !important; z-index:999999 !important; align-items:center !important; justify-content:center !important;';
+          modal.classList.add('active');
+      }
+  };
+
+  window.closeDirectPhotoUploadModal = function() {
+      const modal = document.getElementById('directPhotoUploadModal');
+      if (modal) {
+          modal.classList.remove('active');
+          modal.style.cssText = 'display:none !important;';
+      }
+  };
+
+  async function submitDirectPhotoUpload(e) {
+      e.preventDefault();
+      const form = document.getElementById('directPhotoUploadForm');
+      const formData = new FormData(form);
+      const msg = document.getElementById('directPhotoUploadMsg');
+      const btn = document.getElementById('btnSubmitDirectPhoto');
+      
+      if (msg) { msg.innerHTML = '⌛ Uploading photo evidence…'; msg.style.color = '#334155'; }
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+      
+      try {
+          const res = await fetch('AJAX/toggle_hearing_photo.php', { method: 'POST', body: formData });
+          const data = await res.json();
+          
+          if (data.ok) {
+              if (msg) { msg.innerHTML = '✅ Incident photo evidence uploaded successfully!'; msg.style.color = '#166534'; }
+              setTimeout(() => {
+                  closeDirectPhotoUploadModal();
+                  window.location.reload();
+              }, 1000);
+          } else {
+              if (msg) { msg.innerHTML = '❌ Failed: ' + (data.message || 'Error occurred'); msg.style.color = '#b91c1c'; }
               if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
           }
       } catch (err) {

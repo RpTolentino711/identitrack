@@ -28,7 +28,13 @@ try {
   }
 
   if ($type === 'nte') {
-    db_exec("UPDATE nte_document SET show_in_hearing = :show WHERE nte_id = :id", [':show' => $show, ':id' => $id]);
+    db_exec("UPDATE notice_to_explain SET show_in_hearing = :show WHERE nte_id = :id", [':show' => $show, ':id' => $id]);
+    if ($uploadedFilePath) {
+      $nteRow = db_one("SELECT case_id FROM notice_to_explain WHERE nte_id = :id LIMIT 1", [':id' => $id]);
+      if (!empty($nteRow['case_id'])) {
+        db_exec("UPDATE upcc_case SET evidence_file = :evfile, show_in_hearing = 1 WHERE case_id = :cid", [':evfile' => $uploadedFilePath, ':cid' => (int)$nteRow['case_id']]);
+      }
+    }
   } elseif ($type === 'offense') {
     if ($uploadedFilePath) {
       db_exec("UPDATE offense SET show_in_hearing = :show, evidence_file = :evfile WHERE offense_id = :id", [':show' => $show, ':evfile' => $uploadedFilePath, ':id' => $id]);
