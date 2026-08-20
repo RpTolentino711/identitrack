@@ -517,10 +517,13 @@ if ($targetOffenseId > 0) {
             $letterType = ($mCount % 3 === 2) ? 'letter' : '';
         }
 
-        // STAGE 1: Guardian Email Notification
+        // STAGE 1: Guardian Email Notification (Only for 2nd Minor, 3rd Minor Escalation, or Major!)
         if (empty($offCheck['guardian_notified_at']) || $offCheck['guardian_notified_at'] === '0000-00-00 00:00:00') {
-            $letterMode = true;
-            $letterOffenseId = $targetOffenseId;
+            $isTriggerOffense = (strtoupper((string)$offCheck['level']) === 'MAJOR') || ($mCount % 3 === 2) || ($mCount % 3 === 0 && $mCount >= 3);
+            if ($isTriggerOffense) {
+                $letterMode = true;
+                $letterOffenseId = $targetOffenseId;
+            }
         } 
         // STAGE 2: Form F-005 Notice to Explain (for Escalation / Major)
         elseif ($isEsc && empty($_SESSION['nte_done_' . $targetOffenseId])) {
