@@ -4000,8 +4000,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           console.log('Attempting to open NTE modal...');
           openNteEditorModal();
       } else {
-          console.log('Not a major/escalation offense, showing final success modal.');
-          showFinalSuccessModal();
+          console.log('2nd Minor warning email sent. Workflow complete.');
+          // 2nd Minor email sent successfully - modal closes cleanly without popping up any secondary modals!
       }
     }
     else { 
