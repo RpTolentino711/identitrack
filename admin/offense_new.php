@@ -15,7 +15,7 @@ $level = strtoupper(trim((string)($_GET['level'] ?? $_POST['level'] ?? 'MINOR'))
 if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level = 'MINOR';
 
 $category = (int)($_GET['major_category'] ?? $_POST['major_category'] ?? 0);
-if ($category < 0 || $category > 5) $category = 0;
+$studentIdPrefill = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
 
 if (isset($_GET['mark_stage']) && isset($_GET['offense_id'])) {
     $stage = trim((string)$_GET['mark_stage']);
