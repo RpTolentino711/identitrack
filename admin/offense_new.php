@@ -3788,7 +3788,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             msg.style.color = 'var(--red)';
         }
         alert('Please enter a guardian email address before sending.');
-        document.getElementById('letter_guardian_email').focus();
+        document.getElementById('letter_guardian_email')?.focus();
         return;
     }
     
@@ -3809,52 +3809,56 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     
     if (sendingModal) sendingModal.classList.remove('active');
 
-    if (msg) {
-      if (r.ok && r.json?.ok) { 
+    if (r.ok && r.json?.ok) { 
+      if (msg) {
         msg.textContent = '✅ Email sent successfully.'; 
         msg.style.color = 'var(--green)'; 
-        
-        // Hide the guardian letter modal and transition DIRECTLY to Form F-005 Editor
-        const letterModal = document.getElementById('modal-guardian-letter');
-        if (letterModal) letterModal.classList.remove('active');
-        
-        // Update guardian email in Student Information UI dynamically
-        const sicRows = document.querySelectorAll('.sic-row');
-        sicRows.forEach(row => {
-          if (row.innerHTML.includes('Guardian Email:')) {
-            const valSpan = row.querySelector('.sic-value');
-            if (valSpan) valSpan.innerHTML = `<span style="color:var(--green);font-weight:600;">${escHtml(guardianEmail)}</span>`;
-          }
-        });
-
-        // Set LETTER_MODE to false globally so page state knows email has been sent
-        if (typeof LETTER_MODE !== 'undefined') LETTER_MODE = false;
-
-        // Strip letter parameters from the URL
-        if (window.history && window.history.replaceState) {
-            const url = new URL(window.location.href);
-            url.searchParams.delete('letter');
-            url.searchParams.delete('offense_id');
-            url.searchParams.delete('type');
-            url.searchParams.delete('minor_no');
-            window.history.replaceState(null, '', url.pathname + url.search);
-        }
-
-        // Open Modal #2 (Form F-005 Notice to Explain Editor) ONLY for Major or Section 4 Escalation!
-        const isEscalationOrMajor = (typeof IS_SECTION4_ESCALATION !== 'undefined' && IS_SECTION4_ESCALATION) ||
-                                    (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation'));
-
-        if (isEscalationOrMajor) {
-            openNteEditorModal();
-        } else {
-            showFinalSuccessModal();
-        }
       }
-      else { 
+      
+      // Hide the guardian letter modal
+      const letterModal = document.getElementById('modal-guardian-letter');
+      if (letterModal) letterModal.classList.remove('active');
+      
+      // Update guardian email in Student Information UI dynamically
+      const sicRows = document.querySelectorAll('.sic-row');
+      sicRows.forEach(row => {
+        if (row.innerHTML.includes('Guardian Email:')) {
+          const valSpan = row.querySelector('.sic-value');
+          if (valSpan) valSpan.innerHTML = `<span style="color:var(--green);font-weight:600;">${escHtml(guardianEmail)}</span>`;
+        }
+      });
+
+      // Set LETTER_MODE to false globally so page state knows email has been sent
+      if (typeof LETTER_MODE !== 'undefined') LETTER_MODE = false;
+
+      // Strip letter parameters from the URL
+      if (window.history && window.history.replaceState) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('letter');
+          url.searchParams.delete('offense_id');
+          url.searchParams.delete('type');
+          url.searchParams.delete('minor_no');
+          window.history.replaceState(null, '', url.pathname + url.search);
+      }
+
+      // Open Modal #2 (Form F-005 Notice to Explain Editor) for Major or Section 4 Escalation!
+      const isEscalationOrMajor = (typeof IS_SECTION4_ESCALATION !== 'undefined' && IS_SECTION4_ESCALATION) ||
+                                  (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation')) ||
+                                  (typeof currentLevel !== 'undefined' && currentLevel === 'MAJOR');
+
+      if (isEscalationOrMajor) {
+          openNteEditorModal();
+      } else {
+          showFinalSuccessModal();
+      }
+    }
+    else { 
+      if (msg) {
         msg.textContent = '❌ Failed: ' + (r.json?.message || 'Unknown error'); 
         msg.style.color = 'var(--red)'; 
-        if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
       }
+      alert('❌ Failed to send email: ' + (r.json?.message || 'Server or SMTP error. Please check guardian email and try again.'));
+      if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
     }
   }
 
