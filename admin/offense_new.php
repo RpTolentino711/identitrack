@@ -4862,30 +4862,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           }
         }
 
-        // Check if Major or Section 4 escalation (3rd minor of any cycle, e.g. 3, 6, 9...)
-        const isMajorOrEscalation = (lvl === 'MAJOR') || (lvl === 'MINOR' && window.__projectedMinorCount > 0 && window.__projectedMinorCount % 3 === 0);
-        const isConfirmedNte = document.getElementById('nte_file_confirmed')?.value === '1';
-
-        if (isMajorOrEscalation && !isConfirmedNte) {
-          e.preventDefault();
-          e.stopPropagation();
-          const nteModal = document.getElementById('modal-nte-editor');
-          if (nteModal) {
-            openNteEditorModal();
-          } else {
-            const sid = document.getElementById('studentIdInput')?.value || '';
-            window.openDirectNteUploadModal(null, e, 0, sid);
-          }
-          return false;
-        }
-
-        if (isMajorOrEscalation && !isConfirmedEvidence) {
-          e.preventDefault();
-          e.stopPropagation();
-          openEvidenceUploadModal();
-          return false;
-        }
-
         return true;
       });
     });
