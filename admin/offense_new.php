@@ -338,8 +338,7 @@ $pendingReportId = (int)($_GET['pending_report_id'] ?? $_POST['pending_report_id
 $pendingGuardReports = [];
 
 if ($pendingReportId > 0) {
-  $single = db_one("
-    SELECT pgr.*, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
+  $single = db_one("SELECT pgr.*, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
            g.full_name as guard_name
     FROM guard_violation_report pgr
     LEFT JOIN offense_type ot ON ot.offense_type_id = pgr.offense_type_id
@@ -356,8 +355,7 @@ if ($pendingReportId > 0) {
 }
 
 if ($postStudentId !== '') {
-  $others = db_all("
-    SELECT pgr.*, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
+  $others = db_all("SELECT pgr.*, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category,
            g.full_name as guard_name
     FROM guard_violation_report pgr
     LEFT JOIN offense_type ot ON ot.offense_type_id = pgr.offense_type_id
