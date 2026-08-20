@@ -3043,7 +3043,22 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
 
 
-  <!-- MODAL: Confirm Skip Form F-005 File -->
+  <!-- MODAL: Confirm Finish Without Photo Evidence -->
+  <div id="confirmSkipEvidenceModal" class="modal" style="z-index: 4500;">
+    <div class="modal-content" style="max-width: 420px; text-align: center; border-radius: 16px; overflow: hidden; padding: 24px;">
+      <div style="color: #f59e0b; margin-bottom: 16px;">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 48px; height: 48px; margin: 0 auto;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #1e293b;">No Photo Evidence Attached</h3>
+      <p style="color: var(--text-2); font-size: 14px; line-height: 1.5; margin-bottom: 24px;">
+        Are you sure you want to finish registration without attaching incident photo evidence for this record?
+      </p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button class="btn" onclick="closeConfirmSkipEvidenceModal()" style="flex: 1; justify-content: center; font-weight: 700;">No, Select Photo</button>
+        <button class="btn btn-primary" onclick="executeFinishWithoutPhoto()" style="flex: 1; justify-content: center; font-weight: 700; background: #2563eb; border-color: #2563eb;">Yes, Finish Without Photo</button>
+      </div>
+    </div>
+  </div>
   <div id="confirmSkipNteModal" class="modal" style="z-index: 4000;">
     <div class="modal-content" style="max-width: 420px; text-align: center; border-radius: 16px; overflow: hidden; padding: 24px;">
       <div style="color: #f59e0b; margin-bottom: 16px;">
@@ -3352,7 +3367,38 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
   };
 
-  window.saveEvidencePhotoChoiceAndFinish = async function() {
+  function closeConfirmSkipEvidenceModal() {
+    const confirmModal = document.getElementById('confirmSkipEvidenceModal');
+    if (confirmModal) {
+      confirmModal.classList.remove('active');
+      confirmModal.style.display = 'none';
+    }
+  }
+
+  function executeFinishWithoutPhoto() {
+    closeConfirmSkipEvidenceModal();
+    executeSaveEvidenceChoice(false);
+  }
+
+  window.saveEvidencePhotoChoiceAndFinish = function() {
+    const photoFileInput = document.getElementById('modal_hearing_photo_file');
+    const hasFile = photoFileInput && photoFileInput.files && photoFileInput.files[0];
+
+    if (!hasFile) {
+      const confirmModal = document.getElementById('confirmSkipEvidenceModal');
+      if (confirmModal) {
+        confirmModal.style.display = 'flex';
+        confirmModal.classList.add('active');
+      } else {
+        executeSaveEvidenceChoice(false);
+      }
+      return;
+    }
+
+    executeSaveEvidenceChoice(true);
+  };
+
+  async function executeSaveEvidenceChoice(hasFile) {
     const showVal = 1;
     const btn = document.getElementById('btnSaveHearingChoice');
     const photoFileInput = document.getElementById('modal_hearing_photo_file');
@@ -3364,7 +3410,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     fd.append('id', OFFENSE_ID);
     fd.append('show', showVal);
 
-    if (photoFileInput && photoFileInput.files && photoFileInput.files[0]) {
+    if (hasFile && photoFileInput && photoFileInput.files && photoFileInput.files[0]) {
       fd.append('photo_file', photoFileInput.files[0]);
     }
 
@@ -3372,11 +3418,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     await fetch('offense_new.php?mark_stage=evidence&offense_id=' + OFFENSE_ID).catch(() => null);
 
     const choiceModal = document.getElementById('modal-evidence-photo-choice');
-    if (choiceModal) choiceModal.classList.remove('active');
-    if (btn) { btn.disabled = false; btn.textContent = '✓ Save Evidence & Finish Registration'; }
+    if (choiceModal) {
+      choiceModal.classList.remove('active');
+      choiceModal.style.display = 'none';
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Save Choice & Finish Registration'; }
 
     showFinalSuccessModal(window.__pendingNteSentStatus);
-  };
+  }
 
   const studentIdInput    = document.getElementById('studentIdInput');
   const levelSelect       = document.getElementById('levelSelect');
