@@ -3237,7 +3237,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const confirmModal = document.getElementById('confirmSkipNteModal');
     if (confirmModal) {
       confirmModal.style.display = 'flex';
+      confirmModal.style.zIndex = '9999999';
       confirmModal.classList.add('active');
+      console.log('Skip NTE confirmation modal opened.');
     } else {
       executeSkipNteFile();
     }
@@ -3388,6 +3390,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       const confirmModal = document.getElementById('confirmSkipEvidenceModal');
       if (confirmModal) {
         confirmModal.style.display = 'flex';
+        confirmModal.style.zIndex = '9999999';
         confirmModal.classList.add('active');
       } else {
         executeSaveEvidenceChoice(false);
