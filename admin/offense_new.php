@@ -962,8 +962,10 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   $nteCaseMap = [];
   foreach ($nteRows as $nte) {
       $cid = !empty($nte['resolved_case_id']) ? (int)$nte['resolved_case_id'] : (!empty($nte['case_id']) ? (int)$nte['case_id'] : 0);
-      if ($cid > 0 && !empty($nte['attachment_path']) && strtoupper((string)($nte['status'] ?? '')) !== 'SKIPPED') {
-          $nteCaseMap[$cid] = $nte;
+      if ($cid > 0) {
+          if (empty($nteCaseMap[$cid]) || (empty($nteCaseMap[$cid]['attachment_path']) && !empty($nte['attachment_path']))) {
+              $nteCaseMap[$cid] = $nte;
+          }
       }
   }
 
@@ -1050,7 +1052,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   if (!empty($activeCases)) {
       foreach ($activeCases as $acase) {
           $acid = (int)$acase['case_id'];
-          $hasNte = !empty($nteCaseMap[$acid]);
+          $hasNte = !empty($nteCaseMap[$acid]) && !empty($nteCaseMap[$acid]['attachment_path']) && strtoupper((string)($nteCaseMap[$acid]['status'] ?? '')) !== 'SKIPPED';
           if (!$hasNte) {
               $totalNteDisplay++;
               $caseDateStr = !empty($acase['created_at']) ? ph_date('M j, Y \a\t h:i:s A', $acase['created_at']) : 'During Offense Registration';
