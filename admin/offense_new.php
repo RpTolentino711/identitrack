@@ -472,14 +472,36 @@ if ($letterOffenseId <= 0 && !empty($studentIdPrefill)) {
 }
 
 $letterMode = false;
+$isSection4EscalationOffense = false;
 if ($letterOffenseId > 0) {
-    $offExists = db_one("SELECT offense_id, guardian_notified_at FROM offense WHERE offense_id = :oid", [':oid' => $letterOffenseId]);
-    if ($offExists && (empty($offExists['guardian_notified_at']) || $offExists['guardian_notified_at'] === '0000-00-00 00:00:00')) {
-        $letterMode = true;
-    } else {
-        $letterMode = false;
-        $letterOffenseId = 0;
-        unset($_SESSION['pending_letter_offense_id'], $_SESSION['pending_letter_type'], $_SESSION['pending_letter_student_id']);
+    $offCheck = db_one(
+        "SELECT o.offense_id, o.level, o.student_id, o.guardian_notified_at, 
+                (SELECT COUNT(*) FROM upcc_case_offense uco JOIN upcc_case uc ON uc.case_id = uco.case_id WHERE uco.offense_id = o.offense_id AND uc.case_kind = 'SECTION4_MINOR_ESCALATION') AS is_section4_case 
+         FROM offense o WHERE o.offense_id = :oid", 
+        [':oid' => $letterOffenseId]
+    );
+    if ($offCheck) {
+        if (!empty($offCheck['guardian_notified_at']) && $offCheck['guardian_notified_at'] !== '0000-00-00 00:00:00') {
+            $letterMode = false;
+            $letterOffenseId = 0;
+            unset($_SESSION['pending_letter_offense_id'], $_SESSION['pending_letter_type'], $_SESSION['pending_letter_student_id']);
+        } else {
+            $letterMode = true;
+            if (strtoupper((string)$offCheck['level']) === 'MAJOR') {
+                $letterType = 'major';
+                $isSection4EscalationOffense = true;
+            } elseif ((int)$offCheck['is_section4_case'] > 0) {
+                $letterType = 'escalation';
+                $isSection4EscalationOffense = true;
+            } else {
+                $mCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND level = 'MINOR' AND offense_id <= :oid", [':sid' => $offCheck['student_id'], ':oid' => $letterOffenseId]);
+                $mCount = (int)($mCountRow['cnt'] ?? 0);
+                if ($mCount % 3 === 0 && $mCount >= 3) {
+                    $letterType = 'escalation';
+                    $isSection4EscalationOffense = true;
+                }
+            }
+        }
     }
 }
 
@@ -3024,6 +3046,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   const OFFENSE_ID  = <?php echo (int)$letterOffenseId; ?>;
   const LETTER_MODE = <?php echo json_encode($letterMode && $letterOffenseId > 0); ?>;
   const LETTER_TYPE = <?php echo json_encode($letterType); ?>;
+  const IS_SECTION4_ESCALATION = <?php echo json_encode(!empty($isSection4EscalationOffense) || $letterType === 'escalation' || $letterType === 'major'); ?>;
   const SUCCESS_MODE = <?php echo json_encode($successMode); ?>;
   const INIT_LEVEL  = <?php echo json_encode($level); ?>;
   const SHOW_STUDENT_RECORD_MODAL = <?php echo json_encode($studentInfo && ($liveMinorCount + $liveMajorCount > 0 || count($liveActiveUpccCases) > 0)); ?>;
@@ -3818,7 +3841,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         }
 
         // Open Modal #2 (Form F-005 Notice to Explain Editor) ONLY for Major or Section 4 Escalation!
-        if (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation')) {
+        const isEscalationOrMajor = (typeof IS_SECTION4_ESCALATION !== 'undefined' && IS_SECTION4_ESCALATION) ||
+                                    (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation'));
+
+        if (isEscalationOrMajor) {
             openNteEditorModal();
         } else {
             showFinalSuccessModal();
