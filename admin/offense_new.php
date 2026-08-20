@@ -926,10 +926,12 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           }
           $nteRows = db_all("SELECT nte.*, 
                      COALESCE(nte.case_id, uco.case_id) AS resolved_case_id,
-                     uc.evidence_file AS case_evidence_file
+                     uc.evidence_file AS case_evidence_file,
+                     o.evidence_file AS offense_evidence_file
               FROM notice_to_explain nte
               LEFT JOIN upcc_case_offense uco ON uco.offense_id = nte.offense_id
               LEFT JOIN upcc_case uc ON uc.case_id = COALESCE(nte.case_id, uco.case_id)
+              LEFT JOIN offense o ON o.offense_id = nte.offense_id
               WHERE nte.student_id = :sid 
               ORDER BY nte.created_at DESC
           ", [':sid' => $student['student_id']]) ?: [];
@@ -970,7 +972,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $reuploadBtn = '
       <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . htmlspecialchars($student['student_id']) . '" onclick="window.openDirectNteUploadModal(this, event, ' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
 
-      $evFile = !empty($nte['case_evidence_file']) ? $nte['case_evidence_file'] : '';
+      $evFile = !empty($nte['case_evidence_file']) ? $nte['case_evidence_file'] : (!empty($nte['offense_evidence_file']) ? $nte['offense_evidence_file'] : '');
       
       $photoUploadBtn = '';
       if (!empty($evFile)) {
@@ -1015,6 +1017,21 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           if (empty($nteCaseMap[$acid])) {
               $totalNteDisplay++;
               $caseDateStr = !empty($acase['created_at']) ? ph_date('M j, Y \a\t h:i:s A', $acase['created_at']) : 'During Offense Registration';
+              
+              $caseEvFile = !empty($acase['evidence_file']) ? $acase['evidence_file'] : '';
+              $casePhotoBtn = '';
+              if (!empty($caseEvFile)) {
+                  $casePhotoUrl = '../' . htmlspecialchars($caseEvFile);
+                  $casePhotoBtn = '
+                  <div style="display:inline-flex; align-items:center; gap:6px;">
+                    <a href="' . $casePhotoUrl . '" target="_blank" style="color:#b45309; font-size:10px; font-weight:700; text-decoration:underline;">📷 View Photo</a>
+                    <button type="button" onclick="openDirectPhotoUploadModal(' . $acid . ', 0); return false;" style="background:#fef3c7; color:#b45309; font-weight:800; font-size:10px; border:1px solid #fde68a; padding:2px 6px; border-radius:10px; cursor:pointer;" title="Re-upload photo evidence">🔄 Re-upload Photo</button>
+                  </div>';
+              } else {
+                  $casePhotoBtn = '
+                  <button type="button" onclick="openDirectPhotoUploadModal(' . $acid . ', 0); return false;" style="background:#fffbeb; color:#92400e; font-weight:800; font-size:10px; border:1px solid #fde68a; padding:2px 8px; border-radius:10px; cursor:pointer;" title="Upload photo evidence">📷 Upload Photo Evidence</button>';
+              }
+
               $nteHistoryHtml .= '
               <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
