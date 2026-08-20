@@ -932,7 +932,15 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
                       FROM offense o2 
                       JOIN upcc_case_offense uco2 ON uco2.offense_id = o2.offense_id 
                       WHERE uco2.case_id = COALESCE(nte.case_id, uco.case_id) AND o2.evidence_file IS NOT NULL AND o2.evidence_file <> '' 
-                      ORDER BY o2.offense_id DESC LIMIT 1) AS case_linked_offense_evidence
+                      ORDER BY o2.offense_id DESC LIMIT 1) AS case_linked_offense_evidence,
+                     (SELECT o3.evidence_file 
+                      FROM offense o3 
+                      WHERE o3.student_id = nte.student_id AND o3.evidence_file IS NOT NULL AND o3.evidence_file <> '' 
+                      ORDER BY o3.offense_id DESC LIMIT 1) AS latest_student_offense_evidence,
+                     (SELECT uc2.evidence_file 
+                      FROM upcc_case uc2 
+                      WHERE uc2.student_id = nte.student_id AND uc2.evidence_file IS NOT NULL AND uc2.evidence_file <> '' 
+                      ORDER BY uc2.case_id DESC LIMIT 1) AS latest_student_case_evidence
               FROM notice_to_explain nte
               LEFT JOIN upcc_case_offense uco ON uco.offense_id = nte.offense_id
               LEFT JOIN upcc_case uc ON uc.case_id = COALESCE(nte.case_id, uco.case_id)
@@ -977,7 +985,12 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $reuploadBtn = '
       <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . htmlspecialchars($student['student_id']) . '" onclick="window.openDirectNteUploadModal(this, event, ' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
 
-      $evFile = !empty($nte['case_evidence_file']) ? $nte['case_evidence_file'] : (!empty($nte['offense_evidence_file']) ? $nte['offense_evidence_file'] : (!empty($nte['case_linked_offense_evidence']) ? $nte['case_linked_offense_evidence'] : (!empty($nte['attachment_path']) && preg_match('/\.(jpg|jpeg|png|webp)$/i', $nte['attachment_path']) ? $nte['attachment_path'] : '')));
+      $evFile = !empty($nte['case_evidence_file']) ? $nte['case_evidence_file'] : 
+               (!empty($nte['offense_evidence_file']) ? $nte['offense_evidence_file'] : 
+               (!empty($nte['case_linked_offense_evidence']) ? $nte['case_linked_offense_evidence'] : 
+               (!empty($nte['latest_student_offense_evidence']) ? $nte['latest_student_offense_evidence'] : 
+               (!empty($nte['latest_student_case_evidence']) ? $nte['latest_student_case_evidence'] : 
+               (!empty($nte['attachment_path']) && preg_match('/\.(jpg|jpeg|png|webp)$/i', $nte['attachment_path']) ? $nte['attachment_path'] : '')))));
       
       $photoUploadBtn = '';
       if (!empty($evFile)) {
