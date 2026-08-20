@@ -443,14 +443,17 @@ if ($pendingGuardReport) {
 $letterOffenseId = (int)($_GET['offense_id'] ?? $_SESSION['pending_letter_offense_id'] ?? 0);
 $letterType      = (string)($_GET['type'] ?? $_SESSION['pending_letter_type'] ?? '');
 $successMode     = ((int)($_GET['success'] ?? 0) === 1);
+$letterParam     = ((int)($_GET['letter'] ?? 0) === 1);
 
-if (((int)($_GET['letter'] ?? 0) === 1) && (int)($_GET['offense_id'] ?? 0) > 0) {
+if ($letterParam && (int)($_GET['offense_id'] ?? 0) > 0) {
     $_SESSION['pending_letter_offense_id'] = (int)$_GET['offense_id'];
     $_SESSION['pending_letter_type']       = (string)($_GET['type'] ?? '');
 }
 
-// Auto-detect unsent guardian letter for the student if student_id is present
-if ($letterOffenseId <= 0 && !empty($studentIdPrefill)) {
+// Auto-detect is ONLY active if an explicit letter/success redirect parameter is present OR if session has an active pending workflow
+$hasActiveWorkflowRequest = $successMode || $letterParam || !empty($_SESSION['pending_letter_offense_id']) || !empty($_SESSION['pending_nte_offense_id']) || !empty($_SESSION['pending_evidence_offense_id']);
+
+if ($letterOffenseId <= 0 && $hasActiveWorkflowRequest && !empty($studentIdPrefill)) {
     $unsentOffense = db_one(
         "SELECT offense_id, level FROM offense 
          WHERE student_id = :sid 
@@ -484,7 +487,7 @@ $ntePendingMode = false;
 $evidencePendingMode = false;
 $isSection4EscalationOffense = false;
 
-$targetOffenseId = (int)($_GET['offense_id'] ?? $_SESSION['pending_letter_offense_id'] ?? $_SESSION['pending_nte_offense_id'] ?? $_SESSION['pending_evidence_offense_id'] ?? $letterOffenseId);
+$targetOffenseId = $hasActiveWorkflowRequest ? (int)($_GET['offense_id'] ?? $_SESSION['pending_letter_offense_id'] ?? $_SESSION['pending_nte_offense_id'] ?? $_SESSION['pending_evidence_offense_id'] ?? $letterOffenseId) : 0;
 
 if ($targetOffenseId > 0) {
     $offCheck = db_one(
