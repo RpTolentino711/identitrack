@@ -466,7 +466,7 @@ if ($letterOffenseId <= 0 && !empty($studentIdPrefill)) {
         $mCount = (int)($mCountRow['cnt'] ?? 0);
         $offLevel = strtoupper((string)$unsentOffense['level']);
 
-        if ($offLevel === 'MAJOR') {
+        if ($offLevel === 'MAJOR' && $level === 'MAJOR') {
             $letterOffenseId = (int)$unsentOffense['offense_id'];
             $letterType = 'major';
         } elseif ($mCount % 3 === 0 && $mCount >= 3) {
@@ -2918,7 +2918,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
             <strong style="color:var(--red);">3rd Minor Offense!</strong> The student has reached Section 4. A UPCC case has been automatically created. Please send the guardian notification below.
           </p>
-        <?php elseif ($letterType === 'major'): ?>
+        <?php elseif ($letterType === 'major' && $level === 'MAJOR'): ?>
           <h3 style="margin: 0 0 12px 0; font-size: 20px; color: var(--red);">🚨 Major Offense</h3>
           <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
             This major offense requires immediate UPCC panel review. A UPCC case has been automatically created. Please send the guardian notification below.
