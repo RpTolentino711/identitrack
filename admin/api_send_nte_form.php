@@ -57,7 +57,11 @@ $signature = trim((string)($_POST['admin_signature'] ?? $adminName));
 
 $attachmentPath = null;
 $uploadedFileName = null;
-if (isset($_FILES['nte_file']) && $_FILES['nte_file']['error'] === UPLOAD_ERR_OK) {
+if (isset($_FILES['nte_file']) && !empty($_FILES['nte_file']['name'])) {
+    if ($_FILES['nte_file']['error'] !== UPLOAD_ERR_OK) {
+        echo json_encode(['ok' => false, 'error' => 'File upload error code: ' . $_FILES['nte_file']['error']]);
+        exit;
+    }
     $fileTmp = $_FILES['nte_file']['tmp_name'];
     $uploadedFileName = basename($_FILES['nte_file']['name']);
     $ext = strtolower(pathinfo($uploadedFileName, PATHINFO_EXTENSION));
@@ -72,6 +76,9 @@ if (isset($_FILES['nte_file']) && $_FILES['nte_file']['error'] === UPLOAD_ERR_OK
     
     if (move_uploaded_file($fileTmp, $targetPath)) {
         $attachmentPath = 'uploads/nte/' . $newFileName;
+    } else {
+        echo json_encode(['ok' => false, 'error' => 'Failed to move uploaded Form F-005 file. Check folder permissions.']);
+        exit;
     }
 }
 
