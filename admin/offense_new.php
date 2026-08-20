@@ -3527,9 +3527,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   function closeSuccessModal() {
     if (window.successModalTimer) clearTimeout(window.successModalTimer);
     if (successModal) successModal.classList.remove('active'); 
-    if (typeof LETTER_MODE !== 'undefined' && LETTER_MODE) {
+    const isLetterPending = (typeof LETTER_MODE !== 'undefined' && LETTER_MODE === true && window.LETTER_MODE !== false);
+    if (isLetterPending) {
       const letterModal = document.getElementById('modal-guardian-letter');
-      if (letterModal) letterModal.classList.add('active');
+      if (letterModal) {
+        letterModal.style.display = 'flex';
+        letterModal.style.zIndex = '2500';
+        letterModal.classList.add('active');
+      }
       if (typeof previewLetter === 'function') previewLetter();
     }
   }
@@ -3955,9 +3960,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         msg.style.color = 'var(--green)'; 
       }
       
-      // Hide the guardian letter modal
+      // Hide the guardian letter modal completely
       const letterModal = document.getElementById('modal-guardian-letter');
-      if (letterModal) letterModal.classList.remove('active');
+      if (letterModal) {
+        letterModal.classList.remove('active');
+        letterModal.style.display = 'none';
+      }
       
       // Update guardian email in Student Information UI dynamically
       const sicRows = document.querySelectorAll('.sic-row');
