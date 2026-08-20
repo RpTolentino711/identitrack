@@ -4145,7 +4145,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   const HAS_ERRORS = <?php echo empty($errors) ? 'false' : 'true'; ?>;
-  if (SUCCESS_MODE && successModal && !HAS_ERRORS && !LETTER_MODE) {
+  if (SUCCESS_MODE && successModal && !HAS_ERRORS) {
       // Strip ONLY success parameter from the URL so refreshing doesn't trigger success again.
       // (Letter parameters are kept so the email modal persists on refresh if not sent).
       if (window.history && window.history.replaceState) {
@@ -4169,14 +4169,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       window.successModalTimer = setTimeout(() => {
           closeSuccessModal();
       }, 5000);
-  }
-  
-  if (LETTER_MODE) {
+  } else if (LETTER_MODE) {
       setTimeout(() => {
           checkEmailRequired();
           if (typeof previewLetter === 'function') previewLetter();
           const letterModal = document.getElementById('modal-guardian-letter');
-          if (letterModal) letterModal.classList.add('active');
+          if (letterModal) {
+              letterModal.style.display = 'flex';
+              letterModal.style.zIndex = '2500';
+              letterModal.classList.add('active');
+          }
       }, 500);
   } else if (typeof NTE_PENDING_MODE !== 'undefined' && NTE_PENDING_MODE) {
       setTimeout(() => {
