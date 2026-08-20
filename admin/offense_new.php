@@ -951,8 +951,9 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
               LEFT JOIN upcc_case uc ON uc.case_id = COALESCE(nte.case_id, uco.case_id)
               LEFT JOIN offense o ON o.offense_id = nte.offense_id
               WHERE nte.student_id = :sid 
+                 OR nte.case_id IN (SELECT uc3.case_id FROM upcc_case uc3 WHERE uc3.student_id = :sid2)
               ORDER BY nte.created_at DESC
-          ", [':sid' => $student['student_id']]) ?: [];
+          ", [':sid' => $student['student_id'], ':sid2' => $student['student_id']]) ?: [];
       } catch (Throwable $ex) {
           $nteRows = [];
       }
