@@ -23,6 +23,12 @@ if ($caseId <= 0 && $offenseId > 0) {
         $caseId = (int)$offRow['case_id'];
     }
 }
+if ($caseId <= 0 && !empty($studentId)) {
+    $caseRow = db_one("SELECT case_id FROM upcc_case WHERE student_id = :sid AND status IN ('PENDING','UNDER_APPEAL') ORDER BY case_id DESC LIMIT 1", [':sid' => $studentId]);
+    if (!empty($caseRow['case_id'])) {
+        $caseId = (int)$caseRow['case_id'];
+    }
+}
 
 if ($studentId === '') {
     echo json_encode(['ok' => false, 'error' => 'Student ID is required.']);
