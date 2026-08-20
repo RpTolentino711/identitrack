@@ -1017,8 +1017,8 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
                 <div style="font-size:11px; color:#475569; margin-bottom:6px;">
                   Form F-005 was not sent during offense registration.
                 </div>
-                <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $acid . '" data-student-id="' . htmlspecialchars($student['student_id']) . '" onclick="window.openDirectNteUploadModal(this, event, ' . $acid . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#1b2b6b; color:#fff; font-size:11px; font-weight:700; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">
-                  📤 Upload &amp; Send Form F-005
+                <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $acid . '" data-student-id="' . htmlspecialchars($student['student_id']) . '" style="background:#1b2b6b; color:#fff; font-size:11px; font-weight:700; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">
+                  📤 Upload & Send Form F-005
                 </button>
               </div>';
           }
