@@ -477,7 +477,9 @@ if ($letterOffenseId > 0) {
     if ($offExists && (empty($offExists['guardian_notified_at']) || $offExists['guardian_notified_at'] === '0000-00-00 00:00:00')) {
         $letterMode = true;
     } else {
-        unset($_SESSION['pending_letter_offense_id'], $_SESSION['pending_letter_type']);
+        $letterMode = false;
+        $letterOffenseId = 0;
+        unset($_SESSION['pending_letter_offense_id'], $_SESSION['pending_letter_type'], $_SESSION['pending_letter_student_id']);
     }
 }
 
@@ -3804,6 +3806,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             if (valSpan) valSpan.innerHTML = `<span style="color:var(--green);font-weight:600;">${escHtml(guardianEmail)}</span>`;
           }
         });
+
+        // Set LETTER_MODE to false globally so page state knows email has been sent
+        if (typeof LETTER_MODE !== 'undefined') LETTER_MODE = false;
 
         // Strip letter parameters from the URL
         if (window.history && window.history.replaceState) {
