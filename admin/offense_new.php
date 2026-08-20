@@ -2672,6 +2672,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   <input type="hidden" name="dismissal_reason" id="dismissal_reason_hidden" value=""/>
                   <input type="hidden" name="dismissal_approval_confirmed" id="dismissal_approval_confirmed" value="0"/>
                   <input type="hidden" name="evidence_file_confirmed" id="evidence_file_confirmed" value="0"/>
+                  <input type="hidden" name="nte_file_confirmed" id="nte_file_confirmed" value="0"/>
                   <input type="file" name="evidence_file" id="evidence_file_input" style="display:none;" accept="image/*,.pdf"/>
 
                   <div class="form-row">
@@ -4863,6 +4864,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
         // Check if Major or Section 4 escalation (3rd minor of any cycle, e.g. 3, 6, 9...)
         const isMajorOrEscalation = (lvl === 'MAJOR') || (lvl === 'MINOR' && window.__projectedMinorCount > 0 && window.__projectedMinorCount % 3 === 0);
+        const isConfirmedNte = document.getElementById('nte_file_confirmed')?.value === '1';
+
+        if (isMajorOrEscalation && !isConfirmedNte) {
+          e.preventDefault();
+          e.stopPropagation();
+          const nteModal = document.getElementById('modal-nte-editor');
+          if (nteModal) {
+            openNteEditorModal();
+          } else {
+            const sid = document.getElementById('studentIdInput')?.value || '';
+            window.openDirectNteUploadModal(null, e, 0, sid);
+          }
+          return false;
+        }
+
         if (isMajorOrEscalation && !isConfirmedEvidence) {
           e.preventDefault();
           e.stopPropagation();
