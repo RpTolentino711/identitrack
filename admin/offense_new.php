@@ -4004,6 +4004,30 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   function showFinalSuccessModal(nteSent = false, evidenceAttached = false) {
+      const isEscOrMajor = (typeof IS_SECTION4_ESCALATION !== 'undefined' && IS_SECTION4_ESCALATION) ||
+                           (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation')) ||
+                           (typeof currentLevel !== 'undefined' && currentLevel === 'MAJOR');
+
+      if (!isEscOrMajor) {
+          const simpleSuccessModal = document.getElementById('successModal');
+          if (simpleSuccessModal) {
+              simpleSuccessModal.classList.add('active');
+              var bar = document.getElementById('successModalProgress');
+              if (bar) {
+                  bar.style.transition = 'none';
+                  bar.style.width = '100%';
+                  setTimeout(() => {
+                      bar.style.transition = 'width 5s linear';
+                      bar.style.width = '0%';
+                  }, 50);
+              }
+              window.successModalTimer = setTimeout(() => {
+                  closeSuccessModal();
+              }, 5000);
+          }
+          return;
+      }
+
       const modal = document.getElementById('finalProcessSuccessModal');
       const nteText = document.getElementById('finalNteStatusText');
       const evText = document.getElementById('finalEvidenceStatusText');
