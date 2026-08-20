@@ -3551,12 +3551,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const studentModal = document.getElementById('studentRecordModal');
     if (studentModal) studentModal.classList.remove('active');
   }
-  document.addEventListener('DOMContentLoaded', () => {
-    const hasPhpErrors = <?php echo empty($errors) ? 'false' : 'true'; ?>;
-    if (SHOW_STUDENT_RECORD_MODAL && !SUCCESS_MODE && !hasPhpErrors) {
-      openStudentRecordModal();
-    }
-  });
+  // studentRecordModal is now only opened via explicit student search / input action
   function openAddModal() {
     document.getElementById('edit_offense_type_id').value = '';
     document.getElementById('typeModalTitle').innerText = 'Add New Offense Type';
