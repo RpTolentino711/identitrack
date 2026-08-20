@@ -3043,6 +3043,23 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
 
 
+  <!-- MODAL: Confirm Skip Form F-005 File -->
+  <div id="confirmSkipNteModal" class="modal" style="z-index: 4000;">
+    <div class="modal-content" style="max-width: 420px; text-align: center; border-radius: 16px; overflow: hidden; padding: 24px;">
+      <div style="color: #f59e0b; margin-bottom: 16px;">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 48px; height: 48px; margin: 0 auto;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #1e293b;">Skip Form F-005 File?</h3>
+      <p style="color: var(--text-2); font-size: 14px; line-height: 1.5; margin-bottom: 24px;">
+        Are you sure you don't want to send the official Form F-005 document file to the student?
+      </p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button class="btn" onclick="closeConfirmSkipNteModal()" style="flex: 1; justify-content: center; font-weight: 700;">No, Back to Upload</button>
+        <button class="btn btn-primary" onclick="confirmSkipNteFile()" style="flex: 1; justify-content: center; font-weight: 700; background: var(--navy, #1b2b6b); border-color: var(--navy, #1b2b6b);">Yes, Skip File</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Email Sending Loading Modal -->
   <div id="emailSendingModal" class="modal" data-static="true">
     <div class="modal-content" style="max-width: 360px; text-align: center; border-radius: 16px; padding: 32px 24px;">
@@ -3202,6 +3219,27 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   function promptSkipNteFile() {
+    const confirmModal = document.getElementById('confirmSkipNteModal');
+    if (confirmModal) {
+      confirmModal.style.display = 'flex';
+      confirmModal.classList.add('active');
+    } else {
+      executeSkipNteFile();
+    }
+  }
+
+  function closeConfirmSkipNteModal() {
+    const confirmModal = document.getElementById('confirmSkipNteModal');
+    if (confirmModal) {
+      confirmModal.classList.remove('active');
+      confirmModal.style.display = 'none';
+    }
+  }
+
+  window.__pendingNteSentStatus = false;
+
+  function executeSkipNteFile() {
+    closeConfirmSkipNteModal();
     window.__pendingNteSentStatus = false;
     fetch('offense_new.php?mark_stage=nte&offense_id=' + OFFENSE_ID).catch(() => null);
     const nteModal = document.getElementById('modal-nte-editor');
@@ -3212,15 +3250,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     openEvidencePhotoChoiceModal(OFFENSE_ID);
   }
 
-  function closeConfirmSkipNteModal() {
-    const confirmModal = document.getElementById('confirmSkipNteModal');
-    if (confirmModal) confirmModal.classList.remove('active');
-  }
-
-  window.__pendingNteSentStatus = false;
-
   function confirmSkipNteFile() {
-    promptSkipNteFile();
+    executeSkipNteFile();
   }
 
   function openNteEditorModal() {
