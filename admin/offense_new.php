@@ -4372,6 +4372,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
       }
   }
+  </script>
+
   <!-- MODAL 1: DISMISSAL REASON -->
   <div id="dismissalReasonModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.75); z-index:999999; align-items:center; justify-content:center;">
     <div class="modal-content" style="background:#ffffff; border-radius:16px; max-width:540px; width:92%; padding:24px; box-shadow:0 20px 40px rgba(0,0,0,0.3); border:1px solid #cbd5e1; animation: apIn .25s ease;">
