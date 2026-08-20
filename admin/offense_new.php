@@ -2950,7 +2950,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   </div>
 
   <!-- MODAL 2: Form F-005 Notice To Explain File Attachment Modal for Student -->
-  <div id="modal-nte-editor" class="modal" data-static="true">
+  <div id="modal-nte-editor" class="modal" data-static="true" style="z-index: 3000;">
     <div class="modal-content" style="max-width: 520px; border-radius: 16px; overflow: hidden; position: relative; border: 2px solid var(--navy, #1b2b6b);">
       <div class="modal-header" style="background: var(--navy, #1b2b6b); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 10px;">
@@ -2980,7 +2980,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   </div>
 
   <!-- MODAL 3: Dedicated Evidence Photo Upload (Admin & Panel) -->
-  <div class="modal" id="modal-evidence-photo-choice" style="z-index: 2600;">
+  <div class="modal" id="modal-evidence-photo-choice" style="z-index: 3500;">
     <div class="modal-content" style="max-width: 520px; width: 92%; padding: 24px; border-radius: 16px; border: 1.5px solid #2563eb;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
         <h3 style="font-size:18px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px; margin:0;">
@@ -3209,10 +3209,18 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   function openNteEditorModal() {
     const letterModal = document.getElementById('modal-guardian-letter');
-    if (letterModal) letterModal.classList.remove('active');
+    if (letterModal) {
+      letterModal.classList.remove('active');
+      letterModal.style.display = 'none';
+    }
     
     const nteModal = document.getElementById('modal-nte-editor');
-    if (nteModal) nteModal.classList.add('active');
+    if (nteModal) {
+      nteModal.style.display = 'flex';
+      nteModal.classList.add('active');
+    } else {
+      openEvidencePhotoChoiceModal(OFFENSE_ID);
+    }
   }
 
   async function sendNteFormToStudent() {
@@ -3244,7 +3252,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const res = await postForm('api_send_nte_form.php', formData);
     if (res.ok && res.json?.ok) {
         const nteModal = document.getElementById('modal-nte-editor');
-        if (nteModal) nteModal.classList.remove('active');
+        if (nteModal) {
+          nteModal.classList.remove('active');
+          nteModal.style.display = 'none';
+        }
         window.__pendingNteSentStatus = true;
         openEvidencePhotoChoiceModal(OFFENSE_ID);
     } else {
@@ -3255,10 +3266,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   window.openEvidencePhotoChoiceModal = function(offenseId) {
     const nteModal = document.getElementById('modal-nte-editor');
-    if (nteModal) nteModal.classList.remove('active');
+    if (nteModal) {
+      nteModal.classList.remove('active');
+      nteModal.style.display = 'none';
+    }
     
     const choiceModal = document.getElementById('modal-evidence-photo-choice');
-    if (choiceModal) choiceModal.classList.add('active');
+    if (choiceModal) {
+      choiceModal.style.display = 'flex';
+      choiceModal.classList.add('active');
+    }
   };
 
   window.closeEvidencePhotoChoiceModal = function() {
