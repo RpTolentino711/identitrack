@@ -29,6 +29,9 @@ if ($caseId <= 0 && !empty($studentId)) {
         $caseId = (int)$caseRow['case_id'];
     }
 }
+if ($caseId > 0 && !empty($studentId)) {
+    db_exec("UPDATE notice_to_explain SET case_id = :cid WHERE (case_id IS NULL OR case_id = 0) AND student_id = :sid", [':cid' => $caseId, ':sid' => $studentId]);
+}
 
 if ($studentId === '' && $caseId > 0) {
     $cRow = db_one("SELECT student_id FROM upcc_case WHERE case_id = :cid LIMIT 1", [':cid' => $caseId]);
