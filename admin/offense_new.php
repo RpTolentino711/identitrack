@@ -4431,8 +4431,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   // The event listener for .btn-trigger-nte-upload is already defined above; no need to redefine.
   // Additional duplicate definitions removed.
 
-  async function submitDirectNteUpload(e) {
-      e.preventDefault();
+  window.submitDirectNteUpload = async function(e) {
+      if (e && e.preventDefault) e.preventDefault();
       const form = document.getElementById('directNteUploadForm');
       const formData = new FormData(form);
       const msg = document.getElementById('directNteUploadMsg');
@@ -4464,7 +4464,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           if (msg) { msg.innerHTML = '❌ Upload error: ' + err.message; msg.style.color = '#b91c1c'; }
           if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
       }
-  }
+      return false;
+  };
 
   window.openDirectPhotoUploadModal = function(caseId, nteId) {
       const idEl = document.getElementById('directPhotoId');
@@ -4488,8 +4489,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
   };
 
-  async function submitDirectPhotoUpload(e) {
-      e.preventDefault();
+  window.submitDirectPhotoUpload = async function(e) {
+      if (e && e.preventDefault) e.preventDefault();
       const form = document.getElementById('directPhotoUploadForm');
       const formData = new FormData(form);
       const msg = document.getElementById('directPhotoUploadMsg');
@@ -4521,7 +4522,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           if (msg) { msg.innerHTML = '❌ Upload error: ' + err.message; msg.style.color = '#b91c1c'; }
           if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
       }
-  }
+      return false;
+  };
   </script>
 
   <!-- MODAL 1: DISMISSAL REASON -->
