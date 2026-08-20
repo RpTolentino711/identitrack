@@ -3234,6 +3234,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   function promptSkipNteFile() {
+    const nteModal = document.getElementById('modal-nte-editor');
+    if (nteModal) {
+      nteModal.classList.remove('active');
+      nteModal.style.display = 'none';
+    }
+
     const confirmModal = document.getElementById('confirmSkipNteModal');
     if (confirmModal) {
       confirmModal.style.display = 'flex';
@@ -3250,6 +3256,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     if (confirmModal) {
       confirmModal.classList.remove('active');
       confirmModal.style.display = 'none';
+    }
+    const nteModal = document.getElementById('modal-nte-editor');
+    if (nteModal) {
+      nteModal.style.display = 'flex';
+      nteModal.style.zIndex = '999999';
+      nteModal.classList.add('active');
     }
   }
 
@@ -3375,6 +3387,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       confirmModal.classList.remove('active');
       confirmModal.style.display = 'none';
     }
+    const choiceModal = document.getElementById('modal-evidence-photo-choice');
+    if (choiceModal) {
+      choiceModal.style.display = 'flex';
+      choiceModal.style.zIndex = '3500';
+      choiceModal.classList.add('active');
+    }
   }
 
   function executeFinishWithoutPhoto() {
@@ -3387,6 +3405,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const hasFile = photoFileInput && photoFileInput.files && photoFileInput.files[0];
 
     if (!hasFile) {
+      const choiceModal = document.getElementById('modal-evidence-photo-choice');
+      if (choiceModal) {
+        choiceModal.classList.remove('active');
+        choiceModal.style.display = 'none';
+      }
       const confirmModal = document.getElementById('confirmSkipEvidenceModal');
       if (confirmModal) {
         confirmModal.style.display = 'flex';
