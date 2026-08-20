@@ -4447,8 +4447,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               if (msg) { msg.innerHTML = '✅ Form F-005 uploaded & sent to student Outlook!'; msg.style.color = '#166534'; }
               setTimeout(() => {
                   closeDirectNteUploadModal();
-                  window.location.reload();
-              }, 1200);
+                  const sid = document.getElementById('directNteStudentId')?.value || document.getElementById('studentIdInput')?.value || '';
+                  if (sid) {
+                      window.location.href = 'offense_new.php?student_id=' + encodeURIComponent(sid);
+                  } else {
+                      window.location.reload();
+                  }
+              }, 1000);
           } else {
               if (msg) { msg.innerHTML = '❌ Failed: ' + (data.error || data.message || 'Error occurred'); msg.style.color = '#b91c1c'; }
               if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
@@ -4499,7 +4504,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               if (msg) { msg.innerHTML = '✅ Incident photo evidence uploaded successfully!'; msg.style.color = '#166534'; }
               setTimeout(() => {
                   closeDirectPhotoUploadModal();
-                  window.location.reload();
+                  const sid = document.getElementById('studentIdInput')?.value || document.getElementById('directNteStudentId')?.value || '';
+                  if (sid) {
+                      window.location.href = 'offense_new.php?student_id=' + encodeURIComponent(sid);
+                  } else {
+                      window.location.reload();
+                  }
               }, 1000);
           } else {
               if (msg) { msg.innerHTML = '❌ Failed: ' + (data.message || 'Error occurred'); msg.style.color = '#b91c1c'; }
