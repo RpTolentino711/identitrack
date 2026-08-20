@@ -17,7 +17,17 @@ if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level =
 $category = (int)($_GET['major_category'] ?? $_POST['major_category'] ?? 0);
 if ($category < 0 || $category > 5) $category = 0;
 
-$studentIdPrefill = trim((string)($_GET['student_id'] ?? ''));
+if (isset($_GET['mark_stage']) && isset($_GET['offense_id'])) {
+    $stage = trim((string)$_GET['mark_stage']);
+    $oid   = (int)$_GET['offense_id'];
+    if ($oid > 0) {
+        if ($stage === 'nte') $_SESSION['nte_done_' . $oid] = true;
+        if ($stage === 'evidence') $_SESSION['evidence_done_' . $oid] = true;
+    }
+    header('Content-Type: application/json');
+    echo json_encode(['ok' => true]);
+    exit;
+}
 
 $categoryDescriptions = [
   1 => 'Probation for three (3) academic terms and referral for counseling.',
@@ -470,35 +480,57 @@ if ($letterOffenseId <= 0 && !empty($studentIdPrefill)) {
 }
 
 $letterMode = false;
+$ntePendingMode = false;
+$evidencePendingMode = false;
 $isSection4EscalationOffense = false;
-if ($letterOffenseId > 0) {
+
+$targetOffenseId = (int)($_GET['offense_id'] ?? $_SESSION['pending_letter_offense_id'] ?? $_SESSION['pending_nte_offense_id'] ?? $_SESSION['pending_evidence_offense_id'] ?? $letterOffenseId);
+
+if ($targetOffenseId <= 0 && !empty($studentIdPrefill)) {
+    $recentOffense = db_one(
+        "SELECT offense_id FROM offense 
+         WHERE student_id = :sid AND level IN ('MINOR','MAJOR') AND status <> 'DISMISSED'
+         ORDER BY offense_id DESC LIMIT 1",
+        [':sid' => $studentIdPrefill]
+    );
+    if ($recentOffense) {
+        $targetOffenseId = (int)$recentOffense['offense_id'];
+    }
+}
+
+if ($targetOffenseId > 0) {
     $offCheck = db_one(
         "SELECT o.offense_id, o.level, o.student_id, o.guardian_notified_at, 
                 (SELECT COUNT(*) FROM upcc_case_offense uco JOIN upcc_case uc ON uc.case_id = uco.case_id WHERE uco.offense_id = o.offense_id AND uc.case_kind = 'SECTION4_MINOR_ESCALATION') AS is_section4_case 
          FROM offense o WHERE o.offense_id = :oid", 
-        [':oid' => $letterOffenseId]
+        [':oid' => $targetOffenseId]
     );
     if ($offCheck) {
-        if (!empty($offCheck['guardian_notified_at']) && $offCheck['guardian_notified_at'] !== '0000-00-00 00:00:00') {
-            $letterMode = false;
-            $letterOffenseId = 0;
-            unset($_SESSION['pending_letter_offense_id'], $_SESSION['pending_letter_type'], $_SESSION['pending_letter_student_id']);
+        $mCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND level = 'MINOR' AND offense_id <= :oid", [':sid' => $offCheck['student_id'], ':oid' => $targetOffenseId]);
+        $mCount = (int)($mCountRow['cnt'] ?? 0);
+        $isEsc = (strtoupper((string)$offCheck['level']) === 'MAJOR') || ((int)$offCheck['is_section4_case'] > 0) || ($mCount % 3 === 0 && $mCount >= 3);
+        
+        if ($isEsc) {
+            $isSection4EscalationOffense = true;
+            $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : 'escalation';
         } else {
+            $letterType = ($mCount % 3 === 2) ? 'letter' : '';
+        }
+
+        // STAGE 1: Guardian Email Notification
+        if (empty($offCheck['guardian_notified_at']) || $offCheck['guardian_notified_at'] === '0000-00-00 00:00:00') {
             $letterMode = true;
-            if (strtoupper((string)$offCheck['level']) === 'MAJOR') {
-                $letterType = 'major';
-                $isSection4EscalationOffense = true;
-            } elseif ((int)$offCheck['is_section4_case'] > 0) {
-                $letterType = 'escalation';
-                $isSection4EscalationOffense = true;
-            } else {
-                $mCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND level = 'MINOR' AND offense_id <= :oid", [':sid' => $offCheck['student_id'], ':oid' => $letterOffenseId]);
-                $mCount = (int)($mCountRow['cnt'] ?? 0);
-                if ($mCount % 3 === 0 && $mCount >= 3) {
-                    $letterType = 'escalation';
-                    $isSection4EscalationOffense = true;
-                }
-            }
+            $letterOffenseId = $targetOffenseId;
+        } 
+        // STAGE 2: Form F-005 Notice to Explain (for Escalation / Major)
+        elseif ($isEsc && empty($_SESSION['nte_done_' . $targetOffenseId])) {
+            $ntePendingMode = true;
+            $letterOffenseId = $targetOffenseId;
+        } 
+        // STAGE 3: Incident Photo Evidence (for Escalation / Major)
+        elseif ($isEsc && empty($_SESSION['evidence_done_' . $targetOffenseId])) {
+            $evidencePendingMode = true;
+            $letterOffenseId = $targetOffenseId;
         }
     }
 }
@@ -3040,7 +3072,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   <script>
   const OFFENSE_ID  = <?php echo (int)$letterOffenseId; ?>;
-  const LETTER_MODE = <?php echo json_encode($letterMode && $letterOffenseId > 0); ?>;
+  let LETTER_MODE   = <?php echo json_encode($letterMode && $letterOffenseId > 0); ?>;
+  const NTE_PENDING_MODE = <?php echo json_encode($ntePendingMode); ?>;
+  const EVIDENCE_PENDING_MODE = <?php echo json_encode($evidencePendingMode); ?>;
   const LETTER_TYPE = <?php echo json_encode($letterType); ?>;
   const IS_SECTION4_ESCALATION = <?php echo json_encode(!empty($isSection4EscalationOffense) || $letterType === 'escalation' || $letterType === 'major'); ?>;
   const SUCCESS_MODE = <?php echo json_encode($successMode); ?>;
@@ -3185,6 +3219,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   function promptSkipNteFile() {
     window.__pendingNteSentStatus = false;
+    fetch('offense_new.php?mark_stage=nte&offense_id=' + OFFENSE_ID).catch(() => null);
     const nteModal = document.getElementById('modal-nte-editor');
     if (nteModal) {
       nteModal.classList.remove('active');
@@ -3252,6 +3287,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
     const res = await postForm('api_send_nte_form.php', formData);
     if (res.ok && res.json?.ok) {
+        fetch('offense_new.php?mark_stage=nte&offense_id=' + OFFENSE_ID).catch(() => null);
         const nteModal = document.getElementById('modal-nte-editor');
         if (nteModal) {
           nteModal.classList.remove('active');
@@ -3280,6 +3316,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   };
 
   window.closeEvidencePhotoChoiceModal = function() {
+    fetch('offense_new.php?mark_stage=evidence&offense_id=' + OFFENSE_ID).catch(() => null);
     const choiceModal = document.getElementById('modal-evidence-photo-choice');
     if (choiceModal) choiceModal.classList.remove('active');
     showFinalSuccessModal(window.__pendingNteSentStatus);
@@ -3317,6 +3354,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
 
     await fetch('AJAX/toggle_hearing_photo.php', { method: 'POST', body: fd }).catch(() => null);
+    await fetch('offense_new.php?mark_stage=evidence&offense_id=' + OFFENSE_ID).catch(() => null);
 
     const choiceModal = document.getElementById('modal-evidence-photo-choice');
     if (choiceModal) choiceModal.classList.remove('active');
@@ -4019,6 +4057,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           if (typeof previewLetter === 'function') previewLetter();
           const letterModal = document.getElementById('modal-guardian-letter');
           if (letterModal) letterModal.classList.add('active');
+      }, 500);
+  } else if (typeof NTE_PENDING_MODE !== 'undefined' && NTE_PENDING_MODE) {
+      setTimeout(() => {
+          openNteEditorModal();
+      }, 500);
+  } else if (typeof EVIDENCE_PENDING_MODE !== 'undefined' && EVIDENCE_PENDING_MODE) {
+      setTimeout(() => {
+          openEvidencePhotoChoiceModal(OFFENSE_ID);
       }, 500);
   }
 
