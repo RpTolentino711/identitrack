@@ -2725,7 +2725,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
         <!-- LETTER SECTION -->
         <?php if ($letterMode && $letterOffenseId > 0): ?>
-        <div class="modal active" id="modal-guardian-letter" data-static="true" style="z-index: 2500;">
+        <div class="modal" id="modal-guardian-letter" data-static="true" style="z-index: 2500;">
           <div class="modal-content" style="max-width: 1100px; width: 95%; max-height: 95vh; overflow-y: auto;">
             <div class="modal-header" style="border-bottom: 2px solid #fecaca; background: #fff5f5; padding: 16px 24px;">
               <h3 style="color: #991b1b; display: flex; align-items: center; gap: 8px;">
