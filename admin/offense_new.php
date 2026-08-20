@@ -587,6 +587,11 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
   $cyclePos = $projectedCount % 3;
   if ($cyclePos === 0 && $projectedCount > 0) $cyclePos = 3;
 
+  $currentCyclePos = $currentCount % 3;
+  $cycleNum = (int)ceil($projectedCount / 3);
+  if ($cycleNum <= 0) $cycleNum = 1;
+  $cycleOrd = getOrdinal($cycleNum);
+
   $pctMap = [1 => 33, 2 => 66, 3 => 100];
   $pct    = $pctMap[$cyclePos] ?? 33;
 
@@ -596,7 +601,7 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
       <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
       <div class="ap-body">
         <div class="ap-title">1st Minor – Warning (Offense #' . $projectedCount . ')</div>
-        <div class="ap-projected-badge ap-projected--info">📋 Currently ' . $currentCount . ' → becomes <strong>1/3 in current cycle</strong></div>
+        <div class="ap-projected-badge ap-projected--info">📋 Currently ' . $currentCyclePos . ' in current cycle → becomes <strong>1/3 in ' . $cycleOrd . ' cycle</strong></div>
         <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--info" style="width:' . $pct . '%"></div></div><span class="ap-progress-label">1/3 – 2 more to Section 4 Escalation</span></div>
         <div class="ap-desc">Warning only. No letter required.</div>
         <div class="ap-steps">
@@ -617,7 +622,7 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
       <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
       <div class="ap-body">
         <div class="ap-title">2nd Minor – Letter to Guardian (Offense #' . $projectedCount . ')</div>
-        <div class="ap-projected-badge ap-projected--warning">📋 Currently ' . $currentCount . ' → becomes <strong>2/3 in current cycle</strong></div>
+        <div class="ap-projected-badge ap-projected--warning">📋 Currently ' . $currentCyclePos . ' in current cycle → becomes <strong>2/3 in ' . $cycleOrd . ' cycle</strong></div>
         <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:' . $pct . '%"></div></div><span class="ap-progress-label">2/3 – 1 more to Section 4 Escalation</span></div>
         <div class="ap-desc">A formal notice will be sent to the guardian after saving.</div>
         ' . $emailHtml . '
@@ -640,7 +645,7 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
     <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
     <div class="ap-body">
       <div class="ap-title">⚖️ 3rd Minor – Triggers Section 4 Panel (Offense #' . $projectedCount . ')</div>
-      <div class="ap-projected-badge ap-projected--critical">🚨 Currently ' . $currentCount . ' → becomes <strong>3/3 – SECTION 4 MAJOR</strong></div>
+      <div class="ap-projected-badge ap-projected--critical">🚨 Currently ' . $currentCyclePos . ' in current cycle → becomes <strong>3/3 (' . $cycleOrd . ' Section 4 Escalation)</strong></div>
       <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--critical" style="width:100%"></div></div><span class="ap-progress-label">3/3 – Panel investigation triggered</span></div>
       <div class="ap-desc">Student referred to UPCC panel. The panel will assign a Category 1–5 sanction.</div>
       ' . $emailHtml2 . '
@@ -3038,6 +3043,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     let cyclePos = projectedCount % 3;
     if (cyclePos === 0 && projectedCount > 0) cyclePos = 3;
 
+    const currentCyclePos = currentCount % 3;
+    const cycleNum = Math.ceil(projectedCount / 3) || 1;
+    
+    function getOrd(n) {
+      const s = ['th','st','nd','rd'], v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    }
+    const cycleOrd = getOrd(cycleNum);
+
     const pctMap = { 1: 33, 2: 66, 3: 100 };
     const pct = pctMap[cyclePos] || 33;
 
@@ -3047,7 +3061,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
         <div class="ap-body">
           <div class="ap-title">1st Minor – Warning (Offense #${projectedCount})</div>
-          <div class="ap-projected-badge ap-projected--info">📋 Currently ${currentCount} → becomes <strong>1/3 in current cycle</strong></div>
+          <div class="ap-projected-badge ap-projected--info">📋 Currently ${currentCyclePos} in current cycle → becomes <strong>1/3 in ${cycleOrd} cycle</strong></div>
           <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--info" style="width:${pct}%"></div></div><span class="ap-progress-label">1/3 – 2 more to Section 4 Escalation</span></div>
           <div class="ap-desc">Warning only. No letter required.</div>
           <div class="ap-steps">
@@ -3068,7 +3082,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
         <div class="ap-body">
           <div class="ap-title">2nd Minor – Letter to Guardian (Offense #${projectedCount})</div>
-          <div class="ap-projected-badge ap-projected--warning">📋 Currently ${currentCount} → becomes <strong>2/3 in current cycle</strong></div>
+          <div class="ap-projected-badge ap-projected--warning">📋 Currently ${currentCyclePos} in current cycle → becomes <strong>2/3 in ${cycleOrd} cycle</strong></div>
           <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:${pct}%"></div></div><span class="ap-progress-label">2/3 – 1 more to Section 4 Escalation</span></div>
           <div class="ap-desc">A formal notice will be sent to the guardian after saving.</div>
           ${emailHtml}
@@ -3090,7 +3104,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
       <div class="ap-body">
         <div class="ap-title">⚖️ 3rd Minor – Triggers Section 4 Panel (Offense #${projectedCount})</div>
-        <div class="ap-projected-badge ap-projected--critical">🚨 Currently ${currentCount} → becomes <strong>3/3 – SECTION 4 MAJOR</strong></div>
+        <div class="ap-projected-badge ap-projected--critical">🚨 Currently ${currentCyclePos} in current cycle → becomes <strong>3/3 (${cycleOrd} Section 4 Escalation)</strong></div>
         <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--critical" style="width:100%"></div></div><span class="ap-progress-label">3/3 – Panel investigation triggered</span></div>
         <div class="ap-desc">Student referred to UPCC panel. The panel will assign a Category 1–5 sanction.</div>
         ${emailHtml2}
