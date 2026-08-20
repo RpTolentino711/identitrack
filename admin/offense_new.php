@@ -486,18 +486,6 @@ $isSection4EscalationOffense = false;
 
 $targetOffenseId = (int)($_GET['offense_id'] ?? $_SESSION['pending_letter_offense_id'] ?? $_SESSION['pending_nte_offense_id'] ?? $_SESSION['pending_evidence_offense_id'] ?? $letterOffenseId);
 
-if ($targetOffenseId <= 0 && !empty($studentIdPrefill)) {
-    $recentOffense = db_one(
-        "SELECT offense_id FROM offense 
-         WHERE student_id = :sid AND level IN ('MINOR','MAJOR') AND status <> 'DISMISSED'
-         ORDER BY offense_id DESC LIMIT 1",
-        [':sid' => $studentIdPrefill]
-    );
-    if ($recentOffense) {
-        $targetOffenseId = (int)$recentOffense['offense_id'];
-    }
-}
-
 if ($targetOffenseId > 0) {
     $offCheck = db_one(
         "SELECT o.offense_id, o.level, o.student_id, o.guardian_notified_at, 
@@ -509,31 +497,29 @@ if ($targetOffenseId > 0) {
         $mCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND level = 'MINOR' AND offense_id <= :oid", [':sid' => $offCheck['student_id'], ':oid' => $targetOffenseId]);
         $mCount = (int)($mCountRow['cnt'] ?? 0);
         $isEsc = (strtoupper((string)$offCheck['level']) === 'MAJOR') || ((int)$offCheck['is_section4_case'] > 0) || ($mCount % 3 === 0 && $mCount >= 3);
+        $isTriggerOffense = (strtoupper((string)$offCheck['level']) === 'MAJOR') || ($mCount % 3 === 2) || ($mCount % 3 === 0 && $mCount >= 3);
         
         if ($isEsc) {
             $isSection4EscalationOffense = true;
-            $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : 'escalation';
-        } else {
-            $letterType = ($mCount % 3 === 2) ? 'letter' : '';
         }
 
         // STAGE 1: Guardian Email Notification (Only for 2nd Minor, 3rd Minor Escalation, or Major!)
-        if (empty($offCheck['guardian_notified_at']) || $offCheck['guardian_notified_at'] === '0000-00-00 00:00:00') {
-            $isTriggerOffense = (strtoupper((string)$offCheck['level']) === 'MAJOR') || ($mCount % 3 === 2) || ($mCount % 3 === 0 && $mCount >= 3);
-            if ($isTriggerOffense) {
-                $letterMode = true;
-                $letterOffenseId = $targetOffenseId;
-            }
+        if ((empty($offCheck['guardian_notified_at']) || $offCheck['guardian_notified_at'] === '0000-00-00 00:00:00') && $isTriggerOffense) {
+            $letterMode = true;
+            $letterOffenseId = $targetOffenseId;
+            $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : (($mCount % 3 === 0 && $mCount >= 3) ? 'escalation' : 'letter');
         } 
         // STAGE 2: Form F-005 Notice to Explain (for Escalation / Major)
         elseif ($isEsc && empty($_SESSION['nte_done_' . $targetOffenseId])) {
             $ntePendingMode = true;
             $letterOffenseId = $targetOffenseId;
+            $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : 'escalation';
         } 
         // STAGE 3: Incident Photo Evidence (for Escalation / Major)
         elseif ($isEsc && empty($_SESSION['evidence_done_' . $targetOffenseId])) {
             $evidencePendingMode = true;
             $letterOffenseId = $targetOffenseId;
+            $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : 'escalation';
         }
     }
 }
