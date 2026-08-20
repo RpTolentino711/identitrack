@@ -2954,7 +2954,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <div style="display: flex; align-items: center; gap: 10px;">
           <h3 style="margin:0; font-size: 18px; font-weight: 800; color: white;">📄 Form F-005: Notice To Explain</h3>
         </div>
-        <button class="modal-close" onclick="promptSkipNteFile()" style="color: white; font-size: 22px; background: none; border: none; cursor: pointer; line-height: 1;" title="Close">&times;</button>
       </div>
       <div class="modal-body" style="padding: 24px;">
         <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; color: #1e40af; font-weight: 600;">
@@ -2984,7 +2983,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <h3 style="font-size:18px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px; margin:0;">
           <span>📷</span> Step 3: Attach Incident Photo Evidence
         </h3>
-        <button class="modal-close" onclick="closeEvidencePhotoChoiceModal()">&times;</button>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; padding:0;">
         <div style="font-size:13.5px; color:#334155; line-height:1.5;">
@@ -3186,8 +3184,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   function promptSkipNteFile() {
-    const confirmModal = document.getElementById('confirmSkipNteModal');
-    if (confirmModal) confirmModal.classList.add('active');
+    window.__pendingNteSentStatus = false;
+    const nteModal = document.getElementById('modal-nte-editor');
+    if (nteModal) {
+      nteModal.classList.remove('active');
+      nteModal.style.display = 'none';
+    }
+    openEvidencePhotoChoiceModal(OFFENSE_ID);
   }
 
   function closeConfirmSkipNteModal() {
@@ -3198,11 +3201,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   window.__pendingNteSentStatus = false;
 
   function confirmSkipNteFile() {
-    closeConfirmSkipNteModal();
-    const nteModal = document.getElementById('modal-nte-editor');
-    if (nteModal) nteModal.classList.remove('active');
-    window.__pendingNteSentStatus = false;
-    openEvidencePhotoChoiceModal(OFFENSE_ID);
+    promptSkipNteFile();
   }
 
   function openNteEditorModal() {
