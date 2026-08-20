@@ -23,6 +23,12 @@ if ($caseId <= 0 && $offenseId > 0) {
         $caseId = (int)$offRow['case_id'];
     }
 }
+if ($offenseId <= 0 && $caseId > 0) {
+    $cOffRow = db_one("SELECT offense_id FROM upcc_case_offense WHERE case_id = :cid ORDER BY offense_id DESC LIMIT 1", [':cid' => $caseId]);
+    if (!empty($cOffRow['offense_id'])) {
+        $offenseId = (int)$cOffRow['offense_id'];
+    }
+}
 if ($caseId <= 0 && !empty($studentId)) {
     $caseRow = db_one("SELECT case_id FROM upcc_case WHERE student_id = :sid AND status IN ('PENDING','UNDER_APPEAL') ORDER BY case_id DESC LIMIT 1", [':sid' => $studentId]);
     if (!empty($caseRow['case_id'])) {
@@ -31,6 +37,7 @@ if ($caseId <= 0 && !empty($studentId)) {
 }
 if ($caseId > 0 && !empty($studentId)) {
     db_exec("UPDATE notice_to_explain SET case_id = :cid WHERE (case_id IS NULL OR case_id = 0) AND student_id = :sid", [':cid' => $caseId, ':sid' => $studentId]);
+    db_exec("UPDATE notice_to_explain SET student_id = :sid WHERE (student_id IS NULL OR student_id = '') AND case_id = :cid", [':sid' => $studentId, ':cid' => $caseId]);
 }
 
 if ($studentId === '' && $caseId > 0) {
@@ -99,8 +106,7 @@ if (!$existing && $offenseId > 0) {
 $finalAttachment = $attachmentPath ?: ($existing['attachment_path'] ?? null);
 
 if ($existing) {
-    db_exec("
-        UPDATE notice_to_explain 
+    db_exec("UPDATE notice_to_explain 
         SET case_id = COALESCE(:cid, case_id),
             offense_id = COALESCE(:oid, offense_id),
             student_id = COALESCE(:sid, student_id),
@@ -129,8 +135,7 @@ if ($existing) {
     ]);
     $nteId = (int)$existing['nte_id'];
 } else {
-    db_exec("
-        INSERT INTO notice_to_explain (case_id, offense_id, student_id, incident_report_no, alleged_details, handbook_section, handbook_page, custom_instructions, admin_signature, attachment_path, status, created_at, updated_at)
+    db_exec("INSERT INTO notice_to_explain (case_id, offense_id, student_id, incident_report_no, alleged_details, handbook_section, handbook_page, custom_instructions, admin_signature, attachment_path, status, created_at, updated_at)
         VALUES (:cid, :oid, :sid, :ir, :alleged, :sec, :page, :inst, :sig, :att, 'SENT', NOW(), NOW())
     ", [
         ':cid' => $caseId > 0 ? $caseId : null,
@@ -276,8 +281,7 @@ try {
 // Log Activity into upcc_case_activity for History Log
 if ($caseId > 0) {
     try {
-        db_exec("
-            INSERT INTO upcc_case_activity (case_id, actor_type, actor_id, action, payload_json, created_at)
+        db_exec("INSERT INTO upcc_case_activity (case_id, actor_type, actor_id, action, payload_json, created_at)
             VALUES (:cid, 'ADMIN', :aid, 'FORM_F005_SENT', :json, NOW())
         ", [
             ':cid'  => $caseId,
