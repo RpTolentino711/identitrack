@@ -2970,6 +2970,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <p id="finalSuccessMsgText" style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
           ✅ Guardian notification email sent.<br>
           <span id="finalNteStatusText">✅ Form F-005 Notice to Explain issued to student app.</span>
+          <span id="finalEvidenceStatusText" style="display:block; margin-top:4px;"></span>
         </p>
         <div style="display:flex; justify-content:center;">
             <button class="btn btn-primary" type="button" onclick="closeFinalSuccessModal()" style="width:100%; padding:12px; font-weight:800; background:#10b981; border:none; justify-content:center;">✓ Done (Stay on Page)</button>
@@ -3450,7 +3451,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
     if (btn) { btn.disabled = false; btn.textContent = '✓ Save Choice & Finish Registration'; }
 
-    showFinalSuccessModal(window.__pendingNteSentStatus);
+    showFinalSuccessModal(window.__pendingNteSentStatus, hasFile);
   }
 
   const studentIdInput    = document.getElementById('studentIdInput');
@@ -4013,9 +4014,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
   }
 
-  function showFinalSuccessModal(nteSent = false) {
+  function showFinalSuccessModal(nteSent = false, evidenceAttached = false) {
       const modal = document.getElementById('finalProcessSuccessModal');
       const nteText = document.getElementById('finalNteStatusText');
+      const evText = document.getElementById('finalEvidenceStatusText');
+
       if (nteText) {
           if (nteSent) {
               nteText.innerHTML = '✅ Form F-005 Notice to Explain sent to student\'s Outlook email.';
@@ -4029,7 +4032,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               nteText.style.display = 'none';
           }
       }
+
+      if (evText) {
+          if (evidenceAttached) {
+              evText.innerHTML = '✅ Incident photo evidence recorded.';
+              evText.style.color = '#10b981';
+              evText.style.display = 'block';
+          } else {
+              evText.innerHTML = 'ℹ️ Incident photo evidence skipped.';
+              evText.style.color = 'var(--text-3)';
+              evText.style.display = 'block';
+          }
+      }
+
       if (modal) {
+          modal.style.zIndex = '99999999';
           modal.classList.add('active');
           var bar = document.getElementById('finalSuccessProgress');
           if (bar) {
