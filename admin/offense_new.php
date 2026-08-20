@@ -970,11 +970,6 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $reuploadBtn = '
       <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . htmlspecialchars($student['student_id']) . '" onclick="window.openDirectNteUploadModal(this, event, ' . $caseIdForNte . ', \'' . htmlspecialchars($student['student_id']) . '\'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
 
-      $showInHearing = (int)($nte['show_in_hearing'] ?? 1);
-      $hearingPillBg = $showInHearing ? '#dcfce7' : '#f1f5f9';
-      $hearingPillColor = $showInHearing ? '#15803d' : '#64748b';
-      $hearingLabel = $showInHearing ? 'YES (Shown in Hearing)' : 'NO (Private)';
-
       $evFile = !empty($nte['case_evidence_file']) ? $nte['case_evidence_file'] : '';
       
       $photoUploadBtn = '';
@@ -992,13 +987,8 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
 
       $hearingToggleBtn = '
       <div style="margin-top:6px; padding-top:6px; border-top:1px dashed #bbf7d0; display:flex; align-items:center; justify-content:space-between; font-size:11px; flex-wrap:wrap; gap:4px;">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span style="font-weight:700; color:#166534;">📷 Hearing Photo:</span>
-          ' . $photoUploadBtn . '
-        </div>
-        <button type="button" onclick="toggleHearingPhoto(\'nte\', ' . $nteId . ', ' . ($showInHearing ? 0 : 1) . ', this)" style="background:' . $hearingPillBg . '; color:' . $hearingPillColor . '; font-weight:800; font-size:10.5px; border:1px solid ' . ($showInHearing ? '#86efac' : '#cbd5e1') . '; padding:3px 8px; border-radius:12px; cursor:pointer;">
-          ' . $hearingLabel . '
-        </button>
+        <span style="font-weight:700; color:#166534;">📷 Photo Evidence:</span>
+        ' . $photoUploadBtn . '
       </div>';
 
       $nteHistoryHtml .= '
