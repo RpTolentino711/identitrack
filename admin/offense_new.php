@@ -432,15 +432,52 @@ if ($pendingGuardReport) {
 }
 
 // ── Letter mode ──────────────────────────────────────────────────────────────
-$letterOffenseId = (int)($_GET['offense_id'] ?? 0);
-$letterType      = (string)($_GET['type'] ?? '');
+$letterOffenseId = (int)($_GET['offense_id'] ?? $_SESSION['pending_letter_offense_id'] ?? 0);
+$letterType      = (string)($_GET['type'] ?? $_SESSION['pending_letter_type'] ?? '');
 $successMode     = ((int)($_GET['success'] ?? 0) === 1);
 
+if (((int)($_GET['letter'] ?? 0) === 1) && (int)($_GET['offense_id'] ?? 0) > 0) {
+    $_SESSION['pending_letter_offense_id'] = (int)$_GET['offense_id'];
+    $_SESSION['pending_letter_type']       = (string)($_GET['type'] ?? '');
+}
+
+// Auto-detect unsent guardian letter for the student if student_id is present
+if ($letterOffenseId <= 0 && !empty($studentIdPrefill)) {
+    $unsentOffense = db_one(
+        "SELECT offense_id, level FROM offense 
+         WHERE student_id = :sid 
+           AND level IN ('MINOR','MAJOR') 
+           AND status <> 'DISMISSED' 
+           AND (guardian_notified_at IS NULL OR guardian_notified_at = '0000-00-00 00:00:00')
+         ORDER BY offense_id DESC 
+         LIMIT 1",
+        [':sid' => $studentIdPrefill]
+    );
+    if ($unsentOffense) {
+        $mCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND level = 'MINOR' AND offense_id <= :oid", [':sid' => $studentIdPrefill, ':oid' => $unsentOffense['offense_id']]);
+        $mCount = (int)($mCountRow['cnt'] ?? 0);
+        $offLevel = strtoupper((string)$unsentOffense['level']);
+
+        if ($offLevel === 'MAJOR') {
+            $letterOffenseId = (int)$unsentOffense['offense_id'];
+            $letterType = 'major';
+        } elseif ($mCount % 3 === 0 && $mCount >= 3) {
+            $letterOffenseId = (int)$unsentOffense['offense_id'];
+            $letterType = 'escalation';
+        } elseif ($mCount % 3 === 2) {
+            $letterOffenseId = (int)$unsentOffense['offense_id'];
+            $letterType = 'letter';
+        }
+    }
+}
+
 $letterMode = false;
-if (((int)($_GET['letter'] ?? 0) === 1) && $letterOffenseId > 0) {
-    $offExists = db_one("SELECT 1 FROM offense WHERE offense_id = :oid", [':oid' => $letterOffenseId]);
-    if ($offExists) {
+if ($letterOffenseId > 0) {
+    $offExists = db_one("SELECT offense_id, guardian_notified_at FROM offense WHERE offense_id = :oid", [':oid' => $letterOffenseId]);
+    if ($offExists && (empty($offExists['guardian_notified_at']) || $offExists['guardian_notified_at'] === '0000-00-00 00:00:00')) {
         $letterMode = true;
+    } else {
+        unset($_SESSION['pending_letter_offense_id'], $_SESSION['pending_letter_type']);
     }
 }
 
@@ -2654,10 +2691,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
         <!-- LETTER SECTION -->
         <?php if ($letterMode && $letterOffenseId > 0): ?>
-        <div class="modal" id="modal-guardian-letter" style="z-index: 2500;">
+        <div class="modal active" id="modal-guardian-letter" data-static="true" style="z-index: 2500;">
           <div class="modal-content" style="max-width: 1100px; width: 95%; max-height: 95vh; overflow-y: auto;">
-            <div class="modal-header">
-              <h3>
+            <div class="modal-header" style="border-bottom: 2px solid #fecaca; background: #fff5f5; padding: 16px 24px;">
+              <h3 style="color: #991b1b; display: flex; align-items: center; gap: 8px;">
                 <?php
                   if ($letterType === 'escalation') echo '📧 Guardian Notification — Section 4 Panel Referral';
                   elseif ($letterType === 'letter')  echo '📧 Guardian Notification — 2nd Minor Offense';
@@ -2665,9 +2702,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   else echo '📧 Guardian Notification';
                 ?>
               </h3>
-              <button class="modal-close" onclick="document.getElementById('modal-guardian-letter').classList.remove('active')">&times;</button>
             </div>
             <div class="modal-body" style="padding: 24px;">
+              <div style="background:#fee2e2; border:1.5px solid #fca5a5; color:#991b1b; padding:12px 16px; border-radius:10px; font-size:13px; font-weight:700; margin-bottom:20px; display:flex; align-items:center; gap:10px; box-shadow:0 2px 8px rgba(220,38,38,0.1);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:22px; height:22px; flex-shrink:0; color:#dc2626;"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <div>
+                  <strong>MANDATORY ACTION REQUIRED:</strong> The official Guardian Conduct Notice email must be sent to the parent/guardian to complete this record. This window cannot be closed until the guardian email is sent.
+                </div>
+              </div>
               <p style="color: var(--text-2); margin-bottom: 20px; font-size: 13px;">Review and send the notification letter to the guardian. You can update the email address if needed before sending.</p>
               
               <div class="letter-grid">
