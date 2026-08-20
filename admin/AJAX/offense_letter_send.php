@@ -287,6 +287,9 @@ try {
     [':oid' => $offenseId]
   );
 
+  $_SESSION['pending_nte_offense_id'] = $offenseId;
+  $_SESSION['active_offense_id'] = $offenseId;
+
   // Store in violation_letter table for student record & app access
   $admin = admin_current();
   $adminId = (int)($admin['admin_id'] ?? $admin['id'] ?? 1);

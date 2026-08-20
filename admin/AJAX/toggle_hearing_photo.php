@@ -43,6 +43,12 @@ try {
     }
   }
 
+  if (session_status() === PHP_SESSION_NONE) session_start();
+  if ($id > 0) {
+    $_SESSION['evidence_done_' . $id] = true;
+    unset($_SESSION['pending_evidence_offense_id'], $_SESSION['pending_nte_offense_id'], $_SESSION['pending_letter_offense_id']);
+  }
+
   echo json_encode(['ok' => true, 'show' => $show, 'message' => 'Hearing photo status updated successfully.']);
 } catch (\Throwable $e) {
   echo json_encode(['ok' => false, 'message' => 'Failed to update: ' . $e->getMessage()]);

@@ -261,6 +261,13 @@ if ($caseId > 0) {
     } catch (\Throwable $e) {}
 }
 
+if (session_status() === PHP_SESSION_NONE) session_start();
+if ($offenseId > 0) {
+    $_SESSION['nte_done_' . $offenseId] = true;
+    $_SESSION['pending_evidence_offense_id'] = $offenseId;
+    unset($_SESSION['pending_nte_offense_id']);
+}
+
 echo json_encode([
     'ok' => true,
     'nte_id' => $nteId,
