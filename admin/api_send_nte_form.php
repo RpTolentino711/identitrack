@@ -30,6 +30,19 @@ if ($caseId <= 0 && !empty($studentId)) {
     }
 }
 
+if ($studentId === '' && $caseId > 0) {
+    $cRow = db_one("SELECT student_id FROM upcc_case WHERE case_id = :cid LIMIT 1", [':cid' => $caseId]);
+    if (!empty($cRow['student_id'])) {
+        $studentId = (string)$cRow['student_id'];
+    }
+}
+if ($studentId === '' && $offenseId > 0) {
+    $oRow = db_one("SELECT student_id FROM offense WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
+    if (!empty($oRow['student_id'])) {
+        $studentId = (string)$oRow['student_id'];
+    }
+}
+
 if ($studentId === '') {
     echo json_encode(['ok' => false, 'error' => 'Student ID is required.']);
     exit;
