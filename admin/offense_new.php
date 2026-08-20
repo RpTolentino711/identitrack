@@ -789,90 +789,73 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
     
     foreach ($chronological as $o) {
       $isMajor = ($o['level'] === 'MAJOR');
-      $isSection4 = false;
-      $section4Tag = '';
       if (!$isMajor) {
           $minorCounter++;
-          if ($minorCounter % 3 === 0) {
-              $isSection4 = true;
-              $escNum = (int)($minorCounter / 3);
-              $section4Tag = 'SECTION 4 (' . getOrdinal($escNum) . ' Escalation)';
-          }
+          $cycleNum = (int)ceil($minorCounter / 3);
+          $posInCycle = $minorCounter % 3;
+          if ($posInCycle === 0) $posInCycle = 3;
+          
+          $o['minor_number'] = $minorCounter;
+          $o['cycle_number'] = $cycleNum;
+          $o['cycle_pos']    = $posInCycle;
+          $o['is_escalation_trigger'] = ($posInCycle === 3);
+          $o['ordinal_str']  = getOrdinal($cycleNum);
       }
-      
-      $o['isRed'] = $isMajor || $isSection4;
-      $o['isSection4Label'] = $isSection4;
-      $o['section4Tag'] = $section4Tag;
       $processed[] = $o;
     }
     
     $displayOffenses = array_reverse($processed);
+    $currentRenderedCycleHeader = null;
 
     foreach ($displayOffenses as $o) {
-      $isRed = $o['isRed'];
-      $isSection4Label = $o['isSection4Label'] ?? false;
-      $bgColor = $isRed ? 'var(--red-soft)' : 'var(--amber-soft)';
-      $textColor = $isRed ? 'var(--red)' : 'var(--amber)';
-      $borderColor = $isRed ? 'var(--red-mid)' : 'var(--amber-mid)';
+      $isMajor = ($o['level'] === 'MAJOR');
       $dateStr = ph_date('M j, Y', $o['date_committed']);
       $timeStr = ph_date('g:i A', $o['date_committed']);
       $dateDisplay = $dateStr . '<br><span style="font-size:9px; opacity:0.9;">' . $timeStr . '</span>';
       
+      if (!$isMajor && isset($o['cycle_number'])) {
+          $cycleNum = $o['cycle_number'];
+          $ordStr = $o['ordinal_str'];
+          
+          if ($currentRenderedCycleHeader !== $cycleNum) {
+              $currentRenderedCycleHeader = $cycleNum;
+              $isCompletedCycle = ($minorCounter >= $cycleNum * 3);
+              $cycleBadge = $isCompletedCycle ? 'SECTION 4 MAJOR CASE (' . strtoupper($ordStr) . ' ESCALATION)' : 'ACTIVE CYCLE ' . $cycleNum . ' (IN PROGRESS)';
+              $badgeBg = $isCompletedCycle ? 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)' : 'linear-gradient(135deg, #1e293b 0%, #334155 100%)';
+              $borderCol = $isCompletedCycle ? '#6366f1' : '#38bdf8';
+              
+              $historyHtml .= '
+              <div style="background: '.$badgeBg.'; color: #ffffff; padding: 8px 12px; border-radius: 8px; margin-top: 12px; margin-bottom: 8px; font-weight: 800; font-size: 11px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid '.$borderCol.'; box-shadow: 0 2px 6px rgba(0,0,0,0.12);">
+                <span style="display:flex; align-items:center; gap:6px;">🏛️ ' . $cycleBadge . '</span>
+                <span style="font-size:9px; background:rgba(255,255,255,0.2); padding:2px 6px; border-radius:10px; font-weight:700;">' . ($isCompletedCycle ? 'UPCC PANEL REFERRAL' : 'BUILD-UP IN PROGRESS') . '</span>
+              </div>';
+          }
+      }
+
+      $isRed = $isMajor || (!empty($o['is_escalation_trigger']));
+      $bgColor = $isRed ? 'var(--red-soft)' : 'var(--amber-soft)';
+      $textColor = $isRed ? 'var(--red)' : 'var(--amber)';
+      $borderColor = $isRed ? 'var(--red-mid)' : 'var(--amber-mid)';
+      
       $labelHtml = '';
-      if ($isSection4Label) {
-          $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">' . htmlspecialchars($o['section4Tag'] ?: 'SECTION 4') . '</div><br>';
-      } else if ($o['level'] === 'MAJOR') {
+      if (!$isMajor && isset($o['cycle_pos'])) {
+          $cPos = $o['cycle_pos'];
+          $mNum = $o['minor_number'];
+          if ($cPos === 3) {
+              $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">🚨 OFFENSE #' . $mNum . ' — 3rd Minor (Section 4 Escalation Trigger)</div><br>';
+          } elseif ($cPos === 2) {
+              $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: #d97706; color: white; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">📧 OFFENSE #' . $mNum . ' — 2nd Minor (Guardian Notice Sent)</div><br>';
+          } else {
+              $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: #2563eb; color: white; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">📋 OFFENSE #' . $mNum . ' — 1st Minor (Official Warning)</div><br>';
+          }
+      } elseif ($isMajor) {
           $cat = isset($o['decided_category']) ? (int)$o['decided_category'] : 0;
-          $caseStatus = isset($o['case_status']) ? (string)$o['case_status'] : '';
-          $csrStatus = isset($o['csr_status']) ? (string)$o['csr_status'] : '';
-          
-          $p_details = json_decode($o['punishment_details'] ?? '{}', true);
-          $is_manually_completed = !empty($p_details['completed']);
-          
-          $punishmentStatus = 'ONGOING';
-          if ($is_manually_completed) {
-              $punishmentStatus = 'COMPLETED';
-          } else if ($cat === 0) {
-              $punishmentStatus = 'ONGOING';
-          } else if ($cat === 1) {
-              $is_probation_active = false;
-              if (!empty($o['probation_until'])) {
-                  $is_probation_active = (strtotime($o['probation_until']) > time());
-              }
-              if ($is_probation_active) {
-                  $punishmentStatus = 'ONGOING';
-              } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
-                  $punishmentStatus = 'COMPLETED';
-              } else {
-                  $punishmentStatus = 'ONGOING';
-              }
-          } else if ($cat === 2) {
-              if (strtoupper($csrStatus) === 'COMPLETED') {
-                  $punishmentStatus = 'COMPLETED';
-              } else {
-                  $punishmentStatus = 'ONGOING';
-              }
-          } else {
-              if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
-                  $punishmentStatus = 'COMPLETED';
-              } else {
-                  $punishmentStatus = 'ONGOING';
-              }
-          }
-          
-          $statusBadge = '';
-          if ($punishmentStatus === 'COMPLETED') {
-              $statusBadge = '<span style="display:inline-block; font-size: 9px; font-weight: 800; background: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; margin-left: 4px; letter-spacing: 0.5px;">COMPLETED</span>';
-          } else {
-              $statusBadge = '<span style="display:inline-block; font-size: 9px; font-weight: 800; background: #fff3cd; color: #664d03; border: 1px solid #ffecb5; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; margin-left: 4px; letter-spacing: 0.5px;">ONGOING</span>';
-          }
-          
           $catLabel = '';
           if ($cat >= 1 && $cat <= 5) {
               $categoryNames = [1 => 'Probation', 2 => 'Formative Intervention', 3 => 'Non-Readmission', 4 => 'Exclusion', 5 => 'Expulsion'];
               $catLabel = ' - CATEGORY ' . $cat . ' (' . strtoupper($categoryNames[$cat]) . ')';
           }
-          $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">MAJOR' . $catLabel . '</div>' . $statusBadge . '<br>';
+          $labelHtml = '<div style="display:inline-block; font-size: 9px; font-weight: 800; background: var(--red); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 4px; letter-spacing: 0.5px;">MAJOR' . $catLabel . '</div><br>';
       }
 
       $historyHtml .= '
