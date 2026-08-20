@@ -925,7 +925,12 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
               ensure_notice_to_explain_table();
           }
           $nteRows = db_all("SELECT nte.*, 
-                     COALESCE(nte.case_id, uco.case_id) AS resolved_case_id,
+                     COALESCE(nte.case_id, uco.case_id, (
+                         SELECT uc_sub.case_id 
+                         FROM upcc_case uc_sub 
+                         WHERE uc_sub.student_id = nte.student_id 
+                         ORDER BY uc_sub.case_id DESC LIMIT 1
+                     )) AS resolved_case_id,
                      uc.evidence_file AS case_evidence_file,
                      o.evidence_file AS offense_evidence_file,
                      (SELECT o2.evidence_file 
