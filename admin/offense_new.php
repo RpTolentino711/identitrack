@@ -568,7 +568,7 @@ if ($postStudentId !== '') {
     $liveGuardianEmail = (string)($gRow['guardian_email'] ?? '');
 
     $liveActiveUpccCases = db_all(
-      "SELECT case_id, status, case_kind, case_summary, created_at FROM upcc_case
+      "SELECT case_id, status, case_kind, case_summary, evidence_file, created_at FROM upcc_case
        WHERE student_id = :sid AND status IN ('PENDING','UNDER_APPEAL')
        ORDER BY created_at DESC",
       [':sid' => $postStudentId]
