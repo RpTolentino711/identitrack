@@ -574,6 +574,12 @@ if ($postStudentId !== '') {
       [':sid' => $postStudentId]
     ) ?: [];
 
+    if (!empty($liveActiveUpccCases[0]['case_id'])) {
+        try {
+            db_exec("UPDATE notice_to_explain SET case_id = :cid WHERE (case_id IS NULL OR case_id = 0) AND student_id = :sid", [':cid' => (int)$liveActiveUpccCases[0]['case_id'], ':sid' => $postStudentId]);
+        } catch (Throwable $ex) {}
+    }
+
     foreach ($liveActiveUpccCases as $case) {
       if (($case['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION') {
         $hasActiveSection4 = true;
