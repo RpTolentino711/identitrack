@@ -924,42 +924,26 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
     }
   }
 
+  // ── FETCH NTE HISTORY (SAFE JOIN) ──
   $nteRows = [];
   if (!empty($student['student_id'])) {
       try {
           if (function_exists('ensure_notice_to_explain_table')) {
               ensure_notice_to_explain_table();
           }
-          $nteRows = db_all("SELECT nte.*, 
-                     COALESCE(nte.case_id, uco.case_id, (
-                         SELECT uc_sub.case_id 
-                         FROM upcc_case uc_sub 
-                         WHERE uc_sub.student_id = nte.student_id 
-                         ORDER BY uc_sub.case_id DESC LIMIT 1
-                     )) AS resolved_case_id,
-                     uc.evidence_file AS case_evidence_file,
-                     o.evidence_file AS offense_evidence_file,
-                     (SELECT o2.evidence_file 
-                      FROM offense o2 
-                      JOIN upcc_case_offense uco2 ON uco2.offense_id = o2.offense_id 
-                      WHERE uco2.case_id = COALESCE(nte.case_id, uco.case_id) AND o2.evidence_file IS NOT NULL AND o2.evidence_file <> '' 
-                      ORDER BY o2.offense_id DESC LIMIT 1) AS case_linked_offense_evidence,
-                     (SELECT o3.evidence_file 
-                      FROM offense o3 
-                      WHERE o3.student_id = nte.student_id AND o3.evidence_file IS NOT NULL AND o3.evidence_file <> '' 
-                      ORDER BY o3.offense_id DESC LIMIT 1) AS latest_student_offense_evidence,
-                     (SELECT uc2.evidence_file 
-                      FROM upcc_case uc2 
-                      WHERE uc2.student_id = nte.student_id AND uc2.evidence_file IS NOT NULL AND uc2.evidence_file <> '' 
-                      ORDER BY uc2.case_id DESC LIMIT 1) AS latest_student_case_evidence
-              FROM notice_to_explain nte
-              LEFT JOIN upcc_case_offense uco ON uco.offense_id = nte.offense_id
-              LEFT JOIN upcc_case uc ON uc.case_id = COALESCE(nte.case_id, uco.case_id)
-              LEFT JOIN offense o ON o.offense_id = nte.offense_id
-              WHERE nte.student_id = :sid 
-                 OR nte.case_id IN (SELECT uc3.case_id FROM upcc_case uc3 WHERE uc3.student_id = :sid2)
-              ORDER BY nte.created_at DESC
-          ", [':sid' => $student['student_id'], ':sid2' => $student['student_id']]) ?: [];
+          $nteRows = db_all(
+              "SELECT n.*,
+                      COALESCE(n.case_id, uco.case_id, c.case_id) AS resolved_case_id,
+                      c.evidence_file AS case_evidence_file,
+                      o.evidence_file AS offense_evidence_file
+               FROM notice_to_explain n
+               LEFT JOIN upcc_case c ON c.case_id = n.case_id
+               LEFT JOIN upcc_case_offense uco ON uco.offense_id = n.offense_id
+               LEFT JOIN offense o ON o.offense_id = n.offense_id
+               WHERE n.student_id = :sid OR c.student_id = :sid2
+               ORDER BY n.created_at DESC",
+              [':sid' => $student['student_id'], ':sid2' => $student['student_id']]
+          ) ?: [];
       } catch (Throwable $ex) {
           $nteRows = [];
       }
