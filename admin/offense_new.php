@@ -1081,7 +1081,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
               </button>';
           }
 
-          if (!$hasNte || !empty($caseNteDoc)) {
+          if (!$hasNte) {
               $totalNteDisplay++;
               $caseDateStr = !empty($acase['created_at']) ? ph_date('M j, Y \a\t h:i:s A', $acase['created_at']) : 'During Offense Registration';
               
