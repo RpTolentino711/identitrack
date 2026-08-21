@@ -123,9 +123,6 @@ if ($caseId > 0) {
 if (!$existing && $offenseId > 0) {
     $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
 }
-if (!$existing && !empty($studentId)) {
-    $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE student_id = :sid ORDER BY nte_id DESC LIMIT 1", [':sid' => $studentId]);
-}
 
 $finalAttachment = $attachmentPath ?: ($existing['attachment_path'] ?? null);
 
@@ -185,9 +182,6 @@ if (!empty($finalAttachment)) {
     if ($caseId > 0) {
         db_exec("UPDATE notice_to_explain SET attachment_path = :att, status = 'SENT' WHERE case_id = :cid", [':att' => $finalAttachment, ':cid' => $caseId]);
         db_exec("UPDATE upcc_case SET evidence_file = COALESCE(evidence_file, :att) WHERE case_id = :cid AND (evidence_file IS NULL OR evidence_file = '')", [':att' => $finalAttachment, ':cid' => $caseId]);
-    }
-    if (!empty($studentId)) {
-        db_exec("UPDATE notice_to_explain SET attachment_path = :att, status = 'SENT' WHERE student_id = :sid AND (attachment_path IS NULL OR attachment_path = '')", [':att' => $finalAttachment, ':sid' => $studentId]);
     }
 }
 
