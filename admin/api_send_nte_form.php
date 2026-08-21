@@ -118,6 +118,11 @@ if (!$existing && !empty($studentId)) {
 
 $finalAttachment = $attachmentPath ?: ($existing['attachment_path'] ?? null);
 
+if (empty($finalAttachment)) {
+    echo json_encode(['ok' => false, 'error' => 'Please select a Form F-005 document file (PDF or Image) to upload.']);
+    exit;
+}
+
 if ($existing) {
     db_exec("UPDATE notice_to_explain 
         SET case_id = COALESCE(:cid, case_id),
