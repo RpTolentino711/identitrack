@@ -1058,7 +1058,30 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           $acid = (int)$acase['case_id'];
           $caseNte = $nteCaseMap[$acid] ?? (count($activeCases) === 1 ? $latestStudentNte : null);
           $hasNte = !empty($caseNte) && !empty($caseNte['attachment_path']) && strtoupper((string)($caseNte['status'] ?? '')) !== 'SKIPPED';
-          if (!$hasNte) {
+          
+          $caseNteDoc = !empty($caseNte['attachment_path']) ? $caseNte['attachment_path'] : '';
+          $caseNteBtn = '';
+          if (!empty($caseNteDoc)) {
+              $cleanNtePath = ltrim((string)$caseNteDoc, './');
+              if (str_starts_with($cleanNtePath, 'admin/')) {
+                  $cleanNtePath = substr($cleanNtePath, 6);
+              }
+              $nteFileUrl = '../' . ltrim($cleanNtePath, '/');
+              $nteFileNameDisp = basename($cleanNtePath);
+              $caseNteBtn = '
+              <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <a href="' . $nteFileUrl . '" target="_blank" style="color:#1e40af; font-size:11px; font-weight:800; text-decoration:underline;" title="View ' . htmlspecialchars($nteFileNameDisp) . '">📄 View Form F-005 (' . htmlspecialchars($nteFileNameDisp) . ')</a>
+                <a href="' . $nteFileUrl . '" target="_blank" download style="color:#1b2b6b; font-weight:700; font-size:10px; background:#e0e7ff; padding:2px 8px; border-radius:10px; text-decoration:none;">📥 Download</a>
+                <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $acid . '" data-student-id="' . $studentId . '" onclick="window.openDirectNteUploadModal(this, event, ' . $acid . ', \'' . $studentId . '\'); return false;" style="background:#fef3c7; color:#b45309; font-weight:800; font-size:10px; border:1px solid #fde68a; padding:2px 6px; border-radius:10px; cursor:pointer;" title="Re-upload Form F-005 document">🔄 Re-upload Form F-005</button>
+              </div>';
+          } else {
+              $caseNteBtn = '
+              <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $acid . '" data-student-id="' . $studentId . '" onclick="window.openDirectNteUploadModal(this, event, ' . $acid . ', \'' . $studentId . '\'); return false;" style="background:#1b2b6b; color:#fff; font-size:11px; font-weight:700; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">
+                📤 Upload & Send Form F-005
+              </button>';
+          }
+
+          if (!$hasNte || !empty($caseNteDoc)) {
               $totalNteDisplay++;
               $caseDateStr = !empty($acase['created_at']) ? ph_date('M j, Y \a\t h:i:s A', $acase['created_at']) : 'During Offense Registration';
               
@@ -1076,21 +1099,22 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
                   <button type="button" onclick="openDirectPhotoUploadModal(' . $acid . ', 0); return false;" style="background:#fffbeb; color:#92400e; font-weight:800; font-size:10px; border:1px solid #fde68a; padding:2px 8px; border-radius:10px; cursor:pointer;" title="Upload photo evidence">📷 Upload Photo Evidence</button>';
               }
 
+              $badgeText = !empty($caseNteDoc) ? '<span style="font-size:11px; font-weight:800; color:#166534;">✅ Form F-005 Sent to Outlook</span>' : '<span style="font-size:11px; font-weight:800; color:#92400e;">⚠️ Form F-005 Skipped / Not Sent</span>';
+              $bgStyle = !empty($caseNteDoc) ? 'background: #f0fdf4; border: 1px solid #bbf7d0;' : 'background: #fffbeb; border: 1px solid #fef3c7;';
+
               $nteHistoryHtml .= '
-              <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
+              <div style="' . $bgStyle . ' border-radius: 6px; padding: 10px; margin-bottom: 6px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                  <span style="font-size:11px; font-weight:800; color:#92400e;">⚠️ Form F-005 Skipped / Not Sent</span>
+                  ' . $badgeText . '
                   <span style="font-size:10px; color:#b45309; font-weight:600;">Case #' . $acid . '</span>
                 </div>
                 <div style="font-size:11px; color:#334155; margin-bottom:4px;">
-                  Skipped On: <strong>' . $caseDateStr . '</strong>
+                  Date: <strong>' . $caseDateStr . '</strong>
                 </div>
                 <div style="font-size:11px; color:#475569; margin-bottom:6px;">
-                  Form F-005 was not sent during offense registration.
+                  ' . (!empty($caseNteDoc) ? 'Form F-005 document is attached below.' : 'Form F-005 was not sent during offense registration.') . '
                 </div>
-                <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $acid . '" data-student-id="' . $studentId . '" onclick="window.openDirectNteUploadModal(this, event, ' . $acid . ', \'' . $studentId . '\'); return false;" style="background:#1b2b6b; color:#fff; font-size:11px; font-weight:700; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">
-                  📤 Upload & Send Form F-005
-                </button>
+                ' . $caseNteBtn . '
                 <div style="margin-top:6px; padding-top:6px; border-top:1px dashed #fde68a; display:flex; align-items:center; justify-content:space-between; font-size:11px; flex-wrap:wrap; gap:4px;">
                   <span style="font-weight:700; color:#92400e;">📷 Photo Evidence:</span>
                   ' . $casePhotoBtn . '
