@@ -147,7 +147,8 @@ if ($existing) {
             admin_signature = :sig,
             attachment_path = COALESCE(:att, attachment_path),
             status = 'SENT',
-            updated_at = NOW()
+            updated_at = NOW(),
+            created_at = NOW()
         WHERE nte_id = :nid
     ", [
         ':cid' => $caseId > 0 ? $caseId : null,
@@ -190,6 +191,7 @@ if (!empty($finalAttachment)) {
         db_exec("UPDATE notice_to_explain SET attachment_path = :att, status = 'SENT', updated_at = NOW() WHERE student_id = :sid AND (case_id = :cid2 OR case_id IS NULL OR case_id = 0)", [':att' => $finalAttachment, ':sid' => $studentId, ':cid2' => $caseId]);
     }
 }
+
 
 // ── FETCH STUDENT EMAIL & NAME FOR OUTLOOK EMAIL DIRECT DELIVERY ──────────────
 $studentParams = [':sid' => $studentId];

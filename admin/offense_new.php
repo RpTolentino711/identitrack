@@ -973,10 +973,14 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       }
       $nteId = (int)$nte['nte_id'];
       $caseIdForNte = !empty($nte['resolved_case_id']) ? (int)$nte['resolved_case_id'] : (!empty($nte['case_id']) ? (int)$nte['case_id'] : 0);
-      $nteDate = ph_date('M j, Y', $nte['created_at']);
-      $nteTime = ph_date('h:i:s A', $nte['created_at']);
-      $irNo = htmlspecialchars($nte['incident_report_no'] ?: ('IR-' . ph_date('Y', $nte['created_at']) . '-' . $nteId));
+      $displayTs = (!empty($nte['updated_at']) && $nte['updated_at'] !== '0000-00-00 00:00:00') ? $nte['updated_at'] : $nte['created_at'];
+      $nteDate = ph_date('M j, Y', $displayTs);
+      $nteTime = ph_date('h:i:s A', $displayTs);
+      $irNo = htmlspecialchars($nte['incident_report_no'] ?: ('IR-' . ph_date('Y', $displayTs) . '-' . $nteId));
       
+      $reuploadBtn = '
+      <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . $studentId . '" onclick="window.openDirectNteUploadModal(this, event, ' . $caseIdForNte . ', \'' . $studentId . '\'); return false;" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; display:inline-flex; align-items:center; gap:3px; cursor:pointer; transition:all 0.15s; white-space:nowrap;" title="Re-upload or replace Form F-005 document" onmouseover="this.style.background=\'#0284c7\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#e0f2fe\'; this.style.color=\'#0369a1\';">🔄 Re-upload</button>';
+
       $fileLink = '';
       if (!empty($nte['attachment_path'])) {
           $cleanPath = ltrim((string)$nte['attachment_path'], './');
@@ -986,18 +990,16 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           $fileUrl = '../' . ltrim($cleanPath, '/');
           $fileNameDisp = basename($cleanPath);
           $fileLink = '
-          <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <a href="' . $fileUrl . '" target="_blank" style="color:#1e40af; font-weight:800; font-size:11px; text-decoration:underline; display:inline-flex; align-items:center; gap:4px;" title="View ' . htmlspecialchars($fileNameDisp) . '">
-              📄 View Form F-005 (' . htmlspecialchars($fileNameDisp) . ')
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px; margin-bottom:4px;">
+            <a href="' . $fileUrl . '" target="_blank" style="color:#1e40af; font-weight:800; font-size:11px; text-decoration:underline; display:inline-flex; align-items:center; gap:3px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="View ' . htmlspecialchars($fileNameDisp) . '">
+              📄 View Form F-005
             </a>
-            <a href="' . $fileUrl . '" target="_blank" download style="color:#1b2b6b; font-weight:700; font-size:10px; background:#e0e7ff; padding:2px 8px; border-radius:10px; text-decoration:none; display:inline-flex; align-items:center; gap:3px;">
+            <a href="' . $fileUrl . '" target="_blank" download style="color:#1b2b6b; font-weight:700; font-size:10px; background:#e0e7ff; padding:2px 8px; border-radius:10px; text-decoration:none; display:inline-flex; align-items:center; gap:3px; white-space:nowrap;">
               📥 Download
             </a>
+            ' . $reuploadBtn . '
           </div>';
       }
-
-      $reuploadBtn = '
-      <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . $studentId . '" onclick="window.openDirectNteUploadModal(this, event, ' . $caseIdForNte . ', \'' . $studentId . '\'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background=\'#dc2626\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#fee2e2\'; this.style.color=\'#dc2626\';">✕</button>';
 
       $evFile = !empty($nte['case_evidence_file']) ? $nte['case_evidence_file'] : 
                (!empty($nte['offense_evidence_file']) ? $nte['offense_evidence_file'] : 
@@ -1016,7 +1018,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           </div>';
       } else {
           $photoUploadBtn = '
-          <button type="button" onclick="openDirectPhotoUploadModal(' . $caseIdForNte . ', ' . $nteId . '); return false;" style="background:#fffbeb; color:#92400e; font-weight:800; font-size:10px; border:1px solid #fde68a; padding:2px 8px; border-radius:10px; cursor:pointer;" title="Upload photo evidence">📷 Upload Photo Evidence</button>';
+          <button type="button" onclick="openDirectPhotoUploadModal(' . $caseIdForNte . ', ' . $nteId . '); return false;" style="background:#fffbeb; color:#92400e; font-weight:800; font-size:10px; border:1px solid #fde68a; padding:2px 6px; border-radius:10px; cursor:pointer;" title="Upload photo evidence">📷 Upload Photo Evidence</button>';
       }
 
       $hearingToggleBtn = '
@@ -1026,18 +1028,15 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       </div>';
 
       $nteHistoryHtml .= '
-      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-bottom: 6px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; flex-wrap:wrap; gap:4px;">
           <span style="font-size:11px; font-weight:800; color:#166534;">✅ Form F-005 Sent to Outlook</span>
-          <span style="font-size:10px; color:#15803d; font-weight:600; white-space:nowrap;">' . $irNo . '</span>
+          <span style="font-size:10px; color:#15803d; font-weight:700; background:#dcfce7; border:1px solid #86efac; padding:1px 6px; border-radius:8px; white-space:nowrap;">' . $irNo . '</span>
         </div>
-        <div style="font-size:11px; color:#334155; margin-bottom:6px;">
+        <div style="font-size:11px; color:#334155; margin-bottom:4px;">
           Submitted: <strong>' . $nteDate . ' at ' . $nteTime . '</strong>
         </div>
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
-          ' . ($fileLink ?: '<div></div>') . '
-          ' . $reuploadBtn . '
-        </div>
+        ' . ($fileLink ?: '<div></div>') . '
         ' . $hearingToggleBtn . '
       </div>';
   }
