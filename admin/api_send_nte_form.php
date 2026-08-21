@@ -118,10 +118,13 @@ ensure_notice_to_explain_table();
 // Save or Replace Form F-005 record for specific case or offense
 $existing = null;
 if ($caseId > 0) {
-    $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE case_id = :cid LIMIT 1", [':cid' => $caseId]);
+    $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE case_id = :cid ORDER BY nte_id DESC LIMIT 1", [':cid' => $caseId]);
 }
 if (!$existing && $offenseId > 0) {
-    $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE offense_id = :oid LIMIT 1", [':oid' => $offenseId]);
+    $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE offense_id = :oid ORDER BY nte_id DESC LIMIT 1", [':oid' => $offenseId]);
+}
+if (!$existing && !empty($studentId)) {
+    $existing = db_one("SELECT nte_id, case_id, offense_id, attachment_path FROM notice_to_explain WHERE student_id = :sid AND (status = 'SKIPPED' OR attachment_path IS NULL OR attachment_path = '') ORDER BY nte_id DESC LIMIT 1", [':sid' => $studentId]);
 }
 
 $finalAttachment = $attachmentPath ?: ($existing['attachment_path'] ?? null);
