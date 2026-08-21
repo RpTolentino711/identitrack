@@ -4499,12 +4499,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               if (msg) { msg.innerHTML = '✅ Form F-005 uploaded & sent to student Outlook!'; msg.style.color = '#166534'; }
               setTimeout(() => {
                   closeDirectNteUploadModal();
-                  const sid = document.getElementById('directNteStudentId')?.value || document.getElementById('studentIdInput')?.value || '';
-                  if (sid) {
-                      window.location.href = 'offense_new.php?student_id=' + encodeURIComponent(sid);
-                  } else {
-                      window.location.reload();
-                  }
+                  window.location.reload();
               }, 1000);
           } else {
               if (msg) { msg.innerHTML = '❌ Failed: ' + (data.error || data.message || 'Error occurred'); msg.style.color = '#b91c1c'; }

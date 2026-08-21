@@ -183,8 +183,11 @@ if ($existing) {
 
 if (!empty($finalAttachment)) {
     if ($caseId > 0) {
-        db_exec("UPDATE notice_to_explain SET attachment_path = :att, status = 'SENT' WHERE case_id = :cid", [':att' => $finalAttachment, ':cid' => $caseId]);
+        db_exec("UPDATE notice_to_explain SET attachment_path = :att, status = 'SENT', updated_at = NOW() WHERE case_id = :cid", [':att' => $finalAttachment, ':cid' => $caseId]);
         db_exec("UPDATE upcc_case SET evidence_file = COALESCE(evidence_file, :att) WHERE case_id = :cid AND (evidence_file IS NULL OR evidence_file = '')", [':att' => $finalAttachment, ':cid' => $caseId]);
+    }
+    if (!empty($studentId)) {
+        db_exec("UPDATE notice_to_explain SET attachment_path = :att, status = 'SENT', updated_at = NOW() WHERE student_id = :sid AND (case_id = :cid2 OR case_id IS NULL OR case_id = 0)", [':att' => $finalAttachment, ':sid' => $studentId, ':cid2' => $caseId]);
     }
 }
 
