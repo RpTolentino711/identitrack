@@ -78,8 +78,19 @@ if (isset($_FILES['nte_file']) && !empty($_FILES['nte_file']['name'])) {
 }
 
 if ($fileKey) {
-    if ($_FILES[$fileKey]['error'] !== UPLOAD_ERR_OK) {
-        echo json_encode(['ok' => false, 'error' => 'File upload error code: ' . $_FILES[$fileKey]['error']]);
+    $errCode = $_FILES[$fileKey]['error'];
+    if ($errCode !== UPLOAD_ERR_OK) {
+        $errMsgs = [
+            UPLOAD_ERR_INI_SIZE   => 'The uploaded file exceeds the upload_max_filesize limit in php.ini.',
+            UPLOAD_ERR_FORM_SIZE  => 'The uploaded file exceeds the MAX_FILE_SIZE limit in the HTML form.',
+            UPLOAD_ERR_PARTIAL    => 'The file was only partially uploaded. Please try again.',
+            UPLOAD_ERR_NO_FILE    => 'No file was uploaded. Please select a Form F-005 document file.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder on server.',
+            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk.',
+            UPLOAD_ERR_EXTENSION  => 'A PHP extension stopped the file upload.'
+        ];
+        $errMsg = $errMsgs[$errCode] ?? ('File upload error code: ' . $errCode);
+        echo json_encode(['ok' => false, 'error' => $errMsg]);
         exit;
     }
     $fileTmp = $_FILES[$fileKey]['tmp_name'];
@@ -173,6 +184,7 @@ if ($existing) {
 if (!empty($finalAttachment)) {
     if ($caseId > 0) {
         db_exec("UPDATE notice_to_explain SET attachment_path = :att, status = 'SENT' WHERE case_id = :cid", [':att' => $finalAttachment, ':cid' => $caseId]);
+        db_exec("UPDATE upcc_case SET evidence_file = COALESCE(evidence_file, :att) WHERE case_id = :cid AND (evidence_file IS NULL OR evidence_file = '')", [':att' => $finalAttachment, ':cid' => $caseId]);
     }
     if (!empty($studentId)) {
         db_exec("UPDATE notice_to_explain SET attachment_path = :att, status = 'SENT' WHERE student_id = :sid AND (attachment_path IS NULL OR attachment_path = '')", [':att' => $finalAttachment, ':sid' => $studentId]);
