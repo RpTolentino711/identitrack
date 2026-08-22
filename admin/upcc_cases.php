@@ -83,10 +83,18 @@ try {
     // Migrate case status enum to support explicit workflow states
     $statusCol = db_one("SHOW COLUMNS FROM `upcc_case` LIKE 'status'");
     $statusType = strtolower((string)($statusCol['Type'] ?? ''));
-    if (strpos($statusType, 'under_investigation') === false || strpos($statusType, 'closed') === false) {
+    if (strpos($statusType, 'dismissed') === false) {
         db_exec("ALTER TABLE `upcc_case`
-                 MODIFY COLUMN `status` ENUM('PENDING','UNDER_INVESTIGATION','RESOLVED','CLOSED','UNDER_APPEAL','CANCELLED')
+                 MODIFY COLUMN `status` ENUM('PENDING','UNDER_INVESTIGATION','RESOLVED','CLOSED','UNDER_APPEAL','CANCELLED','DISMISSED')
                  NOT NULL DEFAULT 'PENDING'");
+    }
+
+    // Dismissal metadata columns
+    $dCol = db_one("SHOW COLUMNS FROM `upcc_case` LIKE 'dismissal_reason'");
+    if (!$dCol) {
+        db_exec("ALTER TABLE `upcc_case` ADD COLUMN `dismissal_reason` TEXT DEFAULT NULL");
+        db_exec("ALTER TABLE `upcc_case` ADD COLUMN `dismissed_at` DATETIME DEFAULT NULL");
+        db_exec("ALTER TABLE `upcc_case` ADD COLUMN `dismissed_by` INT DEFAULT NULL");
     }
 
     // Normalize old resolved rows into CLOSED while keeping enum backward compatible.
@@ -191,6 +199,98 @@ foreach ($members as $m) {
             $deptMemberCounts[$deptId] = 0;
         }
         $deptMemberCounts[$deptId]++;
+    }
+}
+
+// ── Case Dismissal Email Helpers ──────────────────────────────
+function send_case_dismissal_email_to_student(string $studentEmail, string $studentName, int $caseId, string $reason): bool {
+    if (empty($studentEmail)) return false;
+    if (!file_exists(__DIR__ . '/class.phpmailer.php')) return false;
+    require_once __DIR__ . '/class.phpmailer.php';
+    require_once __DIR__ . '/class.smtp.php';
+    try {
+        $mail = new PHPMailer(true);
+        $mail->CharSet = 'UTF-8';
+        $mail->isSMTP();
+        $getEnv = function($key, $default) { return (string)($_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: $default); };
+        $mail->Host = $getEnv('SMTP_HOST', 'smtp.hostinger.com');
+        $mail->Port = 587;
+        $mail->SMTPAuth = true;
+        $mail->SMTPSecure = 'tls';
+        $mail->Username = $getEnv('SMTP_USER', 'identitrack@identitrack.site');
+        $mail->Password = $getEnv('SMTP_PASS', 'Pogilameg@10');
+        $mail->setFrom($mail->Username, 'Student Discipline Office - NU Lipa');
+        $mail->addAddress($studentEmail, $studentName);
+        $mail->isHTML(true);
+        $mail->Subject = "[NU Lipa SDO] Notice of UPCC Case Dismissal - Case #{$caseId}";
+        $mail->Body = "
+        <div style='font-family:sans-serif; max-width:600px; margin:0 auto; padding:20px; background:#ffffff; border-radius:12px; border:1px solid #e2e8f0;'>
+            <div style='background:#1e40af; color:#ffffff; padding:20px; border-radius:8px 8px 0 0; text-align:center;'>
+                <h2 style='margin:0; font-size:20px;'>Student Discipline Office</h2>
+                <p style='margin:4px 0 0 0; font-size:13px; opacity:0.9;'>National University Lipa</p>
+            </div>
+            <div style='padding:24px; color:#334155; line-height:1.6; font-size:14px;'>
+                <p>Dear <strong>" . htmlspecialchars($studentName) . "</strong>,</p>
+                <p>This is an official notice that your UPCC Disciplinary <strong>Case #{$caseId}</strong> has been officially <strong>DISMISSED</strong> by the Student Discipline Office.</p>
+                <div style='background:#fef2f2; border-left:4px solid #ef4444; padding:14px 16px; border-radius:6px; margin:18px 0;'>
+                    <strong style='color:#991b1b;'>Reason for Dismissal:</strong><br>
+                    <span style='color:#7f1d1d;'>" . htmlspecialchars($reason) . "</span>
+                </div>
+                <p>As a result of this dismissal, any scheduled hearings have been cancelled and no disciplinary sanctions will be imposed for this case.</p>
+                <p style='margin-bottom:0;'>If you have questions, please contact the Student Discipline Office.</p>
+            </div>
+            <div style='background:#f8fafc; border-top:1px solid #e2e8f0; padding:16px; text-align:center; font-size:12px; color:#94a3b8;'>
+                &copy; " . date('Y') . " IdentiTrack System - National University Lipa
+            </div>
+        </div>";
+        return $mail->send();
+    } catch (\Throwable $e) {
+        return false;
+    }
+}
+
+function send_case_dismissal_email_to_panel(string $panelEmail, string $panelName, int $caseId, string $studentId, string $reason): bool {
+    if (empty($panelEmail)) return false;
+    if (!file_exists(__DIR__ . '/class.phpmailer.php')) return false;
+    require_once __DIR__ . '/class.phpmailer.php';
+    require_once __DIR__ . '/class.smtp.php';
+    try {
+        $mail = new PHPMailer(true);
+        $mail->CharSet = 'UTF-8';
+        $mail->isSMTP();
+        $getEnv = function($key, $default) { return (string)($_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: $default); };
+        $mail->Host = $getEnv('SMTP_HOST', 'smtp.hostinger.com');
+        $mail->Port = 587;
+        $mail->SMTPAuth = true;
+        $mail->SMTPSecure = 'tls';
+        $mail->Username = $getEnv('SMTP_USER', 'identitrack@identitrack.site');
+        $mail->Password = $getEnv('SMTP_PASS', 'Pogilameg@10');
+        $mail->setFrom($mail->Username, 'Student Discipline Office - NU Lipa');
+        $mail->addAddress($panelEmail, $panelName);
+        $mail->isHTML(true);
+        $mail->Subject = "[UPCC Panel Notice] UPCC Case #{$caseId} Has Been Dismissed";
+        $mail->Body = "
+        <div style='font-family:sans-serif; max-width:600px; margin:0 auto; padding:20px; background:#ffffff; border-radius:12px; border:1px solid #e2e8f0;'>
+            <div style='background:#0f172a; color:#ffffff; padding:20px; border-radius:8px 8px 0 0; text-align:center;'>
+                <h2 style='margin:0; font-size:20px;'>UPCC Panel Notification</h2>
+                <p style='margin:4px 0 0 0; font-size:13px; opacity:0.9;'>National University Lipa</p>
+            </div>
+            <div style='padding:24px; color:#334155; line-height:1.6; font-size:14px;'>
+                <p>Hello <strong>" . htmlspecialchars($panelName) . "</strong>,</p>
+                <p>Please be advised that <strong>UPCC Case #{$caseId}</strong> (Student ID: " . htmlspecialchars($studentId) . "), to which you were assigned as an investigating panel member, has been <strong>DISMISSED</strong> by the Student Discipline Office.</p>
+                <div style='background:#fef2f2; border-left:4px solid #ef4444; padding:14px 16px; border-radius:6px; margin:18px 0;'>
+                    <strong style='color:#991b1b;'>Reason for Dismissal:</strong><br>
+                    <span style='color:#7f1d1d;'>" . htmlspecialchars($reason) . "</span>
+                </div>
+                <p style='margin-bottom:0;'>Any upcoming hearings or voting sessions for this case are officially cancelled. Your panel portal view has been updated to reflect the DISMISSED status.</p>
+            </div>
+            <div style='background:#f8fafc; border-top:1px solid #e2e8f0; padding:16px; text-align:center; font-size:12px; color:#94a3b8;'>
+                &copy; " . date('Y') . " IdentiTrack System - National University Lipa
+            </div>
+        </div>";
+        return $mail->send();
+    } catch (\Throwable $e) {
+        return false;
     }
 }
 
@@ -579,6 +679,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 header("Location: upcc_cases.php?msg=resolved"); exit;
             }
         } else { $regError = 'Please select a category (1-5) and write a final decision.'; }
+    }
+
+    // Dismiss Case Action
+    if ($_POST['action'] === 'dismiss_case') {
+        $case_id = (int)($_POST['case_id'] ?? 0);
+        $dismissal_reason = trim((string)($_POST['dismissal_reason'] ?? ''));
+        $reason_category = trim((string)($_POST['dismissal_reason_category'] ?? ''));
+
+        if ($case_id <= 0) {
+            $regError = 'Invalid Case ID.';
+        } elseif ($dismissal_reason === '') {
+            $regError = 'Please provide a reason for dismissing this case.';
+        } else {
+            $fullReason = ($reason_category !== '' ? "[$reason_category] " : "") . $dismissal_reason;
+
+            $caseRow = db_one(
+                "SELECT c.case_id, c.student_id, c.status, c.assigned_department_id, d.dept_name,
+                        s.student_fn, s.student_ln, s.student_email
+                 FROM upcc_case c
+                 LEFT JOIN departments d ON d.dept_id = c.assigned_department_id
+                 LEFT JOIN student s ON s.student_id = c.student_id
+                 WHERE c.case_id = :id",
+                [':id' => $case_id]
+            );
+
+            if (!$caseRow) {
+                $regError = 'Case not found.';
+            } else {
+                // Update case status to DISMISSED
+                db_exec(
+                    "UPDATE upcc_case
+                     SET status = 'DISMISSED',
+                         dismissal_reason = :reason,
+                         dismissed_at = NOW(),
+                         dismissed_by = :aid,
+                         hearing_is_open = 0,
+                         hearing_closed_at = NOW(),
+                         updated_at = NOW()
+                     WHERE case_id = :id",
+                    [
+                        ':reason' => $fullReason,
+                        ':aid' => (int)($admin['admin_id'] ?? 0),
+                        ':id' => $case_id
+                    ]
+                );
+
+                // Log case activity
+                upcc_log_case_activity($case_id, 'ADMIN', (int)($admin['admin_id'] ?? 0), 'CASE_DISMISSED', [
+                    'reason' => $fullReason,
+                    'by' => $admin['full_name'] ?? $admin['username'] ?? 'Admin'
+                ]);
+
+                // Create student notification
+                if (!empty($caseRow['student_id'])) {
+                    try {
+                        db_exec(
+                            "INSERT INTO notification (type, title, message, student_id, admin_id, related_table, related_id, is_read, is_deleted, created_at)
+                             VALUES ('CASE_DISMISSED', 'UPCC Case Dismissed', :msg, :sid, :aid, 'upcc_case', :cid, 0, 0, NOW())",
+                            [
+                                ':msg' => "Your UPCC Case #{$case_id} has been DISMISSED by the Student Discipline Office. Reason: {$fullReason}",
+                                ':sid' => $caseRow['student_id'],
+                                ':aid' => (int)($admin['admin_id'] ?? 0),
+                                ':cid' => (string)$case_id
+                            ]
+                        );
+                    } catch (\Throwable $ex) {}
+                }
+
+                // Notify assigned panel members via email
+                $panelMembers = db_all(
+                    "SELECT u.upcc_id, u.full_name, u.email
+                     FROM upcc_case_panel_member pm
+                     JOIN upcc_user u ON u.upcc_id = pm.upcc_id
+                     WHERE pm.case_id = :cid AND u.is_active = 1",
+                    [':cid' => $case_id]
+                );
+
+                foreach ($panelMembers as $pm) {
+                    if (!empty($pm['email'])) {
+                        send_case_dismissal_email_to_panel($pm['email'], $pm['full_name'], $case_id, (string)$caseRow['student_id'], $fullReason);
+                    }
+                }
+
+                // Send email notification to Student Outlook
+                if (!empty($caseRow['student_email'])) {
+                    $studentName = trim(($caseRow['student_fn'] ?? '') . ' ' . ($caseRow['student_ln'] ?? '')) ?: $caseRow['student_id'];
+                    send_case_dismissal_email_to_student($caseRow['student_email'], $studentName, $case_id, $fullReason);
+                }
+
+                header("Location: upcc_cases.php?msg=dismissed"); exit;
+            }
+        }
     }
 
 
@@ -1253,15 +1445,18 @@ function fmt_case_id(int $id, string $created): string {
             <!-- Cases table -->
             <?php
             $cntAll = count($cases);
-            $cntReady = 0; $cntAssigned = 0; $cntUnassigned = 0;
+            $cntReady = 0; $cntAssigned = 0; $cntUnassigned = 0; $cntDismissed = 0;
             foreach ($cases as $c) {
                 $st = strtoupper((string)($c['status'] ?? 'PENDING'));
                 $isClosed = ($st === 'CLOSED' || $st === 'RESOLVED' || $st === 'CANCELLED');
+                $isDismissed = ($st === 'DISMISSED');
                 $hasPanel = (!empty($c['assigned_department_id']) || (!empty($c['assigned_panel_members']) && $c['assigned_panel_members'] !== '[]'));
                 $hearingScheduled = !empty($c['hearing_date']) && !empty($c['hearing_time']);
                 $isHearingActive = ((int)($c['hearing_is_open'] ?? 0) === 1 || (int)($c['hearing_is_paused'] ?? 0) === 1);
                 
-                if (!$isClosed) {
+                if ($isDismissed) {
+                    $cntDismissed++;
+                } elseif (!$isClosed) {
                     if ($hasPanel) {
                         $cntAssigned++;
                         if ($hearingScheduled && !$isHearingActive) $cntReady++;
@@ -1286,6 +1481,7 @@ function fmt_case_id(int $id, string $created): string {
                         <button class="filter-tab" onclick="filterCases('ready', this)">Upcoming Hearing <span class="tab-count <?= $cntReady > 0 ? 'glow-yellow' : '' ?>"><?= $cntReady ?></span></button>
                         <button class="filter-tab" onclick="filterCases('assigned', this)">Panel Assigned <span class="tab-count <?= $cntAssigned > 0 ? 'glow-purple' : '' ?>"><?= $cntAssigned ?></span></button>
                         <button class="filter-tab" onclick="filterCases('unassigned', this)">Unassigned <span class="tab-count <?= $cntUnassigned > 0 ? 'glow-red' : '' ?>"><?= $cntUnassigned ?></span></button>
+                        <button class="filter-tab" onclick="filterCases('dismissed', this)">Dismissed <span class="tab-count <?= $cntDismissed > 0 ? 'glow-red' : '' ?>"><?= $cntDismissed ?></span></button>
                     </div>
                 </div>
             </div>
@@ -1529,6 +1725,8 @@ function fmt_case_id(int $id, string $created): string {
                                 data-nfi-date="<?= e((string)($c['nfi_date'] ?? '')) ?>"
                                 data-incident-photo="<?= e($c['incident_photo'] ?? '') ?>"
                                 data-show-in-hearing="<?= (int)($c['show_in_hearing'] ?? 1) ?>"
+                                data-dismissal-reason="<?= e($c['dismissal_reason'] ?? '') ?>"
+                                data-dismissed-at="<?= e((string)($c['dismissed_at'] ?? '')) ?>"
                                 onclick="selectCase(this)">
                                 <td><div class="case-id"><?= e($caseLabel) ?></div></td>
                                 <td>
@@ -1669,6 +1867,22 @@ function fmt_case_id(int $id, string $created): string {
                                         <span id="btn-upload-nfi-label">📋 Upload Notice of Formative Intervention (NFI)</span>
                                     </button>
                                 </form>
+                            </div>
+
+                            <!-- Dismissal Info Box for DISMISSED cases -->
+                            <div id="dismissal-details-div" style="display:none; margin-top:14px; background:#fef2f2; border:1px solid #fca5a5; border-radius:10px; padding:12px; color:#991b1b;">
+                                <div style="font-size:13px; font-weight:800; display:flex; align-items:center; gap:6px;">
+                                    <span>🚫 UPCC CASE DISMISSED</span>
+                                </div>
+                                <div style="font-size:12px; color:#7f1d1d; margin-top:4px; line-height:1.4;" id="d-dismissal-reason-text">--</div>
+                                <div style="font-size:10px; color:#991b1b; opacity:0.85; margin-top:4px;" id="d-dismissal-date-text">--</div>
+                            </div>
+
+                            <!-- Dismiss Case Button for Active Cases -->
+                            <div id="dismiss-action-container" style="display:none; margin-top:14px; padding-top:14px; border-top:1px dashed #cbd5e1;">
+                                <button type="button" onclick="triggerDismissCaseModal()" style="width:100%; background:#fef2f2; border:1px solid #fca5a5; color:#dc2626; padding:10px 14px; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:all 0.15s;" onmouseover="this.style.background='#dc2626'; this.style.color='#fff';" onmouseout="this.style.background='#fef2f2'; this.style.color='#dc2626';">
+                                    🚫 Dismiss Case
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -2321,13 +2535,16 @@ function applySearchFilter() {
         const hearingScheduled = row.dataset.hearingScheduled === '1';
         const hearingActive = row.dataset.hearingActive === '1';
 
-        const isAssigned = !isClosed && hasPanel;
-        const isReady = !isClosed && hasPanel && hearingScheduled && !hearingActive;
-        const isUnassigned = !isClosed && !hasPanel;
+        const isDismissed = (statusRaw === 'DISMISSED');
+        const isAssigned = !isClosed && !isDismissed && hasPanel;
+        const isReady = !isClosed && !isDismissed && hasPanel && hearingScheduled && !hearingActive;
+        const isUnassigned = !isClosed && !isDismissed && !hasPanel;
 
         let show = false;
         if (currentFilterLevel === 'all') {
             show = true;
+        } else if (currentFilterLevel === 'dismissed') {
+            show = isDismissed;
         } else if (currentFilterLevel === 'major') {
             show = rowLevel === currentFilterLevel;
         } else if (currentFilterLevel === 'assigned') {
@@ -2339,7 +2556,7 @@ function applySearchFilter() {
         } else if (currentFilterLevel === 'no_hearing') {
             show = isAssigned && !isReady;
         } else if (currentFilterLevel === 'unsolved') {
-            show = !isClosed;
+            show = !isClosed && !isDismissed;
         } else if (currentFilterLevel === 'solved') {
             show = isClosed;
         } else if (/^cat[1-5]$/.test(currentFilterLevel) || currentFilterLevel === 'section4') {
@@ -2440,7 +2657,10 @@ function selectCase(row) {
     let badgesHtml = '';
     let statusClass = 'db-pending';
     let statusLabel = status.charAt(0) + status.slice(1).toLowerCase();
-    if (status === 'CANCELLED') {
+    if (status === 'DISMISSED') {
+        statusClass = 'db-appeal';
+        statusLabel = '🚫 Dismissed';
+    } else if (status === 'CANCELLED') {
         statusClass = 'db-appeal'; // You can use a different class if you have an orange/red one
         statusLabel = 'Cancelled';
     } else if (isInvestigating || (isPending && hasPanel)) {
@@ -2647,8 +2867,26 @@ function selectCase(row) {
                 if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '📋 Upload Notice of Formative Intervention (NFI)';
                 if (nfiUploadForm) nfiUploadForm.style.display = 'block';
             }
+    }
+
+    targetDismissCaseRow = row;
+    const isDismissed = (status === 'DISMISSED');
+    const dismissContainer = document.getElementById('dismiss-action-container');
+    const dismissalDetailsDiv = document.getElementById('dismissal-details-div');
+
+    if (dismissContainer) {
+        dismissContainer.style.display = (isActiveCase && !isDismissed) ? 'block' : 'none';
+    }
+
+    if (dismissalDetailsDiv) {
+        if (isDismissed) {
+            const reason = row.dataset.dismissalReason || 'Case dismissed by Student Discipline Office.';
+            const dDate = row.dataset.dismissedAt || '';
+            document.getElementById('d-dismissal-reason-text').textContent = reason;
+            document.getElementById('d-dismissal-date-text').textContent = dDate ? ('Dismissed on ' + dDate) : '';
+            dismissalDetailsDiv.style.display = 'block';
         } else {
-            nfiContainer.style.display = 'none';
+            dismissalDetailsDiv.style.display = 'none';
         }
     }
 
@@ -3246,6 +3484,174 @@ window.locateMissingDocTarget = locateMissingDocTarget;
 window.handleNfiUploadSubmit = handleNfiUploadSubmit;
 window.confirmRemoveNfiFile = confirmRemoveNfiFile;
 window.closeConfirmResModal = closeConfirmResModal;
+
+let targetDismissCaseRow = null;
+
+function triggerDismissCaseModal() {
+    if (!targetDismissCaseRow) return;
+    const caseId = targetDismissCaseRow.dataset.caseId;
+    const caseLabel = targetDismissCaseRow.dataset.caseid || ('Case #' + caseId);
+    
+    const labelEl = document.getElementById('dismiss-modal-case-label');
+    if (labelEl) labelEl.textContent = caseLabel + ' — ' + (targetDismissCaseRow.dataset.student || '');
+    
+    const idInput = document.getElementById('dismiss_modal_case_id');
+    if (idInput) idInput.value = caseId;
+    
+    const reasonInput = document.getElementById('dismiss_reason_text_input');
+    if (reasonInput) reasonInput.value = '';
+    
+    const overlay1 = document.getElementById('dismiss-modal-1-overlay');
+    if (overlay1) overlay1.style.display = 'flex';
+}
+
+function closeDismissModal1() {
+    const overlay1 = document.getElementById('dismiss-modal-1-overlay');
+    if (overlay1) overlay1.style.display = 'none';
+}
+
+function proceedToDismissModal2() {
+    const reasonCat = document.getElementById('dismiss_reason_category_select').value;
+    const reasonText = document.getElementById('dismiss_reason_text_input').value.trim();
+    
+    if (!reasonText) {
+        alert('Please enter a detailed explanation/reason for dismissing this case.');
+        document.getElementById('dismiss_reason_text_input').focus();
+        return;
+    }
+    
+    document.getElementById('dismiss_modal_reason_category').value = reasonCat;
+    document.getElementById('dismiss_modal_reason_text').value = reasonText;
+    
+    const caseLabel = targetDismissCaseRow ? targetDismissCaseRow.dataset.caseid : ('Case #' + document.getElementById('dismiss_modal_case_id').value);
+    const studentName = targetDismissCaseRow ? targetDismissCaseRow.dataset.student : '';
+    
+    document.getElementById('dismiss-summary-case-title').textContent = `${caseLabel} - ${studentName}`;
+    document.getElementById('dismiss-summary-reason-text').textContent = `[${reasonCat}] ${reasonText}`;
+    
+    // Check panel status for double modal notice
+    const hasPanel = targetDismissCaseRow ? (targetDismissCaseRow.dataset.hasPanel === '1') : false;
+    const assignedDeptId = targetDismissCaseRow ? targetDismissCaseRow.dataset.assignedDept : '';
+    const deptName = assignedDeptId ? (deptNames[assignedDeptId] || ('Department #' + assignedDeptId)) : 'Assigned Department';
+    const alertBox = document.getElementById('dismiss-panel-alert-box');
+    const alertMsg = document.getElementById('dismiss-panel-alert-message');
+    
+    if (hasPanel) {
+        alertBox.style.background = '#fff7ed';
+        alertBox.style.borderColor = '#fdba74';
+        alertMsg.innerHTML = `⚠️ <strong>PANEL NOTIFICATION NOTICE:</strong> This case has an assigned investigating panel (<strong>${escH(deptName)}</strong>). Dismissing this case will immediately cancel all upcoming hearings, notify all assigned panel members via email, and update their panel portal view to <strong>DISMISSED</strong>.`;
+    } else {
+        alertBox.style.background = '#f0fdf4';
+        alertBox.style.borderColor = '#86efac';
+        alertMsg.innerHTML = `ℹ️ No investigating panel is currently assigned to this case. Dismissing will close the case and send an official dismissal notice to the student's Outlook email.`;
+    }
+    
+    document.getElementById('dismiss-modal-1-overlay').style.display = 'none';
+    document.getElementById('dismiss-modal-2-overlay').style.display = 'flex';
+}
+
+function closeDismissModal2() {
+    const overlay2 = document.getElementById('dismiss-modal-2-overlay');
+    if (overlay2) overlay2.style.display = 'none';
+}
+
+function backToDismissModal1() {
+    document.getElementById('dismiss-modal-2-overlay').style.display = 'none';
+    document.getElementById('dismiss-modal-1-overlay').style.display = 'flex';
+}
+
+window.triggerDismissCaseModal = triggerDismissCaseModal;
+window.closeDismissModal1 = closeDismissModal1;
+window.proceedToDismissModal2 = proceedToDismissModal2;
+window.closeDismissModal2 = closeDismissModal2;
+window.backToDismissModal1 = backToDismissModal1;
 </script>
+
+<!-- DISMISS CASE MODAL 1: Reason & Explanation -->
+<div class="cpanel-overlay" id="dismiss-modal-1-overlay" style="display:none; z-index:999999; align-items:center; justify-content:center; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px);">
+    <div class="cpanel-modal" style="max-width:520px; width:92%; background:#fff; border-radius:16px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;">
+        <div style="background:linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); padding:20px 24px; color:#fff; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:24px;">🚫</span>
+                <div>
+                    <h3 style="margin:0; font-size:18px; font-weight:800; color:#fff;">Dismiss UPCC Case</h3>
+                    <div style="font-size:12px; color:#fca5a5; margin-top:2px;" id="dismiss-modal-case-label">Case #--</div>
+                </div>
+            </div>
+            <button type="button" onclick="closeDismissModal1()" style="background:none; border:none; color:#fca5a5; font-size:22px; cursor:pointer;">✕</button>
+        </div>
+
+        <div style="padding:24px;">
+            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px 14px; margin-bottom:18px; font-size:13px; color:#991b1b; line-height:1.5;">
+                ℹ️ <strong>Dismiss Case Action:</strong> This action will close the case and cancel any upcoming hearings (e.g. evidence was withdrawn, student settled, or insufficient evidence).
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:12px; font-weight:800; color:#334155; margin-bottom:6px;">Select Primary Reason for Dismissal <span style="color:#dc2626;">*</span></label>
+                <select id="dismiss_reason_category_select" style="width:100%; padding:10px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:8px; outline:none; background:#fff; font-weight:600;">
+                    <option value="Evidence Withdrawn / Retracted">📄 Evidence Withdrawn / Retracted by Complainant</option>
+                    <option value="Insufficient Evidence">⚠️ Insufficient Evidence / Found Less Merit</option>
+                    <option value="Settled / Resolved Internally">🤝 Settled / Resolved Internally by SDO</option>
+                    <option value="Mistaken Identity / False Allegation">❓ Mistaken Identity / False Allegation</option>
+                    <option value="Custom Reason">✏️ Custom Reason (Type details below)</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="display:block; font-size:12px; font-weight:800; color:#334155; margin-bottom:6px;">Detailed Explanation / Reason <span style="color:#dc2626;">*</span></label>
+                <textarea id="dismiss_reason_text_input" rows="3" placeholder="Explain why this case is being dismissed (e.g., student/complainant withdrew the photo evidence)..." style="width:100%; padding:10px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:8px; outline:none; font-family:inherit;"></textarea>
+                <div style="font-size:11px; color:#64748b; margin-top:4px;">This explanation will be logged and included in the notification emails.</div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" onclick="closeDismissModal1()" style="padding:10px 18px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-weight:700; color:#475569; font-size:13px; cursor:pointer;">Cancel</button>
+                <button type="button" onclick="proceedToDismissModal2()" style="padding:10px 20px; border-radius:8px; background:#991b1b; color:#fff; font-weight:700; border:none; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px;">Next ➔ (Check Panel & Confirm)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DISMISS CASE MODAL 2: Double Confirmation & Panel Alert -->
+<div class="cpanel-overlay" id="dismiss-modal-2-overlay" style="display:none; z-index:999999; align-items:center; justify-content:center; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px);">
+    <div class="cpanel-modal" style="max-width:520px; width:92%; background:#fff; border-radius:16px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;">
+        <div style="background:linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); padding:20px 24px; color:#fff; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:24px;">⚠️</span>
+                <div>
+                    <h3 style="margin:0; font-size:18px; font-weight:800; color:#fff;">Confirm Dismissal</h3>
+                    <div style="font-size:12px; color:#fca5a5; margin-top:2px;">Double Confirmation Step</div>
+                </div>
+            </div>
+            <button type="button" onclick="closeDismissModal2()" style="background:none; border:none; color:#fca5a5; font-size:22px; cursor:pointer;">✕</button>
+        </div>
+
+        <form method="post" action="upcc_cases.php" id="form-dismiss-case">
+            <input type="hidden" name="action" value="dismiss_case">
+            <input type="hidden" name="case_id" id="dismiss_modal_case_id">
+            <input type="hidden" name="dismissal_reason_category" id="dismiss_modal_reason_category">
+            <input type="hidden" name="dismissal_reason" id="dismiss_modal_reason_text">
+
+            <div style="padding:24px;">
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:16px;">
+                    <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Dismissal Summary:</div>
+                    <div style="font-size:13px; font-weight:700; color:#1e293b; margin-top:4px;" id="dismiss-summary-case-title">Case #--</div>
+                    <div style="font-size:12.5px; color:#475569; margin-top:6px;" id="dismiss-summary-reason-text">--</div>
+                </div>
+
+                <!-- Panel notification alert box -->
+                <div id="dismiss-panel-alert-box" style="background:#fff7ed; border:1.5px solid #fdba74; border-radius:10px; padding:14px; margin-bottom:20px; font-size:13px; color:#9a3412; line-height:1.5;">
+                    <span id="dismiss-panel-alert-message">Checking panel status...</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+                    <button type="button" onclick="backToDismissModal1()" style="padding:10px 16px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-weight:700; color:#475569; font-size:13px; cursor:pointer;">⬅️ Back</button>
+                    <button type="submit" style="padding:10px 22px; border-radius:8px; background:#dc2626; color:#fff; font-weight:800; border:none; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(220,38,38,0.3);">
+                        🚫 Confirm & Dismiss Case Now
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 </body>
 </html>

@@ -545,6 +545,7 @@ $caseLabel        = 'UPCC-' . date('Y', strtotime($case['created_at'])) . '-' . 
 $caseStatusPillClass = match ($case['status']) {
     'UNDER_INVESTIGATION'         => 'pill-investigating',
     'CLOSED', 'RESOLVED'          => 'pill-closed',
+    'DISMISSED'                   => 'pill-closed',
     'UNDER_APPEAL'                => 'pill-appeal',
     'AWAITING_ADMIN_FINALIZATION' => 'pill-awaiting',
     default                       => 'pill-pending',
@@ -1048,6 +1049,20 @@ body {
     </div>
 
     <div class="page-body">
+      <?php if ($case['status'] === 'DISMISSED'): ?>
+        <div style="background:#fef2f2; border:1.5px solid #fca5a5; border-radius:14px; padding:20px 24px; margin-bottom:20px; display:flex; align-items:flex-start; gap:16px; box-shadow:0 4px 14px rgba(220,38,38,0.08);">
+          <div style="font-size:32px; line-height:1;">🚫</div>
+          <div style="flex:1;">
+            <h3 style="margin:0 0 6px 0; font-size:18px; color:#991b1b; font-weight:800;">THIS UPCC CASE HAS BEEN OFFICIALLY DISMISSED</h3>
+            <div style="font-size:13.5px; color:#7f1d1d; line-height:1.5;">
+              <strong>Reason for Dismissal:</strong> <?= htmlspecialchars($case['dismissal_reason'] ?? 'Case dismissed by Student Discipline Office.') ?>
+            </div>
+            <div style="font-size:11.5px; color:#991b1b; opacity:0.85; margin-top:8px; font-weight:600;">
+              🕒 Dismissed on <?= !empty($case['dismissed_at']) ? date('F j, Y \a\t h:i A', strtotime($case['dismissed_at'])) : date('F j, Y \a\t h:i A', strtotime($case['updated_at'])) ?>
+            </div>
+          </div>
+        </div>
+      <?php endif; ?>
       <?php if ($errMsg): ?><div class="alert alert-error"><?= htmlspecialchars($errMsg) ?></div><?php endif; ?>
       <?php if ($okMsg):  ?><div class="alert alert-success"><?= htmlspecialchars($okMsg) ?></div><?php endif; ?>
 
