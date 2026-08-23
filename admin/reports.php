@@ -24,6 +24,8 @@ if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) $selectedMonth = date('Y-m')
 $selectedAudience = strtoupper(trim((string)($_GET['audience'] ?? 'ALL')));
 if (!in_array($selectedAudience, ['ALL', 'COLLEGE', 'SHS'], true)) $selectedAudience = 'ALL';
 
+require_once __DIR__ . '/data/historical_dataset_cache.php';
+
 // Month options (ONLY months/years that ACTUALLY contain offense or case data)
 $monthOptions = [];
 
@@ -53,6 +55,18 @@ if (!empty($distinctCaseMonths)) {
   foreach ($distinctCaseMonths as $dm) {
     if (!empty($dm['ym']) && !in_array($dm['ym'], $monthOptions, true)) {
       $monthOptions[] = $dm['ym'];
+    }
+  }
+}
+
+// Include all months that have records in the historical dataset cache
+if (function_exists('get_historical_dataset_records')) {
+  foreach (get_historical_dataset_records() as $hr) {
+    if (!empty($hr['date'])) {
+      $ym = date('Y-m', strtotime($hr['date']));
+      if (!in_array($ym, $monthOptions, true)) {
+        $monthOptions[] = $ym;
+      }
     }
   }
 }
