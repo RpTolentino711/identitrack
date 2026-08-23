@@ -2300,6 +2300,15 @@ function get_historical_dataset_records() {
   ];
 }
 
+function is_shs_program($program) {
+    $p = strtoupper(trim((string)$program));
+    $keywords = ['SHS', 'SENIOR', 'ABM', 'STEM', 'HUMSS', 'TVL', 'GAS', 'GRADE 11', 'GRADE 12', 'G11', 'G12', 'HIGH SCHOOL'];
+    foreach ($keywords as $kw) {
+        if (strpos($p, $kw) !== false) return true;
+    }
+    return false;
+}
+
 function get_filtered_historical_records($monthStart, $monthEnd, $audience = 'ALL', $category = 'ALL') {
     $records = get_historical_dataset_records();
     $filtered = [];
@@ -2315,11 +2324,10 @@ function get_filtered_historical_records($monthStart, $monthEnd, $audience = 'AL
         }
 
         // Audience filter
+        $isShs = is_shs_program($r['program'] ?? '');
         if ($audience === 'SHS') {
-            $isShs = (strpos(strtoupper($r['program']), 'SHS') !== false || strpos(strtoupper($r['program']), 'SENIOR') !== false);
             if (!$isShs) continue;
         } elseif ($audience === 'COLLEGE') {
-            $isShs = (strpos(strtoupper($r['program']), 'SHS') !== false || strpos(strtoupper($r['program']), 'SENIOR') !== false);
             if ($isShs) continue;
         }
 
