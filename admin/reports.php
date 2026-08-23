@@ -59,12 +59,13 @@ if (!empty($distinctCaseMonths)) {
   }
 }
 
-// Include all months that have records in the historical dataset cache
+// Include all months that have records in the historical dataset cache up to current month
+$maxYM = date('Y-m');
 if (function_exists('get_historical_dataset_records')) {
   foreach (get_historical_dataset_records() as $hr) {
     if (!empty($hr['date'])) {
       $ym = date('Y-m', strtotime($hr['date']));
-      if (!in_array($ym, $monthOptions, true)) {
+      if ($ym <= $maxYM && !in_array($ym, $monthOptions, true)) {
         $monthOptions[] = $ym;
       }
     }

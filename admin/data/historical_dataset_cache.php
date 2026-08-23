@@ -1842,7 +1842,7 @@ function get_historical_dataset_records() {
     ['student_id' => 'dumanewmb', 'name' => 'Mund Lyster Dumanew', 'program' => 'General Student Body (Infraction Logs)', 'offense' => 'Minor Infraction Log', 'level' => 'MINOR', 'date' => '2026-03-07 00:00:00', 'sanction' => ''],
     ['student_id' => 'aguilaab', 'name' => 'Althea Joy Aguila', 'program' => 'General Student Body (Infraction Logs)', 'offense' => 'Minor Infraction Log', 'level' => 'MINOR', 'date' => '2026-03-07 00:00:00', 'sanction' => ''],
     ['student_id' => 'biscochoad', 'name' => 'Anne Patrice Biscocho', 'program' => 'General Student Body (Infraction Logs)', 'offense' => 'Minor Infraction Log', 'level' => 'MINOR', 'date' => '2026-03-09 00:00:00', 'sanction' => ''],
-    ['student_id' => 'riverajl1', 'name' => 'John Lloyd Rivera', 'program' => 'General Student Body (Infraction Logs)', 'offense' => 'Minor Infraction Log', 'level' => 'MINOR', 'date' => '2027-03-09 00:00:00', 'sanction' => ''],
+    ['student_id' => 'riverajl1', 'name' => 'John Lloyd Rivera', 'program' => 'General Student Body (Infraction Logs)', 'offense' => 'Minor Infraction Log', 'level' => 'MINOR', 'date' => '2024-03-09 00:00:00', 'sanction' => ''],
     ['student_id' => 'sarabiacj', 'name' => 'Cyrill Gaile Sarabia', 'program' => 'General Student Body (Infraction Logs)', 'offense' => 'Minor Infraction Log', 'level' => 'MINOR', 'date' => '2026-03-07 00:00:00', 'sanction' => ''],
     ['student_id' => 'padillatp', 'name' => 'Trisha Anjela Padilla', 'program' => 'General Student Body (Infraction Logs)', 'offense' => 'Minor Infraction Log', 'level' => 'MINOR', 'date' => '2026-03-10 00:00:00', 'sanction' => ''],
     ['student_id' => 'bacordoam', 'name' => 'Angel Mae Bacordo', 'program' => 'General Student Body (Infraction Logs)', 'offense' => 'Minor Infraction Log', 'level' => 'MINOR', 'date' => '2026-03-11 00:00:00', 'sanction' => ''],
@@ -2303,10 +2303,11 @@ function get_historical_dataset_records() {
 function get_filtered_historical_records($monthStart, $monthEnd, $audience = 'ALL', $category = 'ALL') {
     $records = get_historical_dataset_records();
     $filtered = [];
+    $maxAllowedDate = date('Y-m-d 23:59:59');
 
     foreach ($records as $r) {
         $dateStr = $r['date'] ?? '';
-        if (!$dateStr) continue;
+        if (!$dateStr || $dateStr > $maxAllowedDate) continue;
 
         // Date filter
         if ($monthStart !== '1970-01-01 00:00:00') {

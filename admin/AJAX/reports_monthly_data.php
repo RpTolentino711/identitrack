@@ -353,12 +353,15 @@ foreach ($mysqlMonths as $mm) {
     if (!empty($mm['ym'])) $availableMonthsMap[$mm['ym']] = true;
 }
 
+$maxYM = date('Y-m');
 if (function_exists('get_filtered_historical_records')) {
     $allCatRecords = get_filtered_historical_records('1970-01-01 00:00:00', '2099-12-31 23:59:59', $audience, $category);
     foreach ($allCatRecords as $hr) {
         if (!empty($hr['date'])) {
             $ym = date('Y-m', strtotime($hr['date']));
-            $availableMonthsMap[$ym] = true;
+            if ($ym <= $maxYM) {
+                $availableMonthsMap[$ym] = true;
+            }
         }
     }
 }
