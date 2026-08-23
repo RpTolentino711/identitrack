@@ -13,12 +13,14 @@ require_admin();
 header('Content-Type: application/json; charset=utf-8');
 
 $month = trim((string)($_GET['month'] ?? date('Y-m')));
-if (!preg_match('/^\d{4}-\d{2}$/', $month)) $month = date('Y-m');
-$audience = strtoupper(trim((string)($_GET['audience'] ?? 'ALL')));
-if (!in_array($audience, ['ALL', 'COLLEGE', 'SHS'], true)) $audience = 'ALL';
-
-$monthStart = $month . '-01 00:00:00';
-$monthEnd = date('Y-m-t 23:59:59', strtotime($monthStart));
+if (strtoupper($month) === 'ALL') {
+  $monthStart = '1970-01-01 00:00:00';
+  $monthEnd = '2099-12-31 23:59:59';
+} else {
+  if (!preg_match('/^\d{4}-\d{2}$/', $month)) $month = date('Y-m');
+  $monthStart = $month . '-01 00:00:00';
+  $monthEnd = date('Y-m-t 23:59:59', strtotime($monthStart));
+}
 
 $segmentExpr = "(CASE WHEN (LOWER(COALESCE(s.school,'')) LIKE '%senior high%' OR UPPER(COALESCE(s.school,'')) = 'SHS' OR UPPER(COALESCE(s.program,'')) LIKE '%SHS%') THEN 'SHS' ELSE 'COLLEGE' END)";
 $audienceClause = '';

@@ -279,6 +279,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
 
             <!-- month/year chooser -->
             <select id="monthSelect">
+              <option value="ALL" <?php echo $selectedMonth==='ALL'?'selected':''; ?>>All-Time (All Infractions & Violations)</option>
               <?php foreach ($monthOptions as $ym): ?>
                 <option value="<?php echo e($ym); ?>" <?php echo $ym===$selectedMonth?'selected':''; ?>>
                   <?php echo e(date('F Y', strtotime($ym.'-01'))); ?>
