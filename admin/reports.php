@@ -26,7 +26,7 @@ if (!in_array($selectedAudience, ['ALL', 'COLLEGE', 'SHS'], true)) $selectedAudi
 
 // Month options (months with data + last 12 months)
 $monthOptions = [];
-$distinctMonths = db_all("SELECT DISTINCT DATE_FORMAT(date_committed, '%Y-%m') AS ym FROM offense WHERE date_committed IS NOT NULL ORDER BY ym DESC LIMIT 12");
+$distinctMonths = db_all("SELECT DISTINCT DATE_FORMAT(date_committed, '%Y-%m') AS ym FROM offense WHERE date_committed IS NOT NULL ORDER BY ym DESC");
 if (!empty($distinctMonths)) {
   foreach ($distinctMonths as $dm) {
     if (!empty($dm['ym']) && !in_array($dm['ym'], $monthOptions, true)) {
