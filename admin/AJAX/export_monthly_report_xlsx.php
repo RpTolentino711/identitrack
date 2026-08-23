@@ -108,6 +108,33 @@ $rows = db_all(
   $params
 );
 
+require_once __DIR__ . '/../data/historical_dataset_cache.php';
+
+$hRecords = function_exists('get_filtered_historical_records') ? get_filtered_historical_records($monthStart, $monthEnd, $audience, $category) : [];
+
+foreach ($hRecords as $hr) {
+    $rows[] = [
+        'offense_id' => 'HIST-' . substr(md5(($hr['student_id'] ?? '') . ($hr['date'] ?? '') . ($hr['offense'] ?? '')), 0, 8),
+        'student_id' => $hr['student_id'] ?? 'N/A',
+        'student_name' => $hr['name'] ?? 'N/A',
+        'program' => $hr['program'] ?? 'N/A',
+        'section' => 'INF232',
+        'offense_level' => strtoupper($hr['level'] ?? 'MINOR'),
+        'offense_code' => 'HIST-EXCEL',
+        'offense_name' => $hr['offense'] ?? 'Minor Violation',
+        'intervention_first' => 'Form F-005 Written Notice to Explain',
+        'intervention_second' => '2nd Notice & Guardian Conference',
+        'status' => strpos(strtoupper($hr['sanction'] ?? ''), 'DISMISS') !== false ? 'DISMISSED' : 'RESOLVED',
+        'date_committed' => $hr['date'] ?? '2023-09-01 10:00:00',
+        'description' => $hr['offense'] ?? 'Historical Dataset Record',
+        'case_id' => '',
+        'case_kind' => '',
+        'decided_category' => 2,
+        'final_decision' => $hr['sanction'] ?? '',
+        'case_status' => strpos(strtoupper($hr['sanction'] ?? ''), 'DISMISS') !== false ? 'DISMISSED' : 'CLOSED'
+    ];
+}
+
 $dismissedRow = db_one(
   "SELECT COUNT(*) AS cnt
    FROM offense o

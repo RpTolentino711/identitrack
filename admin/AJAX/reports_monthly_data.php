@@ -117,10 +117,40 @@ $dismissedCasesRow = db_one(
   [$monthStart, $monthEnd]
 );
 
-$totalCount = (int)($totalRow['cnt'] ?? 0);
-$minorCount = (int)($minorRow['cnt'] ?? 0);
-$majorCount = (int)($majorRow['cnt'] ?? 0);
-$dismissedCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + (int)($dismissedCasesRow['cnt'] ?? 0);
+require_once __DIR__ . '/../data/historical_dataset_cache.php';
+
+$hRecords = function_exists('get_filtered_historical_records') ? get_filtered_historical_records($monthStart, $monthEnd, $audience, $category) : [];
+
+$hTotal = count($hRecords);
+$hMinor = 0;
+$hMajor = 0;
+$hDismissed = 0;
+$hBreakdownMap = [];
+$hCoursesMap = [];
+
+foreach ($hRecords as $hr) {
+    $lvl = strtoupper($hr['level'] ?? 'MINOR');
+    if ($lvl === 'MINOR') $hMinor++;
+    else $hMajor++;
+
+    if (strpos(strtoupper($hr['sanction'] ?? ''), 'DISMISS') !== false) {
+        $hDismissed++;
+    }
+
+    $offName = $hr['offense'] ?? 'Minor Offense';
+    $labelName = "$offName (" . ucfirst(strtolower($lvl)) . ")";
+    if (!isset($hBreakdownMap[$labelName])) $hBreakdownMap[$labelName] = 0;
+    $hBreakdownMap[$labelName]++;
+
+    $prog = !empty($hr['program']) ? $hr['program'] : 'N/A';
+    if (!isset($hCoursesMap[$prog])) $hCoursesMap[$prog] = 0;
+    $hCoursesMap[$prog]++;
+}
+
+$totalCount = (int)($totalRow['cnt'] ?? 0) + $hTotal;
+$minorCount = (int)($minorRow['cnt'] ?? 0) + $hMinor;
+$majorCount = (int)($majorRow['cnt'] ?? 0) + $hMajor;
+$dismissedCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + (int)($dismissedCasesRow['cnt'] ?? 0) + $hDismissed;
 
 // Active UPCC cases count (excludes DISMISSED and CLOSED cases)
 $upccActiveRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE status IN ('PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL')");
