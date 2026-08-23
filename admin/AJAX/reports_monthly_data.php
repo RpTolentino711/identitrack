@@ -267,11 +267,28 @@ foreach ($sectionRows as $sr) {
   $sectionsByProgram[$program][] = $section;
 }
 
+$academicCoursesMap = [];
+$unspecifiedCount = 0;
+
+foreach ($combinedCoursesMap as $prog => $cnt) {
+  if (strpos($prog, 'General Student Body') !== false || $prog === 'N/A' || $prog === 'UNSPECIFIED') {
+    $unspecifiedCount += $cnt;
+  } else {
+    $academicCoursesMap[$prog] = ($academicCoursesMap[$prog] ?? 0) + $cnt;
+  }
+}
+arsort($academicCoursesMap);
+
 $courseLabels = [];
 $courseCounts = [];
-foreach (array_slice($combinedCoursesMap, 0, 8, true) as $prog => $cnt) {
+foreach (array_slice($academicCoursesMap, 0, 8, true) as $prog => $cnt) {
   $courseLabels[] = (string)$prog;
   $courseCounts[] = (int)$cnt;
+}
+
+if (empty($courseLabels) && $unspecifiedCount > 0) {
+  $courseLabels[] = 'General Student Body';
+  $courseCounts[] = $unspecifiedCount;
 }
 
 $topCourse = $courseLabels[0] ?? '';
