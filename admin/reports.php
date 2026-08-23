@@ -294,14 +294,10 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
             </select>
 
             <select id="categorySelect" style="height:34px; border-radius:8px; border:1px solid #cfd4da; padding:0 10px; font-size:12px; font-weight:600; background:#fff; color:#1b2b6b;">
-              <option value="ALL">All Offenses & Punishments</option>
-              <option value="MINOR">All Minor Offenses</option>
-              <option value="MAJOR">All Major Offenses</option>
-              <option value="1ST_MINOR">1st Minor Warnings (Form F-005)</option>
-              <option value="2ND_MINOR">2nd Minor Warnings (Guardian Notice)</option>
-              <option value="SECTION4">Section 4 Minor Escalations</option>
-              <option value="DISMISSED">Dismissed Offenses & Cases</option>
-              <option value="SANCTIONS">Decided Sanctions & Penalties</option>
+              <option value="ALL">All Records (Complete Dataset)</option>
+              <option value="MINOR">Minor Offenses & Infractions (1st Warning, 2nd Warning, Section 4)</option>
+              <option value="MAJOR_SANCTIONS">Major Cases & Disciplinary Sanctions (NU Lipa Handbook Database)</option>
+              <option value="DISMISSED">Dismissed Cases & Offenses</option>
             </select>
 
             <!-- Download Excel for chosen month/year -->

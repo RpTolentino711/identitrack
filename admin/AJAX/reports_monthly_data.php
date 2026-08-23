@@ -38,18 +38,10 @@ if ($audience === 'SHS') {
 $categoryClause = "";
 if ($category === 'MINOR') {
     $categoryClause = " AND ot.level = 'MINOR' ";
-} elseif ($category === 'MAJOR') {
-    $categoryClause = " AND ot.level = 'MAJOR' ";
-} elseif ($category === '1ST_MINOR') {
-    $categoryClause = " AND ot.level = 'MINOR' AND (SELECT COUNT(*) FROM offense o2 WHERE o2.student_id = o.student_id AND o2.date_committed <= o.date_committed) = 1 ";
-} elseif ($category === '2ND_MINOR') {
-    $categoryClause = " AND ot.level = 'MINOR' AND (SELECT COUNT(*) FROM offense o2 WHERE o2.student_id = o.student_id AND o2.date_committed <= o.date_committed) = 2 ";
-} elseif ($category === 'SECTION4') {
-    $categoryClause = " AND ( (ot.level = 'MINOR' AND (SELECT COUNT(*) FROM offense o2 WHERE o2.student_id = o.student_id AND o2.date_committed <= o.date_committed) >= 3) OR uc.case_kind = 'SECTION4_MINOR_ESCALATION' ) ";
+} elseif ($category === 'MAJOR_SANCTIONS' || $category === 'SANCTIONS' || $category === 'MAJOR') {
+    $categoryClause = " AND (ot.level = 'MAJOR' OR uc.case_id IS NOT NULL OR (uc.final_decision IS NOT NULL AND uc.final_decision != '')) ";
 } elseif ($category === 'DISMISSED') {
     $categoryClause = " AND (COALESCE(o.status,'') = 'DISMISSED' OR COALESCE(ot.level,'') = 'DISMISSED' OR COALESCE(o.level,'') = 'DISMISSED' OR uc.status = 'DISMISSED') ";
-} elseif ($category === 'SANCTIONS') {
-    $categoryClause = " AND (uc.final_decision IS NOT NULL AND uc.final_decision != '') ";
 }
 
 // Clause to exclude dismissed offenses & cases from active report totals
