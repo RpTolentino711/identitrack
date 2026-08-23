@@ -293,8 +293,19 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               <option value="SHS" <?php echo $selectedAudience==='SHS'?'selected':''; ?>>SHS Only</option>
             </select>
 
+            <select id="categorySelect" style="height:34px; border-radius:8px; border:1px solid #cfd4da; padding:0 10px; font-size:12px; font-weight:600; background:#fff; color:#1b2b6b;">
+              <option value="ALL">All Offenses & Punishments</option>
+              <option value="MINOR">All Minor Offenses</option>
+              <option value="MAJOR">All Major Offenses</option>
+              <option value="1ST_MINOR">1st Minor Warnings (Form F-005)</option>
+              <option value="2ND_MINOR">2nd Minor Warnings (Guardian Notice)</option>
+              <option value="SECTION4">Section 4 Minor Escalations</option>
+              <option value="DISMISSED">Dismissed Offenses & Cases</option>
+              <option value="SANCTIONS">Decided Sanctions & Penalties</option>
+            </select>
+
             <!-- Download Excel for chosen month/year -->
-            <a class="btn-excel" id="exportBtn" href="AJAX/export_monthly_report_xlsx.php?month=<?php echo urlencode($selectedMonth); ?>&audience=<?php echo urlencode($selectedAudience); ?>">
+            <a class="btn-excel" id="exportBtn" href="AJAX/export_monthly_report_xlsx.php?month=<?php echo urlencode($selectedMonth); ?>&audience=<?php echo urlencode($selectedAudience); ?>&category=ALL">
               <span style="font-size:18px;">⬇</span>
               Export to Excel
             </a>
@@ -344,6 +355,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
   <script>
     const monthSelect = document.getElementById('monthSelect');
     const audienceSelect = document.getElementById('audienceSelect');
+    const categorySelect = document.getElementById('categorySelect');
     const loading = document.getElementById('loading');
 
     const statTotal = document.getElementById('statTotal');
@@ -381,10 +393,11 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       return Math.round((part / total) * 100);
     }
 
-    async function loadReport(month, audience) {
+    async function loadReport(month, audience, category) {
       setLoading(true);
 
-      const url = 'AJAX/reports_monthly_data.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience);
+      const cat = category || (categorySelect ? categorySelect.value : 'ALL');
+      const url = 'AJAX/reports_monthly_data.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('Request failed');
 
@@ -524,17 +537,18 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       });
     }
 
-    async function refresh(month, audience) {
+    async function refresh(month, audience, category) {
       try {
-        const data = await loadReport(month, audience);
+        const cat = category || (categorySelect ? categorySelect.value : 'ALL');
+        const data = await loadReport(month, audience, cat);
         renderStats(data.stats);
         renderBreakdown(data.breakdown);
         renderCourses(data.courses);
         renderTrend(data.trend);
 
-        // IMPORTANT: export should download the SAME chosen month/year
+        // IMPORTANT: export should download the SAME chosen month/year, audience, and category filter
         if (exportBtn) {
-          exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience);
+          exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
         }
       } catch (e) {
         setLoading(false);
@@ -543,11 +557,12 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     }
 
     // initial load
-    refresh(monthSelect.value, audienceSelect.value);
+    refresh(monthSelect.value, audienceSelect.value, categorySelect ? categorySelect.value : 'ALL');
 
-    // change month via AJAX (and sync export)
-    monthSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value));
-    audienceSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value));
+    // change filters via AJAX (and sync export)
+    monthSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value, categorySelect.value));
+    audienceSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value, categorySelect.value));
+    if (categorySelect) categorySelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value, categorySelect.value));
   </script>
 </body>
 </html>

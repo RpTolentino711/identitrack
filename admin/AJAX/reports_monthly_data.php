@@ -22,12 +22,34 @@ if (strtoupper($month) === 'ALL') {
   $monthEnd = date('Y-m-t 23:59:59', strtotime($monthStart));
 }
 
+$audience = strtoupper(trim((string)($_GET['audience'] ?? 'ALL')));
+if (!in_array($audience, ['ALL', 'COLLEGE', 'SHS'], true)) $audience = 'ALL';
+
+$category = strtoupper(trim((string)($_GET['category'] ?? 'ALL')));
+
 $segmentExpr = "(CASE WHEN (LOWER(COALESCE(s.school,'')) LIKE '%senior high%' OR UPPER(COALESCE(s.school,'')) = 'SHS' OR UPPER(COALESCE(s.program,'')) LIKE '%SHS%') THEN 'SHS' ELSE 'COLLEGE' END)";
 $audienceClause = '';
 if ($audience === 'SHS') {
   $audienceClause = " AND $segmentExpr = 'SHS' ";
 } elseif ($audience === 'COLLEGE') {
   $audienceClause = " AND $segmentExpr = 'COLLEGE' ";
+}
+
+$categoryClause = "";
+if ($category === 'MINOR') {
+    $categoryClause = " AND ot.level = 'MINOR' ";
+} elseif ($category === 'MAJOR') {
+    $categoryClause = " AND ot.level = 'MAJOR' ";
+} elseif ($category === '1ST_MINOR') {
+    $categoryClause = " AND ot.level = 'MINOR' AND (SELECT COUNT(*) FROM offense o2 WHERE o2.student_id = o.student_id AND o2.date_committed <= o.date_committed) = 1 ";
+} elseif ($category === '2ND_MINOR') {
+    $categoryClause = " AND ot.level = 'MINOR' AND (SELECT COUNT(*) FROM offense o2 WHERE o2.student_id = o.student_id AND o2.date_committed <= o.date_committed) = 2 ";
+} elseif ($category === 'SECTION4') {
+    $categoryClause = " AND ( (ot.level = 'MINOR' AND (SELECT COUNT(*) FROM offense o2 WHERE o2.student_id = o.student_id AND o2.date_committed <= o.date_committed) >= 3) OR uc.case_kind = 'SECTION4_MINOR_ESCALATION' ) ";
+} elseif ($category === 'DISMISSED') {
+    $categoryClause = " AND (COALESCE(o.status,'') = 'DISMISSED' OR COALESCE(ot.level,'') = 'DISMISSED' OR COALESCE(o.level,'') = 'DISMISSED' OR uc.status = 'DISMISSED') ";
+} elseif ($category === 'SANCTIONS') {
+    $categoryClause = " AND (uc.final_decision IS NOT NULL AND uc.final_decision != '') ";
 }
 
 // Clause to exclude dismissed offenses & cases from active report totals
@@ -41,13 +63,17 @@ $dismissClause = " AND COALESCE(o.status,'') != 'DISMISSED'
                        WHERE uc.status = 'DISMISSED'
                    ) ";
 
+$activeFilter = ($category === 'DISMISSED') ? ($audienceClause . $categoryClause) : ($audienceClause . $dismissClause . $categoryClause);
+
 // -------------------- Stats --------------------
 $totalRow = db_one(
   "SELECT COUNT(*) AS cnt
    FROM offense o
    JOIN student s ON s.student_id = o.student_id
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-   WHERE o.date_committed BETWEEN ? AND ? $audienceClause $dismissClause",
+   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
+   WHERE o.date_committed BETWEEN ? AND ? $activeFilter",
   [$monthStart, $monthEnd]
 );
 

@@ -5,6 +5,25 @@
 require_once __DIR__ . '/../../database/database.php';
 require_admin();
 
+$autoload = __DIR__ . '/../../vendor/autoload.php';
+if (!file_exists($autoload)) {
+    die("Composer autoload not found. Please run 'composer require phpoffice/phpspreadsheet'");
+}
+require_once $autoload;
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Chart\Chart;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
+use PhpOffice\PhpSpreadsheet\Chart\Legend;
+use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
+use PhpOffice\PhpSpreadsheet\Chart\Title;
+
 $month = trim((string)($_GET['month'] ?? ''));
 if (strtoupper($month) === 'ALL') {
   $monthStart = '1970-01-01 00:00:00';
@@ -30,6 +49,25 @@ if ($audience === 'SHS') {
   $audienceClause = " AND $segmentExpr = 'COLLEGE' ";
 }
 
+$category = strtoupper(trim((string)($_GET['category'] ?? 'ALL')));
+
+$categoryClause = "";
+if ($category === 'MINOR') {
+    $categoryClause = " AND ot.level = 'MINOR' ";
+} elseif ($category === 'MAJOR') {
+    $categoryClause = " AND ot.level = 'MAJOR' ";
+} elseif ($category === '1ST_MINOR') {
+    $categoryClause = " AND ot.level = 'MINOR' AND (SELECT COUNT(*) FROM offense o2 WHERE o2.student_id = o.student_id AND o2.date_committed <= o.date_committed) = 1 ";
+} elseif ($category === '2ND_MINOR') {
+    $categoryClause = " AND ot.level = 'MINOR' AND (SELECT COUNT(*) FROM offense o2 WHERE o2.student_id = o.student_id AND o2.date_committed <= o.date_committed) = 2 ";
+} elseif ($category === 'SECTION4') {
+    $categoryClause = " AND ( (ot.level = 'MINOR' AND (SELECT COUNT(*) FROM offense o2 WHERE o2.student_id = o.student_id AND o2.date_committed <= o.date_committed) >= 3) OR uc.case_kind = 'SECTION4_MINOR_ESCALATION' ) ";
+} elseif ($category === 'DISMISSED') {
+    $categoryClause = " AND (COALESCE(o.status,'') = 'DISMISSED' OR COALESCE(ot.level,'') = 'DISMISSED' OR COALESCE(o.level,'') = 'DISMISSED' OR uc.status = 'DISMISSED') ";
+} elseif ($category === 'SANCTIONS') {
+    $categoryClause = " AND (uc.final_decision IS NOT NULL AND uc.final_decision != '') ";
+}
+
 // Clause to exclude dismissed offenses & cases from active report totals
 $dismissClause = " AND COALESCE(o.status,'') != 'DISMISSED'
                    AND COALESCE(ot.level,'') != 'DISMISSED'
@@ -40,6 +78,8 @@ $dismissClause = " AND COALESCE(o.status,'') != 'DISMISSED'
                        JOIN upcc_case uc ON uc.case_id = uco.case_id
                        WHERE uc.status = 'DISMISSED'
                    ) ";
+
+$activeFilter = ($category === 'DISMISSED') ? ($audienceClause . $categoryClause) : ($audienceClause . $dismissClause . $categoryClause);
 
 // 1. Fetch raw data
 $params = [':start' => $monthStart, ':end' => $monthEnd];
@@ -71,7 +111,7 @@ $rows = db_all(
    LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
    LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN :start AND :end
-   $audienceClause $dismissClause
+   $activeFilter
    ORDER BY o.date_committed DESC",
   $params
 );
@@ -146,26 +186,6 @@ foreach ($rows as $r) {
 
 arsort($breakdownMap);
 arsort($coursesMap);
-
-$autoload = __DIR__ . '/../../vendor/autoload.php';
-if (!file_exists($autoload)) {
-    die("Composer autoload not found. Please run 'composer require phpoffice/phpspreadsheet'");
-}
-
-require_once $autoload;
-
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
-use PhpOffice\PhpSpreadsheet\Chart\Chart;
-use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
-use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
-use PhpOffice\PhpSpreadsheet\Chart\Legend;
-use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
-use PhpOffice\PhpSpreadsheet\Chart\Title;
 
 try {
   $spreadsheet = new Spreadsheet();
