@@ -55,12 +55,21 @@ $rows = db_all(
       ot.level AS offense_level,
       ot.code AS offense_code,
       ot.name AS offense_name,
+      ot.intervention_first,
+      ot.intervention_second,
       o.status,
       o.date_committed,
-      " . db_decrypt_col('description', 'o') . " AS description
+      " . db_decrypt_col('description', 'o') . " AS description,
+      uc.case_id,
+      uc.case_kind,
+      uc.decided_category,
+      uc.final_decision,
+      uc.status AS case_status
    FROM offense o
    JOIN student s ON s.student_id = o.student_id
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN :start AND :end
    $audienceClause $dismissClause
    ORDER BY o.date_committed DESC",
@@ -179,23 +188,22 @@ try {
   ];
 
   $styleStatBox = [
-      'font' => ['bold' => true, 'size' => 14],
+      'font' => ['bold' => true, 'size' => 11],
       'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
       'borders' => ['outline' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']]],
       'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF2F2F2']],
   ];
 
   $styleStatVal = [
-      'font' => ['bold' => true, 'size' => 24, 'color' => ['argb' => 'FF000000']],
+      'font' => ['bold' => true, 'size' => 20, 'color' => ['argb' => 'FF000000']],
       'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
       'borders' => ['outline' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']]],
   ];
 
   $styleTableHeader = [
-      'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
-      'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF44546A']],
-      'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+      'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 11],
+      'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF3B4A9E']],
   ];
   
   $styleTableBody = [
@@ -204,41 +212,46 @@ try {
 
   // Header
   $sheet->setCellValue('A1', 'MONTHLY DISCIPLINE REPORT - ' . $titleMonthStr);
-  $sheet->mergeCells('A1:K1');
-  $sheet->getStyle('A1:K1')->applyFromArray($styleHeader);
+  $sheet->mergeCells('A1:L1');
+  $sheet->getStyle('A1:L1')->applyFromArray($styleHeader);
   $sheet->getRowDimension(1)->setRowHeight(30);
 
   $sheet->setCellValue('A2', 'Generated: ' . date('Y-m-d H:i:s') . ' | Audience Filter: ' . $audience);
-  $sheet->mergeCells('A2:K2');
-  $sheet->getStyle('A2:K2')->applyFromArray($styleSubHeader);
+  $sheet->mergeCells('A2:L2');
+  $sheet->getStyle('A2:L2')->applyFromArray($styleSubHeader);
 
-  // Summary Metrics (Dashboard style)
-  $sheet->setCellValue('B4', 'TOTAL OFFENSES');
-  $sheet->setCellValue('D4', 'MINOR OFFENSES');
-  $sheet->setCellValue('F4', 'MAJOR OFFENSES');
-  $sheet->setCellValue('H4', 'ACTIVE CASES');
+  // Summary Metrics (Dashboard style - 5 Cards)
+  $sheet->setCellValue('A4', 'TOTAL OFFENSES');
+  $sheet->setCellValue('C4', 'MINOR OFFENSES');
+  $sheet->setCellValue('E4', 'MAJOR OFFENSES');
+  $sheet->setCellValue('G4', 'ACTIVE CASES');
+  $sheet->setCellValue('I4', 'DISMISSED');
   
-  $sheet->mergeCells('B4:C4');
-  $sheet->mergeCells('D4:E4');
-  $sheet->mergeCells('F4:G4');
-  $sheet->mergeCells('H4:I4');
+  $sheet->mergeCells('A4:B4');
+  $sheet->mergeCells('C4:D4');
+  $sheet->mergeCells('E4:F4');
+  $sheet->mergeCells('G4:H4');
+  $sheet->mergeCells('I4:J4');
   
-  $sheet->getStyle('B4:I4')->applyFromArray($styleStatBox);
+  $sheet->getStyle('A4:J4')->applyFromArray($styleStatBox);
 
-  $sheet->setCellValue('B5', $total);
-  $sheet->setCellValue('D5', $minor);
-  $sheet->setCellValue('F5', $major);
-  $sheet->setCellValue('H5', $activeCases);
+  $sheet->setCellValue('A5', $total);
+  $sheet->setCellValue('C5', $minor);
+  $sheet->setCellValue('E5', $major);
+  $sheet->setCellValue('G5', $activeCases);
+  $sheet->setCellValue('I5', $dismissedCount);
 
-  $sheet->mergeCells('B5:C5');
-  $sheet->mergeCells('D5:E5');
-  $sheet->mergeCells('F5:G5');
-  $sheet->mergeCells('H5:I5');
+  $sheet->mergeCells('A5:B5');
+  $sheet->mergeCells('C5:D5');
+  $sheet->mergeCells('E5:F5');
+  $sheet->mergeCells('G5:H5');
+  $sheet->mergeCells('I5:J5');
 
-  $sheet->getStyle('B5:I5')->applyFromArray($styleStatVal);
-  $sheet->getStyle('F5')->getFont()->getColor()->setARGB('FFC00000'); // Red for major
-  $sheet->getStyle('D5')->getFont()->getColor()->setARGB('FFE69300'); // Orange for minor
-  $sheet->getRowDimension(5)->setRowHeight(40);
+  $sheet->getStyle('A5:J5')->applyFromArray($styleStatVal);
+  $sheet->getStyle('E5')->getFont()->getColor()->setARGB('FFC00000'); // Red for major
+  $sheet->getStyle('C5')->getFont()->getColor()->setARGB('FFE69300'); // Orange for minor
+  $sheet->getStyle('I5')->getFont()->getColor()->setARGB('FF64748B'); // Gray for dismissed
+  $sheet->getRowDimension(5)->setRowHeight(36);
 
   // Hidden Data for Charts
   $bRow = 5;
@@ -303,7 +316,8 @@ try {
   // Raw Data Section
   $headers = [
     'Offense ID', 'Student ID', 'Student Name', 'Program', 'Section',
-    'Level', 'Offense Code', 'Offense Name', 'Status', 'Date Committed', 'Description'
+    'Level', 'Offense Code', 'Offense Name', 'Status', 'Date Committed', 'Description',
+    'Sanction / Penalty (NU Lipa Discipline Handbook)'
   ];
 
   $dataStartRow = 22;
@@ -311,10 +325,43 @@ try {
   $sheet->getStyle('A' . ($dataStartRow - 1))->getFont()->setBold(true)->setSize(14);
   
   $sheet->fromArray($headers, null, 'A' . $dataStartRow);
-  $sheet->getStyle('A'.$dataStartRow.':K'.$dataStartRow)->applyFromArray($styleTableHeader);
+  $sheet->getStyle('A'.$dataStartRow.':L'.$dataStartRow)->applyFromArray($styleTableHeader);
 
   $rowIndex = $dataStartRow + 1;
   foreach ($rows as $r) {
+    $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
+    $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
+    $caseKind = strtoupper((string)($r['case_kind'] ?? ''));
+
+    // Compute Sanction / Penalty string according to NU Lipa Discipline Handbook
+    $sanctionStr = '';
+    if ($caseStatus === 'DISMISSED' || strtoupper((string)($r['status'] ?? '')) === 'DISMISSED') {
+        $sanctionStr = 'Case / Offense Dismissed (No Sanction Imposed)';
+    } elseif (!empty($r['final_decision'])) {
+        $catStr = !empty($r['decided_category']) ? "Category {$r['decided_category']}" : "Decided";
+        $sanctionStr = "{$catStr}: " . (string)$r['final_decision'];
+    } elseif ($offenseLevel === 'MINOR') {
+        // Track sequence of minor offenses for this student up to this offense date
+        $seqCount = (int)(db_one(
+            "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = ? AND date_committed <= ?",
+            [$r['student_id'], $r['date_committed']]
+        )['cnt'] ?? 1);
+
+        if ($seqCount === 1) {
+            $interv = !empty($r['intervention_first']) ? " - " . $r['intervention_first'] : "";
+            $sanctionStr = "1st Minor Offense (Written Warning & Form F-005 Notice to Explain{$interv})";
+        } elseif ($seqCount === 2) {
+            $interv = !empty($r['intervention_second']) ? " - " . $r['intervention_second'] : "";
+            $sanctionStr = "2nd Minor Offense (2nd Written Notice & Guardian Conference{$interv})";
+        } else {
+            $sanctionStr = "3rd Minor Offense — Section 4 Escalation (UPCC Major Committee Hearing & Sanction)";
+        }
+    } elseif ($offenseLevel === 'MAJOR') {
+        $sanctionStr = "Major Offense (Pending UPCC Committee Hearing & Sanction)";
+    } else {
+        $sanctionStr = "Under Review";
+    }
+
     $sheet->setCellValueExplicit('A' . $rowIndex, (string)($r['offense_id'] ?? ''), DataType::TYPE_STRING);
     $sheet->setCellValueExplicit('B' . $rowIndex, (string)($r['student_id'] ?? ''), DataType::TYPE_STRING);
     $sheet->setCellValue('C' . $rowIndex, (string)($r['student_name'] ?? ''));
@@ -326,14 +373,15 @@ try {
     $sheet->setCellValue('I' . $rowIndex, (string)($r['status'] ?? ''));
     $sheet->setCellValue('J' . $rowIndex, (string)($r['date_committed'] ?? ''));
     $sheet->setCellValue('K' . $rowIndex, (string)($r['description'] ?? ''));
+    $sheet->setCellValue('L' . $rowIndex, $sanctionStr);
     $rowIndex++;
   }
 
   if ($rowIndex > $dataStartRow + 1) {
-      $sheet->getStyle('A'.($dataStartRow + 1).':K'.($rowIndex - 1))->applyFromArray($styleTableBody);
+      $sheet->getStyle('A'.($dataStartRow + 1).':L'.($rowIndex - 1))->applyFromArray($styleTableBody);
   }
 
-  foreach (range('A', 'K') as $col) {
+  foreach (range('A', 'L') as $col) {
     $sheet->getColumnDimension($col)->setAutoSize(true);
   }
 
