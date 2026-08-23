@@ -30,6 +30,17 @@ if ($audience === 'SHS') {
   $audienceClause = " AND $segmentExpr = 'COLLEGE' ";
 }
 
+// Clause to exclude dismissed offenses & cases from active report totals
+$dismissClause = " AND COALESCE(o.status,'') != 'DISMISSED'
+                   AND COALESCE(ot.level,'') != 'DISMISSED'
+                   AND COALESCE(o.level,'') != 'DISMISSED'
+                   AND o.offense_id NOT IN (
+                       SELECT uco.offense_id
+                       FROM upcc_case_offense uco
+                       JOIN upcc_case uc ON uc.case_id = uco.case_id
+                       WHERE uc.status = 'DISMISSED'
+                   ) ";
+
 // 1. Fetch raw data
 $params = [':start' => $monthStart, ':end' => $monthEnd];
 db_add_encryption_key($params);
@@ -51,10 +62,40 @@ $rows = db_all(
    JOIN student s ON s.student_id = o.student_id
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    WHERE o.date_committed BETWEEN :start AND :end
-   $audienceClause
+   $audienceClause $dismissClause
    ORDER BY o.date_committed DESC",
   $params
 );
+
+$dismissedRow = db_one(
+  "SELECT COUNT(*) AS cnt
+   FROM offense o
+   JOIN student s ON s.student_id = o.student_id
+   LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+   WHERE o.date_committed BETWEEN :start AND :end $audienceClause
+     AND (
+       COALESCE(o.status,'') = 'DISMISSED'
+       OR COALESCE(ot.level,'') = 'DISMISSED'
+       OR COALESCE(o.level,'') = 'DISMISSED'
+       OR o.offense_id IN (
+           SELECT uco.offense_id
+           FROM upcc_case_offense uco
+           JOIN upcc_case uc ON uc.case_id = uco.case_id
+           WHERE uc.status = 'DISMISSED'
+       )
+     )",
+  [':start' => $monthStart, ':end' => $monthEnd]
+);
+
+$dismissedCasesRow = db_one(
+  "SELECT COUNT(*) AS cnt
+   FROM upcc_case
+   WHERE status = 'DISMISSED'
+     AND created_at BETWEEN :start AND :end",
+  [':start' => $monthStart, ':end' => $monthEnd]
+);
+
+$dismissedCount = (int)($dismissedRow['cnt'] ?? 0) + (int)($dismissedCasesRow['cnt'] ?? 0);
 
 // 2. Fetch stats
 $total = count($rows);

@@ -28,12 +28,24 @@ if ($audience === 'SHS') {
   $audienceClause = " AND $segmentExpr = 'COLLEGE' ";
 }
 
+// Clause to exclude dismissed offenses & cases from active report totals
+$dismissClause = " AND COALESCE(o.status,'') != 'DISMISSED'
+                   AND COALESCE(ot.level,'') != 'DISMISSED'
+                   AND COALESCE(o.level,'') != 'DISMISSED'
+                   AND o.offense_id NOT IN (
+                       SELECT uco.offense_id
+                       FROM upcc_case_offense uco
+                       JOIN upcc_case uc ON uc.case_id = uco.case_id
+                       WHERE uc.status = 'DISMISSED'
+                   ) ";
+
 // -------------------- Stats --------------------
 $totalRow = db_one(
   "SELECT COUNT(*) AS cnt
    FROM offense o
    JOIN student s ON s.student_id = o.student_id
-   WHERE o.date_committed BETWEEN ? AND ? $audienceClause",
+   JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+   WHERE o.date_committed BETWEEN ? AND ? $audienceClause $dismissClause",
   [$monthStart, $monthEnd]
 );
 
@@ -43,7 +55,7 @@ $minorRow = db_one(
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
    WHERE o.date_committed BETWEEN ? AND ?
-     AND ot.level = 'MINOR' $audienceClause",
+     AND ot.level = 'MINOR' $audienceClause $dismissClause",
   [$monthStart, $monthEnd]
 );
 
@@ -53,15 +65,44 @@ $majorRow = db_one(
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
    WHERE o.date_committed BETWEEN ? AND ?
-     AND ot.level = 'MAJOR' $audienceClause",
+     AND ot.level = 'MAJOR' $audienceClause $dismissClause",
+  [$monthStart, $monthEnd]
+);
+
+$dismissedOffensesRow = db_one(
+  "SELECT COUNT(*) AS cnt
+   FROM offense o
+   JOIN student s ON s.student_id = o.student_id
+   LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+   WHERE o.date_committed BETWEEN ? AND ? $audienceClause
+     AND (
+       COALESCE(o.status,'') = 'DISMISSED'
+       OR COALESCE(ot.level,'') = 'DISMISSED'
+       OR COALESCE(o.level,'') = 'DISMISSED'
+       OR o.offense_id IN (
+           SELECT uco.offense_id
+           FROM upcc_case_offense uco
+           JOIN upcc_case uc ON uc.case_id = uco.case_id
+           WHERE uc.status = 'DISMISSED'
+       )
+     )",
+  [$monthStart, $monthEnd]
+);
+
+$dismissedCasesRow = db_one(
+  "SELECT COUNT(*) AS cnt
+   FROM upcc_case
+   WHERE status = 'DISMISSED'
+     AND created_at BETWEEN ? AND ?",
   [$monthStart, $monthEnd]
 );
 
 $totalCount = (int)($totalRow['cnt'] ?? 0);
 $minorCount = (int)($minorRow['cnt'] ?? 0);
 $majorCount = (int)($majorRow['cnt'] ?? 0);
+$dismissedCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + (int)($dismissedCasesRow['cnt'] ?? 0);
 
-// Active UPCC cases count
+// Active UPCC cases count (excludes DISMISSED and CLOSED cases)
 $upccActiveRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE status IN ('PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL')");
 $activeCases = (int)($upccActiveRow['cnt'] ?? 0);
 
@@ -75,9 +116,9 @@ $breakdownRows = db_all(
       COUNT(*) AS cnt
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-  JOIN student s ON s.student_id = o.student_id
+   JOIN student s ON s.student_id = o.student_id
    WHERE o.date_committed BETWEEN ? AND ?
-  $audienceClause
+   $audienceClause $dismissClause
    GROUP BY ot.offense_type_id, ot.name, ot.code, ot.level
    ORDER BY cnt DESC, ot.name ASC",
   [$monthStart, $monthEnd]
@@ -117,9 +158,10 @@ $courses = db_all(
       COALESCE(NULLIF(s.program,''), 'N/A') AS program,
       COUNT(*) AS cnt
    FROM offense o
+   JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
    WHERE o.date_committed BETWEEN ? AND ?
-  $audienceClause
+   $audienceClause $dismissClause
    GROUP BY program
    ORDER BY cnt DESC, program ASC
    LIMIT 8",
@@ -132,9 +174,10 @@ $sectionRows = db_all(
       COALESCE(NULLIF(s.section,''), 'N/A') AS section,
       COUNT(*) AS cnt
    FROM offense o
+   JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
    WHERE o.date_committed BETWEEN ? AND ?
-  $audienceClause
+   $audienceClause $dismissClause
    GROUP BY program, section
    ORDER BY program ASC, cnt DESC, section ASC",
   [$monthStart, $monthEnd]
@@ -177,7 +220,7 @@ for ($i = 5; $i >= 0; $i--) {
      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
      JOIN student s ON s.student_id = o.student_id
      WHERE o.date_committed BETWEEN ? AND ?
-       AND ot.level='MINOR' $audienceClause",
+       AND ot.level='MINOR' $audienceClause $dismissClause",
     [$mStart, $mEnd]
   );
 
@@ -187,7 +230,7 @@ for ($i = 5; $i >= 0; $i--) {
      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
      JOIN student s ON s.student_id = o.student_id
      WHERE o.date_committed BETWEEN ? AND ?
-       AND ot.level='MAJOR' $audienceClause",
+       AND ot.level='MAJOR' $audienceClause $dismissClause",
     [$mStart, $mEnd]
   );
 
@@ -204,6 +247,7 @@ echo json_encode([
     'minor' => $minorCount,
     'major' => $majorCount,
     'active_cases' => $activeCases,
+    'dismissed' => $dismissedCount,
   ],
   'breakdown' => [
     'pie' => [

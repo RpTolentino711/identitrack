@@ -63,9 +63,12 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
 
     .stats{
       display:grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 10px;
       margin: 10px 0 12px;
+    }
+    @media (max-width: 991px) {
+      .stats{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     .stat{
       background:#fff;
@@ -82,6 +85,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     .stat.yellow::before{ background:#ffc107; }
     .stat.red::before{ background:#dc3545; }
     .stat.purple::before{ background:#6f42c1; }
+    .stat.gray::before{ background:#64748b; }
 
     .stat .label{ color:#6c757d; font-size: 10px; font-weight: 600; }
     .stat .value{ margin-top: 12px; font-size: 32px; font-weight: 700; color:#1a1a1a; line-height: 1; }
@@ -254,6 +258,12 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
             <div class="value" id="statActive" style="color:#6f42c1;">—</div>
             <div class="sub">Under review</div>
           </div>
+
+          <div class="stat gray">
+            <div class="label">Dismissed</div>
+            <div class="value" id="statDismissed" style="color:#64748b;">—</div>
+            <div class="sub">Cleared / No sanction</div>
+          </div>
         </section>
 
         <!-- Export -->
@@ -339,6 +349,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     const statMinor = document.getElementById('statMinor');
     const statMajor = document.getElementById('statMajor');
     const statActive = document.getElementById('statActive');
+    const statDismissed = document.getElementById('statDismissed');
     const statMinorSub = document.getElementById('statMinorSub');
     const statMajorSub = document.getElementById('statMajorSub');
 
@@ -388,6 +399,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       statMinor.textContent = stats.minor;
       statMajor.textContent = stats.major;
       statActive.textContent = stats.active_cases;
+      if (statDismissed) statDismissed.textContent = stats.dismissed || 0;
 
       statMinorSub.textContent = percent(stats.minor, stats.total) + '% of total';
       statMajorSub.textContent = percent(stats.major, stats.total) + '% of total';
