@@ -24,22 +24,43 @@ if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) $selectedMonth = date('Y-m')
 $selectedAudience = strtoupper(trim((string)($_GET['audience'] ?? 'ALL')));
 if (!in_array($selectedAudience, ['ALL', 'COLLEGE', 'SHS'], true)) $selectedAudience = 'ALL';
 
-// Month options (all months with data + last 5 years / 60 months for 2022-2026)
+// Month options (ONLY months/years that ACTUALLY contain offense or case data)
 $monthOptions = [];
-$distinctMonths = db_all("SELECT DISTINCT DATE_FORMAT(date_committed, '%Y-%m') AS ym FROM offense WHERE date_committed IS NOT NULL ORDER BY ym DESC");
-if (!empty($distinctMonths)) {
-  foreach ($distinctMonths as $dm) {
+
+$distinctOffenseMonths = db_all(
+  "SELECT DISTINCT DATE_FORMAT(date_committed, '%Y-%m') AS ym
+   FROM offense
+   WHERE date_committed IS NOT NULL
+   ORDER BY ym DESC"
+);
+
+$distinctCaseMonths = db_all(
+  "SELECT DISTINCT DATE_FORMAT(created_at, '%Y-%m') AS ym
+   FROM upcc_case
+   WHERE created_at IS NOT NULL
+   ORDER BY ym DESC"
+);
+
+if (!empty($distinctOffenseMonths)) {
+  foreach ($distinctOffenseMonths as $dm) {
     if (!empty($dm['ym']) && !in_array($dm['ym'], $monthOptions, true)) {
       $monthOptions[] = $dm['ym'];
     }
   }
 }
-for ($i = 0; $i < 60; $i++) {
-  $ym = date('Y-m', strtotime(date('Y-m-01') . " -$i months"));
-  if (!in_array($ym, $monthOptions, true)) {
-    $monthOptions[] = $ym;
+
+if (!empty($distinctCaseMonths)) {
+  foreach ($distinctCaseMonths as $dm) {
+    if (!empty($dm['ym']) && !in_array($dm['ym'], $monthOptions, true)) {
+      $monthOptions[] = $dm['ym'];
+    }
   }
 }
+
+if (empty($monthOptions)) {
+  $monthOptions[] = date('Y-m');
+}
+
 usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
 ?>
 <!doctype html>
