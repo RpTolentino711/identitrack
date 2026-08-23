@@ -386,6 +386,46 @@ try {
     $sheet->setCellValue('J' . $rowIndex, (string)($r['date_committed'] ?? ''));
     $sheet->setCellValue('K' . $rowIndex, (string)($r['description'] ?? ''));
     $sheet->setCellValue('L' . $rowIndex, $sanctionStr);
+
+    // Apply color styling to Level (F) & Sanction (L) cells based on offense & sanction level
+    if ($caseStatus === 'DISMISSED' || strtoupper((string)($r['status'] ?? '')) === 'DISMISSED') {
+        $sheet->getStyle('F' . $rowIndex)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FF475569']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]
+        ]);
+        $sheet->getStyle('L' . $rowIndex)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FF475569']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]
+        ]);
+    } elseif (!empty($r['final_decision'])) {
+        $sheet->getStyle('F' . $rowIndex)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]
+        ]);
+        $sheet->getStyle('L' . $rowIndex)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]
+        ]);
+    } elseif ($offenseLevel === 'MAJOR' || strpos($sanctionStr, 'Section 4') !== false) {
+        $sheet->getStyle('F' . $rowIndex)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]
+        ]);
+        $sheet->getStyle('L' . $rowIndex)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]
+        ]);
+    } else { // Minor Offense
+        $sheet->getStyle('F' . $rowIndex)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FFB45309']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF3C7']]
+        ]);
+        $sheet->getStyle('L' . $rowIndex)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FFB45309']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF3C7']]
+        ]);
+    }
+
     $rowIndex++;
   }
 
