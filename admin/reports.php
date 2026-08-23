@@ -568,10 +568,59 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       });
     }
 
+    function updateMonthDropdown(availableMonths, currentMonth) {
+      if (!monthSelect || !availableMonths || !Array.isArray(availableMonths)) return currentMonth;
+
+      const items = [{ value: 'ALL', text: 'All-Time (All Infractions & Violations)' }];
+      availableMonths.forEach(ym => {
+        if (ym === 'ALL') return;
+        try {
+          const parts = ym.split('-');
+          if (parts.length === 2) {
+            const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+            const label = dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+            items.push({ value: ym, text: label });
+          }
+        } catch(e){}
+      });
+
+      let selectedVal = currentMonth;
+      if (!items.some(it => it.value === currentMonth)) {
+        selectedVal = items[1] ? items[1].value : 'ALL';
+      }
+
+      let html = '';
+      items.forEach(it => {
+        const sel = (it.value === selectedVal) ? 'selected' : '';
+        html += `<option value="${escapeHtml(it.value)}" ${sel}>${escapeHtml(it.text)}</option>`;
+      });
+
+      monthSelect.innerHTML = html;
+      return selectedVal;
+    }
+
     async function refresh(month, audience, category) {
       try {
         const cat = category || (categorySelect ? categorySelect.value : 'ALL');
-        const data = await loadReport(month, audience, cat);
+        let activeMonth = month;
+        const data = await loadReport(activeMonth, audience, cat);
+
+        if (data.availableMonths) {
+          const validMonth = updateMonthDropdown(data.availableMonths, activeMonth);
+          if (validMonth && validMonth !== activeMonth) {
+            activeMonth = validMonth;
+            const newData = await loadReport(activeMonth, audience, cat);
+            renderStats(newData.stats);
+            renderBreakdown(newData.breakdown);
+            renderCourses(newData.courses);
+            renderTrend(newData.trend);
+            if (exportBtn) {
+              exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
+            }
+            return;
+          }
+        }
+
         renderStats(data.stats);
         renderBreakdown(data.breakdown);
         renderCourses(data.courses);
@@ -579,7 +628,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
 
         // IMPORTANT: export should download the SAME chosen month/year, audience, and category filter
         if (exportBtn) {
-          exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
+          exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
         }
       } catch (e) {
         setLoading(false);

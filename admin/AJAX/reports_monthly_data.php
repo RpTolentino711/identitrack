@@ -319,10 +319,42 @@ for ($i = 5; $i >= 0; $i--) {
   $trendMajor[] = (int)($mMajor['cnt'] ?? 0) + $hTrendMajor;
 }
 
+// Compute available months for this specific audience and category
+$availableMonthsMap = [];
+
+$mysqlMonths = db_all(
+    "SELECT DISTINCT DATE_FORMAT(o.date_committed, '%Y-%m') AS ym
+     FROM offense o
+     JOIN student s ON s.student_id = o.student_id
+     JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+     LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+     LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
+     WHERE o.date_committed IS NOT NULL $activeFilter
+     ORDER BY ym DESC"
+);
+foreach ($mysqlMonths as $mm) {
+    if (!empty($mm['ym'])) $availableMonthsMap[$mm['ym']] = true;
+}
+
+if (function_exists('get_filtered_historical_records')) {
+    $allCatRecords = get_filtered_historical_records('1970-01-01 00:00:00', '2099-12-31 23:59:59', $audience, $category);
+    foreach ($allCatRecords as $hr) {
+        if (!empty($hr['date'])) {
+            $ym = date('Y-m', strtotime($hr['date']));
+            $availableMonthsMap[$ym] = true;
+        }
+    }
+}
+
+$availableMonths = array_keys($availableMonthsMap);
+usort($availableMonths, function($a, $b) { return strcmp($b, $a); });
+
 echo json_encode([
   'ok' => true,
   'month' => $month,
   'audience' => $audience,
+  'category' => $category,
+  'availableMonths' => $availableMonths,
   'stats' => [
     'total' => $totalCount,
     'minor' => $minorCount,
