@@ -152,8 +152,26 @@ $minorCount = (int)($minorRow['cnt'] ?? 0) + $hMinor;
 $majorCount = (int)($majorRow['cnt'] ?? 0) + $hMajor;
 $dismissedCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + (int)($dismissedCasesRow['cnt'] ?? 0) + $hDismissed;
 
-// Active UPCC cases count (excludes DISMISSED and CLOSED cases)
-$upccActiveRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE status IN ('PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL')");
+// Active UPCC cases count (filtered by chosen month date range and audience)
+if ($monthStart === '1970-01-01 00:00:00') {
+    $upccActiveRow = db_one(
+        "SELECT COUNT(*) AS cnt
+         FROM upcc_case uc
+         JOIN student s ON s.student_id = uc.student_id
+         WHERE uc.status IN ('PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL')
+         $audienceClause"
+    );
+} else {
+    $upccActiveRow = db_one(
+        "SELECT COUNT(*) AS cnt
+         FROM upcc_case uc
+         JOIN student s ON s.student_id = uc.student_id
+         WHERE uc.status IN ('PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL')
+           AND uc.created_at BETWEEN ? AND ?
+         $audienceClause",
+        [$monthStart, $monthEnd]
+    );
+}
 $activeCases = (int)($upccActiveRow['cnt'] ?? 0);
 
 // -------------------- Breakdown (this month) --------------------
