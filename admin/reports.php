@@ -24,7 +24,7 @@ if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) $selectedMonth = date('Y-m')
 $selectedAudience = strtoupper(trim((string)($_GET['audience'] ?? 'ALL')));
 if (!in_array($selectedAudience, ['ALL', 'COLLEGE', 'SHS'], true)) $selectedAudience = 'ALL';
 
-// Month options (months with data + last 12 months)
+// Month options (all months with data + last 5 years / 60 months for 2022-2026)
 $monthOptions = [];
 $distinctMonths = db_all("SELECT DISTINCT DATE_FORMAT(date_committed, '%Y-%m') AS ym FROM offense WHERE date_committed IS NOT NULL ORDER BY ym DESC");
 if (!empty($distinctMonths)) {
@@ -34,7 +34,7 @@ if (!empty($distinctMonths)) {
     }
   }
 }
-for ($i = 0; $i < 12; $i++) {
+for ($i = 0; $i < 60; $i++) {
   $ym = date('Y-m', strtotime(date('Y-m-01') . " -$i months"));
   if (!in_array($ym, $monthOptions, true)) {
     $monthOptions[] = $ym;
