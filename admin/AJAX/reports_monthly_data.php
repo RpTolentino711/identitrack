@@ -174,6 +174,19 @@ $breakdownRows = db_all(
   [$monthStart, $monthEnd]
 );
 
+$combinedBreakdownMap = [];
+foreach ($breakdownRows as $r) {
+  $name = (string)$r['name'];
+  $level = ucfirst(strtolower((string)$r['level']));
+  $labelName = "$name ($level)";
+  $cnt = (int)$r['cnt'];
+  $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
+}
+foreach ($hBreakdownMap as $labelName => $cnt) {
+  $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
+}
+arsort($combinedBreakdownMap);
+
 $topN = 6;
 $pieLabels = [];
 $pieCounts = [];
@@ -181,13 +194,11 @@ $pieColors = ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14', 
 
 $detailed = [];
 $othersCount = 0;
+$idx = 0;
 
-foreach ($breakdownRows as $idx => $r) {
-  $name = (string)$r['name'];
-  $level = ucfirst(strtolower((string)$r['level']));
-  $labelName = "$name ($level)";
-  $cnt = (int)$r['cnt'];
-  $detailed[] = ['name' => $labelName, 'code' => (string)$r['code'], 'level' => (string)$r['level'], 'cnt' => $cnt];
+foreach ($combinedBreakdownMap as $labelName => $cnt) {
+  $levelStr = (strpos($labelName, 'Major') !== false) ? 'MAJOR' : 'MINOR';
+  $detailed[] = ['name' => $labelName, 'code' => 'INF', 'level' => $levelStr, 'cnt' => $cnt];
 
   if ($idx < $topN) {
     $pieLabels[] = $labelName;
@@ -195,6 +206,7 @@ foreach ($breakdownRows as $idx => $r) {
   } else {
     $othersCount += $cnt;
   }
+  $idx++;
 }
 
 if ($othersCount > 0) {
@@ -217,6 +229,17 @@ $courses = db_all(
    LIMIT 8",
   [$monthStart, $monthEnd]
 );
+
+$combinedCoursesMap = [];
+foreach ($courses as $c) {
+  $prog = (string)$c['program'];
+  $cnt = (int)$c['cnt'];
+  $combinedCoursesMap[$prog] = ($combinedCoursesMap[$prog] ?? 0) + $cnt;
+}
+foreach ($hCoursesMap as $prog => $cnt) {
+  $combinedCoursesMap[$prog] = ($combinedCoursesMap[$prog] ?? 0) + $cnt;
+}
+arsort($combinedCoursesMap);
 
 $sectionRows = db_all(
   "SELECT
@@ -246,9 +269,9 @@ foreach ($sectionRows as $sr) {
 
 $courseLabels = [];
 $courseCounts = [];
-foreach ($courses as $c) {
-  $courseLabels[] = (string)$c['program'];
-  $courseCounts[] = (int)$c['cnt'];
+foreach (array_slice($combinedCoursesMap, 0, 8, true) as $prog => $cnt) {
+  $courseLabels[] = (string)$prog;
+  $courseCounts[] = (int)$cnt;
 }
 
 $topCourse = $courseLabels[0] ?? '';
@@ -262,7 +285,7 @@ for ($i = 5; $i >= 0; $i--) {
   $mStart = date('Y-m-01 00:00:00', strtotime($monthStart . " -$i months"));
   $mEnd   = date('Y-m-t 23:59:59', strtotime($mStart));
 
-  $trendMonths[] = date('M', strtotime($mStart));
+  $trendMonths[] = date('M Y', strtotime($mStart));
 
   $mMinor = db_one(
     "SELECT COUNT(*) AS cnt
@@ -284,8 +307,16 @@ for ($i = 5; $i >= 0; $i--) {
     [$mStart, $mEnd]
   );
 
-  $trendMinor[] = (int)($mMinor['cnt'] ?? 0);
-  $trendMajor[] = (int)($mMajor['cnt'] ?? 0);
+  $hTrendRecords = function_exists('get_filtered_historical_records') ? get_filtered_historical_records($mStart, $mEnd, $audience, $category) : [];
+  $hTrendMinor = 0;
+  $hTrendMajor = 0;
+  foreach ($hTrendRecords as $htr) {
+    if (strtoupper($htr['level'] ?? 'MINOR') === 'MINOR') $hTrendMinor++;
+    else $hTrendMajor++;
+  }
+
+  $trendMinor[] = (int)($mMinor['cnt'] ?? 0) + $hTrendMinor;
+  $trendMajor[] = (int)($mMajor['cnt'] ?? 0) + $hTrendMajor;
 }
 
 echo json_encode([
