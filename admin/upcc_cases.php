@@ -699,7 +699,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $fullReason = ($reason_category !== '' ? "[$reason_category] " : "") . $dismissal_reason;
 
             $dismissParams = [':id' => $case_id];
-            db_add_encryption_key($dismissParams);
 
             $caseRow = db_one(
                 "SELECT c.case_id, c.student_id, c.status, c.assigned_department_id, d.dept_name,
