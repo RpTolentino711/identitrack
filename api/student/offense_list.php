@@ -304,6 +304,7 @@ for ($i = 0; $i < count($minorList); $i++) {
       'is_bundle' => true,
       'appeal_status' => $appealStatus,
       'upcc_case_id' => $caseId,
+      'upcc_case_status' => $status,
       'has_nte_sent' => (!empty($sentNteMap['case_' . $caseId])),
       'nte_file_url' => !empty($sentNteMap['case_' . $caseId]['url']) 
           ? $sentNteMap['case_' . $caseId]['url'] 

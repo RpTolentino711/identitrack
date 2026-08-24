@@ -397,6 +397,53 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
     final o = widget.offense;
     if (o.upccCaseId == null) return const SizedBox.shrink();
 
+    final isDismissed = (o.status.toUpperCase() == 'DISMISSED') ||
+                        (o.upccCaseStatus != null && o.upccCaseStatus!.toUpperCase() == 'DISMISSED');
+
+    if (isDismissed) {
+      return Container(
+        margin: const EdgeInsets.only(top: 14),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFFECACA)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.block_rounded, color: Color(0xFFDC2626), size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    '🚫 UPCC Case Dismissed',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF991B1B),
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'This UPCC case has been dismissed by the Student Discipline Office. All scheduled hearings are cancelled and no disciplinary sanctions will be imposed.',
+                    style: TextStyle(
+                      color: Color(0xFF991B1B),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     // If already submitted
     if (o.explanationAt != null) {
       return Container(
