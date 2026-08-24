@@ -1125,6 +1125,7 @@ function fmt_case_id(int $id, string $created): string {
         .badge-resolved { background: #d1f0e0; color: #155724; }
         .badge-appeal { background: #cfe2ff; color: #084298; }
         .badge-cancelled { background: #f8d7da; color: #842029; }
+        .badge-dismissed { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
         .badge-investigating { background: #ede9fe; color: #5b21b6; }
         .badge-live { background: #d1fae5; color: #065f46; border: 1px solid #10b981; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
@@ -1164,6 +1165,7 @@ function fmt_case_id(int $id, string $created): string {
         .db-appeal       { background: rgba(41,128,185,0.2); border-color: #2980b9; color: #7dd3fc; }
         .db-investigating{ background: rgba(124,58,237,0.2); border-color: #7c3aed; color: #c4b5fd; }
         .db-awaiting     { background: rgba(217,119,6,0.2); border-color: #d97706; color: #fcd34d; }
+        .db-dismissed    { background: rgba(100,116,139,0.25); border-color: #64748b; color: #cbd5e1; }
         .detail-body { padding: 16px 20px 8px; }
         .detail-row { display: flex; justify-content: space-between; font-size: 13px; padding: 8px 0; border-bottom: 1px solid #f0f3f8; gap: 8px; }
         .detail-row:last-child { border-bottom: none; }
@@ -1638,7 +1640,10 @@ function fmt_case_id(int $id, string $created): string {
                             
                             $showInvestigating = ($statusRaw === 'UNDER_INVESTIGATION') || ($statusRaw === 'PENDING' && $hasPanel);
                             
-                            if ($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED') {
+                            if ($statusRaw === 'DISMISSED') {
+                                $statusBadgeClass = 'badge-dismissed';
+                                $statusLabel = '🚫 Dismissed';
+                            } elseif ($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED') {
                                 $statusBadgeClass = 'badge-resolved';
                                 $statusLabel = 'Solved - Case Closed';
                             } elseif ($isHearingPaused) {
@@ -1870,12 +1875,14 @@ function fmt_case_id(int $id, string $created): string {
                             </div>
 
                             <!-- Dismissal Info Box for DISMISSED cases -->
-                            <div id="dismissal-details-div" style="display:none; margin-top:14px; background:#fef2f2; border:1px solid #fca5a5; border-radius:10px; padding:12px; color:#991b1b;">
-                                <div style="font-size:13px; font-weight:800; display:flex; align-items:center; gap:6px;">
-                                    <span>🚫 UPCC CASE DISMISSED</span>
+                            <div id="dismissal-details-div" style="display:none; margin-top:14px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:14px; color:#1e293b; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                                <div style="font-size:13px; font-weight:800; color:#334155; display:flex; align-items:center; gap:6px;">
+                                    <span style="font-size:16px;">🚫</span>
+                                    <span>UPCC CASE DISMISSED</span>
                                 </div>
-                                <div style="font-size:12px; color:#7f1d1d; margin-top:4px; line-height:1.4;" id="d-dismissal-reason-text">--</div>
-                                <div style="font-size:10px; color:#991b1b; opacity:0.85; margin-top:4px;" id="d-dismissal-date-text">--</div>
+                                <div style="font-size:11px; font-weight:700; color:#64748b; margin-top:10px; text-transform:uppercase; letter-spacing:0.5px;">Reason for Dismissal:</div>
+                                <div style="font-size:12.5px; color:#0f172a; margin-top:4px; line-height:1.5; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; font-weight:500;" id="d-dismissal-reason-text">--</div>
+                                <div style="font-size:11px; font-weight:600; color:#64748b; margin-top:8px; display:flex; align-items:center; gap:4px;" id="d-dismissal-date-text">--</div>
                             </div>
 
                             <!-- Dismiss Case Button for Active Cases -->
@@ -2770,17 +2777,16 @@ function selectCase(row) {
       photoRow.style.display = 'none';
     }
 
-    // Show assignment form if pending or investigating and no panel yet
-    const showAssign = (isPending || isInvestigating) && !hasPanel;
+    const isDismissed = (status === 'DISMISSED');
 
-    // Show manage form if case has a panel and is not closed/resolved
-    const showManage = hasPanel && !isClosedStatus;
+    // Show assignment form if pending or investigating and no panel yet (and NOT dismissed)
+    const showAssign = (isPending || isInvestigating) && !hasPanel && !isDismissed;
 
-    // Show decision form ONLY if:
-    // - Case is under investigation or pending with panel
-    // - No final decision has been recorded yet
-    // - A consensus category has been registered (consensusCat > 0)
-    const showDecide = (isInvestigating || (isPending && hasPanel)) && !decidedCat && consensusCat > 0;
+    // Show manage form if case has a panel and is not closed/resolved (and NOT dismissed)
+    const showManage = hasPanel && !isClosedStatus && !isDismissed;
+
+    // Show decision form ONLY if active and NOT dismissed
+    const showDecide = (isInvestigating || (isPending && hasPanel)) && !decidedCat && consensusCat > 0 && !isDismissed;
 
     // Hide old assignment form, show correct one
     const assignDiv = document.getElementById('assignment-form');
@@ -2811,7 +2817,7 @@ function selectCase(row) {
         const resCaseInput = document.getElementById('resolve_case_id');
         if (resCaseInput) resCaseInput.value = caseId;
         decideDiv.style.display = 'block';
-    } else if (hasPanel && !isClosedStatus && !decidedCat && consensusCat === 0) {
+    } else if (hasPanel && !isClosedStatus && !decidedCat && consensusCat === 0 && !isDismissed) {
         // Show waiting message
         let waitMsgEl = document.getElementById('decision-wait-message');
         if (!waitMsgEl) {
@@ -2917,7 +2923,7 @@ function selectCase(row) {
             const reasonEl = document.getElementById('d-dismissal-reason-text');
             if (reasonEl) reasonEl.textContent = reason;
             const dateEl = document.getElementById('d-dismissal-date-text');
-            if (dateEl) dateEl.textContent = dDate ? ('Dismissed on ' + dDate) : '';
+            if (dateEl) dateEl.textContent = dDate ? ('🗓️ Dismissed on: ' + dDate) : '';
             dismissalDetailsDiv.style.display = 'block';
         } else {
             dismissalDetailsDiv.style.display = 'none';
