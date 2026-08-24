@@ -3550,7 +3550,13 @@ window.closeConfirmResModal = closeConfirmResModal;
 let targetDismissCaseRow = null;
 
 function triggerDismissCaseModal() {
-    if (!targetDismissCaseRow) return;
+    if (!targetDismissCaseRow) {
+        targetDismissCaseRow = document.querySelector('#cases-table tbody tr.selected') || document.querySelector('#cases-table tbody tr');
+    }
+    if (!targetDismissCaseRow || !targetDismissCaseRow.dataset.caseId) {
+        alert('Please select a case to dismiss.');
+        return;
+    }
     const caseId = targetDismissCaseRow.dataset.caseId;
     const caseLabel = targetDismissCaseRow.dataset.caseid || ('Case #' + caseId);
     
