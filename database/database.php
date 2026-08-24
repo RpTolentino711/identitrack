@@ -777,8 +777,8 @@ function ensure_hearing_workflow_schema(): void
      LIMIT 1"
   );
 
-  if ($statusCol && strpos((string)$statusCol['COLUMN_TYPE'], 'AWAITING_ADMIN_FINALIZATION') === false) {
-    db_exec("ALTER TABLE upcc_case MODIFY status ENUM('PENDING','UNDER_INVESTIGATION','RESOLVED','CLOSED','UNDER_APPEAL','CANCELLED','AWAITING_ADMIN_FINALIZATION') NOT NULL DEFAULT 'PENDING'");
+  if ($statusCol && strpos((string)$statusCol['COLUMN_TYPE'], 'DISMISSED') === false) {
+    db_exec("ALTER TABLE upcc_case MODIFY status ENUM('PENDING','UNDER_INVESTIGATION','RESOLVED','CLOSED','UNDER_APPEAL','CANCELLED','AWAITING_ADMIN_FINALIZATION','DISMISSED') NOT NULL DEFAULT 'PENDING'");
   }
 
   $hasReminderCol = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'upcc_case_panel_member' AND COLUMN_NAME = 'last_reminder_sent_at'");

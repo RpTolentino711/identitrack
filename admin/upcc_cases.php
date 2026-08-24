@@ -693,10 +693,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($case_id <= 0) {
             $regError = 'Invalid Case ID.';
-        } elseif ($dismissal_reason === '') {
-            $regError = 'Please provide a reason for dismissing this case.';
         } else {
-            $fullReason = ($reason_category !== '' ? "[$reason_category] " : "") . $dismissal_reason;
+            if ($dismissal_reason === '') {
+                $dismissal_reason = ($reason_category !== '' ? $reason_category : 'Dismissed by SDO') . ' — Case dismissed by Student Discipline Office.';
+            }
+            $fullReason = ($reason_category !== '' && !str_starts_with($dismissal_reason, "[$reason_category]")) ? "[$reason_category] " . $dismissal_reason : $dismissal_reason;
 
             $dismissParams = [':id' => $case_id];
 
@@ -713,6 +714,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             if (!$caseRow) {
                 $regError = 'Case not found.';
             } else {
+                // Ensure ENUM includes DISMISSED
+                try {
+                    db_exec("ALTER TABLE upcc_case MODIFY status ENUM('PENDING','UNDER_INVESTIGATION','RESOLVED','CLOSED','UNDER_APPEAL','CANCELLED','AWAITING_ADMIN_FINALIZATION','DISMISSED') NOT NULL DEFAULT 'PENDING'");
+                } catch (\Throwable $exEnum) {}
+
                 // Update case status to DISMISSED
                 db_exec(
                     "UPDATE upcc_case
