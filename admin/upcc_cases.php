@@ -3552,7 +3552,7 @@ window.closeConfirmResModal = closeConfirmResModal;
 
 let targetDismissCaseRow = null;
 
-function triggerDismissCaseModal() {
+function triggerDismissCaseModal(btn) {
     if (!targetDismissCaseRow) {
         targetDismissCaseRow = document.querySelector('#cases-table tbody tr.selected') || document.querySelector('#cases-table tbody tr');
     }
@@ -3574,7 +3574,7 @@ function triggerDismissCaseModal() {
     
     const overlay1 = document.getElementById('dismiss-modal-1-overlay');
     if (overlay1) {
-        overlay1.style.display = 'flex';
+        overlay1.style.setProperty('display', 'flex', 'important');
         overlay1.classList.add('open');
     }
 }
@@ -3625,11 +3625,11 @@ function proceedToDismissModal2() {
     const overlay1 = document.getElementById('dismiss-modal-1-overlay');
     const overlay2 = document.getElementById('dismiss-modal-2-overlay');
     if (overlay1) {
-        overlay1.style.display = 'none';
+        overlay1.style.setProperty('display', 'none', 'important');
         overlay1.classList.remove('open');
     }
     if (overlay2) {
-        overlay2.style.display = 'flex';
+        overlay2.style.setProperty('display', 'flex', 'important');
         overlay2.classList.add('open');
     }
 }
@@ -3637,7 +3637,7 @@ function proceedToDismissModal2() {
 function closeDismissModal2() {
     const overlay2 = document.getElementById('dismiss-modal-2-overlay');
     if (overlay2) {
-        overlay2.style.display = 'none';
+        overlay2.style.setProperty('display', 'none', 'important');
         overlay2.classList.remove('open');
     }
 }
@@ -3646,11 +3646,11 @@ function backToDismissModal1() {
     const overlay1 = document.getElementById('dismiss-modal-1-overlay');
     const overlay2 = document.getElementById('dismiss-modal-2-overlay');
     if (overlay2) {
-        overlay2.style.display = 'none';
+        overlay2.style.setProperty('display', 'none', 'important');
         overlay2.classList.remove('open');
     }
     if (overlay1) {
-        overlay1.style.display = 'flex';
+        overlay1.style.setProperty('display', 'flex', 'important');
         overlay1.classList.add('open');
     }
 }
