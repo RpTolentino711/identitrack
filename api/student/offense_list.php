@@ -315,10 +315,11 @@ for ($i = 0; $i < count($minorList); $i++) {
     ];
 
     foreach ($bundledItems as $bi) {
+      $biStatus = (strtoupper((string)($bi['upcc_case_status'] ?? '')) === 'DISMISSED' || strtoupper((string)$status) === 'DISMISSED') ? 'DISMISSED' : (string)$bi['status'];
       $items[] = [
         'offense_id' => (int)$bi['offense_id'],
         'level' => 'MINOR',
-        'status' => (string)$bi['status'],
+        'status' => $biStatus,
         'date_committed' => (string)$bi['date_committed'],
         'acknowledged_at' => $bi['acknowledged_at'] ? (string)$bi['acknowledged_at'] : null,
         'is_deleted_by_student' => ((int)($bi['is_deleted_by_student'] ?? 0)) === 1,

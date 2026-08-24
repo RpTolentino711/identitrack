@@ -737,6 +737,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     ]
                 );
 
+                // Update linked offense records status to DISMISSED
+                try {
+                    db_exec(
+                        "UPDATE offense o
+                         JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+                         SET o.status = 'DISMISSED'
+                         WHERE uco.case_id = :id",
+                        [':id' => $case_id]
+                    );
+                } catch (\Throwable $exOffenseStatus) {}
+
                 // Log case activity
                 upcc_log_case_activity($case_id, 'ADMIN', (int)($admin['admin_id'] ?? 0), 'CASE_DISMISSED', [
                     'reason' => $fullReason,
