@@ -3633,35 +3633,29 @@ function proceedToDismissModal2() {
     }
 }
 
-function closeDismissModal2() {
-    const overlay2 = document.getElementById('dismiss-modal-2-overlay');
-    if (overlay2) {
-        overlay2.style.setProperty('display', 'none', 'important');
-        overlay2.classList.remove('open');
+function closeDismissModal1() {
+    const overlay1 = document.getElementById('dismiss-modal-1-overlay');
+    if (overlay1) {
+        overlay1.style.setProperty('display', 'none', 'important');
+        overlay1.classList.remove('open');
     }
 }
 
-function backToDismissModal1() {
-    const overlay1 = document.getElementById('dismiss-modal-1-overlay');
-    const overlay2 = document.getElementById('dismiss-modal-2-overlay');
-    if (overlay2) {
-        overlay2.style.setProperty('display', 'none', 'important');
-        overlay2.classList.remove('open');
+function handleDismissFormSubmit(form) {
+    const txtInput = document.getElementById('dismiss_reason_text_input');
+    const catSelect = document.getElementById('dismiss_reason_category_select');
+    if (txtInput && catSelect && !txtInput.value.trim()) {
+        txtInput.value = catSelect.value + ' — Case dismissed by Student Discipline Office.';
     }
-    if (overlay1) {
-        overlay1.style.setProperty('display', 'flex', 'important');
-        overlay1.classList.add('open');
-    }
+    return true;
 }
 
 window.triggerDismissCaseModal = triggerDismissCaseModal;
 window.closeDismissModal1 = closeDismissModal1;
-window.proceedToDismissModal2 = proceedToDismissModal2;
-window.closeDismissModal2 = closeDismissModal2;
-window.backToDismissModal1 = backToDismissModal1;
+window.handleDismissFormSubmit = handleDismissFormSubmit;
 </script>
 
-<!-- DISMISS CASE MODAL 1: Reason & Explanation -->
+<!-- DISMISS CASE MODAL: Single Direct Confirmation -->
 <div class="cpanel-overlay" id="dismiss-modal-1-overlay" style="display:none; z-index:999999; align-items:center; justify-content:center; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px);">
     <div class="cpanel-modal" style="max-width:520px; width:92%; background:#fff; border-radius:16px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;">
         <div style="background:linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); padding:20px 24px; color:#fff; display:flex; align-items:center; justify-content:space-between;">
@@ -3675,70 +3669,34 @@ window.backToDismissModal1 = backToDismissModal1;
             <button type="button" onclick="closeDismissModal1()" style="background:none; border:none; color:#fca5a5; font-size:22px; cursor:pointer;">✕</button>
         </div>
 
-        <div style="padding:24px;">
-            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px 14px; margin-bottom:18px; font-size:13px; color:#991b1b; line-height:1.5;">
-                ℹ️ <strong>Dismiss Case Action:</strong> This action will close the case and cancel any upcoming hearings (e.g. evidence was withdrawn, student settled, or insufficient evidence).
-            </div>
-
-            <div style="margin-bottom:16px;">
-                <label style="display:block; font-size:12px; font-weight:800; color:#334155; margin-bottom:6px;">Select Primary Reason for Dismissal <span style="color:#dc2626;">*</span></label>
-                <select id="dismiss_reason_category_select" style="width:100%; padding:10px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:8px; outline:none; background:#fff; font-weight:600;">
-                    <option value="Evidence Withdrawn / Retracted">📄 Evidence Withdrawn / Retracted by Complainant</option>
-                    <option value="Insufficient Evidence">⚠️ Insufficient Evidence / Found Less Merit</option>
-                    <option value="Settled / Resolved Internally">🤝 Settled / Resolved Internally by SDO</option>
-                    <option value="Mistaken Identity / False Allegation">❓ Mistaken Identity / False Allegation</option>
-                    <option value="Custom Reason">✏️ Custom Reason (Type details below)</option>
-                </select>
-            </div>
-
-            <div style="margin-bottom:20px;">
-                <label style="display:block; font-size:12px; font-weight:800; color:#334155; margin-bottom:6px;">Detailed Explanation / Reason <span style="color:#dc2626;">*</span></label>
-                <textarea id="dismiss_reason_text_input" rows="3" placeholder="Explain why this case is being dismissed (e.g., student/complainant withdrew the photo evidence)..." style="width:100%; padding:10px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:8px; outline:none; font-family:inherit;"></textarea>
-                <div style="font-size:11px; color:#64748b; margin-top:4px;">This explanation will be logged and included in the notification emails.</div>
-            </div>
-
-            <div style="display:flex; justify-content:flex-end; gap:10px;">
-                <button type="button" onclick="closeDismissModal1()" style="padding:10px 18px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-weight:700; color:#475569; font-size:13px; cursor:pointer;">Cancel</button>
-                <button type="button" onclick="proceedToDismissModal2()" style="padding:10px 20px; border-radius:8px; background:#991b1b; color:#fff; font-weight:700; border:none; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px;">Next ➔ (Check Panel & Confirm)</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- DISMISS CASE MODAL 2: Double Confirmation & Panel Alert -->
-<div class="cpanel-overlay" id="dismiss-modal-2-overlay" style="display:none; z-index:999999; align-items:center; justify-content:center; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px);">
-    <div class="cpanel-modal" style="max-width:520px; width:92%; background:#fff; border-radius:16px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;">
-        <div style="background:linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); padding:20px 24px; color:#fff; display:flex; align-items:center; justify-content:space-between;">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:24px;">⚠️</span>
-                <div>
-                    <h3 style="margin:0; font-size:18px; font-weight:800; color:#fff;">Confirm Dismissal</h3>
-                    <div style="font-size:12px; color:#fca5a5; margin-top:2px;">Double Confirmation Step</div>
-                </div>
-            </div>
-            <button type="button" onclick="closeDismissModal2()" style="background:none; border:none; color:#fca5a5; font-size:22px; cursor:pointer;">✕</button>
-        </div>
-
-        <form method="post" action="upcc_cases.php" id="form-dismiss-case">
+        <form method="post" action="upcc_cases.php" id="form-dismiss-case" onsubmit="return handleDismissFormSubmit(this)">
             <input type="hidden" name="action" value="dismiss_case">
             <input type="hidden" name="case_id" id="dismiss_modal_case_id">
-            <input type="hidden" name="dismissal_reason_category" id="dismiss_modal_reason_category">
-            <input type="hidden" name="dismissal_reason" id="dismiss_modal_reason_text">
 
             <div style="padding:24px;">
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:16px;">
-                    <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Dismissal Summary:</div>
-                    <div style="font-size:13px; font-weight:700; color:#1e293b; margin-top:4px;" id="dismiss-summary-case-title">Case #--</div>
-                    <div style="font-size:12.5px; color:#475569; margin-top:6px;" id="dismiss-summary-reason-text">--</div>
+                <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px 14px; margin-bottom:18px; font-size:13px; color:#991b1b; line-height:1.5;">
+                    ℹ️ <strong>Dismiss Case Action:</strong> Dismissing this case will close the case, cancel upcoming hearings, notify the student via Outlook, and update status to <strong>DISMISSED</strong>.
                 </div>
 
-                <!-- Panel notification alert box -->
-                <div id="dismiss-panel-alert-box" style="background:#fff7ed; border:1.5px solid #fdba74; border-radius:10px; padding:14px; margin-bottom:20px; font-size:13px; color:#9a3412; line-height:1.5;">
-                    <span id="dismiss-panel-alert-message">Checking panel status...</span>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:12px; font-weight:800; color:#334155; margin-bottom:6px;">Select Primary Reason for Dismissal <span style="color:#dc2626;">*</span></label>
+                    <select name="dismissal_reason_category" id="dismiss_reason_category_select" style="width:100%; padding:10px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:8px; outline:none; background:#fff; font-weight:600;">
+                        <option value="Evidence Withdrawn / Retracted">📄 Evidence Withdrawn / Retracted by Complainant</option>
+                        <option value="Insufficient Evidence">⚠️ Insufficient Evidence / Found Less Merit</option>
+                        <option value="Settled / Resolved Internally">🤝 Settled / Resolved Internally by SDO</option>
+                        <option value="Mistaken Identity / False Allegation">❓ Mistaken Identity / False Allegation</option>
+                        <option value="Custom Reason">✏️ Custom Reason (Type details below)</option>
+                    </select>
                 </div>
 
-                <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
-                    <button type="button" onclick="backToDismissModal1()" style="padding:10px 16px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-weight:700; color:#475569; font-size:13px; cursor:pointer;">⬅️ Back</button>
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:12px; font-weight:800; color:#334155; margin-bottom:6px;">Detailed Explanation / Reason</label>
+                    <textarea name="dismissal_reason" id="dismiss_reason_text_input" rows="3" placeholder="Explain why this case is being dismissed (e.g., complainant withdrew evidence)..." style="width:100%; padding:10px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:8px; outline:none; font-family:inherit;"></textarea>
+                    <div style="font-size:11px; color:#64748b; margin-top:4px;">This explanation will be logged and included in the notification emails.</div>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button type="button" onclick="closeDismissModal1()" style="padding:10px 18px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-weight:700; color:#475569; font-size:13px; cursor:pointer;">Cancel</button>
                     <button type="submit" style="padding:10px 22px; border-radius:8px; background:#dc2626; color:#fff; font-weight:800; border:none; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(220,38,38,0.3);">
                         🚫 Confirm & Dismiss Case Now
                     </button>
