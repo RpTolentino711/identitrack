@@ -97,8 +97,9 @@ try {
         db_exec("ALTER TABLE `upcc_case` ADD COLUMN `dismissed_by` INT DEFAULT NULL");
     }
 
-    // Normalize old resolved rows into CLOSED while keeping enum backward compatible.
+    // Normalize old resolved rows into CLOSED and empty status into PENDING.
     db_exec("UPDATE `upcc_case` SET `status` = 'CLOSED' WHERE `status` = 'RESOLVED'");
+    db_exec("UPDATE `upcc_case` SET `status` = 'PENDING' WHERE `status` IS NULL OR `status` = '' OR `status` = '0'");
 
     db_exec("CREATE TABLE IF NOT EXISTS `upcc_case_panel_member` (
         `case_id` bigint(20) NOT NULL,
@@ -150,6 +151,9 @@ $cases = db_all("SELECT
         uc.resolution_file_path,
         uc.nfi_file_path,
         uc.nfi_date,
+        uc.dismissal_reason,
+        uc.dismissed_at,
+        uc.dismissed_by,
         " . db_decrypt_cols(['final_decision', 'case_summary', 'punishment_details'], 'uc') . ",
         uc.decided_category,
         uc.assigned_department_id,
@@ -1625,7 +1629,8 @@ function fmt_case_id(int $id, string $created): string {
                                 $effectiveCategory = $inferredCategory;
                             }
 
-                            $statusRaw = (string)($c['status'] ?? 'PENDING');
+                            $statusRaw = strtoupper(trim((string)($c['status'] ?? 'PENDING')));
+                            if ($statusRaw === '' || $statusRaw === '0') $statusRaw = 'PENDING';
                             $hearingScheduled = (!empty($c['hearing_date']) && !empty($c['hearing_time']));
                             $isHearingOpen = (int)($c['hearing_is_open'] ?? 0) === 1;
                             $isHearingPaused = (int)($c['hearing_is_paused'] ?? 0) === 1;
