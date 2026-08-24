@@ -3656,7 +3656,7 @@ window.handleDismissFormSubmit = handleDismissFormSubmit;
 </script>
 
 <!-- DISMISS CASE MODAL: Single Direct Confirmation -->
-<div class="cpanel-overlay" id="dismiss-modal-1-overlay" style="display:none; z-index:999999; align-items:center; justify-content:center; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px);">
+<div class="cpanel-overlay" id="dismiss-modal-1-overlay" style="display:none; position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; z-index:999999 !important; align-items:center; justify-content:center; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px);">
     <div class="cpanel-modal" style="max-width:520px; width:92%; background:#fff; border-radius:16px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;">
         <div style="background:linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); padding:20px 24px; color:#fff; display:flex; align-items:center; justify-content:space-between;">
             <div style="display:flex; align-items:center; gap:10px;">
