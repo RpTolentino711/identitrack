@@ -2640,6 +2640,7 @@ function clearCaseSearch() {
     }
 }
 
+// ---------- FIXED selectCase function ----------
 function selectCase(row) {
     if (!row) return;
     document.querySelectorAll('#cases-table tbody tr').forEach(r => r.classList.remove('selected'));
@@ -2920,6 +2921,7 @@ function selectCase(row) {
             }
         }
 
+        // --- Dismissal details ---
         targetDismissCaseRow = row;
         const dismissContainer = document.getElementById('dismiss-action-container');
         const dismissalDetailsDiv = document.getElementById('dismissal-details-div');
@@ -2941,23 +2943,10 @@ function selectCase(row) {
                 dismissalDetailsDiv.style.display = 'none';
             }
         }
+
     } catch(err) {
         console.error('selectCase error:', err);
     }
-}nt Discipline Office.';
-            const dDate = row.dataset.dismissedAt || '';
-            const reasonEl = document.getElementById('d-dismissal-reason-text');
-            if (reasonEl) reasonEl.textContent = reason;
-            const dateEl = document.getElementById('d-dismissal-date-text');
-            if (dateEl) dateEl.textContent = dDate ? ('🗓️ Dismissed on: ' + dDate) : '';
-            dismissalDetailsDiv.style.display = 'block';
-        } else {
-            dismissalDetailsDiv.style.display = 'none';
-        }
-    }
-
-    document.getElementById('detail-empty').style.display    = 'none';
-    document.getElementById('detail-content').classList.add('active');
 }
 
 function openManageHearingModal(caseId, row) {
