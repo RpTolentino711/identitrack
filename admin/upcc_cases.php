@@ -1418,6 +1418,9 @@ function fmt_case_id(int $id, string $created): string {
             <?php if (isset($_GET['msg']) && $_GET['msg'] === 'resolved'): ?>
                 <div class="alert-ok" style="margin-bottom:16px;">✓ Case resolved successfully.</div>
             <?php endif; ?>
+            <?php if (isset($_GET['msg']) && $_GET['msg'] === 'dismissed'): ?>
+                <div class="alert-ok" style="margin-bottom:16px;">🚫 Case has been dismissed successfully.</div>
+            <?php endif; ?>
             <?php if (isset($_GET['msg']) && $_GET['msg'] === 'resolution_uploaded'): ?>
                 <div class="alert-ok" style="margin-bottom:16px;">✓ Official Case Resolution document uploaded successfully.</div>
             <?php endif; ?>
@@ -3586,12 +3589,11 @@ function closeDismissModal1() {
 
 function proceedToDismissModal2() {
     const reasonCat = document.getElementById('dismiss_reason_category_select').value;
-    const reasonText = document.getElementById('dismiss_reason_text_input').value.trim();
+    let reasonText = document.getElementById('dismiss_reason_text_input').value.trim();
     
     if (!reasonText) {
-        alert('Please enter a detailed explanation/reason for dismissing this case.');
-        document.getElementById('dismiss_reason_text_input').focus();
-        return;
+        reasonText = reasonCat + ' — Case dismissed by Student Discipline Office.';
+        document.getElementById('dismiss_reason_text_input').value = reasonText;
     }
     
     document.getElementById('dismiss_modal_reason_category').value = reasonCat;
