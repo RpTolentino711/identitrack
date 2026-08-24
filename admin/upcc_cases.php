@@ -2640,285 +2640,306 @@ function selectCase(row) {
     document.querySelectorAll('#cases-table tbody tr').forEach(r => r.classList.remove('selected'));
     row.classList.add('selected');
 
-    const status     = row.dataset.statusRaw || 'PENDING';
-    const hasPanel   = row.dataset.hasPanel === '1';
-    const hearingScheduled = row.dataset.hearingScheduled === '1';
-    const consensusCat = parseInt(row.dataset.consensusCat || '0');
-    const caseKind   = row.dataset.caseKind || '';
-    const decidedCat = row.dataset.decidedCat || '';
-    const decision   = row.dataset.finalDecision || '';
-    const summary    = row.dataset.caseSummary || '';
-    const assignedDeptId = row.dataset.assignedDept || '';
-    const caseId     = row.dataset.caseId || '';
-    const isPending  = (status === 'PENDING');
-    const isInvestigating = (status === 'UNDER_INVESTIGATION');
-    const isClosedStatus = (status === 'CLOSED' || status === 'RESOLVED' || status === 'CANCELLED');
-    const isActiveCase = isPending || isInvestigating;
+    const detailEmpty = document.getElementById('detail-empty');
+    const detailContent = document.getElementById('detail-content');
+    if (detailEmpty) detailEmpty.style.display = 'none';
+    if (detailContent) detailContent.classList.add('active');
 
-    // Header
-    const elCaseId = document.getElementById('d-caseid');
-    if (elCaseId) elCaseId.textContent = row.dataset.caseid || ('Case #' + caseId);
+    try {
+        const status     = (row.dataset.statusRaw || 'PENDING').toString();
+        const hasPanel   = row.dataset.hasPanel === '1';
+        const hearingScheduled = row.dataset.hearingScheduled === '1';
+        const consensusCat = parseInt(row.dataset.consensusCat || '0', 10);
+        const caseKind   = row.dataset.caseKind || '';
+        const decidedCat = row.dataset.decidedCat || '';
+        const decision   = row.dataset.finalDecision || '';
+        const summary    = row.dataset.caseSummary || '';
+        const assignedDeptId = row.dataset.assignedDept || '';
+        const caseId     = row.dataset.caseId || '';
+        const isPending  = (status === 'PENDING');
+        const isInvestigating = (status === 'UNDER_INVESTIGATION');
+        const isClosedStatus = (status === 'CLOSED' || status === 'RESOLVED' || status === 'CANCELLED');
+        const isActiveCase = isPending || isInvestigating;
 
-    const elStudent = document.getElementById('d-student');
-    if (elStudent) elStudent.textContent = row.dataset.student || '';
+        // Header
+        const elCaseId = document.getElementById('d-caseid');
+        if (elCaseId) elCaseId.textContent = row.dataset.caseid || ('Case #' + caseId);
 
-    const elSid = document.getElementById('d-sid');
-    if (elSid) elSid.textContent = row.dataset.sid || '';
+        const elStudent = document.getElementById('d-student');
+        if (elStudent) elStudent.textContent = row.dataset.student || '';
 
-    // Badges in header
-    const badgeContainer = document.getElementById('d-badges');
-    if (badgeContainer) {
-        let badgesHtml = '';
-        let statusClass = 'db-pending';
-        let statusLabel = status.charAt(0) + status.slice(1).toLowerCase();
-        if (status === 'DISMISSED') {
-            statusClass = 'db-appeal';
-            statusLabel = '🚫 Dismissed';
-        } else if (status === 'CANCELLED') {
-            statusClass = 'db-appeal';
-            statusLabel = 'Cancelled';
-        } else if (isInvestigating || (isPending && hasPanel)) {
-            statusClass = 'db-investigating';
-            statusLabel = 'Under Investigation';
-        } else if (isPending && hearingScheduled) {
-            statusClass = 'db-awaiting';
-            statusLabel = 'Hearing Scheduled';
-        } else if (isClosedStatus) {
-            statusClass = 'db-resolved';
-            statusLabel = 'Solved - Case Closed';
-        } else if (status === 'UNDER_APPEAL') {
-            statusClass = 'db-appeal';
-            statusLabel = 'Under Appeal';
-        } else if (isPending && !hasPanel) {
-            statusClass = 'db-awaiting';
-            statusLabel = 'Awaiting Assignment';
+        const elSid = document.getElementById('d-sid');
+        if (elSid) elSid.textContent = row.dataset.sid || '';
+
+        // Safe escape helper
+        const safeHtml = (s) => (typeof escapeHtml === 'function' ? escapeHtml(s) : String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
+
+        // Badges in header
+        const badgeContainer = document.getElementById('d-badges');
+        if (badgeContainer) {
+            let statusClass = 'db-pending';
+            let statusLabel = status ? (status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()) : 'Pending';
+            if (status === 'DISMISSED') {
+                statusClass = 'db-dismissed';
+                statusLabel = '🚫 Dismissed';
+            } else if (status === 'CANCELLED') {
+                statusClass = 'db-appeal';
+                statusLabel = 'Cancelled';
+            } else if (isInvestigating || (isPending && hasPanel)) {
+                statusClass = 'db-investigating';
+                statusLabel = 'Under Investigation';
+            } else if (isPending && hearingScheduled) {
+                statusClass = 'db-awaiting';
+                statusLabel = 'Hearing Scheduled';
+            } else if (isClosedStatus) {
+                statusClass = 'db-resolved';
+                statusLabel = 'Solved - Case Closed';
+            } else if (status === 'UNDER_APPEAL') {
+                statusClass = 'db-appeal';
+                statusLabel = 'Under Appeal';
+            } else if (isPending && !hasPanel) {
+                statusClass = 'db-awaiting';
+                statusLabel = 'Awaiting Assignment';
+            }
+
+            let badgesHtml = `<span class="detail-badge ${statusClass}">${safeHtml(statusLabel)}</span>`;
+
+            const catNumHeader = parseInt(decidedCat || consensusCat || '0', 10);
+            if (isClosedStatus && (catNumHeader === 1 || catNumHeader === 2) && !row.dataset.nfiFilePath) {
+                badgesHtml += `<span onclick="locateMissingDocTarget('nfi');" class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800; cursor:pointer;" title="Click to jump to Notice of Formative Intervention (NFI) upload form">❗ Missing NFI File</span>`;
+            }
+            badgeContainer.innerHTML = badgesHtml;
         }
 
-        const catNumHeader = parseInt(decidedCat || consensusCat || '0', 10);
-        if (isClosedStatus && (catNumHeader === 1 || catNumHeader === 2) && !row.dataset.nfiFilePath) {
-            badgesHtml += `<span onclick="locateMissingDocTarget('nfi');" class="detail-badge" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#fca5a5; font-weight:800; cursor:pointer;" title="Click to jump to Notice of Formative Intervention (NFI) upload form">❗ Missing NFI File</span>`;
+        // Case summary
+        const summaryWrap = document.getElementById('d-summary-wrap');
+        const summaryEl   = document.getElementById('d-summary');
+        if (summaryWrap && summaryEl) {
+            if (summary && summary.trim()) {
+                summaryEl.textContent = summary;
+                summaryWrap.style.display = 'block';
+            } else {
+                summaryWrap.style.display = 'none';
+            }
         }
-        badgeContainer.innerHTML = badgesHtml;
-    }
 
-    // Case summary
-    const summaryWrap = document.getElementById('d-summary-wrap');
-    const summaryEl   = document.getElementById('d-summary');
-    if (summaryWrap && summaryEl) {
-        if (summary && summary.trim()) {
-            summaryEl.textContent = summary;
-            summaryWrap.style.display = 'block';
-        } else {
-            summaryWrap.style.display = 'none';
+        // Detail rows
+        const elOffense = document.getElementById('d-offense');
+        if (elOffense) elOffense.textContent = row.dataset.offense || '—';
+
+        const elCategory = document.getElementById('d-category');
+        if (elCategory) elCategory.textContent = row.dataset.category || '—';
+
+        const elDate = document.getElementById('d-date');
+        if (elDate) elDate.textContent = row.dataset.date || '—';
+
+        const elDays = document.getElementById('d-days');
+        if (elDays) elDays.textContent = isActiveCase ? (row.dataset.days + (row.dataset.warn === '1' ? ' ⚠' : '')) : '—';
+
+        const hearingDate = row.dataset.hearingDate || '';
+        const hearingTime = row.dataset.hearingTime || '';
+        const hearingType = row.dataset.hearingType || '';
+        const hearingLabel = hearingScheduled
+            ? `${hearingDate}${hearingTime ? ' ' + hearingTime : ''}${hearingType ? ' · ' + hearingType : ''}`
+            : 'No hearing scheduled';
+        const assignmentLabel = hasPanel ? 'Assigned to panel' : (hearingScheduled ? 'Scheduled hearing' : 'Unassigned');
+
+        const elAssign = document.getElementById('d-assignment');
+        if (elAssign) elAssign.textContent = assignmentLabel;
+
+        const elHearing = document.getElementById('d-hearing');
+        if (elHearing) elHearing.textContent = hearingLabel;
+
+        const deptName = (assignedDeptId && typeof deptNames !== 'undefined' && deptNames[assignedDeptId]) ? deptNames[assignedDeptId] : (assignedDeptId ? ('Dept #' + assignedDeptId) : 'Not assigned');
+        const elDept = document.getElementById('d-dept');
+        if (elDept) elDept.textContent = deptName;
+
+        const rowDecision = document.getElementById('row-decision');
+        const elDecision = document.getElementById('d-decision');
+        if (rowDecision && elDecision) {
+            if (decidedCat && decision) {
+                elDecision.textContent = `Cat ${decidedCat}: ${decision.slice(0, 60)}${decision.length > 60 ? '…' : ''}`;
+                rowDecision.style.display = 'flex';
+            } else {
+                rowDecision.style.display = 'none';
+            }
         }
-    }
 
-    // Detail rows
-    const elOffense = document.getElementById('d-offense');
-    if (elOffense) elOffense.textContent = row.dataset.offense || '—';
+        const incidentPhoto = row.dataset.incidentPhoto || row.dataset.nfiFilePath || '';
+        const showInHearing = row.dataset.showInHearing !== '0';
+        const photoRow = document.getElementById('row-incident-photo');
+        const photoImg = document.getElementById('d-incident-photo-img');
+        const photoLink = document.getElementById('d-incident-photo-link');
+        const photoBadge = document.getElementById('d-hearing-photo-status-badge');
 
-    const elCategory = document.getElementById('d-category');
-    if (elCategory) elCategory.textContent = row.dataset.category || '—';
-
-    const elDate = document.getElementById('d-date');
-    if (elDate) elDate.textContent = row.dataset.date || '—';
-
-    const elDays = document.getElementById('d-days');
-    if (elDays) elDays.textContent = isActiveCase ? (row.dataset.days + (row.dataset.warn === '1' ? ' ⚠' : '')) : '—';
-
-    const hearingDate = row.dataset.hearingDate || '';
-    const hearingTime = row.dataset.hearingTime || '';
-    const hearingType = row.dataset.hearingType || '';
-    const hearingLabel = hearingScheduled
-        ? `${hearingDate}${hearingTime ? ' ' + hearingTime : ''}${hearingType ? ' · ' + hearingType : ''}`
-        : 'No hearing scheduled';
-    const assignmentLabel = hasPanel ? 'Assigned to panel' : (hearingScheduled ? 'Scheduled hearing' : 'Unassigned');
-
-    const elAssign = document.getElementById('d-assignment');
-    if (elAssign) elAssign.textContent = assignmentLabel;
-
-    const elHearing = document.getElementById('d-hearing');
-    if (elHearing) elHearing.textContent = hearingLabel;
-
-    const deptName = assignedDeptId ? (deptNames[assignedDeptId] || ('Dept #' + assignedDeptId)) : 'Not assigned';
-    const elDept = document.getElementById('d-dept');
-    if (elDept) elDept.textContent = deptName;
-
-    const rowDecision = document.getElementById('row-decision');
-    const elDecision = document.getElementById('d-decision');
-    if (rowDecision && elDecision) {
-        if (decidedCat && decision) {
-            elDecision.textContent = `Cat ${decidedCat}: ${decision.slice(0, 60)}${decision.length > 60 ? '…' : ''}`;
-            rowDecision.style.display = 'flex';
-        } else {
-            rowDecision.style.display = 'none';
+        if (incidentPhoto && photoRow) {
+          photoRow.style.display = 'flex';
+          const fileUrl = incidentPhoto.startsWith('../') ? incidentPhoto : ('../' + incidentPhoto);
+          if (photoImg) photoImg.src = fileUrl;
+          if (photoLink) photoLink.href = fileUrl;
+          if (photoBadge) {
+            photoBadge.style.background = showInHearing ? '#dcfce7' : '#f1f5f9';
+            photoBadge.style.color = showInHearing ? '#15803d' : '#64748b';
+            photoBadge.style.borderColor = showInHearing ? '#86efac' : '#cbd5e1';
+            photoBadge.textContent = showInHearing ? 'YES (Shown in Hearing)' : 'NO (Private)';
+          }
+        } else if (photoRow) {
+          photoRow.style.display = 'none';
         }
-    }
 
-    const incidentPhoto = row.dataset.incidentPhoto || row.dataset.nfiFilePath || '';
-    const showInHearing = row.dataset.showInHearing !== '0';
-    const photoRow = document.getElementById('row-incident-photo');
-    const photoImg = document.getElementById('d-incident-photo-img');
-    const photoLink = document.getElementById('d-incident-photo-link');
-    const photoBadge = document.getElementById('d-hearing-photo-status-badge');
+        const isDismissed = (status === 'DISMISSED');
 
-    if (incidentPhoto && photoRow) {
-      photoRow.style.display = 'flex';
-      const fileUrl = incidentPhoto.startsWith('../') ? incidentPhoto : ('../' + incidentPhoto);
-      if (photoImg) photoImg.src = fileUrl;
-      if (photoLink) photoLink.href = fileUrl;
-      if (photoBadge) {
-        photoBadge.style.background = showInHearing ? '#dcfce7' : '#f1f5f9';
-        photoBadge.style.color = showInHearing ? '#15803d' : '#64748b';
-        photoBadge.style.borderColor = showInHearing ? '#86efac' : '#cbd5e1';
-        photoBadge.textContent = showInHearing ? 'YES (Shown in Hearing)' : 'NO (Private)';
-      }
-    } else if (photoRow) {
-      photoRow.style.display = 'none';
-    }
+        // Show assignment form if pending or investigating and no panel yet (and NOT dismissed)
+        const showAssign = (isPending || isInvestigating) && !hasPanel && !isDismissed;
 
-    const isDismissed = (status === 'DISMISSED');
+        // Show manage form if case has a panel and is not closed/resolved (and NOT dismissed)
+        const showManage = hasPanel && !isClosedStatus && !isDismissed;
 
-    // Show assignment form if pending or investigating and no panel yet (and NOT dismissed)
-    const showAssign = (isPending || isInvestigating) && !hasPanel && !isDismissed;
+        // Show decision form ONLY if active and NOT dismissed
+        const showDecide = (isInvestigating || (isPending && hasPanel)) && !decidedCat && consensusCat > 0 && !isDismissed;
 
-    // Show manage form if case has a panel and is not closed/resolved (and NOT dismissed)
-    const showManage = hasPanel && !isClosedStatus && !isDismissed;
+        // Hide old assignment form, show correct one
+        const assignDiv = document.getElementById('assignment-form');
+        const manageDiv = document.getElementById('manage-form');
+        const decideDiv = document.getElementById('decision-form');
+        const waitDiv = document.getElementById('decision-wait-message');
 
-    // Show decision form ONLY if active and NOT dismissed
-    const showDecide = (isInvestigating || (isPending && hasPanel)) && !decidedCat && consensusCat > 0 && !isDismissed;
+        if (assignDiv) assignDiv.style.display = 'none';
+        if (manageDiv) manageDiv.style.display = 'none';
+        if (decideDiv) decideDiv.style.display = 'none';
+        if (waitDiv) waitDiv.style.display = 'none';
 
-    // Hide old assignment form, show correct one
-    const assignDiv = document.getElementById('assignment-form');
-    const manageDiv = document.getElementById('manage-form');
-    const decideDiv = document.getElementById('decision-form');
-    const waitDiv = document.getElementById('decision-wait-message');
-
-    if (assignDiv) assignDiv.style.display = 'none';
-    if (manageDiv) manageDiv.style.display = 'none';
-    if (decideDiv) decideDiv.style.display = 'none';
-    if (waitDiv) waitDiv.style.display = 'none';
-
-    if (showAssign && assignDiv) {
-        assignDiv.style.display = 'block';
-        const assignLink = document.getElementById('btn-assign-full');
-        if (assignLink) {
-            assignLink.href = '#';
-            assignLink.onclick = (e) => { e.preventDefault(); openManageHearingModal(caseId, row); };
+        if (showAssign && assignDiv) {
+            assignDiv.style.display = 'block';
+            const assignLink = document.getElementById('btn-assign-full');
+            if (assignLink) {
+                assignLink.href = '#';
+                assignLink.onclick = (e) => { e.preventDefault(); openManageHearingModal(caseId, row); };
+            }
+        } else if (showManage && manageDiv) {
+            manageDiv.style.display = 'block';
+            const manageLink = document.getElementById('btn-manage-full');
+            if (manageLink) {
+                manageLink.href = 'upcc_case_view.php?id=' + caseId;
+                manageLink.onclick = null;
+            }
+        } else if (showDecide && decideDiv) {
+            const resCaseInput = document.getElementById('resolve_case_id');
+            if (resCaseInput) resCaseInput.value = caseId;
+            decideDiv.style.display = 'block';
+        } else if (hasPanel && !isClosedStatus && !decidedCat && consensusCat === 0 && !isDismissed) {
+            // Show waiting message
+            let waitMsgEl = document.getElementById('decision-wait-message');
+            if (!waitMsgEl) {
+                waitMsgEl = document.createElement('div');
+                waitMsgEl.id = 'decision-wait-message';
+                waitMsgEl.className = 'alert-info';
+                waitMsgEl.style.cssText = 'background:#eef2ff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-top:14px; font-size:13px; color:#1e293b;';
+                const detailForms = document.querySelector('.detail-forms');
+                if (detailForms) detailForms.appendChild(waitMsgEl);
+            }
+            if (waitMsgEl) {
+                waitMsgEl.innerHTML = '⏳ <strong>Awaiting UPCC hearing consensus</strong> — The panel has not yet reached a category decision. The case cannot be resolved until a consensus is recorded.';
+                waitMsgEl.style.display = 'block';
+            }
         }
-    } else if (showManage && manageDiv) {
-        manageDiv.style.display = 'block';
-        const manageLink = document.getElementById('btn-manage-full');
-        if (manageLink) {
-            manageLink.href = 'upcc_case_view.php?id=' + caseId;
-            manageLink.onclick = null;
-        }
-    } else if (showDecide && decideDiv) {
-        const resCaseInput = document.getElementById('resolve_case_id');
-        if (resCaseInput) resCaseInput.value = caseId;
-        decideDiv.style.display = 'block';
-    } else if (hasPanel && !isClosedStatus && !decidedCat && consensusCat === 0 && !isDismissed) {
-        // Show waiting message
-        let waitMsgEl = document.getElementById('decision-wait-message');
-        if (!waitMsgEl) {
-            waitMsgEl = document.createElement('div');
-            waitMsgEl.id = 'decision-wait-message';
-            waitMsgEl.className = 'alert-info';
-            waitMsgEl.style.cssText = 'background:#eef2ff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-top:14px; font-size:13px; color:#1e293b;';
-            const detailForms = document.querySelector('.detail-forms');
-            if (detailForms) detailForms.appendChild(waitMsgEl);
-        }
-        if (waitMsgEl) {
-            waitMsgEl.innerHTML = '⏳ <strong>Awaiting UPCC hearing consensus</strong> — The panel has not yet reached a category decision. The case cannot be resolved until a consensus is recorded.';
-            waitMsgEl.style.display = 'block';
-        }
-    }
 
+        // Notice of Formative Intervention (NFI) handling for Category 1 & Category 2 cases
+        const nfiFilePath = row.dataset.nfiFilePath || '';
+        const nfiContainer = document.getElementById('nfi-upload-container');
+        const nfiStatusDiv = document.getElementById('nfi-doc-status');
+        const nfiCaseIdInput = document.getElementById('upload_nfi_case_id');
+        const nfiUploadBtnLabel = document.getElementById('btn-upload-nfi-label');
+        const nfiUploadForm = document.getElementById('real-nfi-upload-form');
 
+        const catNum = parseInt(decidedCat || consensusCat || '0', 10);
+        const isCat1or2 = (catNum === 1 || catNum === 2);
 
-    // Notice of Formative Intervention (NFI) handling for Category 1 & Category 2 cases
-    const nfiFilePath = row.dataset.nfiFilePath || '';
-    const nfiContainer = document.getElementById('nfi-upload-container');
-    const nfiStatusDiv = document.getElementById('nfi-doc-status');
-    const nfiCaseIdInput = document.getElementById('upload_nfi_case_id');
-    const nfiUploadBtnLabel = document.getElementById('btn-upload-nfi-label');
-    const nfiUploadForm = document.getElementById('real-nfi-upload-form');
+        if (nfiContainer) {
+            if (isClosedStatus && isCat1or2) {
+                nfiContainer.style.display = 'block';
+                if (nfiCaseIdInput) nfiCaseIdInput.value = caseId;
 
-    const catNum = parseInt(decidedCat || consensusCat || '0', 10);
-    const isCat1or2 = (catNum === 1 || catNum === 2);
+                if (nfiFilePath) {
+                    const nfiDateRaw = row.dataset.nfiDate || '';
+                    let nfiDateFormatted = '';
+                    if (nfiDateRaw) {
+                        try {
+                            const d = new Date(nfiDateRaw);
+                            if (!isNaN(d.getTime())) {
+                                nfiDateFormatted = d.toLocaleString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: true
+                                });
+                            }
+                        } catch(e){}
+                    }
 
-    if (nfiContainer) {
-        if (isClosedStatus && isCat1or2) {
-            nfiContainer.style.display = 'block';
-            if (nfiCaseIdInput) nfiCaseIdInput.value = caseId;
-
-            if (nfiFilePath) {
-                const nfiDateRaw = row.dataset.nfiDate || '';
-                let nfiDateFormatted = '';
-                if (nfiDateRaw) {
-                    try {
-                        const d = new Date(nfiDateRaw);
-                        if (!isNaN(d.getTime())) {
-                            nfiDateFormatted = d.toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: true
-                            });
-                        }
-                    } catch(e){}
-                }
-
-                if (nfiStatusDiv) {
-                    nfiStatusDiv.innerHTML = `
-                        <div style="padding:12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; position:relative; box-sizing:border-box; width:100%;">
-                            <button type="button" onclick="confirmRemoveNfiFile('${escapeHtml(caseId)}')" title="Reupload / Replace NFI" style="position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; z-index:2;">✕</button>
-                            <div style="display:flex; align-items:flex-start; gap:10px; padding-right:32px;">
-                                <span style="font-size:22px; line-height:1;">📋</span>
-                                <div style="flex:1; min-width:0;">
-                                    <div style="font-size:12px; font-weight:800; color:#1e40af;">Notice of Formative Intervention (NFI) Attached</div>
-                                    <div style="font-size:11px; color:#1d4ed8; margin-top:2px;">Official Formative Intervention document (Category ${catNum})</div>
-                                    ${nfiDateFormatted ? `<div style="font-size:11px; font-weight:600; color:#1e40af; margin-top:5px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>🕒</span> <span>Submitted: <strong>${escapeHtml(nfiDateFormatted)}</strong></span></div>` : ''}
-                                    <div style="margin-top:10px;">
-                                        <a href="${escapeHtml(nfiFilePath)}" target="_blank" download style="padding:5px 12px; background:#1d4ed8; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View NFI Document</a>
+                    if (nfiStatusDiv) {
+                        nfiStatusDiv.innerHTML = `
+                            <div style="padding:12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; position:relative; box-sizing:border-box; width:100%;">
+                                <button type="button" onclick="confirmRemoveNfiFile('${safeHtml(caseId)}')" title="Reupload / Replace NFI" style="position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; z-index:2;">✕</button>
+                                <div style="display:flex; align-items:flex-start; gap:10px; padding-right:32px;">
+                                    <span style="font-size:22px; line-height:1;">📋</span>
+                                    <div style="flex:1; min-width:0;">
+                                        <div style="font-size:12px; font-weight:800; color:#1e40af;">Notice of Formative Intervention (NFI) Attached</div>
+                                        <div style="font-size:11px; color:#1d4ed8; margin-top:2px;">Official Formative Intervention document (Category ${catNum})</div>
+                                        ${nfiDateFormatted ? `<div style="font-size:11px; font-weight:600; color:#1e40af; margin-top:5px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>🕒</span> <span>Submitted: <strong>${safeHtml(nfiDateFormatted)}</strong></span></div>` : ''}
+                                        <div style="margin-top:10px;">
+                                            <a href="${safeHtml(nfiFilePath)}" target="_blank" download style="padding:5px 12px; background:#1d4ed8; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View NFI Document</a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }
+                    if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '🔄 Reupload NFI Document';
+                    if (nfiUploadForm) nfiUploadForm.style.display = 'none';
+                } else {
+                    if (nfiStatusDiv) {
+                        nfiStatusDiv.innerHTML = `
+                            <div style="padding:8px 10px; background:#fefce8; border:1px solid #fef08a; border-radius:8px; font-size:12px; color:#854d0e;">
+                                ⚠️ Notice of Formative Intervention (NFI) not attached yet for Category ${catNum}.
+                            </div>
+                        `;
+                    }
+                    if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '📋 Upload Notice of Formative Intervention (NFI)';
+                    if (nfiUploadForm) nfiUploadForm.style.display = 'block';
                 }
-                if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '🔄 Reupload NFI Document';
-                if (nfiUploadForm) nfiUploadForm.style.display = 'none';
             } else {
-                if (nfiStatusDiv) {
-                    nfiStatusDiv.innerHTML = `
-                        <div style="padding:8px 10px; background:#fefce8; border:1px solid #fef08a; border-radius:8px; font-size:12px; color:#854d0e;">
-                            ⚠️ Notice of Formative Intervention (NFI) not attached yet for Category ${catNum}.
-                        </div>
-                    `;
-                }
-                if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '📋 Upload Notice of Formative Intervention (NFI)';
-                if (nfiUploadForm) nfiUploadForm.style.display = 'block';
+                nfiContainer.style.display = 'none';
             }
-        } else {
-            nfiContainer.style.display = 'none';
         }
+
+        targetDismissCaseRow = row;
+        const dismissContainer = document.getElementById('dismiss-action-container');
+        const dismissalDetailsDiv = document.getElementById('dismissal-details-div');
+
+        if (dismissContainer) {
+            dismissContainer.style.display = (isActiveCase && !isDismissed) ? 'block' : 'none';
+        }
+
+        if (dismissalDetailsDiv) {
+            if (isDismissed) {
+                const reason = row.dataset.dismissalReason || 'Case dismissed by Student Discipline Office.';
+                const dDate = row.dataset.dismissedAt || '';
+                const reasonEl = document.getElementById('d-dismissal-reason-text');
+                if (reasonEl) reasonEl.textContent = reason;
+                const dateEl = document.getElementById('d-dismissal-date-text');
+                if (dateEl) dateEl.textContent = dDate ? ('🗓️ Dismissed on: ' + dDate) : '';
+                dismissalDetailsDiv.style.display = 'block';
+            } else {
+                dismissalDetailsDiv.style.display = 'none';
+            }
+        }
+    } catch(err) {
+        console.error('selectCase error:', err);
     }
-
-    targetDismissCaseRow = row;
-    const isDismissed = (status === 'DISMISSED');
-    const dismissContainer = document.getElementById('dismiss-action-container');
-    const dismissalDetailsDiv = document.getElementById('dismissal-details-div');
-
-    if (dismissContainer) {
-        dismissContainer.style.display = (isActiveCase && !isDismissed) ? 'block' : 'none';
-    }
-
-    if (dismissalDetailsDiv) {
-        if (isDismissed) {
-            const reason = row.dataset.dismissalReason || 'Case dismissed by Student Discipline Office.';
+}nt Discipline Office.';
             const dDate = row.dataset.dismissedAt || '';
             const reasonEl = document.getElementById('d-dismissal-reason-text');
             if (reasonEl) reasonEl.textContent = reason;
