@@ -738,7 +738,7 @@ $activeCooldown = db_one(
      WHERE case_id = :c AND cooldown_until > NOW()",
     [':c' => $caseId]
 );
-$cooldownRemainingSecs = max(0, (int)($activeCooldown['remaining'] ?? 0));
+$cooldownRemainingSecs = max(0, (int)$activeCooldown['remaining'] ?? 0);
 $isInCooldown = $cooldownRemainingSecs > 0;
 
 $showVotingPopup = $isRoundActive && $suggestedDetails !== null;
@@ -774,7 +774,7 @@ $panelMembers = db_all(
 );
 
 $statusRaw       = (string)($case['status'] ?? 'PENDING');
-$isClosed        = in_array($statusRaw, ['CLOSED','RESOLVED'], true);
+$isClosed        = in_array($statusRaw, ['CLOSED','RESOLVED','DISMISSED'], true);
 $isHearingOpen   = (int)($case['hearing_is_open']  ?? 0) === 1;
 $isHearingPaused = (int)($case['hearing_is_paused'] ?? 0) === 1;
 
@@ -804,6 +804,7 @@ function fmt_dt(?string $v): string {
 }
 function decision_badge(string $s): array {
     return match(strtoupper($s)) {
+        'DISMISSED'                  => ['label' => '🚫 Dismissed',       'class' => 'badge-slate'],
         'CLOSED','RESOLVED'          => ['label' => 'Closed',              'class' => 'badge-green'],
         'AWAITING_ADMIN_FINALIZATION'=> ['label' => 'Awaiting Admin',      'class' => 'badge-purple'],
         'UNDER_INVESTIGATION'        => ['label' => 'Under Investigation', 'class' => 'badge-purple'],
