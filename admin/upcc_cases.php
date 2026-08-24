@@ -3570,12 +3570,18 @@ function triggerDismissCaseModal() {
     if (reasonInput) reasonInput.value = '';
     
     const overlay1 = document.getElementById('dismiss-modal-1-overlay');
-    if (overlay1) overlay1.style.display = 'flex';
+    if (overlay1) {
+        overlay1.style.display = 'flex';
+        overlay1.classList.add('open');
+    }
 }
 
 function closeDismissModal1() {
     const overlay1 = document.getElementById('dismiss-modal-1-overlay');
-    if (overlay1) overlay1.style.display = 'none';
+    if (overlay1) {
+        overlay1.style.display = 'none';
+        overlay1.classList.remove('open');
+    }
 }
 
 function proceedToDismissModal2() {
@@ -3600,7 +3606,7 @@ function proceedToDismissModal2() {
     // Check panel status for double modal notice
     const hasPanel = targetDismissCaseRow ? (targetDismissCaseRow.dataset.hasPanel === '1') : false;
     const assignedDeptId = targetDismissCaseRow ? targetDismissCaseRow.dataset.assignedDept : '';
-    const deptName = assignedDeptId ? (deptNames[assignedDeptId] || ('Department #' + assignedDeptId)) : 'Assigned Department';
+    const deptName = assignedDeptId ? ((typeof deptNames !== 'undefined' && deptNames[assignedDeptId]) ? deptNames[assignedDeptId] : ('Department #' + assignedDeptId)) : 'Assigned Department';
     const alertBox = document.getElementById('dismiss-panel-alert-box');
     const alertMsg = document.getElementById('dismiss-panel-alert-message');
     
@@ -3614,18 +3620,37 @@ function proceedToDismissModal2() {
         alertMsg.innerHTML = `ℹ️ No investigating panel is currently assigned to this case. Dismissing will close the case and send an official dismissal notice to the student's Outlook email.`;
     }
     
-    document.getElementById('dismiss-modal-1-overlay').style.display = 'none';
-    document.getElementById('dismiss-modal-2-overlay').style.display = 'flex';
+    const overlay1 = document.getElementById('dismiss-modal-1-overlay');
+    const overlay2 = document.getElementById('dismiss-modal-2-overlay');
+    if (overlay1) {
+        overlay1.style.display = 'none';
+        overlay1.classList.remove('open');
+    }
+    if (overlay2) {
+        overlay2.style.display = 'flex';
+        overlay2.classList.add('open');
+    }
 }
 
 function closeDismissModal2() {
     const overlay2 = document.getElementById('dismiss-modal-2-overlay');
-    if (overlay2) overlay2.style.display = 'none';
+    if (overlay2) {
+        overlay2.style.display = 'none';
+        overlay2.classList.remove('open');
+    }
 }
 
 function backToDismissModal1() {
-    document.getElementById('dismiss-modal-2-overlay').style.display = 'none';
-    document.getElementById('dismiss-modal-1-overlay').style.display = 'flex';
+    const overlay1 = document.getElementById('dismiss-modal-1-overlay');
+    const overlay2 = document.getElementById('dismiss-modal-2-overlay');
+    if (overlay2) {
+        overlay2.style.display = 'none';
+        overlay2.classList.remove('open');
+    }
+    if (overlay1) {
+        overlay1.style.display = 'flex';
+        overlay1.classList.add('open');
+    }
 }
 
 window.triggerDismissCaseModal = triggerDismissCaseModal;
