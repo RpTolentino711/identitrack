@@ -698,14 +698,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } else {
             $fullReason = ($reason_category !== '' ? "[$reason_category] " : "") . $dismissal_reason;
 
+            $dismissParams = [':id' => $case_id];
+            db_add_encryption_key($dismissParams);
+
             $caseRow = db_one(
                 "SELECT c.case_id, c.student_id, c.status, c.assigned_department_id, d.dept_name,
-                        s.student_fn, s.student_ln, s.student_email
+                        " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email'], 's') . "
                  FROM upcc_case c
                  LEFT JOIN departments d ON d.dept_id = c.assigned_department_id
                  LEFT JOIN student s ON s.student_id = c.student_id
                  WHERE c.case_id = :id",
-                [':id' => $case_id]
+                $dismissParams
             );
 
             if (!$caseRow) {
@@ -752,25 +755,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 // Notify assigned panel members via email
-                $panelMembers = db_all(
-                    "SELECT u.upcc_id, u.full_name, u.email
-                     FROM upcc_case_panel_member pm
-                     JOIN upcc_user u ON u.upcc_id = pm.upcc_id
-                     WHERE pm.case_id = :cid AND u.is_active = 1",
-                    [':cid' => $case_id]
-                );
+                try {
+                    $panelMembers = db_all(
+                        "SELECT u.upcc_id, u.full_name, u.email
+                         FROM upcc_case_panel_member pm
+                         JOIN upcc_user u ON u.upcc_id = pm.upcc_id
+                         WHERE pm.case_id = :cid AND u.is_active = 1",
+                        [':cid' => $case_id]
+                    );
 
-                foreach ($panelMembers as $pm) {
-                    if (!empty($pm['email'])) {
-                        send_case_dismissal_email_to_panel($pm['email'], $pm['full_name'], $case_id, (string)$caseRow['student_id'], $fullReason);
+                    foreach ($panelMembers as $pm) {
+                        if (!empty($pm['email'])) {
+                            send_case_dismissal_email_to_panel($pm['email'], $pm['full_name'], $case_id, (string)$caseRow['student_id'], $fullReason);
+                        }
                     }
-                }
+                } catch (\Throwable $exPanelMail) {}
 
                 // Send email notification to Student Outlook
-                if (!empty($caseRow['student_email'])) {
-                    $studentName = trim(($caseRow['student_fn'] ?? '') . ' ' . ($caseRow['student_ln'] ?? '')) ?: $caseRow['student_id'];
-                    send_case_dismissal_email_to_student($caseRow['student_email'], $studentName, $case_id, $fullReason);
-                }
+                try {
+                    if (!empty($caseRow['student_email'])) {
+                        $studentName = trim(($caseRow['student_fn'] ?? '') . ' ' . ($caseRow['student_ln'] ?? '')) ?: $caseRow['student_id'];
+                        send_case_dismissal_email_to_student($caseRow['student_email'], $studentName, $case_id, $fullReason);
+                    }
+                } catch (\Throwable $exStudentMail) {}
 
                 header("Location: upcc_cases.php?msg=dismissed"); exit;
             }
