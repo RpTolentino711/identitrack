@@ -2709,7 +2709,7 @@ function selectCase(row) {
     if (detailContent) detailContent.classList.add('active');
 
     try {
-        const status     = (row.dataset.statusRaw || 'PENDING').toString();
+        const status     = (row.dataset.statusRaw || 'PENDING').toString().trim().toUpperCase();
         const hasPanel   = row.dataset.hasPanel === '1';
         const hearingScheduled = row.dataset.hearingScheduled === '1';
         const consensusCat = parseInt(row.dataset.consensusCat || '0', 10);
@@ -2721,7 +2721,7 @@ function selectCase(row) {
         const caseId     = row.dataset.caseId || '';
         const isPending  = (status === 'PENDING');
         const isInvestigating = (status === 'UNDER_INVESTIGATION');
-        const isClosedStatus = (status === 'CLOSED' || status === 'RESOLVED' || status === 'CANCELLED');
+        const isClosedStatus = (status === 'CLOSED' || status === 'RESOLVED' || status === 'CANCELLED' || status === 'SOLVED');
         const isActiveCase = isPending || isInvestigating;
 
         // Header
