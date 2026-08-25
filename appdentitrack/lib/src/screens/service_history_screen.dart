@@ -202,8 +202,11 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
 
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (mounted) {
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (!serviceEnabled || permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        if (!serviceEnabled && mounted && !_shownPauseDialog) {
+          _shownPauseDialog = true;
           showDialog(
             context: context,
             barrierDismissible: false,
@@ -211,15 +214,15 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: const Row(
                 children: [
-                  Icon(Icons.location_off_rounded, color: Colors.orange, size: 28),
+                  Icon(Icons.location_off_rounded, color: Colors.red, size: 28),
                   SizedBox(width: 8),
                   Expanded(
-                    child: Text('Turn On Location (GPS)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    child: Text('GPS Location Required', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   ),
                 ],
               ),
               content: const Text(
-                'Your community service movement tracking requires Location (GPS). Please turn ON Location Services on your device.',
+                'Your community service session requires GPS Location Services to verify movement. Turning OFF GPS will pause your timer.',
                 style: TextStyle(fontSize: 14, height: 1.4),
               ),
               actions: [
@@ -235,22 +238,10 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
             ),
           );
         }
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚠️ Location permission is required to verify your community service movement.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 6),
-            ),
-          );
-        }
+        await _triggerGPSDisabledPause(
+          !serviceEnabled ? 'GPS Location Services turned OFF' : 'Location permission denied by student',
+        );
+        return;
       }
 
       try {
@@ -264,6 +255,18 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
         if (active == null || active.sessionStatus == 'PAUSED') return;
 
         try {
+          bool currentServiceEnabled = await Geolocator.isLocationServiceEnabled();
+          LocationPermission currentPermission = await Geolocator.checkPermission();
+
+          if (!currentServiceEnabled || currentPermission == LocationPermission.denied || currentPermission == LocationPermission.deniedForever) {
+            await _triggerGPSDisabledPause(
+              !currentServiceEnabled
+                  ? 'GPS Location Services turned OFF during active service'
+                  : 'Location permission revoked by student',
+            );
+            return;
+          }
+
           Position pos = await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
           );
@@ -279,7 +282,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
             if (distMeters < 15.0 || pos.speed < 0.6) {
               _stationarySeconds += 15;
               if (_stationarySeconds >= 300) { // 5 minutes of no movement!
-                _triggerStationaryPause();
+                await _triggerStationaryPause();
               }
             } else {
               _stationarySeconds = 0;
@@ -289,13 +292,34 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
             _lastPosition = pos;
           }
         } catch (_) {
-          _stationarySeconds += 15;
-          if (_stationarySeconds >= 300) {
-            _triggerStationaryPause();
+          bool isGpsOn = await Geolocator.isLocationServiceEnabled();
+          if (!isGpsOn) {
+            await _triggerGPSDisabledPause('GPS Location Services turned OFF during active service');
+          } else {
+            _stationarySeconds += 15;
+            if (_stationarySeconds >= 300) {
+              await _triggerStationaryPause();
+            }
           }
         }
       });
     } catch (_) {}
+  }
+
+  Future<void> _triggerGPSDisabledPause(String reason) async {
+    _locationTimer?.cancel();
+    final active = _data?.activeSession;
+    if (active == null) return;
+
+    try {
+      await _api.pauseSession(
+        studentId: widget.studentId,
+        sessionId: active.sessionId,
+        reason: reason,
+      );
+    } catch (_) {}
+
+    await _load();
   }
 
   Future<void> _triggerStationaryPause() async {
