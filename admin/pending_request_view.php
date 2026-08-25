@@ -78,8 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
            } else {
              db_exec(
                "INSERT INTO community_service_session (requirement_id, time_in, time_out, login_method, validated_by, sdo_notes, created_at, updated_at)
-                VALUES (:req, NOW(), NULL, :method, :admin, NULL, NOW(), NOW())",
-               [':req' => $selectedReqId, ':admin' => $adminId, ':method' => $loginMethod]
+                VALUES (:req, NOW(), NULL, :method, :admin, :notes, NOW(), NOW())",
+               [':req' => $selectedReqId, ':admin' => $adminId, ':method' => $loginMethod, ':notes' => $notes]
              );
              db_exec(
                "UPDATE manual_login_request SET status='APPROVED', requirement_id=:req, decided_by=:admin, decided_at=NOW(), decision_notes=:notes WHERE request_id=:id",
@@ -774,9 +774,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   <?php endif; ?>
                 <?php endif; ?>
                 <label class="field-label" for="notes">
-                  SDO Notes <span style="font-weight:400; color:#adb5bd;">(optional)</span>
+                  SDO Notes / Assignment Location <span style="font-weight:800; color:#dc3545;">(Required *)</span>
                 </label>
-                <textarea id="notes" name="notes" placeholder="Add any notes for this decision..."></textarea>
+                <textarea id="notes" name="notes" placeholder="Specify where the student will render service (e.g. DOON KA SA CANTEEN)..." required></textarea>
 
                 <p class="approve-note">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

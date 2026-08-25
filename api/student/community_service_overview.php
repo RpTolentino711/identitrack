@@ -163,6 +163,9 @@ if ($activeSession) {
 
   $activeSession['net_elapsed_seconds'] = $netElapsedSec;
   $activeSession['status'] = $status;
+  if (!empty($activeSession['sdo_notes'])) {
+    $activeSession['location'] = $activeSession['sdo_notes'];
+  }
 }
 
 $pendingManual = db_one(
