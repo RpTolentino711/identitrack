@@ -1821,17 +1821,17 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                         <?php endforeach; ?>
                       </div>
                       
-                      <?php if (in_array($caseStatus, ['RESOLVED', 'CLOSED', 'DISMISSED', 'UNDER_APPEAL', 'CANCELLED', 'VOID'])): ?>
+                      <?php if (in_array($caseStatus, ['RESOLVED', 'CLOSED', 'UNDER_APPEAL', 'CANCELLED', 'VOID'], true) && $caseStatus !== 'DISMISSED'): ?>
                         <?php 
                           $punish = json_decode($groupData['case_punishment'] ?? '{}', true) ?? []; 
                           $catNum = (int)($groupData['case_category'] ?? 0);
                           $catTitle = $catNum > 0 ? "Category {$catNum}" : "";
-                          $decisionText = $groupData['case_decision'] ?: ($caseStatus === 'DISMISSED' ? 'Case Dismissed by UPCC Panel (No Sanction / Cleared)' : ($catTitle ? "Panel consensus adopted for {$catTitle}." : 'Panel decision finalized.'));
+                          $decisionText = $groupData['case_decision'] ?: ($catTitle ? "Panel consensus adopted for {$catTitle}." : 'Panel decision finalized.');
                         ?>
-                        <div style="margin-top:16px; margin-bottom:16px; padding:12px; background:<?= $caseStatus === 'DISMISSED' ? '#f1f5f9' : '#f0fdf4' ?>; border:1px solid <?= $caseStatus === 'DISMISSED' ? '#cbd5e1' : '#bbf7d0' ?>; border-radius:8px;">
-                          <div style="font-size:11px; font-weight:800; color:<?= $caseStatus === 'DISMISSED' ? '#475569' : '#15803d' ?>; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
+                        <div style="margin-top:16px; margin-bottom:16px; padding:12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
+                          <div style="font-size:11px; font-weight:800; color:#15803d; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;vertical-align:text-bottom;margin-right:4px;"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            UPCC Final Decision <?= $catNum > 0 ? "(Category {$catNum})" : ($caseStatus === 'DISMISSED' ? "(Dismissed)" : "") ?>
+                            UPCC Final Decision <?= $catNum > 0 ? "(Category {$catNum})" : "" ?>
                           </div>
                           <div style="font-size:13px; color:#0f172a; margin-bottom:8px;"><strong>Decision Details:</strong> <?php echo e($decisionText); ?></div>
                           
@@ -2066,16 +2066,16 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                       <?php endif; ?>
                       
                       <?php 
-                        if (in_array($ucStatus, ['RESOLVED', 'CLOSED', 'DISMISSED', 'UNDER_APPEAL', 'CANCELLED', 'VOID'])): 
+                        if (in_array($ucStatus, ['RESOLVED', 'CLOSED', 'UNDER_APPEAL', 'CANCELLED', 'VOID'], true) && $ucStatus !== 'DISMISSED'): 
                           $punish = json_decode($h['uc_punishment'] ?? '{}', true) ?? []; 
                           $catNum = (int)($h['uc_category'] ?? 0);
                           $catTitle = $catNum > 0 ? "Category {$catNum}" : "";
-                          $decisionText = $h['uc_decision'] ?: ($ucStatus === 'DISMISSED' ? 'Case Dismissed by UPCC Panel (No Sanction / Cleared)' : ($catTitle ? "Panel consensus adopted for {$catTitle}." : 'Panel decision finalized.'));
+                          $decisionText = $h['uc_decision'] ?: ($catTitle ? "Panel consensus adopted for {$catTitle}." : 'Panel decision finalized.');
                       ?>
-                        <div style="margin-top:16px; margin-bottom:16px; padding:12px; background:<?= $ucStatus === 'DISMISSED' ? '#f1f5f9' : '#f0fdf4' ?>; border:1px solid <?= $ucStatus === 'DISMISSED' ? '#cbd5e1' : '#bbf7d0' ?>; border-radius:8px;">
-                          <div style="font-size:11px; font-weight:800; color:<?= $ucStatus === 'DISMISSED' ? '#475569' : '#15803d' ?>; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
+                        <div style="margin-top:16px; margin-bottom:16px; padding:12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
+                          <div style="font-size:11px; font-weight:800; color:#15803d; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;vertical-align:text-bottom;margin-right:4px;"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            UPCC Final Decision <?= $catNum > 0 ? "(Category {$catNum})" : ($ucStatus === 'DISMISSED' ? "(Dismissed)" : "") ?>
+                            UPCC Final Decision <?= $catNum > 0 ? "(Category {$catNum})" : "" ?>
                           </div>
                           <div style="font-size:13px; color:#0f172a; margin-bottom:8px;"><strong>Decision Details:</strong> <?php echo e($decisionText); ?></div>
                           
