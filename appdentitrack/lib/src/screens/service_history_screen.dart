@@ -513,15 +513,21 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
 
           final bool serviceDone = officiallyDone || effectivelyDone;
 
-          final double progress = assigned > 0
+          final double rawProgress = assigned > 0
               ? (serviceDone
                   ? 0.0
-                  : (hoursRemaining / assigned).clamp(0.0, 1.0))
+                  : (hoursRemaining / assigned))
               : 0.0;
+
+          final double progress = (rawProgress.isNaN || rawProgress.isInfinite)
+              ? 0.0
+              : rawProgress.clamp(0.0, 1.0);
 
           final double liveCompleted = serviceDone ? assigned : (assigned - hoursRemaining);
 
-          final totalSecondsRemaining = (hoursRemaining * 3600).round();
+          final totalSecondsRemaining = (hoursRemaining.isNaN || hoursRemaining.isInfinite || hoursRemaining < 0)
+              ? 0
+              : (hoursRemaining * 3600).round();
           final h = (totalSecondsRemaining ~/ 3600).toString().padLeft(2, '0');
           final m = ((totalSecondsRemaining % 3600) ~/ 60)
               .toString()
