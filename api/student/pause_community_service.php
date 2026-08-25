@@ -37,16 +37,16 @@ if ($sessionId > 0) {
   $session = db_one(
     "SELECT css.session_id, css.requirement_id, css.status, css.time_in
      FROM community_service_session css
-     JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
-     WHERE css.session_id = :sid AND csr.student_id = :st_id AND css.time_out IS NULL",
+     LEFT JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
+     WHERE css.session_id = :sid AND (csr.student_id = :st_id OR css.student_id = :st_id) AND css.time_out IS NULL",
     [':sid' => $sessionId, ':st_id' => $studentId]
   );
 } else {
   $session = db_one(
     "SELECT css.session_id, css.requirement_id, css.status, css.time_in
      FROM community_service_session css
-     JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
-     WHERE csr.student_id = :st_id AND css.time_out IS NULL
+     LEFT JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
+     WHERE (csr.student_id = :st_id OR css.student_id = :st_id) AND css.time_out IS NULL
      ORDER BY css.time_in DESC LIMIT 1",
     [':st_id' => $studentId]
   );

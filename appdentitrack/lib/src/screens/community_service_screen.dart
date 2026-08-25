@@ -182,41 +182,6 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
     }
 
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Row(
-                children: [
-                  Icon(Icons.location_off_rounded, color: Colors.orange, size: 28),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Turn On Location (GPS)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  ),
-                ],
-              ),
-              content: const Text(
-                'Your community service movement tracking requires Location (GPS). Please turn ON Location Services on your device.',
-                style: TextStyle(fontSize: 14, height: 1.4),
-              ),
-              actions: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF193B8C)),
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    await Geolocator.openLocationSettings();
-                  },
-                  child: const Text('Open Location Settings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          );
-        }
-      }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
