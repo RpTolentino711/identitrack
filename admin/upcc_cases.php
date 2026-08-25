@@ -2936,9 +2936,8 @@ function selectCase(row) {
         }
 
         if (nfiContainer) {
-            if (isClosedStatus) {
-                nfiContainer.style.display = 'block';
-                if (nfiCaseIdInput) nfiCaseIdInput.value = caseId;
+            nfiContainer.style.display = 'block';
+            if (nfiCaseIdInput) nfiCaseIdInput.value = caseId;
 
                 if (nfiFilePath) {
                     const nfiDateRaw = row.dataset.nfiDate || '';
@@ -2990,9 +2989,6 @@ function selectCase(row) {
                     if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '📋 Upload Notice of Formative Intervention (NFI)';
                     if (nfiUploadForm) nfiUploadForm.style.display = 'block';
                 }
-            } else {
-                nfiContainer.style.display = 'none';
-            }
         }
 
         // --- Dismissal details ---
