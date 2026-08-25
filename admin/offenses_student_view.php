@@ -1645,7 +1645,7 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                   All <span class="count-pill" style="margin-left:4px;"><?php echo ($totalOffenses + $dismissedCount); ?></span>
                 </button>
                 <button class="filter-chip" id="filterMajor" onclick="filterOffenses('major')">
-                  Major <span class="count-pill" style="margin-left:4px;"><?php echo $rawMajorCount; ?></span>
+                  Major <span class="count-pill" style="margin-left:4px;"><?php echo $majorCount; ?></span>
                 </button>
                 <button class="filter-chip" id="filterMinor" onclick="filterOffenses('minor')">
                   Minor <span class="count-pill" style="margin-left:4px;"><?php echo $minorCount; ?></span>
