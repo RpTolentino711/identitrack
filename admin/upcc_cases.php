@@ -1172,6 +1172,23 @@ function fmt_case_id(int $id, string $created): string {
             overflow-y: auto;
             position: sticky;
             top: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 rgba(241, 245, 249, 0.6);
+        }
+        .detail-pane::-webkit-scrollbar {
+            width: 7px;
+        }
+        .detail-pane::-webkit-scrollbar-track {
+            background: rgba(241, 245, 249, 0.6);
+            border-radius: 8px;
+        }
+        .detail-pane::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+            transition: background 0.2s ease;
+        }
+        .detail-pane:hover::-webkit-scrollbar-thumb {
+            background: #94a3b8;
         }
         .detail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 160px; color: #bbb; padding: 40px; }
         .detail-empty svg { width: 44px; height: 44px; opacity: .4; }
