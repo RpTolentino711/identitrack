@@ -1077,9 +1077,10 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       $reuploadBtn = $isCaseEnded ? '' : '
       <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . $studentId . '" onclick="window.openDirectNteUploadModal(this, event, ' . $caseIdForNte . ', \'' . $studentId . '\'); return false;" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; display:inline-flex; align-items:center; gap:3px; cursor:pointer; transition:all 0.15s; white-space:nowrap;" title="Re-upload or replace Form F-005 document" onmouseover="this.style.background=\'#0284c7\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#e0f2fe\'; this.style.color=\'#0369a1\';">🔄 Re-upload</button>';
 
+      $docPath = !empty($nte['attachment_path']) ? $nte['attachment_path'] : (!empty($nte['case_nfi_file_path']) ? $nte['case_nfi_file_path'] : '');
       $fileLink = '';
-      if (!empty($nte['attachment_path'])) {
-          $cleanPath = ltrim((string)$nte['attachment_path'], './');
+      if (!empty($docPath)) {
+          $cleanPath = ltrim((string)$docPath, './');
           if (str_starts_with($cleanPath, 'admin/')) {
               $cleanPath = substr($cleanPath, 6);
           }
