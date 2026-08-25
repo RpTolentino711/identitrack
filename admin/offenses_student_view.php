@@ -1837,7 +1837,8 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                       <?php endif; ?>
                       <?php
                         $caseIdForNte = (int)($groupData['case_id'] ?? 0);
-                        $nteInfo = !empty($nteMap['case_' . $caseIdForNte]) ? $nteMap['case_' . $caseIdForNte] : (!empty($nteMap['latest_student_' . $studentId]) ? $nteMap['latest_student_' . $studentId] : null);
+                        $nteInfo = !empty($nteMap['case_' . $caseIdForNte]) ? $nteMap['case_' . $caseIdForNte] : null;
+                        $isCaseEnded = in_array(strtoupper((string)($groupData['status'] ?? ($c['status'] ?? ''))), ['RESOLVED', 'CLOSED', 'DISMISSED', 'CANCELLED'], true);
                       ?>
                       <div style="margin-top:12px; margin-bottom:12px; padding:12px; border-radius:8px; font-size:12.5px; <?= $nteInfo ? 'background:#f0fdf4; border:1px solid #bbf7d0;' : 'background:#fffbeb; border:1px solid #fef3c7;' ?>">
                         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
@@ -1855,9 +1856,13 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             <?php if ($nteInfo && !empty($nteInfo['attachment_path'])): ?>
                               <a href="../<?= htmlspecialchars($nteInfo['attachment_path']) ?>" target="_blank" download class="btn btn-sm" style="background:#166534; color:#fff; font-weight:700; font-size:11px; padding:4px 10px; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">📥 Download Form F-005</a>
-                              <button type="button" class="btn-trigger-nte-upload" data-case-id="<?= $caseIdForNte ?>" data-student-id="<?= htmlspecialchars($studentId) ?>" onclick="window.openDirectNteUploadModal(this, event, <?= $caseIdForNte ?>, '<?= htmlspecialchars($studentId) ?>'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background='#dc2626'; this.style.color='#fff';" onmouseout="this.style.background='#fee2e2'; this.style.color='#dc2626';">✕</button>
+                              <?php if (!$isCaseEnded): ?>
+                                <button type="button" class="btn-trigger-nte-upload" data-case-id="<?= $caseIdForNte ?>" data-student-id="<?= htmlspecialchars($studentId) ?>" onclick="window.openDirectNteUploadModal(this, event, <?= $caseIdForNte ?>, '<?= htmlspecialchars($studentId) ?>'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background='#dc2626'; this.style.color='#fff';" onmouseout="this.style.background='#fee2e2'; this.style.color='#dc2626';">✕</button>
+                              <?php endif; ?>
                             <?php else: ?>
-                              <button type="button" class="btn-trigger-nte-upload btn btn-sm" data-case-id="<?= $caseIdForNte ?>" data-student-id="<?= htmlspecialchars($studentId) ?>" onclick="window.openDirectNteUploadModal(this, event, <?= $caseIdForNte ?>, '<?= htmlspecialchars($studentId) ?>'); return false;" style="background:#1b2b6b; color:#fff; font-weight:700; font-size:11px; padding:4px 10px; border-radius:6px; border:none; cursor:pointer;">📤 Upload Form F-005</button>
+                              <?php if (!$isCaseEnded): ?>
+                                <button type="button" class="btn-trigger-nte-upload btn btn-sm" data-case-id="<?= $caseIdForNte ?>" data-student-id="<?= htmlspecialchars($studentId) ?>" onclick="window.openDirectNteUploadModal(this, event, <?= $caseIdForNte ?>, '<?= htmlspecialchars($studentId) ?>'); return false;" style="background:#1b2b6b; color:#fff; font-weight:700; font-size:11px; padding:4px 10px; border-radius:6px; border:none; cursor:pointer;">📤 Upload Form F-005</button>
+                              <?php endif; ?>
                             <?php endif; ?>
                           </div>
                         </div>

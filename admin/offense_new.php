@@ -934,6 +934,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           $nteRows = db_all(
               "SELECT n.*,
                       COALESCE(n.case_id, uco.case_id, c.case_id) AS resolved_case_id,
+                      c.status AS case_status,
                       c.evidence_file AS case_evidence_file,
                       o.evidence_file AS offense_evidence_file
                FROM notice_to_explain n
@@ -973,12 +974,15 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       }
       $nteId = (int)$nte['nte_id'];
       $caseIdForNte = !empty($nte['resolved_case_id']) ? (int)$nte['resolved_case_id'] : (!empty($nte['case_id']) ? (int)$nte['case_id'] : 0);
+      $cStatus = strtoupper((string)($nte['case_status'] ?? ''));
+      $isCaseEnded = in_array($cStatus, ['RESOLVED', 'CLOSED', 'DISMISSED', 'CANCELLED'], true);
+
       $displayTs = (!empty($nte['updated_at']) && $nte['updated_at'] !== '0000-00-00 00:00:00') ? $nte['updated_at'] : $nte['created_at'];
       $nteDate = ph_date('M j, Y', $displayTs);
       $nteTime = ph_date('h:i:s A', $displayTs);
       $irNo = htmlspecialchars($nte['incident_report_no'] ?: ('IR-' . ph_date('Y', $displayTs) . '-' . $nteId));
       
-      $reuploadBtn = '
+      $reuploadBtn = $isCaseEnded ? '' : '
       <button type="button" class="btn-trigger-nte-upload" data-case-id="' . $caseIdForNte . '" data-student-id="' . $studentId . '" onclick="window.openDirectNteUploadModal(this, event, ' . $caseIdForNte . ', \'' . $studentId . '\'); return false;" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; display:inline-flex; align-items:center; gap:3px; cursor:pointer; transition:all 0.15s; white-space:nowrap;" title="Re-upload or replace Form F-005 document" onmouseover="this.style.background=\'#0284c7\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'#e0f2fe\'; this.style.color=\'#0369a1\';">🔄 Re-upload</button>';
 
       $fileLink = '';
@@ -1014,10 +1018,10 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           $photoUploadBtn = '
           <div style="display:inline-flex; align-items:center; gap:6px;">
             <a href="' . $photoUrl . '" target="_blank" style="color:#15803d; font-size:10px; font-weight:700; text-decoration:underline;">📷 View Photo</a>
-            <button type="button" onclick="openDirectPhotoUploadModal(' . $caseIdForNte . ', ' . $nteId . '); return false;" style="background:#dcfce7; color:#15803d; font-weight:800; font-size:10px; border:1px solid #86efac; padding:2px 6px; border-radius:10px; cursor:pointer;" title="Re-upload photo evidence">🔄 Re-upload Photo</button>
+            ' . ($isCaseEnded ? '' : '<button type="button" onclick="openDirectPhotoUploadModal(' . $caseIdForNte . ', ' . $nteId . '); return false;" style="background:#dcfce7; color:#15803d; font-weight:800; font-size:10px; border:1px solid #86efac; padding:2px 6px; border-radius:10px; cursor:pointer;" title="Re-upload photo evidence">🔄 Re-upload Photo</button>') . '
           </div>';
       } else {
-          $photoUploadBtn = '
+          $photoUploadBtn = $isCaseEnded ? '' : '
           <button type="button" onclick="openDirectPhotoUploadModal(' . $caseIdForNte . ', ' . $nteId . '); return false;" style="background:#fffbeb; color:#92400e; font-weight:800; font-size:10px; border:1px solid #fde68a; padding:2px 6px; border-radius:10px; cursor:pointer;" title="Upload photo evidence">📷 Upload Photo Evidence</button>';
       }
 
@@ -1045,7 +1049,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   if (!empty($activeCases)) {
       foreach ($activeCases as $acase) {
           $acid = (int)$acase['case_id'];
-          $caseNte = $nteCaseMap[$acid] ?? (count($activeCases) === 1 ? $latestStudentNte : null);
+          $caseNte = $nteCaseMap[$acid] ?? null;
           $hasNte = !empty($caseNte) && !empty($caseNte['attachment_path']) && strtoupper((string)($caseNte['status'] ?? '')) !== 'SKIPPED';
           
           $caseNteDoc = !empty($caseNte['attachment_path']) ? $caseNte['attachment_path'] : '';
