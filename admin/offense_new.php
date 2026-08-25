@@ -1096,6 +1096,19 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
             </a>
             ' . $reuploadBtn . '
           </div>';
+      } else {
+          // Dynamic viewer fallback if PDF document was sent to Outlook
+          $fallbackUrl = '../admin/api_send_nte_form.php?action=view_pdf&case_id=' . $caseIdForNte . '&student_id=' . urlencode($studentId);
+          $fileLink = '
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px; margin-bottom:4px;">
+            <a href="' . $fallbackUrl . '" target="_blank" style="color:#1e40af; font-weight:800; font-size:11px; text-decoration:underline; display:inline-flex; align-items:center; gap:3px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="View Form F-005 Document">
+              📄 View Form F-005
+            </a>
+            <a href="' . $fallbackUrl . '" target="_blank" download style="color:#1b2b6b; font-weight:700; font-size:10px; background:#e0e7ff; padding:2px 8px; border-radius:10px; text-decoration:none; display:inline-flex; align-items:center; gap:3px; white-space:nowrap;">
+              📥 Download
+            </a>
+            ' . $reuploadBtn . '
+          </div>';
       }
 
       $evFile = !empty($nte['case_evidence_file']) ? $nte['case_evidence_file'] : 
@@ -1136,6 +1149,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
         <div style="font-size:11px; color:#334155; margin-bottom:4px;">
           Submitted: <strong>' . $nteDate . ' at ' . $nteTime . '</strong>
         </div>
+        ' . ($fileLink ?: '<div></div>') . '
         ' . $hearingToggleBtn . '
       </div>';
   }
