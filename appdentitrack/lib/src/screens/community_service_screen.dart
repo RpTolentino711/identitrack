@@ -181,14 +181,40 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
 
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Location Services are OFF! Please turn on GPS so community service movement can be verified.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 6),
+            ),
+          );
+        }
+        await Geolocator.openLocationSettings();
+      }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return;
       }
-      if (permission == LocationPermission.deniedForever) return;
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Location permission is required to verify your community service movement.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 6),
+            ),
+          );
+        }
+      }
+
+      try {
+        _lastPosition = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        );
+      } catch (_) {}
 
       _locationTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
         if (_activeSession == null || _activeSession?.sessionStatus == 'PAUSED') return;
@@ -218,7 +244,13 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
           } else {
             _lastPosition = pos;
           }
-        } catch (_) {}
+        } catch (_) {
+          // If location check fails (e.g. phone sitting stationary on table), increment stationary time!
+          _stationarySeconds += 15;
+          if (_stationarySeconds >= 300) {
+            _triggerStationaryPause();
+          }
+        }
       });
     } catch (_) {}
   }
