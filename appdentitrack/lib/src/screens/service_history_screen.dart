@@ -536,7 +536,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
               border: Border.all(color: Colors.grey.shade200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 18,
                   offset: const Offset(0, 10),
                 )
@@ -722,7 +722,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           )
@@ -738,8 +738,8 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                 height: 36,
                 decoration: BoxDecoration(
                   color: isCompleted
-                      ? const Color(0xFF2E7D32).withValues(alpha: 0.12)
-                      : Colors.grey.withValues(alpha: 0.12),
+                      ? const Color(0xFF2E7D32).withOpacity(0.12)
+                      : Colors.grey.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -777,8 +777,8 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isCompleted
-                      ? const Color(0xFF2E7D32).withValues(alpha: 0.12)
-                      : Colors.orange.withValues(alpha: 0.12),
+                      ? const Color(0xFF2E7D32).withOpacity(0.12)
+                      : Colors.orange.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -860,7 +860,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.12),
+                  color: Colors.blue.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -898,7 +898,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                 border: Border.all(color: const Color(0xFFA5D6A7), width: 3),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF2E7D32).withValues(alpha: 0.1),
+                    color: const Color(0xFF2E7D32).withOpacity(0.1),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -958,7 +958,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                 border: Border.all(color: Colors.grey.shade200),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
+                    color: Colors.black.withOpacity(0.03),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -1059,7 +1059,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                 border: Border.all(color: Colors.grey.shade300, width: 3),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -1102,7 +1102,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                 border: Border.all(color: Colors.grey.shade200),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
+                    color: Colors.black.withOpacity(0.03),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -1161,7 +1161,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF193B8C).withValues(alpha: 0.2),
+            color: const Color(0xFF193B8C).withOpacity(0.2),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),

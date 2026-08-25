@@ -353,7 +353,7 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 18,
             offset: const Offset(0, 10),
           )
@@ -547,7 +547,7 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 18,
             offset: const Offset(0, 10),
           )
@@ -560,7 +560,7 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: (color ?? blueDark).withValues(alpha: 0.12),
+                color: (color ?? blueDark).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color ?? blueDark),
