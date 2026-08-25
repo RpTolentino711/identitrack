@@ -57,6 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($r['status'] !== 'PENDING') {
     $errors[] = 'This request is already processed.';
   } else if ($action === 'approve') {
+    if ($notes === '') {
+      $errors[] = 'SDO Notes / Assignment Location is required before approving.';
+    }
     if (!admin_verify_password($adminId, $doPassword)) {
       $errors[] = 'Invalid SDO password. Approval was not completed.';
     }
@@ -776,7 +779,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label class="field-label" for="notes">
                   SDO Notes / Assignment Location <span style="font-weight:800; color:#dc3545;">(Required *)</span>
                 </label>
-                <textarea id="notes" name="notes" placeholder="Specify where the student will render service (e.g. DOON KA SA CANTEEN)..." required></textarea>
+                <textarea id="notes" name="notes" placeholder="Specify where the student will render service (e.g. University Library, SDO Office, Campus Grounds)..." required></textarea>
 
                 <p class="approve-note">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -832,6 +835,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     const notesField = document.getElementById('notes');
 
     function openModal() {
+      const notesVal = notesField ? notesField.value.trim() : '';
+      if (!notesVal) {
+        alert('⚠️ SDO Notes / Service Assignment Location is required! Please enter where the student will render service before approving.');
+        if (notesField) {
+          notesField.focus();
+          notesField.style.borderColor = '#dc2626';
+          notesField.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.2)';
+        }
+        return;
+      }
+      if (notesField) {
+        notesField.style.borderColor = '#dee2e6';
+        notesField.style.boxShadow = 'none';
+      }
       pwInput.value = '';
       modalError.textContent = '';
       overlay.classList.add('open');
