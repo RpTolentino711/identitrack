@@ -2938,57 +2938,56 @@ function selectCase(row) {
         if (nfiContainer) {
             nfiContainer.style.display = 'block';
             if (nfiCaseIdInput) nfiCaseIdInput.value = caseId;
+            if (nfiUploadForm) nfiUploadForm.style.display = 'block';
 
-                if (nfiFilePath) {
-                    const nfiDateRaw = row.dataset.nfiDate || '';
-                    let nfiDateFormatted = '';
-                    if (nfiDateRaw) {
-                        try {
-                            const d = new Date(nfiDateRaw);
-                            if (!isNaN(d.getTime())) {
-                                nfiDateFormatted = d.toLocaleString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: true
-                                });
-                            }
-                        } catch(e){}
-                    }
+            if (nfiFilePath) {
+                const nfiDateRaw = row.dataset.nfiDate || '';
+                let nfiDateFormatted = '';
+                if (nfiDateRaw) {
+                    try {
+                        const d = new Date(nfiDateRaw);
+                        if (!isNaN(d.getTime())) {
+                            nfiDateFormatted = d.toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true
+                            });
+                        }
+                    } catch(e){}
+                }
 
-                    if (nfiStatusDiv) {
-                        nfiStatusDiv.innerHTML = `
-                            <div style="padding:12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; position:relative; box-sizing:border-box; width:100%;">
-                                <button type="button" onclick="confirmRemoveNfiFile('${safeHtml(caseId)}')" title="Reupload / Replace NFI" style="position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; z-index:2;">✕</button>
-                                <div style="display:flex; align-items:flex-start; gap:10px; padding-right:32px;">
-                                    <span style="font-size:22px; line-height:1;">📋</span>
-                                    <div style="flex:1; min-width:0;">
-                                        <div style="font-size:12px; font-weight:800; color:#1e40af;">Notice of Formative Intervention (NFI) Attached</div>
-                                        <div style="font-size:11px; color:#1d4ed8; margin-top:2px;">Official Formative Intervention document (Category ${catNum})</div>
-                                        ${nfiDateFormatted ? `<div style="font-size:11px; font-weight:600; color:#1e40af; margin-top:5px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>🕒</span> <span>Submitted: <strong>${safeHtml(nfiDateFormatted)}</strong></span></div>` : ''}
-                                        <div style="margin-top:10px;">
-                                            <a href="${safeHtml(nfiFilePath)}" target="_blank" download style="padding:5px 12px; background:#1d4ed8; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View NFI Document</a>
-                                        </div>
+                if (nfiStatusDiv) {
+                    nfiStatusDiv.innerHTML = `
+                        <div style="padding:12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; position:relative; box-sizing:border-box; width:100%;">
+                            <button type="button" onclick="confirmRemoveNfiFile('${safeHtml(caseId)}')" title="Reupload / Replace NFI" style="position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; z-index:2;">✕</button>
+                            <div style="display:flex; align-items:flex-start; gap:10px; padding-right:32px;">
+                                <span style="font-size:22px; line-height:1;">📋</span>
+                                <div style="flex:1; min-width:0;">
+                                    <div style="font-size:12px; font-weight:800; color:#1e40af;">Notice of Formative Intervention (NFI) Attached</div>
+                                    <div style="font-size:11px; color:#1d4ed8; margin-top:2px;">Official Formative Intervention document</div>
+                                    ${nfiDateFormatted ? `<div style="font-size:11px; font-weight:600; color:#1e40af; margin-top:5px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>🕒</span> <span>Submitted: <strong>${safeHtml(nfiDateFormatted)}</strong></span></div>` : ''}
+                                    <div style="margin-top:10px;">
+                                        <a href="${safeHtml(nfiFilePath)}" target="_blank" download style="padding:5px 12px; background:#1d4ed8; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View NFI Document</a>
                                     </div>
                                 </div>
                             </div>
-                        `;
-                    }
-                    if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '🔄 Reupload NFI Document';
-                    if (nfiUploadForm) nfiUploadForm.style.display = 'none';
-                } else {
-                    if (nfiStatusDiv) {
-                        nfiStatusDiv.innerHTML = `
-                            <div style="padding:8px 10px; background:#fefce8; border:1px solid #fef08a; border-radius:8px; font-size:12px; color:#854d0e;">
-                                ⚠️ Notice of Formative Intervention (NFI) not attached yet for Category ${catNum}.
-                            </div>
-                        `;
-                    }
-                    if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '📋 Upload Notice of Formative Intervention (NFI)';
-                    if (nfiUploadForm) nfiUploadForm.style.display = 'block';
+                        </div>
+                    `;
                 }
+                if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '🔄 Reupload NFI Document';
+            } else {
+                if (nfiStatusDiv) {
+                    nfiStatusDiv.innerHTML = `
+                        <div style="padding:8px 10px; background:#fefce8; border:1px solid #fef08a; border-radius:8px; font-size:12px; color:#854d0e;">
+                            ⚠️ Notice of Formative Intervention (NFI) not attached yet.
+                        </div>
+                    `;
+                }
+                if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '📋 Upload Notice of Formative Intervention (NFI)';
+            }
         }
 
         // --- Dismissal details ---
