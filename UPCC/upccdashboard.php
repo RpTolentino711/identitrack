@@ -237,8 +237,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
           <span class="t-sub">—</span>
         <?php endif; ?>
       </td>
-      <td style="padding: 12px 16px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%;">
+      <td style="padding: 12px 16px; min-width: 180px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-width: 170px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <?php if ($accepted): ?>
               <?php if ($c['hearing_is_open'] == 1 && $accessGranted): ?>
@@ -267,7 +267,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
             <?php endif; ?>
           </div>
           <?php if ($isResolved): ?>
-            <button onclick="event.stopPropagation(); dismissResolvedCase(<?php echo (int)$c['case_id']; ?>)" title="Dismiss case" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.2s; pointer-events: auto; flex-shrink: 0; margin-left: 16px;" onmouseover="this.style.background='rgba(239, 68, 68, 0.4)';" onmouseout="this.style.background='rgba(239, 68, 68, 0.2)';">&times;</button>
+            <button onclick="event.stopPropagation(); dismissResolvedCase(<?php echo (int)$c['case_id']; ?>)" title="Dismiss case" class="dismiss-resolved-btn">&times;</button>
           <?php endif; ?>
         </div>
       </td>
@@ -777,6 +777,30 @@ body::before {
 .badge-warning { background: rgba(245, 158, 11, 0.1); color: #fcd34d; border-color: rgba(245, 158, 11, 0.2); }
 .badge-online { background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.3); color: #c7d2fe; padding: 3px 8px; font-size:10px; border-radius: 6px;}
 
+.dismiss-resolved-btn {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  margin-left: 20px;
+  pointer-events: auto;
+}
+.dismiss-resolved-btn:hover {
+  background: rgba(239, 68, 68, 0.45);
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
 .action-btn {
   background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
   color: white; border: none; padding: 8px 16px; border-radius: 8px;
@@ -1087,7 +1111,7 @@ body::before {
                   <th>Respondent</th>
                   <th>Offenses</th>
                   <th>Hearing</th>
-                  <th>Status</th>
+                  <th style="min-width: 180px;">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -1222,8 +1246,8 @@ body::before {
                       <span class="t-sub">—</span>
                     <?php endif; ?>
                   </td>
-                  <td style="padding: 12px 16px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%;">
+                  <td style="padding: 12px 16px; min-width: 180px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-width: 170px;">
                       <div style="display: flex; align-items: center; gap: 8px;">
                         <?php if ($accepted): ?>
                           <?php if ($c['hearing_is_open'] == 1 && $accessGranted): ?>
@@ -1252,7 +1276,7 @@ body::before {
                         <?php endif; ?>
                       </div>
                       <?php if ($isResolved): ?>
-                        <button onclick="event.stopPropagation(); dismissResolvedCase(<?php echo (int)$c['case_id']; ?>)" title="Dismiss case" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.2s; pointer-events: auto; flex-shrink: 0; margin-left: 16px;" onmouseover="this.style.background='rgba(239, 68, 68, 0.4)';" onmouseout="this.style.background='rgba(239, 68, 68, 0.2)';">&times;</button>
+                        <button onclick="event.stopPropagation(); dismissResolvedCase(<?php echo (int)$c['case_id']; ?>)" title="Dismiss case" class="dismiss-resolved-btn">&times;</button>
                       <?php endif; ?>
                     </div>
                   </td>
