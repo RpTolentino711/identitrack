@@ -109,11 +109,14 @@ $dismissedOffensesRow = db_one(
   [$monthStart, $monthEnd]
 );
 
-$dismissedCasesRow = db_one(
+$dismissedUnlinkedCasesRow = db_one(
   "SELECT COUNT(*) AS cnt
-   FROM upcc_case
-   WHERE status = 'DISMISSED'
-     AND created_at BETWEEN ? AND ?",
+   FROM upcc_case uc
+   JOIN student s ON s.student_id = uc.student_id
+   WHERE uc.status = 'DISMISSED'
+     AND uc.created_at BETWEEN ? AND ?
+     AND uc.case_id NOT IN (SELECT DISTINCT case_id FROM upcc_case_offense WHERE case_id IS NOT NULL)
+     $audienceClause",
   [$monthStart, $monthEnd]
 );
 
@@ -150,7 +153,7 @@ foreach ($hRecords as $hr) {
 $totalCount = (int)($totalRow['cnt'] ?? 0) + $hTotal;
 $minorCount = (int)($minorRow['cnt'] ?? 0) + $hMinor;
 $majorCount = (int)($majorRow['cnt'] ?? 0) + $hMajor;
-$dismissedCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + (int)($dismissedCasesRow['cnt'] ?? 0) + $hDismissed;
+$dismissedCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + (int)($dismissedUnlinkedCasesRow['cnt'] ?? 0) + $hDismissed;
 
 // Active UPCC cases count (filtered by chosen month date range and audience)
 if ($monthStart === '1970-01-01 00:00:00') {

@@ -155,15 +155,18 @@ $dismissedRow = db_one(
   [':start' => $monthStart, ':end' => $monthEnd]
 );
 
-$dismissedCasesRow = db_one(
+$dismissedUnlinkedCasesRow = db_one(
   "SELECT COUNT(*) AS cnt
-   FROM upcc_case
-   WHERE status = 'DISMISSED'
-     AND created_at BETWEEN :start AND :end",
+   FROM upcc_case uc
+   JOIN student s ON s.student_id = uc.student_id
+   WHERE uc.status = 'DISMISSED'
+     AND uc.created_at BETWEEN :start AND :end
+     AND uc.case_id NOT IN (SELECT DISTINCT case_id FROM upcc_case_offense WHERE case_id IS NOT NULL)
+     $audienceClause",
   [':start' => $monthStart, ':end' => $monthEnd]
 );
 
-$dismissedCount = (int)($dismissedRow['cnt'] ?? 0) + (int)($dismissedCasesRow['cnt'] ?? 0);
+$dismissedCount = (int)($dismissedRow['cnt'] ?? 0) + (int)($dismissedUnlinkedCasesRow['cnt'] ?? 0);
 
 // 2. Fetch stats
 $total = count($rows);
