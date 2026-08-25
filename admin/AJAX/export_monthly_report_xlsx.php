@@ -372,6 +372,26 @@ try {
     $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
     $caseKind = strtoupper((string)($r['case_kind'] ?? ''));
 
+    // Track sequence of minor offenses for this student up to this offense date
+    $seqCount = 0;
+    if ($offenseLevel === 'MINOR') {
+        $seqCount = (int)(db_one(
+            "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = ? AND date_committed <= ? AND status <> 'VOID'",
+            [$r['student_id'], $r['date_committed']]
+        )['cnt'] ?? 1);
+    }
+
+    $displayLevel = $offenseLevel;
+    if ($offenseLevel === 'MINOR') {
+        if ($seqCount === 2) {
+            $displayLevel = '2ND MINOR WARNING';
+        } elseif ($seqCount === 1) {
+            $displayLevel = '1ST MINOR';
+        } elseif ($seqCount >= 3) {
+            $displayLevel = '3RD MINOR (Section 4)';
+        }
+    }
+
     // Compute Sanction / Penalty string according to NU Lipa Discipline Handbook
     $sanctionStr = '';
     if ($caseStatus === 'DISMISSED' || strtoupper((string)($r['status'] ?? '')) === 'DISMISSED') {
@@ -380,12 +400,6 @@ try {
         $catStr = !empty($r['decided_category']) ? "Category {$r['decided_category']}" : "Decided";
         $sanctionStr = "{$catStr}: " . (string)$r['final_decision'];
     } elseif ($offenseLevel === 'MINOR') {
-        // Track sequence of minor offenses for this student up to this offense date
-        $seqCount = (int)(db_one(
-            "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = ? AND date_committed <= ?",
-            [$r['student_id'], $r['date_committed']]
-        )['cnt'] ?? 1);
-
         if ($seqCount === 1) {
             $interv = !empty($r['intervention_first']) ? " - " . $r['intervention_first'] : "";
             $sanctionStr = "1st Minor Offense (Written Warning & Form F-005 Notice to Explain{$interv})";
@@ -406,7 +420,7 @@ try {
     $sheet->setCellValue('C' . $rowIndex, (string)($r['student_name'] ?? ''));
     $sheet->setCellValue('D' . $rowIndex, (string)($r['program'] ?? ''));
     $sheet->setCellValue('E' . $rowIndex, (string)($r['section'] ?? ''));
-    $sheet->setCellValue('F' . $rowIndex, (string)($r['offense_level'] ?? ''));
+    $sheet->setCellValue('F' . $rowIndex, $displayLevel);
     $sheet->setCellValue('G' . $rowIndex, (string)($r['offense_code'] ?? ''));
     $sheet->setCellValue('H' . $rowIndex, (string)($r['offense_name'] ?? ''));
     $sheet->setCellValue('I' . $rowIndex, (string)($r['status'] ?? ''));
@@ -441,6 +455,15 @@ try {
         $sheet->getStyle('L' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]
+        ]);
+    } elseif ($displayLevel === '2ND MINOR WARNING') {
+        $sheet->getStyle('F' . $rowIndex)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FFC2410C']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFEDD5']]
+        ]);
+        $sheet->getStyle('L' . $rowIndex)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FFC2410C']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFEDD5']]
         ]);
     } else { // Minor Offense
         $sheet->getStyle('F' . $rowIndex)->applyFromArray([
