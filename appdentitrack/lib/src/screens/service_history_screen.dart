@@ -469,7 +469,12 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
     final hoursStr = _calculateHoursPrecise(session.timeIn, session.timeOut);
     final isCompleted = session.timeOut.isNotEmpty;
     final taskName = _getRequirementName(session.requirementId);
-    final location = _getRequirementLocation(session.requirementId);
+    final rawReqLoc = _getRequirementLocation(session.requirementId);
+    final location = session.sdoNotes.trim().isNotEmpty
+        ? session.sdoNotes.trim()
+        : (rawReqLoc.trim().isNotEmpty && rawReqLoc.trim() != 'To be assigned by SDO/Admin'
+            ? rawReqLoc.trim()
+            : 'Assigned by SDO');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

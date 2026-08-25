@@ -232,7 +232,9 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
               pos.longitude,
             );
 
-            if (distMeters < 4.0) {
+            // Indoor GPS drift fluctuates by 5-12m while flat on a table.
+            // If movement over 15s is under 15m OR speed is under 0.6 m/s, it counts as stationary / table rest:
+            if (distMeters < 15.0 || pos.speed < 0.6) {
               _stationarySeconds += 15;
               if (_stationarySeconds >= 300) { // 5 minutes of no movement!
                 _triggerStationaryPause();
