@@ -371,6 +371,8 @@ try {
     $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
     $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
     $caseKind = strtoupper((string)($r['case_kind'] ?? ''));
+    $offenseStatus = strtoupper((string)($r['status'] ?? ''));
+    $decidedCat = (int)($r['decided_category'] ?? 0);
 
     // Track sequence of minor offenses for this student up to this offense date
     $seqCount = 0;
@@ -381,24 +383,40 @@ try {
         )['cnt'] ?? 1);
     }
 
+    $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
+
     $displayLevel = $offenseLevel;
-    if ($offenseLevel === 'MINOR') {
+    if ($isDismissed) {
+        $displayLevel = 'DISMISSED';
+    } elseif ($decidedCat > 0) {
+        $displayLevel = "MAJOR (CATEGORY {$decidedCat})";
+    } elseif ($offenseLevel === 'MAJOR' || $seqCount >= 3) {
+        $displayLevel = ($seqCount >= 3) ? 'SECTION 4 MAJOR' : 'MAJOR';
+    } elseif ($offenseLevel === 'MINOR') {
         if ($seqCount === 2) {
             $displayLevel = '2ND MINOR WARNING';
         } elseif ($seqCount === 1) {
-            $displayLevel = '1ST MINOR';
-        } elseif ($seqCount >= 3) {
-            $displayLevel = '3RD MINOR (Section 4)';
+            $displayLevel = '1ST MINOR WARNING';
+        } else {
+            $displayLevel = 'MINOR WARNING';
         }
     }
 
     // Compute Sanction / Penalty string according to NU Lipa Discipline Handbook
     $sanctionStr = '';
-    if ($caseStatus === 'DISMISSED' || strtoupper((string)($r['status'] ?? '')) === 'DISMISSED') {
+    if ($isDismissed) {
         $sanctionStr = 'Case / Offense Dismissed (No Sanction Imposed)';
-    } elseif (!empty($r['final_decision'])) {
-        $catStr = !empty($r['decided_category']) ? "Category {$r['decided_category']}" : "Decided";
-        $sanctionStr = "{$catStr}: " . (string)$r['final_decision'];
+    } elseif (!empty($r['final_decision']) || $decidedCat > 0) {
+        $catDescriptions = [
+            1 => 'Category 1 (Formative Intervention & Written Warning)',
+            2 => 'Category 2 (Formative Intervention & Community Service 5-10 Hours)',
+            3 => 'Category 3 (Community Service 15-30 Hours / Short Suspension 1-3 Days)',
+            4 => 'Category 4 (Extended Suspension 5-15 Days / Semester)',
+            5 => 'Category 5 (Non-Readmission / Exclusion from NU Lipa)'
+        ];
+        $catLabel = $catDescriptions[$decidedCat] ?? ($decidedCat > 0 ? "Category {$decidedCat}" : "Decided Major Case");
+        $decisionText = !empty($r['final_decision']) ? " - " . (string)$r['final_decision'] : "";
+        $sanctionStr = "{$catLabel}{$decisionText}";
     } elseif ($offenseLevel === 'MINOR') {
         if ($seqCount === 1) {
             $interv = !empty($r['intervention_first']) ? " - " . $r['intervention_first'] : "";
@@ -429,7 +447,7 @@ try {
     $sheet->setCellValue('L' . $rowIndex, $sanctionStr);
 
     // Apply color styling to Level (F) & Sanction (L) cells based on offense & sanction level
-    if ($caseStatus === 'DISMISSED' || strtoupper((string)($r['status'] ?? '')) === 'DISMISSED') {
+    if ($isDismissed) { // GRAY
         $sheet->getStyle('F' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF475569']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]
@@ -438,7 +456,7 @@ try {
             'font' => ['bold' => true, 'color' => ['argb' => 'FF475569']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]
         ]);
-    } elseif (!empty($r['final_decision'])) {
+    } elseif ($decidedCat > 0 || !empty($r['final_decision'])) { // GREEN (Resolved Category 1-5)
         $sheet->getStyle('F' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]
@@ -447,7 +465,7 @@ try {
             'font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]
         ]);
-    } elseif ($offenseLevel === 'MAJOR' || strpos($sanctionStr, 'Section 4') !== false) {
+    } elseif ($offenseLevel === 'MAJOR' || strpos($displayLevel, 'SECTION 4') !== false || $seqCount >= 3) { // RED (Major / Section 4)
         $sheet->getStyle('F' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]
@@ -456,23 +474,14 @@ try {
             'font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]
         ]);
-    } elseif ($displayLevel === '2ND MINOR WARNING') {
+    } else { // YELLOW (1st Minor Warning / 2nd Minor Warning)
         $sheet->getStyle('F' . $rowIndex)->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['argb' => 'FFC2410C']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFEDD5']]
+            'font' => ['bold' => true, 'color' => ['argb' => 'FF854D0E']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF08A']]
         ]);
         $sheet->getStyle('L' . $rowIndex)->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['argb' => 'FFC2410C']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFEDD5']]
-        ]);
-    } else { // Minor Offense
-        $sheet->getStyle('F' . $rowIndex)->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['argb' => 'FFB45309']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF3C7']]
-        ]);
-        $sheet->getStyle('L' . $rowIndex)->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['argb' => 'FFB45309']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF3C7']]
+            'font' => ['bold' => true, 'color' => ['argb' => 'FF854D0E']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF08A']]
         ]);
     }
 
