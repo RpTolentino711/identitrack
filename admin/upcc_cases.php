@@ -1168,28 +1168,29 @@ function fmt_case_id(int $id, string $created): string {
             box-shadow: 0 2px 8px rgba(20,36,74,0.05); 
             padding: 0; 
             min-height: 200px; 
-            max-height: calc(100vh - 140px);
-            overflow-y: auto;
+            max-height: calc(100vh - 220px);
+            overflow-y: scroll;
             position: sticky;
             top: 20px;
-            scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 rgba(241, 245, 249, 0.6);
+            scrollbar-width: auto;
+            scrollbar-color: #94a3b8 #f1f5f9;
         }
         .detail-pane::-webkit-scrollbar {
-            width: 7px;
+            width: 10px;
         }
         .detail-pane::-webkit-scrollbar-track {
-            background: rgba(241, 245, 249, 0.6);
+            background: #f1f5f9;
             border-radius: 8px;
         }
         .detail-pane::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 8px;
-            transition: background 0.2s ease;
-        }
-        .detail-pane:hover::-webkit-scrollbar-thumb {
             background: #94a3b8;
+            border-radius: 8px;
+            border: 2px solid #f1f5f9;
         }
+        .detail-pane::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .detail-content { display: none; padding-bottom: 30px; }
         .detail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 160px; color: #bbb; padding: 40px; }
         .detail-empty svg { width: 44px; height: 44px; opacity: .4; }
         .detail-content { display: none; }
