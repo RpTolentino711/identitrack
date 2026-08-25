@@ -209,9 +209,9 @@ foreach ($members as $m) {
 // ── Case Dismissal Email Helpers ──────────────────────────────
 function send_case_dismissal_email_to_student(string $studentEmail, string $studentName, int $caseId, string $reason): bool {
     if (empty($studentEmail)) return false;
-    if (!file_exists(__DIR__ . '/class.phpmailer.php')) return false;
-    require_once __DIR__ . '/class.phpmailer.php';
-    require_once __DIR__ . '/class.smtp.php';
+    if (!file_exists(__DIR__ . '/../UPCC/class.phpmailer.php')) return false;
+    require_once __DIR__ . '/../UPCC/class.phpmailer.php';
+    require_once __DIR__ . '/../UPCC/class.smtp.php';
     try {
         $mail = new PHPMailer(true);
         $mail->CharSet = 'UTF-8';
@@ -255,9 +255,9 @@ function send_case_dismissal_email_to_student(string $studentEmail, string $stud
 
 function send_case_dismissal_email_to_panel(string $panelEmail, string $panelName, int $caseId, string $studentId, string $reason): bool {
     if (empty($panelEmail)) return false;
-    if (!file_exists(__DIR__ . '/class.phpmailer.php')) return false;
-    require_once __DIR__ . '/class.phpmailer.php';
-    require_once __DIR__ . '/class.smtp.php';
+    if (!file_exists(__DIR__ . '/../UPCC/class.phpmailer.php')) return false;
+    require_once __DIR__ . '/../UPCC/class.phpmailer.php';
+    require_once __DIR__ . '/../UPCC/class.smtp.php';
     try {
         $mail = new PHPMailer(true);
         $mail->CharSet = 'UTF-8';
@@ -2722,6 +2722,7 @@ function selectCase(row) {
         const isPending  = (status === 'PENDING');
         const isInvestigating = (status === 'UNDER_INVESTIGATION');
         const isClosedStatus = (status === 'CLOSED' || status === 'RESOLVED' || status === 'CANCELLED' || status === 'SOLVED');
+        const isFinishedCase = ['CLOSED', 'RESOLVED', 'DISMISSED', 'CANCELLED', 'VOID'].includes(status); // FIXED: was statusRaw
         const isActiveCase = isPending || isInvestigating;
 
         // Header
@@ -2811,13 +2812,13 @@ function selectCase(row) {
         if (elAssign) elAssign.textContent = assignmentLabel;
 
         const studentResponse = (row.dataset.studentHearingResponse || 'PENDING').toUpperCase();
-        const isFinishedCase = ['CLOSED', 'RESOLVED', 'DISMISSED', 'CANCELLED', 'VOID'].includes(statusRaw);
+        const isFinishedCaseStatus = ['CLOSED', 'RESOLVED', 'DISMISSED', 'CANCELLED', 'VOID'].includes(status);
         let rsvpBadge = '';
         if (studentResponse === 'ACCEPTED') {
             rsvpBadge = ' <span style="font-size:11px; font-weight:800; color:#15803d; background:#dcfce7; border:1px solid #86efac; padding:1px 6px; border-radius:6px; margin-left:6px;">✅ Will Attend</span>';
         } else if (studentResponse === 'DECLINED') {
             rsvpBadge = ' <span style="font-size:11px; font-weight:800; color:#dc2626; background:#fee2e2; border:1px solid #fca5a5; padding:1px 6px; border-radius:6px; margin-left:6px;">❌ Will Not Attend</span>';
-        } else if (hearingScheduled && !isFinishedCase) {
+        } else if (hearingScheduled && !isFinishedCaseStatus) {
             rsvpBadge = ' <span style="font-size:11px; font-weight:700; color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:1px 6px; border-radius:6px; margin-left:6px;">⏳ RSVP Pending</span>';
         }
 
@@ -2967,7 +2968,7 @@ function selectCase(row) {
                                 <span style="font-size:22px; line-height:1;">📋</span>
                                 <div style="flex:1; min-width:0;">
                                     <div style="font-size:12px; font-weight:800; color:#1e40af;">Notice of Formative Intervention (NFI) Attached</div>
-                                    <div style="font-size:11px; color:#1d4ed8; margin-top:2px;">Official Formative Intervention document</div>
+                                    <div style="font-size:11px; color:#1d4ed8; margin-top:2px;">Official Formative Intervention document (Category ${catNum})</div>
                                     ${nfiDateFormatted ? `<div style="font-size:11px; font-weight:600; color:#1e40af; margin-top:5px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>🕒</span> <span>Submitted: <strong>${safeHtml(nfiDateFormatted)}</strong></span></div>` : ''}
                                     <div style="margin-top:10px;">
                                         <a href="${safeHtml(nfiFilePath)}" target="_blank" download style="padding:5px 12px; background:#1d4ed8; color:#ffffff; font-size:11px; font-weight:700; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">👁️ View NFI Document</a>
