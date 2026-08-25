@@ -2966,7 +2966,7 @@ function selectCase(row) {
                     if (nfiStatusDiv) {
                         nfiStatusDiv.innerHTML = `
                             <div style="padding:12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; position:relative; box-sizing:border-box; width:100%;">
-                                <button type="button" onclick="document.querySelector('#real-nfi-upload-form input[type=\'file\']').click()" title="Select new NFI document to replace current" style="position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; z-index:2;">✕</button>
+                                <button type="button" onclick="confirmRemoveNfiFile('${safeHtml(caseId)}')" title="Reupload / Replace NFI" style="position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:6px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; z-index:2;">✕</button>
                                 <div style="display:flex; align-items:flex-start; gap:10px; padding-right:32px;">
                                     <span style="font-size:22px; line-height:1;">📋</span>
                                     <div style="flex:1; min-width:0;">
@@ -2982,6 +2982,7 @@ function selectCase(row) {
                         `;
                     }
                     if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '🔄 Reupload NFI Document';
+                    if (nfiUploadForm) nfiUploadForm.style.display = 'none';
                 } else {
                     if (nfiStatusDiv) {
                         nfiStatusDiv.innerHTML = `
@@ -2991,6 +2992,7 @@ function selectCase(row) {
                         `;
                     }
                     if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '📋 Upload Notice of Formative Intervention (NFI)';
+                    if (nfiUploadForm) nfiUploadForm.style.display = 'block';
                 }
             }
         }
