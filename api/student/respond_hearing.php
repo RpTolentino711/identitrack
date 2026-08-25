@@ -32,6 +32,12 @@ $studentId = trim((string)($body['student_id'] ?? ''));
 $caseId = (int)($body['case_id'] ?? 0);
 $response = strtoupper(trim((string)($body['response'] ?? '')));
 
+if (in_array($response, ['WILL_ATTEND', 'ATTEND', 'ACCEPT', 'ACCEPTED', 'YES'], true)) {
+    $response = 'ACCEPTED';
+} elseif (in_array($response, ['WILL_NOT_ATTEND', 'NOT_ATTEND', 'DECLINE', 'DECLINED', 'NO'], true)) {
+    $response = 'DECLINED';
+}
+
 if ($studentId === '' || $caseId <= 0 || !in_array($response, ['ACCEPTED', 'DECLINED'], true)) {
   json_out(false, 'student_id, case_id, and response (ACCEPTED or DECLINED) are required.', null, 400);
 }
@@ -51,11 +57,15 @@ if (!$case) {
     json_out(false, 'Case not found or belongs to another student.', null, 404);
 }
 
-if (!in_array($case['status'], ['PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL'], true)) {
-    json_out(false, 'Hearing schedule cannot be updated for this case state.', null, 400);
+if (in_array(strtoupper((string)$case['status']), ['CLOSED', 'DISMISSED', 'CANCELLED', 'VOID'], true)) {
+    json_out(false, 'Hearing schedule cannot be updated for closed or dismissed cases.', null, 400);
 }
 
-db_exec("UPDATE upcc_case SET student_hearing_response = :resp WHERE case_id = :cid", [
+try {
+    db_exec("ALTER TABLE upcc_case MODIFY COLUMN student_hearing_response ENUM('PENDING','ACCEPTED','DECLINED') NOT NULL DEFAULT 'PENDING'");
+} catch (\Throwable $exSchema) {}
+
+db_exec("UPDATE upcc_case SET student_hearing_response = :resp, updated_at = NOW() WHERE case_id = :cid", [
     ':resp' => $response,
     ':cid' => $caseId
 ]);

@@ -1747,6 +1747,7 @@ function fmt_case_id(int $id, string $created): string {
                                 data-hearing-time="<?= e((string)($c['hearing_time'] ?? '')) ?>"
                                 data-hearing-type="<?= e((string)($c['hearing_type'] ?? '')) ?>"
                                 data-hearing-link-loc="<?= e((string)($c['hearing_link_or_location'] ?? '')) ?>"
+                                data-student-hearing-response="<?= e((string)($c['student_hearing_response'] ?? 'PENDING')) ?>"
                                 data-hearing-label="<?= e((!empty($c['hearing_date']) && !empty($c['hearing_time'])) ? ($c['hearing_date'] . ' ' . $c['hearing_time'] . (!empty($c['hearing_type']) ? ' · ' . $c['hearing_type'] : '')) : 'No hearing scheduled') ?>"
                                 data-decided-cat="<?= $c['decided_category'] ?? '' ?>"
                                 data-final-decision="<?= e($c['final_decision'] ?? '') ?>"
@@ -1783,6 +1784,16 @@ function fmt_case_id(int $id, string $created): string {
                                 <td><?= e($dateLabel) ?></td>
                                 <td>
                                     <?= e((!empty($c['hearing_date']) && !empty($c['hearing_time'])) ? ($c['hearing_date'] . ' ' . $c['hearing_time'] . (!empty($c['hearing_type']) ? ' · ' . $c['hearing_type'] : '')) : 'No hearing scheduled') ?>
+                                    <?php
+                                    $stResp = strtoupper((string)($c['student_hearing_response'] ?? 'PENDING'));
+                                    if ($stResp === 'ACCEPTED'):
+                                    ?>
+                                        <div style="font-size:10px; font-weight:800; color:#15803d; margin-top:2px;">✅ Will Attend (Accepted)</div>
+                                    <?php elseif ($stResp === 'DECLINED'): ?>
+                                        <div style="font-size:10px; font-weight:800; color:#dc2626; margin-top:2px;">❌ Will Not Attend (Declined)</div>
+                                    <?php elseif (!empty($c['hearing_date']) && !empty($c['hearing_time'])): ?>
+                                        <div style="font-size:10px; font-weight:700; color:#b45309; margin-top:2px;">⏳ RSVP Pending</div>
+                                    <?php endif; ?>
                                 </td>
                                 <td style="white-space:nowrap;">
                                     <div style="display:inline-flex; align-items:center; gap:4px;">
@@ -2779,8 +2790,18 @@ function selectCase(row) {
         const elAssign = document.getElementById('d-assignment');
         if (elAssign) elAssign.textContent = assignmentLabel;
 
+        const studentResponse = (row.dataset.studentHearingResponse || 'PENDING').toUpperCase();
+        let rsvpBadge = '';
+        if (studentResponse === 'ACCEPTED') {
+            rsvpBadge = ' <span style="font-size:11px; font-weight:800; color:#15803d; background:#dcfce7; border:1px solid #86efac; padding:1px 6px; border-radius:6px; margin-left:6px;">✅ Will Attend</span>';
+        } else if (studentResponse === 'DECLINED') {
+            rsvpBadge = ' <span style="font-size:11px; font-weight:800; color:#dc2626; background:#fee2e2; border:1px solid #fca5a5; padding:1px 6px; border-radius:6px; margin-left:6px;">❌ Will Not Attend</span>';
+        } else if (hearingScheduled) {
+            rsvpBadge = ' <span style="font-size:11px; font-weight:700; color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:1px 6px; border-radius:6px; margin-left:6px;">⏳ RSVP Pending</span>';
+        }
+
         const elHearing = document.getElementById('d-hearing');
-        if (elHearing) elHearing.textContent = hearingLabel;
+        if (elHearing) elHearing.innerHTML = hearingLabel + rsvpBadge;
 
         const deptName = (assignedDeptId && typeof deptNames !== 'undefined' && deptNames[assignedDeptId]) ? deptNames[assignedDeptId] : (assignedDeptId ? ('Dept #' + assignedDeptId) : 'Not assigned');
         const elDept = document.getElementById('d-dept');
