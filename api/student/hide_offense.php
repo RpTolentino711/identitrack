@@ -73,9 +73,9 @@ if ($offenseId < -1000) {
     
     if ($caseCheck) {
       $cStatus = strtoupper($caseCheck['status']);
-      $isResolved = in_array($cStatus, ['RESOLVED', 'CLOSED', 'CANCELLED'], true);
+      $isResolved = in_array($cStatus, ['RESOLVED', 'CLOSED', 'CANCELLED', 'DISMISSED'], true);
       if (!$isResolved) {
-        json_out(false, 'You cannot delete this Section 4 Major Case/bundle until it has been resolved.', null, 400);
+        json_out(false, 'You cannot delete this Section 4 Major Case/bundle until it has been resolved or dismissed.', null, 400);
       }
     }
 
@@ -112,9 +112,9 @@ if ($offenseId < -1000) {
     
     if ($isMajor || $hasCase) {
       $cStatus = $caseCheck ? strtoupper($caseCheck['status']) : $oStatus;
-      $isResolved = in_array($cStatus, ['RESOLVED', 'CLOSED', 'CANCELLED'], true);
+      $isResolved = in_array($cStatus, ['RESOLVED', 'CLOSED', 'CANCELLED', 'DISMISSED'], true);
       if (!$isResolved) {
-        json_out(false, 'You cannot delete a Major Case or Major Offense until it has been resolved.', null, 400);
+        json_out(false, 'You cannot delete a Major Case or Major Offense until it has been resolved or dismissed.', null, 400);
       }
     }
   }

@@ -107,7 +107,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
 
     if (isMajorOrSection4 || hasCase) {
       final status = widget.offense.status.toUpperCase();
-      return status == 'RESOLVED' || status == 'CLOSED' || status == 'CANCELLED';
+      return status == 'RESOLVED' || status == 'CLOSED' || status == 'CANCELLED' || status == 'DISMISSED';
     }
 
     return true;
@@ -397,8 +397,7 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
     final o = widget.offense;
     if (o.upccCaseId == null) return const SizedBox.shrink();
 
-    final isDismissed = (o.status.toUpperCase() == 'DISMISSED') ||
-                        (o.upccCaseStatus != null && o.upccCaseStatus!.toUpperCase() == 'DISMISSED');
+    final isDismissed = (o.status.toUpperCase() == 'DISMISSED');
 
     if (isDismissed) {
       return Container(
