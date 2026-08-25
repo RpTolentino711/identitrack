@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/community_service_api.dart';
 import 'shared_bottom_nav.dart';
@@ -121,6 +123,18 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
     });
   }
 
+  Timer? _locationTimer;
+  Position? _lastPosition;
+  int _stationarySeconds = 0;
+  bool _shownPauseDialog = false;
+  String? _previousSessionStatus;
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     if (_data == null) {
       setState(() {
@@ -136,12 +150,40 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
       final data = await _api.getOverview(widget.studentId);
       if (!mounted) return;
 
+      final active = data.activeSession;
+      if (_previousSessionStatus == 'PAUSED' && active?.sessionStatus == 'ACTIVE') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('▶️ Your community service session has been resumed by the Admin!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+        _shownPauseDialog = false;
+      }
+      _previousSessionStatus = active?.sessionStatus;
+
       setState(() {
         _data = data;
         _congratsSeen = seen;
         _loading = false;
         _error = null;
       });
+
+      if (active != null) {
+        if (active.sessionStatus == 'PAUSED') {
+          if (!_shownPauseDialog && mounted) {
+            _shownPauseDialog = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _showPauseAlertModal(active.pauseReason);
+            });
+          }
+        } else if (active.sessionStatus == 'ACTIVE') {
+          _startLocationMonitoring();
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       if (_data == null) {
@@ -153,6 +195,161 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
         debugPrint('Silent background refresh error: $e');
       }
     }
+  }
+
+  Future<void> _startLocationMonitoring() async {
+    _locationTimer?.cancel();
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.location_off_rounded, color: Colors.orange, size: 28),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Turn On Location (GPS)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  ),
+                ],
+              ),
+              content: const Text(
+                'Your community service movement tracking requires Location (GPS). Please turn ON Location Services on your device.',
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF193B8C)),
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    await Geolocator.openLocationSettings();
+                  },
+                  child: const Text('Open Location Settings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Location permission is required to verify your community service movement.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 6),
+            ),
+          );
+        }
+      }
+
+      try {
+        _lastPosition = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        );
+      } catch (_) {}
+
+      _locationTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+        final active = _data?.activeSession;
+        if (active == null || active.sessionStatus == 'PAUSED') return;
+
+        try {
+          Position pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+          );
+
+          if (_lastPosition != null) {
+            double distMeters = Geolocator.distanceBetween(
+              _lastPosition!.latitude,
+              _lastPosition!.longitude,
+              pos.latitude,
+              pos.longitude,
+            );
+
+            if (distMeters < 15.0 || pos.speed < 0.6) {
+              _stationarySeconds += 15;
+              if (_stationarySeconds >= 300) { // 5 minutes of no movement!
+                _triggerStationaryPause();
+              }
+            } else {
+              _stationarySeconds = 0;
+              _lastPosition = pos;
+            }
+          } else {
+            _lastPosition = pos;
+          }
+        } catch (_) {
+          _stationarySeconds += 15;
+          if (_stationarySeconds >= 300) {
+            _triggerStationaryPause();
+          }
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _triggerStationaryPause() async {
+    _locationTimer?.cancel();
+    final active = _data?.activeSession;
+    if (active == null) return;
+
+    try {
+      await _api.pauseSession(
+        studentId: widget.studentId,
+        sessionId: active.sessionId,
+        reason: 'Stationary for 5 minutes',
+      );
+    } catch (_) {}
+
+    await _load();
+  }
+
+  void _showPauseAlertModal(String reason) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.pause_circle_filled_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Clock-In Paused',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          reason.isNotEmpty
+              ? 'Your clock-in has been paused ($reason).\n\nPlease contact the Admin if you want to resume your community service.'
+              : 'Your clock-in has been paused. The system sensed you stopped moving for 5 minutes.\n\nPlease contact the Admin if you want to resume your community service.',
+          style: const TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF193B8C),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatDate(String dateStr) {
