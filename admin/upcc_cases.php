@@ -1786,12 +1786,13 @@ function fmt_case_id(int $id, string $created): string {
                                     <?= e((!empty($c['hearing_date']) && !empty($c['hearing_time'])) ? ($c['hearing_date'] . ' ' . $c['hearing_time'] . (!empty($c['hearing_type']) ? ' · ' . $c['hearing_type'] : '')) : 'No hearing scheduled') ?>
                                     <?php
                                     $stResp = strtoupper((string)($c['student_hearing_response'] ?? 'PENDING'));
+                                    $isFinishedCase = in_array($statusRaw, ['CLOSED', 'RESOLVED', 'DISMISSED', 'CANCELLED', 'VOID'], true);
                                     if ($stResp === 'ACCEPTED'):
                                     ?>
                                         <div style="font-size:10px; font-weight:800; color:#15803d; margin-top:2px;">✅ Will Attend (Accepted)</div>
                                     <?php elseif ($stResp === 'DECLINED'): ?>
                                         <div style="font-size:10px; font-weight:800; color:#dc2626; margin-top:2px;">❌ Will Not Attend (Declined)</div>
-                                    <?php elseif (!empty($c['hearing_date']) && !empty($c['hearing_time'])): ?>
+                                    <?php elseif (!empty($c['hearing_date']) && !empty($c['hearing_time']) && !$isFinishedCase): ?>
                                         <div style="font-size:10px; font-weight:700; color:#b45309; margin-top:2px;">⏳ RSVP Pending</div>
                                     <?php endif; ?>
                                 </td>
@@ -2791,12 +2792,13 @@ function selectCase(row) {
         if (elAssign) elAssign.textContent = assignmentLabel;
 
         const studentResponse = (row.dataset.studentHearingResponse || 'PENDING').toUpperCase();
+        const isFinishedCase = ['CLOSED', 'RESOLVED', 'DISMISSED', 'CANCELLED', 'VOID'].includes(statusRaw);
         let rsvpBadge = '';
         if (studentResponse === 'ACCEPTED') {
             rsvpBadge = ' <span style="font-size:11px; font-weight:800; color:#15803d; background:#dcfce7; border:1px solid #86efac; padding:1px 6px; border-radius:6px; margin-left:6px;">✅ Will Attend</span>';
         } else if (studentResponse === 'DECLINED') {
             rsvpBadge = ' <span style="font-size:11px; font-weight:800; color:#dc2626; background:#fee2e2; border:1px solid #fca5a5; padding:1px 6px; border-radius:6px; margin-left:6px;">❌ Will Not Attend</span>';
-        } else if (hearingScheduled) {
+        } else if (hearingScheduled && !isFinishedCase) {
             rsvpBadge = ' <span style="font-size:11px; font-weight:700; color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:1px 6px; border-radius:6px; margin-left:6px;">⏳ RSVP Pending</span>';
         }
 
