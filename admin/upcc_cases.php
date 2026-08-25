@@ -1168,27 +1168,26 @@ function fmt_case_id(int $id, string $created): string {
             box-shadow: 0 2px 8px rgba(20,36,74,0.05); 
             padding: 0; 
             min-height: 200px; 
-            max-height: calc(100vh - 220px);
+            max-height: 500px;
             overflow-y: scroll;
             position: sticky;
             top: 20px;
-            scrollbar-width: auto;
-            scrollbar-color: #94a3b8 #f1f5f9;
+            scrollbar-width: thin;
+            scrollbar-color: #64748b #f1f5f9;
         }
         .detail-pane::-webkit-scrollbar {
-            width: 10px;
+            width: 8px;
         }
         .detail-pane::-webkit-scrollbar-track {
             background: #f1f5f9;
             border-radius: 8px;
         }
         .detail-pane::-webkit-scrollbar-thumb {
-            background: #94a3b8;
+            background: #64748b;
             border-radius: 8px;
-            border: 2px solid #f1f5f9;
         }
         .detail-pane::-webkit-scrollbar-thumb:hover {
-            background: #475569;
+            background: #334155;
         }
         .detail-content { display: none; padding-bottom: 30px; }
         .detail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 160px; color: #bbb; padding: 40px; }
