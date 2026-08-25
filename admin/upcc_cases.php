@@ -853,7 +853,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                         send_upcc_case_resolution_email($case_id);
 
-                        header("Location: upcc_cases.php?msg=nfi_uploaded");
+                        header("Location: upcc_cases.php?msg=nfi_uploaded&case_id=" . $case_id);
                         exit;
                     } else {
                         $regError = 'Failed to save uploaded NFI file.';
@@ -3723,6 +3723,18 @@ function handleDismissFormSubmit(form) {
 window.triggerDismissCaseModal = triggerDismissCaseModal;
 window.closeDismissModal1 = closeDismissModal1;
 window.handleDismissFormSubmit = handleDismissFormSubmit;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetCaseId = urlParams.get('case_id');
+    if (targetCaseId) {
+        const row = document.querySelector(`#cases-table tbody tr[data-case-id="${CSS.escape(targetCaseId)}"]`);
+        if (row) {
+            selectCase(row);
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+});
 </script>
 
 <!-- DISMISS CASE MODAL: Single Direct Confirmation -->
