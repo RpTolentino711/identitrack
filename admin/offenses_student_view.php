@@ -1821,7 +1821,14 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                         <?php endforeach; ?>
                       </div>
                       
-                      <?php if (in_array($caseStatus, ['RESOLVED', 'CLOSED', 'UNDER_APPEAL', 'CANCELLED', 'VOID'], true) && $caseStatus !== 'DISMISSED'): ?>
+                      <?php if ($caseStatus === 'DISMISSED'): ?>
+                        <div style="margin-top:14px; margin-bottom:14px; padding:10px 14px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:800; color:#475569;">
+                          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;color:#64748b;">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                          </svg>
+                          DISMISSED
+                        </div>
+                      <?php elseif (in_array($caseStatus, ['RESOLVED', 'CLOSED', 'UNDER_APPEAL', 'CANCELLED', 'VOID'], true)): ?>
                         <?php 
                           $punish = json_decode($groupData['case_punishment'] ?? '{}', true) ?? []; 
                           $catNum = (int)($groupData['case_category'] ?? 0);
@@ -2065,13 +2072,14 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                         <div class="off-desc"><?php echo e((string)$h['description']); ?></div>
                       <?php endif; ?>
                       
-                      <?php 
-                        if (in_array($ucStatus, ['RESOLVED', 'CLOSED', 'UNDER_APPEAL', 'CANCELLED', 'VOID'], true) && $ucStatus !== 'DISMISSED'): 
-                          $punish = json_decode($h['uc_punishment'] ?? '{}', true) ?? []; 
-                          $catNum = (int)($h['uc_category'] ?? 0);
-                          $catTitle = $catNum > 0 ? "Category {$catNum}" : "";
-                          $decisionText = $h['uc_decision'] ?: ($catTitle ? "Panel consensus adopted for {$catTitle}." : 'Panel decision finalized.');
-                      ?>
+                      <?php if ($ucStatus === 'DISMISSED'): ?>
+                        <div style="margin-top:14px; margin-bottom:14px; padding:10px 14px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:800; color:#475569;">
+                          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;color:#64748b;">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                          </svg>
+                          DISMISSED
+                        </div>
+                      <?php elseif (in_array($ucStatus, ['RESOLVED', 'CLOSED', 'UNDER_APPEAL', 'CANCELLED', 'VOID'], true)): ?>
                         <div style="margin-top:16px; margin-bottom:16px; padding:12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
                           <div style="font-size:11px; font-weight:800; color:#15803d; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;vertical-align:text-bottom;margin-right:4px;"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
