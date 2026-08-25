@@ -1864,6 +1864,21 @@ function fmt_case_id(int $id, string $created): string {
                             <div class="detail-summary-label">Case Summary</div>
                             <div id="d-summary"></div>
                         </div>
+
+                        <!-- Notice of Formative Intervention (NFI) Box at Top -->
+                        <div id="nfi-upload-container" style="display:none; margin:0 20px 14px; padding:14px; background:#fff; border:1px solid #bfdbfe; border-radius:12px; box-shadow:0 2px 6px rgba(37,99,235,0.08);">
+                            <div class="divider-label" id="nfi-doc-title" style="margin-top:0;">Notice of Formative Intervention (NFI)</div>
+                            <div id="nfi-doc-status" style="margin-bottom:10px;"></div>
+                            <form method="post" action="upcc_cases.php" enctype="multipart/form-data" id="real-nfi-upload-form" onsubmit="return handleNfiUploadSubmit(event)">
+                                <input type="hidden" name="action" value="upload_nfi">
+                                <input type="hidden" name="case_id" id="upload_nfi_case_id">
+                                <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">Attach/Reupload Notice of Formative Intervention (PDF, PNG, JPG, DOCX):</div>
+                                <input type="file" name="nfi_file" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc" required style="width:100%; font-size:12px; margin-bottom:10px; padding:6px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;">
+                                <button type="submit" class="btn-primary" style="width:100%; padding:9px 14px; font-size:13px; background:#2563eb; color:#fff; border-radius:8px; border:none; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;">
+                                    <span id="btn-upload-nfi-label">📋 Upload Notice of Formative Intervention (NFI)</span>
+                                </button>
+                            </form>
+                        </div>
                         <div class="detail-body">
                             <div class="detail-row"><span class="detail-row-label">Offense</span><span class="detail-row-value" id="d-offense"></span></div>
                             <div class="detail-row"><span class="detail-row-label">Category</span><span class="detail-row-value" id="d-category"></span></div>
@@ -1920,19 +1935,6 @@ function fmt_case_id(int $id, string $created): string {
                                 </form>
                             </div>
 
-                            <div id="nfi-upload-container" style="display:none; margin-top:14px; padding-top:14px; border-top:1px dashed #cbd5e1;">
-                                <div class="divider-label" id="nfi-doc-title">Notice of Formative Intervention (NFI)</div>
-                                <div id="nfi-doc-status" style="margin-bottom:10px;"></div>
-                                <form method="post" action="upcc_cases.php" enctype="multipart/form-data" id="real-nfi-upload-form" onsubmit="return handleNfiUploadSubmit(event)">
-                                    <input type="hidden" name="action" value="upload_nfi">
-                                    <input type="hidden" name="case_id" id="upload_nfi_case_id">
-                                    <div style="font-size:12px; font-weight:600; color:#475569; margin-bottom:6px;">Attach/Reupload Notice of Formative Intervention (PDF, PNG, JPG, DOCX):</div>
-                                    <input type="file" name="nfi_file" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc" required style="width:100%; font-size:12px; margin-bottom:10px; padding:6px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;">
-                                    <button type="submit" class="btn-primary" style="width:100%; padding:9px 14px; font-size:13px; background:#2563eb; color:#fff; border-radius:8px; border:none; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;">
-                                        <span id="btn-upload-nfi-label">📋 Upload Notice of Formative Intervention (NFI)</span>
-                                    </button>
-                                </form>
-                            </div>
 
                             <!-- Dismissal Info Box for DISMISSED cases -->
                             <div id="dismissal-details-div" style="display:none; margin-top:14px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:14px; color:#1e293b; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
