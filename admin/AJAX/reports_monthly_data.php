@@ -185,8 +185,10 @@ $breakdownRows = db_all(
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
+   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ?
-   $audienceClause $dismissClause
+   $activeFilter
    GROUP BY ot.offense_type_id, ot.name, ot.code, ot.level
    ORDER BY cnt DESC, ot.name ASC",
   [$monthStart, $monthEnd]
@@ -240,8 +242,10 @@ $courses = db_all(
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
+   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ?
-   $audienceClause $dismissClause
+   $activeFilter
    GROUP BY program
    ORDER BY cnt DESC, program ASC
    LIMIT 8",
@@ -267,8 +271,10 @@ $sectionRows = db_all(
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
+   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ?
-   $audienceClause $dismissClause
+   $activeFilter
    GROUP BY program, section
    ORDER BY program ASC, cnt DESC, section ASC",
   [$monthStart, $monthEnd]

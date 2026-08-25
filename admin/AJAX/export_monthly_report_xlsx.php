@@ -423,9 +423,9 @@ try {
             $sanctionStr = "1st Minor Offense (Written Warning & Form F-005 Notice to Explain{$interv})";
         } elseif ($seqCount === 2) {
             $interv = !empty($r['intervention_second']) ? " - " . $r['intervention_second'] : "";
-            $sanctionStr = "2nd Minor Offense (2nd Written Notice & Guardian Conference{$interv})";
+            $sanctionStr = "2nd Minor Offense (2nd Minor Warning & Guardian Notified / Conference Required{$interv})";
         } else {
-            $sanctionStr = "3rd Minor Offense — Section 4 Escalation (UPCC Major Committee Hearing & Sanction)";
+            $sanctionStr = "3rd Minor Offense — Section 4 Escalation (UPCC Hearing & Committee Required)";
         }
     } elseif ($offenseLevel === 'MAJOR') {
         $sanctionStr = "Major Offense (Pending UPCC Committee Hearing & Sanction)";
