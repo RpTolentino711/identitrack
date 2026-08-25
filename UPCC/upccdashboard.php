@@ -237,35 +237,39 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
           <span class="t-sub">—</span>
         <?php endif; ?>
       </td>
-      <td style="position: relative;">
-        <?php if ($isResolved): ?>
-          <button onclick="event.stopPropagation(); dismissResolvedCase(<?php echo (int)$c['case_id']; ?>)" title="Dismiss case" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; font-weight: bold; cursor: pointer; z-index: 20; transition: all 0.2s; pointer-events: auto;">&times;</button>
-        <?php endif; ?>
-        <?php if ($accepted): ?>
-          <?php if ($c['hearing_is_open'] == 1 && $accessGranted): ?>
-            <button class="action-btn" style="background:#10b981; pointer-events:auto;" onclick="event.stopPropagation(); window.location.href='<?php echo htmlspecialchars($href); ?>'">▶️ JOIN HEARING</button>
-          <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && !($c['hearing_is_paused'] == 1 || $adminOffline)): ?>
-            <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
-              <?php if ($myPresenceStatus === 'WAITING'): ?>
-                <span class="badge badge-warning" style="font-size:10px; padding:4px 10px; background:rgba(245, 158, 11, 0.1); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.2);">⏳ Awaiting Admin</span>
+      <td style="padding: 12px 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <?php if ($accepted): ?>
+              <?php if ($c['hearing_is_open'] == 1 && $accessGranted): ?>
+                <button class="action-btn" style="background:#10b981; pointer-events:auto;" onclick="event.stopPropagation(); window.location.href='<?php echo htmlspecialchars($href); ?>'">▶️ JOIN HEARING</button>
+              <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && !($c['hearing_is_paused'] == 1 || $adminOffline)): ?>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <?php if ($myPresenceStatus === 'WAITING'): ?>
+                    <span class="badge badge-warning" style="font-size:10px; padding:4px 10px; background:rgba(245, 158, 11, 0.1); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.2);">⏳ Awaiting Admin</span>
+                  <?php else: ?>
+                    <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 10px; background:rgba(245, 158, 11, 0.15); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.3);">🔐 CLICK TO REJOIN</button>
+                  <?php endif; ?>
+                </div>
               <?php else: ?>
-                <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 10px; background:rgba(245, 158, 11, 0.15); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.3);">🔐 CLICK TO REJOIN</button>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
+                </div>
               <?php endif; ?>
-            </div>
-          <?php else: ?>
-            <div style="display:flex; gap:8px; align-items:center; justify-content:flex-start;">
-              <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
-            </div>
-          <?php endif; ?>
-        <?php else: ?>
-          <div class="need-action-box">
-            <span class="need-action-label">⚠️ Be panel of the hearing?</span>
-            <div style="display:flex; gap:8px;">
-              <button class="action-btn" style="background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">✅ Yes</button>
-              <button class="action-btn" style="background:rgba(239, 68, 68, 0.15); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">❌ No</button>
-            </div>
+            <?php else: ?>
+              <div class="need-action-box">
+                <span class="need-action-label">⚠️ Be panel of the hearing?</span>
+                <div style="display:flex; gap:8px;">
+                  <button class="action-btn" style="background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">✅ Yes</button>
+                  <button class="action-btn" style="background:rgba(239, 68, 68, 0.15); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">❌ No</button>
+                </div>
+              </div>
+            <?php endif; ?>
           </div>
-        <?php endif; ?>
+          <?php if ($isResolved): ?>
+            <button onclick="event.stopPropagation(); dismissResolvedCase(<?php echo (int)$c['case_id']; ?>)" title="Dismiss case" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.2s; pointer-events: auto; flex-shrink: 0; margin-left: 16px;" onmouseover="this.style.background='rgba(239, 68, 68, 0.4)';" onmouseout="this.style.background='rgba(239, 68, 68, 0.2)';">&times;</button>
+          <?php endif; ?>
+        </div>
       </td>
     </tr>
     <?php endforeach;
@@ -1218,35 +1222,39 @@ body::before {
                       <span class="t-sub">—</span>
                     <?php endif; ?>
                   </td>
-                  <td style="position: relative;">
-                    <?php if ($isResolved): ?>
-                      <button onclick="event.stopPropagation(); dismissResolvedCase(<?php echo (int)$c['case_id']; ?>)" title="Dismiss case" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; font-weight: bold; cursor: pointer; z-index: 20; transition: all 0.2s; pointer-events: auto;">&times;</button>
-                    <?php endif; ?>
-                    <?php if ($accepted): ?>
-                      <?php if ($c['hearing_is_open'] == 1 && $accessGranted): ?>
-                        <button class="action-btn" style="background:#10b981; pointer-events:auto;" onclick="event.stopPropagation(); window.location.href='<?php echo htmlspecialchars($href); ?>'">▶️ JOIN HEARING</button>
-                      <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && !($c['hearing_is_paused'] == 1 || $adminOffline)): ?>
-                        <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
-                          <?php if ($myPresenceStatus === 'WAITING'): ?>
-                            <span class="badge badge-warning" style="font-size:10px; padding:4px 10px; background:rgba(245, 158, 11, 0.1); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.2);">⏳ Awaiting Admin</span>
+                  <td style="padding: 12px 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <?php if ($accepted): ?>
+                          <?php if ($c['hearing_is_open'] == 1 && $accessGranted): ?>
+                            <button class="action-btn" style="background:#10b981; pointer-events:auto;" onclick="event.stopPropagation(); window.location.href='<?php echo htmlspecialchars($href); ?>'">▶️ JOIN HEARING</button>
+                          <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && !($c['hearing_is_paused'] == 1 || $adminOffline)): ?>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                              <?php if ($myPresenceStatus === 'WAITING'): ?>
+                                <span class="badge badge-warning" style="font-size:10px; padding:4px 10px; background:rgba(245, 158, 11, 0.1); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.2);">⏳ Awaiting Admin</span>
+                              <?php else: ?>
+                                <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 10px; background:rgba(245, 158, 11, 0.15); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.3);">🔐 CLICK TO REJOIN</button>
+                              <?php endif; ?>
+                            </div>
                           <?php else: ?>
-                            <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 10px; background:rgba(245, 158, 11, 0.15); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.3);">🔐 CLICK TO REJOIN</button>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                              <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
+                            </div>
                           <?php endif; ?>
-                        </div>
-                      <?php else: ?>
-                        <div style="display:flex; gap:8px; align-items:center; justify-content:flex-start;">
-                          <span class="badge <?php echo $stClass; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
-                        </div>
-                      <?php endif; ?>
-                    <?php else: ?>
-                      <div class="need-action-box">
-                        <span class="need-action-label">⚠️ Be panel of the hearing?</span>
-                        <div style="display:flex; gap:8px;">
-                          <button class="action-btn" style="background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">✅ Yes</button>
-                          <button class="action-btn" style="background:rgba(239, 68, 68, 0.15); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">❌ No</button>
-                        </div>
+                        <?php else: ?>
+                          <div class="need-action-box">
+                            <span class="need-action-label">⚠️ Be panel of the hearing?</span>
+                            <div style="display:flex; gap:8px;">
+                              <button class="action-btn" style="background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">✅ Yes</button>
+                              <button class="action-btn" style="background:rgba(239, 68, 68, 0.15); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3); font-size:11px; padding:6px 12px; width:auto; min-width:auto;" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">❌ No</button>
+                            </div>
+                          </div>
+                        <?php endif; ?>
                       </div>
-                    <?php endif; ?>
+                      <?php if ($isResolved): ?>
+                        <button onclick="event.stopPropagation(); dismissResolvedCase(<?php echo (int)$c['case_id']; ?>)" title="Dismiss case" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.2s; pointer-events: auto; flex-shrink: 0; margin-left: 16px;" onmouseover="this.style.background='rgba(239, 68, 68, 0.4)';" onmouseout="this.style.background='rgba(239, 68, 68, 0.2)';">&times;</button>
+                      <?php endif; ?>
+                    </div>
                   </td>
                 </tr>
                 <?php endforeach; ?>
