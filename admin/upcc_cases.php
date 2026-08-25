@@ -1749,7 +1749,7 @@ function fmt_case_id(int $id, string $created): string {
                                 data-hearing-link-loc="<?= e((string)($c['hearing_link_or_location'] ?? '')) ?>"
                                 data-student-hearing-response="<?= e((string)($c['student_hearing_response'] ?? 'PENDING')) ?>"
                                 data-hearing-label="<?= e((!empty($c['hearing_date']) && !empty($c['hearing_time'])) ? ($c['hearing_date'] . ' ' . $c['hearing_time'] . (!empty($c['hearing_type']) ? ' · ' . $c['hearing_type'] : '')) : 'No hearing scheduled') ?>"
-                                data-decided-cat="<?= $c['decided_category'] ?? '' ?>"
+                                data-decided-cat="<?= e((string)($c['decided_category'] ?? $c['hearing_vote_consensus_category'] ?? '')) ?>"
                                 data-final-decision="<?= e($c['final_decision'] ?? '') ?>"
                                 data-case-kind="<?= e($c['case_kind'] ?? '') ?>"
                                 data-case-summary="<?= $caseSummaryEsc ?>"
@@ -2908,7 +2908,13 @@ function selectCase(row) {
         const nfiUploadForm = document.getElementById('real-nfi-upload-form');
 
         const catNum = parseInt(decidedCat || consensusCat || '0', 10);
-        const isCat1or2 = (catNum === 1 || catNum === 2);
+        let isCat1or2 = (catNum === 1 || catNum === 2);
+        if (!isCat1or2 && row.dataset.category) {
+            const catMatch = row.dataset.category.match(/cat(?:egory)?\s*([1-5])/i);
+            if (catMatch && (catMatch[1] === '1' || catMatch[1] === '2')) {
+                isCat1or2 = true;
+            }
+        }
 
         if (nfiContainer) {
             if (isClosedStatus && isCat1or2) {
@@ -3568,6 +3574,7 @@ function locateMissingDocTarget(docType) {
             targetEl = document.getElementById('resolution-upload-form');
         } else if (docType === 'nfi') {
             targetEl = document.getElementById('nfi-upload-container');
+            if (targetEl) targetEl.style.display = 'block';
         }
         if (targetEl) {
             targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -3578,7 +3585,7 @@ function locateMissingDocTarget(docType) {
             setTimeout(() => {
                 targetEl.style.outline = 'none';
                 targetEl.style.boxShadow = 'none';
-            }, 1800);
+            }, 2500);
         }
     }, 150);
 }
