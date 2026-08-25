@@ -313,6 +313,10 @@ for ($i = 0; $i < count($minorList); $i++) {
       'explanation_image' => $expImage,
       'explanation_pdf' => $expPdf,
       'explanation_at' => $expAt,
+      'hearing_date' => $bundledItems[2]['hearing_date'] ?? null,
+      'hearing_time' => $bundledItems[2]['hearing_time'] ?? null,
+      'hearing_type' => $bundledItems[2]['hearing_type'] ?? null,
+      'student_hearing_response' => (string)($bundledItems[2]['student_hearing_response'] ?? 'PENDING'),
     ];
 
     foreach ($bundledItems as $bi) {
@@ -442,7 +446,7 @@ foreach ($majorList as $r) {
 // Fetch and append unlinked major cases
 $unlinkedCases = db_all("
   SELECT c.case_id, c.decided_category, " . db_decrypt_cols(['final_decision', 'punishment_details', 'case_summary', 'student_explanation_text'], 'c') . ", c.resolution_date, c.probation_until, c.status,
-         c.student_explanation_image, c.student_explanation_pdf, c.student_explanation_at, c.created_at,
+         c.student_explanation_image, c.student_explanation_pdf, c.student_explanation_at, c.created_at, c.hearing_date, c.hearing_time, c.hearing_type, c.student_hearing_response,
          (SELECT status FROM student_appeal_request sar WHERE sar.case_id = c.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) AS appeal_status,
          (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = c.case_id LIMIT 1) AS csr_status
   FROM upcc_case c

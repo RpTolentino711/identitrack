@@ -407,6 +407,14 @@ class _AlertsScreenState extends State<AlertsScreen> {
       if (!mounted) return;
       Navigator.of(context).pop(); // pop loading dialog
       
+      setState(() {
+        for (final a in _alerts) {
+          if (a.metadata != null && a.metadata!['case_id']?.toString() == caseId.toString()) {
+            a.metadata!['student_hearing_response'] = response;
+          }
+        }
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(response == 'ACCEPTED' 
@@ -436,9 +444,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
     final isOnline = meta['hearing_type'] == 'ONLINE';
     final locationOrLink = meta['hearing_link_or_location']?.toString() ?? '';
-    final studentResponse = meta['student_hearing_response']?.toString() ?? 'PENDING';
+    final studentResponse = (meta['student_hearing_response'] ?? 'PENDING').toString().toUpperCase();
 
-    if (studentResponse == 'ACCEPTED') {
+    if (studentResponse == 'ACCEPTED' || studentResponse == 'WILL_ATTEND') {
       return Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Column(
@@ -574,7 +582,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       );
     }
 
-    if (studentResponse == 'DECLINED') {
+    if (studentResponse == 'DECLINED' || studentResponse == 'WILL_NOT_ATTEND') {
       return Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Row(

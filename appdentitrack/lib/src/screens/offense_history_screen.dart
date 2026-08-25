@@ -395,9 +395,9 @@ class _OffenseHistoryScreenState extends State<OffenseHistoryScreen> {
 
     final isOnline = meta['hearing_type'] == 'ONLINE';
     final locationOrLink = meta['hearing_link_or_location']?.toString() ?? '';
-    final studentResponse = meta['student_hearing_response']?.toString() ?? 'PENDING';
+    final studentResponse = (meta['student_hearing_response'] ?? 'PENDING').toString().toUpperCase();
 
-    if (studentResponse == 'ACCEPTED') {
+    if (studentResponse == 'ACCEPTED' || studentResponse == 'WILL_ATTEND') {
       return Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Column(
@@ -533,7 +533,7 @@ class _OffenseHistoryScreenState extends State<OffenseHistoryScreen> {
       );
     }
 
-    if (studentResponse == 'DECLINED') {
+    if (studentResponse == 'DECLINED' || studentResponse == 'WILL_NOT_ATTEND') {
       return Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Row(

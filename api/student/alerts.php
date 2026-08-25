@@ -253,7 +253,7 @@ try {
          FROM upcc_case
          WHERE student_id = :sid
            AND hearing_date IS NOT NULL
-           AND status IN ('PENDING','UNDER_INVESTIGATION','UNDER_APPEAL')
+           AND status IN ('PENDING','UNDER_INVESTIGATION','UNDER_APPEAL','AWAITING_ADMIN_FINALIZATION','ACTIVE')
          ORDER BY hearing_date ASC, hearing_time ASC",
         [':sid' => $studentId]
     );
