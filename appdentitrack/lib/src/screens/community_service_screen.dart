@@ -177,7 +177,9 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
   }
 
   Future<void> _startLocationMonitoring() async {
-    _locationTimer?.cancel();
+    if (_locationTimer != null && _locationTimer!.isActive) {
+      return;
+    }
 
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();

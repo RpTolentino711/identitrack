@@ -198,7 +198,9 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
   }
 
   Future<void> _startLocationMonitoring() async {
-    _locationTimer?.cancel();
+    if (_locationTimer != null && _locationTimer!.isActive) {
+      return;
+    }
 
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -264,7 +266,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
         );
       } catch (_) {}
 
-      _locationTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+      _locationTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
         final active = _data?.activeSession;
         if (active == null || active.sessionStatus == 'PAUSED') return;
 
@@ -287,16 +289,16 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
           );
 
           if (_lastPosition != null) {
-            double dist15s = Geolocator.distanceBetween(
+            double dist10s = Geolocator.distanceBetween(
               _lastPosition!.latitude,
               _lastPosition!.longitude,
               pos.latitude,
               pos.longitude,
             );
 
-            // Step displacement over 15s on a stationary table is < 10m or speed < 0.7 m/s:
-            if (dist15s < 10.0 || pos.speed < 0.7) {
-              _stationarySeconds += 15;
+            // Step displacement over 10s on a stationary table is < 10m or speed < 0.7 m/s:
+            if (dist10s < 10.0 || pos.speed < 0.7) {
+              _stationarySeconds += 10;
               if (_stationarySeconds >= 300) { // 5 minutes of no movement!
                 await _triggerStationaryPause();
               }
@@ -310,7 +312,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
           if (!isGpsOn) {
             await _triggerGPSDisabledPause('GPS Location Services turned OFF during active service');
           } else {
-            _stationarySeconds += 15;
+            _stationarySeconds += 10;
             if (_stationarySeconds >= 300) {
               await _triggerStationaryPause();
             }
