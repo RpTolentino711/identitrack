@@ -1213,7 +1213,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                                                         .activeSession!
                                                         .loginMethod,
                                                     validatedBy: 0,
-                                                    sdoNotes: '',
+                                                    sdoNotes: _data!.activeSession!.location,
                                                     hoursDone: 0.0,
                                                   )),
                                                 ..._data!.sessions
