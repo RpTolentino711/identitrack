@@ -1789,6 +1789,7 @@ function send_upcc_case_resolution_email(int $caseId): bool {
             uc.case_id,
             uc.status,
             uc.resolution_file_path,
+            uc.nfi_file_path,
             uc.resolution_date,
             " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ",
             uc.decided_category,
