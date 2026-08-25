@@ -247,27 +247,23 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
           );
 
           if (_lastPosition != null) {
-            double distMeters = Geolocator.distanceBetween(
+            double dist15s = Geolocator.distanceBetween(
               _lastPosition!.latitude,
               _lastPosition!.longitude,
               pos.latitude,
               pos.longitude,
             );
 
-            // Indoor GPS drift fluctuates by 5-12m while flat on a table.
-            // If movement over 15s is under 15m OR speed is under 0.6 m/s, it counts as stationary / table rest:
-            if (distMeters < 15.0 || pos.speed < 0.6) {
+            if (dist15s < 10.0 || pos.speed < 0.7) {
               _stationarySeconds += 15;
               if (_stationarySeconds >= 300) { // 5 minutes of no movement!
                 _triggerStationaryPause();
               }
             } else {
               _stationarySeconds = 0;
-              _lastPosition = pos;
             }
-          } else {
-            _lastPosition = pos;
           }
+          _lastPosition = pos;
         } catch (_) {
           // If location check fails (e.g. phone sitting stationary on table), increment stationary time!
           _stationarySeconds += 15;

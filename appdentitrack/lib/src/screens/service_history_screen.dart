@@ -272,25 +272,24 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
           );
 
           if (_lastPosition != null) {
-            double distMeters = Geolocator.distanceBetween(
+            double dist15s = Geolocator.distanceBetween(
               _lastPosition!.latitude,
               _lastPosition!.longitude,
               pos.latitude,
               pos.longitude,
             );
 
-            if (distMeters < 15.0 || pos.speed < 0.6) {
+            // Step displacement over 15s on a stationary table is < 10m or speed < 0.7 m/s:
+            if (dist15s < 10.0 || pos.speed < 0.7) {
               _stationarySeconds += 15;
               if (_stationarySeconds >= 300) { // 5 minutes of no movement!
                 await _triggerStationaryPause();
               }
             } else {
               _stationarySeconds = 0;
-              _lastPosition = pos;
             }
-          } else {
-            _lastPosition = pos;
           }
+          _lastPosition = pos;
         } catch (_) {
           bool isGpsOn = await Geolocator.isLocationServiceEnabled();
           if (!isGpsOn) {
