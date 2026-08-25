@@ -569,7 +569,7 @@ if ($postStudentId !== '') {
 
     $liveActiveUpccCases = db_all(
       "SELECT case_id, status, case_kind, case_summary, evidence_file, created_at FROM upcc_case
-       WHERE student_id = :sid AND status IN ('PENDING','UNDER_APPEAL')
+       WHERE student_id = :sid AND status NOT IN ('CANCELLED','VOID')
        ORDER BY created_at DESC",
       [':sid' => $postStudentId]
     ) ?: [];
@@ -613,6 +613,36 @@ if ($postStudentId !== '') {
      ORDER BY o.date_committed DESC",
       [':sid' => $postStudentId]
     ) ?: [];
+
+    $unlinkedMajorCases = db_all(
+      "SELECT c.case_id, c.decided_category, c.status AS case_status, c.created_at AS date_committed,
+              c.probation_until, " . db_decrypt_col('punishment_details', 'c') . " AS punishment_details,
+              (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = c.case_id LIMIT 1) AS csr_status
+       FROM upcc_case c
+       WHERE c.student_id = :sid
+         AND c.case_id NOT IN (SELECT DISTINCT case_id FROM upcc_case_offense WHERE case_id IS NOT NULL)
+         AND c.status NOT IN ('CANCELLED','VOID')",
+      [':sid' => $postStudentId]
+    ) ?: [];
+
+    foreach ($unlinkedMajorCases as $umc) {
+      $liveOffenses[] = [
+        'offense_id' => -9000 - (int)$umc['case_id'],
+        'date_committed' => $umc['date_committed'],
+        'level' => 'MAJOR',
+        'code' => 'UPCC-CASE-' . $umc['case_id'],
+        'name' => 'Direct UPCC Major Disciplinary Case #' . $umc['case_id'],
+        'decided_category' => $umc['decided_category'],
+        'case_status' => $umc['case_status'],
+        'probation_until' => $umc['probation_until'],
+        'punishment_details' => $umc['punishment_details'],
+        'csr_status' => $umc['csr_status'],
+      ];
+    }
+
+    usort($liveOffenses, function($a, $b) {
+      return strtotime((string)$b['date_committed']) <=> strtotime((string)$a['date_committed']);
+    });
   }
 }
 
@@ -816,11 +846,36 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
     $caseHtml = '';
     foreach ($activeCases as $case) {
       $caseId = (int)$case['case_id'];
-      $caseHtml .= '<a href="upcc_case_view.php?id=' . $caseId . '" class="btn" style="margin-top: 6px; width: 100%; display: flex; justify-content: center; padding: 6px 12px; font-size: 12px; border-color: var(--blue); color: var(--blue);"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:4px;"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg> View UPCC Case #' . $caseId . '</a>';
+      $cSt = strtoupper((string)($case['status'] ?? ''));
+      $stLabel = match($cSt) {
+        'PENDING' => 'PENDING',
+        'UNDER_INVESTIGATION' => 'INVESTIGATION',
+        'AWAITING_PANEL_DECISION' => 'AWAITING DECISION',
+        'AWAITING_ADMIN_FINALIZATION' => 'AWAITING FINALIZATION',
+        'ACTIVE' => 'ACTIVE',
+        'UNDER_APPEAL' => 'UNDER APPEAL',
+        'RESOLVED' => 'RESOLVED',
+        'CLOSED' => 'CLOSED',
+        'DISMISSED' => 'DISMISSED',
+        default => $cSt
+      };
+      $stBg = match($cSt) {
+        'RESOLVED', 'CLOSED' => '#dcfce7',
+        'DISMISSED' => '#fee2e2',
+        'UNDER_APPEAL', 'ACTIVE' => '#e0f2fe',
+        default => '#fff7ed'
+      };
+      $stColor = match($cSt) {
+        'RESOLVED', 'CLOSED' => '#15803d',
+        'DISMISSED' => '#dc2626',
+        'UNDER_APPEAL', 'ACTIVE' => '#0369a1',
+        default => '#9a3412'
+      };
+      $caseHtml .= '<a href="upcc_case_view.php?id=' . $caseId . '" class="btn" style="margin-top: 6px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; font-size: 12px; border-color: var(--blue); color: var(--blue);"><span style="display:flex;align-items:center;gap:4px;"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:2px;"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg> Case #' . $caseId . '</span><span style="font-size:9.5px; font-weight:800; background:' . $stBg . '; color:' . $stColor . '; padding:2px 6px; border-radius:6px; letter-spacing:0.3px;">' . $stLabel . '</span></a>';
     }
     $caseRows = '
-      <div class="sic-row" style="align-items: center;">
-        <span class="sic-label">Active Case:</span>
+      <div class="sic-row" style="align-items: flex-start;">
+        <span class="sic-label" style="margin-top:8px;">UPCC Cases:</span>
         <div style="flex: 1;">' . $caseHtml . '</div>
       </div>';
   }
