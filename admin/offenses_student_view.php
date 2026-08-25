@@ -398,16 +398,29 @@ $avatar = initials2((string)$student['student_fn'], (string)$student['student_ln
 
 $suffix = match((int)$student['year_level']) { 1=>'st', 2=>'nd', 3=>'rd', default=>'th' };
 
+if (!function_exists('get_evidence_photo_url')) {
+    function get_evidence_photo_url(?string $path): string {
+        $p = trim((string)$path);
+        if ($p === '') return '';
+        if (preg_match('~^https?://~i', $p)) return $p;
+        $p = ltrim($p, '/');
+        if (strpos($p, 'admin/') === 0) {
+            $p = substr($p, 6);
+        }
+        return '../' . $p;
+    }
+}
+
 $historyParams = [':sid' => $studentId];
 db_add_encryption_key($historyParams);
 
 // Fetch all offenses, oldest first for correct grouping
 $history = db_all(
   "SELECT o.offense_id, o.status, " . db_decrypt_col('description', 'o') . " AS description, o.date_committed,
-          o.level,
+          o.level, o.incident_photo AS offense_photo,
           ot.code, ot.name, ot.major_category,
           uc.case_id, uc.status AS uc_status, uc.decided_category AS uc_category,
-          uc.probation_until,
+          uc.probation_until, uc.incident_photo AS case_photo,
           " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ", uc.resolution_date AS uc_resolution_date,
           (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
    FROM offense o
@@ -457,7 +470,7 @@ for ($i = 0; $i < count($allMinors); $i += 3) {
         $escParams = [':oid' => $lastMinorId];
         db_add_encryption_key($escParams);
         $caseRow = db_one(
-            "SELECT uc.case_id, uc.status, uc.decided_category, uc.resolution_date, uc.probation_until,
+            "SELECT uc.case_id, uc.status, uc.decided_category, uc.resolution_date, uc.probation_until, uc.incident_photo,
                     " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ",
                     (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
              FROM upcc_case uc
@@ -475,7 +488,8 @@ for ($i = 0; $i < count($allMinors); $i += 3) {
             'case_punishment' => $caseRow ? $caseRow['punishment_details'] : null,
             'case_resolution_date' => $caseRow ? $caseRow['resolution_date'] : null,
             'case_probation_until' => $caseRow ? $caseRow['probation_until'] : null,
-            'csr_status' => $caseRow ? $caseRow['csr_status'] : null
+            'csr_status' => $caseRow ? $caseRow['csr_status'] : null,
+            'case_photo' => $caseRow ? $caseRow['incident_photo'] : null
         ];
     }
 }
@@ -1848,6 +1862,42 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                           <?php endif; ?>
                         </div>
                       <?php endif; ?>
+
+                      <?php 
+                        $groupPhotos = [];
+                        if (!empty($groupData['case_photo'])) {
+                          $u = get_evidence_photo_url($groupData['case_photo']);
+                          if ($u !== '') $groupPhotos[] = $u;
+                        }
+                        foreach ($group as $gm) {
+                          if (!empty($gm['offense_photo'])) {
+                            $u = get_evidence_photo_url($gm['offense_photo']);
+                            if ($u !== '' && !in_array($u, $groupPhotos, true)) $groupPhotos[] = $u;
+                          }
+                        }
+                      ?>
+                      <?php if (!empty($groupPhotos)): ?>
+                        <div style="margin-top:12px; margin-bottom:12px; padding:10px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                          <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="width:32px; height:32px; border-radius:8px; background:#dbeafe; display:grid; place-items:center; color:#1d4ed8; flex-shrink:0;">
+                              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <div style="font-size:11.5px; font-weight:800; color:#1e40af; text-transform:uppercase; letter-spacing:0.4px;">Photo Evidence Attached</div>
+                              <div style="font-size:11px; color:#3b82f6;">Click thumbnail to inspect full image</div>
+                            </div>
+                          </div>
+                          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <?php foreach ($groupPhotos as $pUrl): ?>
+                              <a href="<?= htmlspecialchars($pUrl) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
+                                <img src="<?= htmlspecialchars($pUrl) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #93c5fd; box-shadow:0 3px 8px rgba(29,78,216,0.18); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
+                              </a>
+                            <?php endforeach; ?>
+                          </div>
+                        </div>
+                      <?php endif; ?>
                       <?php
                         $caseIdForNte = (int)($groupData['case_id'] ?? 0);
                         $nteInfo = !empty($nteMap['case_' . $caseIdForNte]) ? $nteMap['case_' . $caseIdForNte] : null;
@@ -1909,6 +1959,25 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                       <div class="off-name"><?php echo e((string)$minor['name']); ?></div>
                       <?php if (!empty($minor['description'])): ?>
                         <div class="off-desc"><?php echo e((string)$minor['description']); ?></div>
+                      <?php endif; ?>
+                      <?php $mPhoto = get_evidence_photo_url($minor['offense_photo'] ?? ''); ?>
+                      <?php if ($mPhoto !== ''): ?>
+                        <div style="margin-top:10px; margin-bottom:10px; padding:10px 14px; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                          <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="width:32px; height:32px; border-radius:8px; background:#fef3c7; display:grid; place-items:center; color:#b45309; flex-shrink:0;">
+                              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <div style="font-size:11.5px; font-weight:800; color:#b45309; text-transform:uppercase; letter-spacing:0.4px;">Photo Evidence Attached</div>
+                              <div style="font-size:11px; color:#d97706;">Click thumbnail to inspect full image</div>
+                            </div>
+                          </div>
+                          <a href="<?= htmlspecialchars($mPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
+                            <img src="<?= htmlspecialchars($mPhoto) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #fde68a; box-shadow:0 3px 8px rgba(180,83,9,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
+                          </a>
+                        </div>
                       <?php endif; ?>
                       <div class="off-footer">
                         <?php if (!empty($minor['code'])): ?>
@@ -2038,6 +2107,26 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                         </div>
                       <?php endif; ?>
 
+                      <?php $majPhoto = get_evidence_photo_url($h['case_photo'] ?: ($h['offense_photo'] ?? '')); ?>
+                      <?php if ($majPhoto !== ''): ?>
+                        <div style="margin-top:10px; margin-bottom:10px; padding:10px 14px; background:#fef2f2; border:1px solid #fca5a5; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                          <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="width:32px; height:32px; border-radius:8px; background:#fee2e2; display:grid; place-items:center; color:#dc2626; flex-shrink:0;">
+                              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <div style="font-size:11.5px; font-weight:800; color:#b91c1c; text-transform:uppercase; letter-spacing:0.4px;">Photo Evidence Attached</div>
+                              <div style="font-size:11px; color:#dc2626;">Click thumbnail to inspect full image</div>
+                            </div>
+                          </div>
+                          <a href="<?= htmlspecialchars($majPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
+                            <img src="<?= htmlspecialchars($majPhoto) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #fca5a5; box-shadow:0 3px 8px rgba(220,38,38,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
+                          </a>
+                        </div>
+                      <?php endif; ?>
+
                       <div class="off-footer">
                         <?php if (!empty($h['code'])): ?>
                           <span class="off-code"><?php echo e((string)$h['code']); ?></span>
@@ -2073,6 +2162,25 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                       <?php if (!empty($dismissed['dismissal_reason'])): ?>
                         <div style="margin-top:8px; font-size:12px; color:#b45309; font-style:italic; background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #fde68a;">
                           <strong>Dismissal Reason:</strong> "<?php echo e((string)$dismissed['dismissal_reason']); ?>"
+                        </div>
+                      <?php endif; ?>
+                      <?php $dPhoto = get_evidence_photo_url($dismissed['offense_photo'] ?? ''); ?>
+                      <?php if ($dPhoto !== ''): ?>
+                        <div style="margin-top:10px; margin-bottom:10px; padding:10px 14px; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                          <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="width:32px; height:32px; border-radius:8px; background:#fef3c7; display:grid; place-items:center; color:#b45309; flex-shrink:0;">
+                              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <div style="font-size:11.5px; font-weight:800; color:#b45309; text-transform:uppercase; letter-spacing:0.4px;">Photo Evidence Attached</div>
+                              <div style="font-size:11px; color:#d97706;">Click thumbnail to inspect full image</div>
+                            </div>
+                          </div>
+                          <a href="<?= htmlspecialchars($dPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
+                            <img src="<?= htmlspecialchars($dPhoto) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #fde68a; box-shadow:0 3px 8px rgba(180,83,9,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
+                          </a>
                         </div>
                       <?php endif; ?>
                       <div class="off-footer" style="border-top:1px solid #fde68a; padding-top:10px; margin-top:10px;">
