@@ -429,7 +429,7 @@ foreach ($fallbackTopCourses as $p => $c) {
 arsort($academicCoursesMap);
 
 $courseBreakdown = [
-  'BSIT'    => ['minor' => 2, 'major' => 1, 'dismissed' => 0],
+  'BSIT'    => ['minor' => 3, 'major' => 2, 'dismissed' => 0],
   'BSBA-FM' => ['minor' => 0, 'major' => 0, 'dismissed' => 2],
   'BSMT'    => ['minor' => 0, 'major' => 0, 'dismissed' => 1],
   'BSCE'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
@@ -446,12 +446,14 @@ $coursesList = [];
 foreach (array_slice($academicCoursesMap, 0, 8, true) as $prog => $cnt) {
   $pStr = (string)$prog;
   $courseLabels[] = $pStr;
-  $courseCounts[] = (int)$cnt;
 
-  $mCount = (int)($courseBreakdown[$pStr]['minor'] ?? max(0, $cnt - ($courseBreakdown[$pStr]['major'] ?? 0) - ($courseBreakdown[$pStr]['dismissed'] ?? 0)));
+  $mCount = (int)($courseBreakdown[$pStr]['minor'] ?? 0);
   $majCount = (int)($courseBreakdown[$pStr]['major'] ?? 0);
   $dCount = (int)($courseBreakdown[$pStr]['dismissed'] ?? 0);
+  $totalCourseCnt = $mCount + $majCount + $dCount;
+  if ($totalCourseCnt === 0) $totalCourseCnt = (int)$cnt;
 
+  $courseCounts[]          = $totalCourseCnt;
   $courseMinorCounts[]     = $mCount;
   $courseMajorCounts[]     = $majCount;
   $courseDismissedCounts[] = $dCount;
@@ -459,7 +461,7 @@ foreach (array_slice($academicCoursesMap, 0, 8, true) as $prog => $cnt) {
   $sections = $sectionsByProgram[$pStr] ?? ['All Active Sections'];
   $coursesList[] = [
     'program'   => $pStr,
-    'cnt'       => (int)$cnt,
+    'cnt'       => $totalCourseCnt,
     'minor'     => $mCount,
     'major'     => $majCount,
     'dismissed' => $dCount,
