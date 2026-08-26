@@ -438,10 +438,10 @@ arsort($academicCoursesMap);
 if (strpos($month, '2026-08') !== false) {
   $courseBreakdown = [
     'BSIT'    => ['minor' => 3, 'major' => 2, 'dismissed' => 3],
-    'BSBA-FM' => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'BSMT'    => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'BSCE'    => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'BS PSYCH'=> ['minor' => 0, 'major' => 0, 'dismissed' => 0]
+    'BSBA-FM' => ['minor' => 1, 'major' => 1, 'dismissed' => 0],
+    'BSMT'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
+    'BSCE'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
+    'BS PSYCH'=> ['minor' => 1, 'major' => 0, 'dismissed' => 0]
   ];
 } else {
   $courseBreakdown = [];
