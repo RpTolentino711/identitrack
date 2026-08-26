@@ -172,7 +172,7 @@
 
         <!-- SDAO: yellow hover -->
         <a class="card sdao" href="admin/index.php" aria-label="Open SDAO Web Portal">
-          <div class="card-title">Displine Office</div>
+          <div class="card-title">Discipline Office</div>
           <div class="card-desc">Web Portal (Admin)</div>
         </a>
 
@@ -189,8 +189,8 @@
         </a>
 
         <!-- Guard: default hover -->
-        <a class="card guard" href="GUARD/index.php" aria-label="Open Guard Portal">
-          <div class="card-title">Guard</div>
+        <a class="card guard" href="GUARD/index.php" aria-label="Open Security Guard Portal">
+          <div class="card-title">Security Guard</div>
           <div class="card-desc">Report Student Offense</div>
         </a>
 

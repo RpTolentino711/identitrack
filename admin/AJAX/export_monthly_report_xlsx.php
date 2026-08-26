@@ -41,7 +41,7 @@ if (strtoupper($month) === 'ALL') {
 $audience = strtoupper(trim((string)($_GET['audience'] ?? 'ALL')));
 if (!in_array($audience, ['ALL', 'COLLEGE', 'SHS'], true)) $audience = 'ALL';
 
-$segmentExpr = "(CASE WHEN (LOWER(COALESCE(s.school,'')) LIKE '%senior high%' OR UPPER(COALESCE(s.school,'')) = 'SHS' OR UPPER(COALESCE(s.program,'')) LIKE '%SHS%') THEN 'SHS' ELSE 'COLLEGE' END)";
+$segmentExpr = "(CASE WHEN (LOWER(COALESCE(s.school,'')) LIKE '%senior high%' OR UPPER(COALESCE(s.school,'')) = 'SHS' OR UPPER(COALESCE(s.program,'')) LIKE '%SHS%' OR UPPER(COALESCE(s.program,'')) LIKE '%STEM%' OR UPPER(COALESCE(s.program,'')) LIKE '%ABM%' OR UPPER(COALESCE(s.program,'')) LIKE '%HUMSS%' OR UPPER(COALESCE(s.program,'')) LIKE '%TVL%' OR UPPER(COALESCE(s.program,'')) LIKE '%GAS%') THEN 'SHS' ELSE 'COLLEGE' END)";
 $audienceClause = '';
 if ($audience === 'SHS') {
   $audienceClause = " AND $segmentExpr = 'SHS' ";
@@ -81,6 +81,7 @@ $rows = db_all(
   "SELECT
       o.offense_id,
       o.student_id,
+      {$segmentExpr} AS segment,
       CONCAT(" . db_decrypt_col('student_ln', 's') . ", ', ', " . db_decrypt_col('student_fn', 's') . ") AS student_name,
       COALESCE(NULLIF(s.program,''), 'N/A') AS program,
       COALESCE(NULLIF(s.section,''), 'N/A') AS section,
@@ -113,9 +114,12 @@ require_once __DIR__ . '/../data/historical_dataset_cache.php';
 $hRecords = function_exists('get_filtered_historical_records') ? get_filtered_historical_records($monthStart, $monthEnd, $audience, $category) : [];
 
 foreach ($hRecords as $hr) {
+    $prog = strtoupper((string)($hr['program'] ?? ''));
+    $isShs = (strpos($prog, 'SHS') !== false || strpos($prog, 'ABM') !== false || strpos($prog, 'STEM') !== false || strpos($prog, 'HUMSS') !== false || strpos($prog, 'TVL') !== false || strpos($prog, 'GAS') !== false || strpos($prog, 'HIGH') !== false);
     $rows[] = [
         'offense_id' => 'HIST-' . substr(md5(($hr['student_id'] ?? '') . ($hr['date'] ?? '') . ($hr['offense'] ?? '')), 0, 8),
         'student_id' => $hr['student_id'] ?? 'N/A',
+        'segment' => $isShs ? 'SHS' : 'COLLEGE',
         'student_name' => $hr['name'] ?? 'N/A',
         'program' => $hr['program'] ?? 'N/A',
         'section' => 'INF232',
@@ -134,6 +138,16 @@ foreach ($hRecords as $hr) {
         'case_status' => strpos(strtoupper($hr['sanction'] ?? ''), 'DISMISS') !== false ? 'DISMISSED' : 'CLOSED'
     ];
 }
+
+// Group SHS students FIRST, College students SECOND when Audience is ALL
+usort($rows, function($a, $b) {
+    $segA = strtoupper((string)($a['segment'] ?? 'COLLEGE'));
+    $segB = strtoupper((string)($b['segment'] ?? 'COLLEGE'));
+    if ($segA !== $segB) {
+        return ($segA === 'SHS') ? -1 : 1;
+    }
+    return strcmp((string)($b['date_committed'] ?? ''), (string)($a['date_committed'] ?? ''));
+});
 
 $dismissedRow = db_one(
   "SELECT COUNT(*) AS cnt
@@ -357,7 +371,7 @@ try {
 
   // Raw Data Section
   $headers = [
-    'Offense ID', 'Student ID', 'Student Name', 'Program', 'Section',
+    'Offense ID', 'Academic Level', 'Student ID', 'Student Name', 'Program', 'Section',
     'Level', 'Offense Code', 'Offense Name', 'Status', 'Date Committed', 'Description',
     'Sanction / Penalty (NU Lipa Discipline Handbook)'
   ];
@@ -367,7 +381,7 @@ try {
   $sheet->getStyle('A' . ($dataStartRow - 1))->getFont()->setBold(true)->setSize(14);
   
   $sheet->fromArray($headers, null, 'A' . $dataStartRow);
-  $sheet->getStyle('A'.$dataStartRow.':L'.$dataStartRow)->applyFromArray($styleTableHeader);
+  $sheet->getStyle('A'.$dataStartRow.':M'.$dataStartRow)->applyFromArray($styleTableHeader);
 
   $rowIndex = $dataStartRow + 1;
   foreach ($rows as $r) {
@@ -437,52 +451,53 @@ try {
     }
 
     $sheet->setCellValueExplicit('A' . $rowIndex, (string)($r['offense_id'] ?? ''), DataType::TYPE_STRING);
-    $sheet->setCellValueExplicit('B' . $rowIndex, (string)($r['student_id'] ?? ''), DataType::TYPE_STRING);
-    $sheet->setCellValue('C' . $rowIndex, (string)($r['student_name'] ?? ''));
-    $sheet->setCellValue('D' . $rowIndex, (string)($r['program'] ?? ''));
-    $sheet->setCellValue('E' . $rowIndex, (string)($r['section'] ?? ''));
-    $sheet->setCellValue('F' . $rowIndex, $displayLevel);
-    $sheet->setCellValue('G' . $rowIndex, (string)($r['offense_code'] ?? ''));
-    $sheet->setCellValue('H' . $rowIndex, (string)($r['offense_name'] ?? ''));
-    $sheet->setCellValue('I' . $rowIndex, (string)($r['status'] ?? ''));
-    $sheet->setCellValue('J' . $rowIndex, (string)($r['date_committed'] ?? ''));
-    $sheet->setCellValue('K' . $rowIndex, (string)($r['description'] ?? ''));
-    $sheet->setCellValue('L' . $rowIndex, $sanctionStr);
+    $sheet->setCellValue('B' . $rowIndex, strtoupper((string)($r['segment'] ?? 'COLLEGE')));
+    $sheet->setCellValueExplicit('C' . $rowIndex, (string)($r['student_id'] ?? ''), DataType::TYPE_STRING);
+    $sheet->setCellValue('D' . $rowIndex, (string)($r['student_name'] ?? ''));
+    $sheet->setCellValue('E' . $rowIndex, (string)($r['program'] ?? ''));
+    $sheet->setCellValue('F' . $rowIndex, (string)($r['section'] ?? ''));
+    $sheet->setCellValue('G' . $rowIndex, $displayLevel);
+    $sheet->setCellValue('H' . $rowIndex, (string)($r['offense_code'] ?? ''));
+    $sheet->setCellValue('I' . $rowIndex, (string)($r['offense_name'] ?? ''));
+    $sheet->setCellValue('J' . $rowIndex, (string)($r['status'] ?? ''));
+    $sheet->setCellValue('K' . $rowIndex, (string)($r['date_committed'] ?? ''));
+    $sheet->setCellValue('L' . $rowIndex, (string)($r['description'] ?? ''));
+    $sheet->setCellValue('M' . $rowIndex, $sanctionStr);
 
-    // Apply color styling to Level (F) & Sanction (L) cells based on offense & sanction level
+    // Apply color styling to Level (G) & Sanction (M) cells based on offense & sanction level
     if ($isDismissed) { // GRAY
-        $sheet->getStyle('F' . $rowIndex)->applyFromArray([
+        $sheet->getStyle('G' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF475569']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]
         ]);
-        $sheet->getStyle('L' . $rowIndex)->applyFromArray([
+        $sheet->getStyle('M' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF475569']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]
         ]);
     } elseif ($decidedCat > 0 || !empty($r['final_decision'])) { // GREEN (Resolved Category 1-5)
-        $sheet->getStyle('F' . $rowIndex)->applyFromArray([
+        $sheet->getStyle('G' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]
         ]);
-        $sheet->getStyle('L' . $rowIndex)->applyFromArray([
+        $sheet->getStyle('M' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]
         ]);
     } elseif ($offenseLevel === 'MAJOR' || strpos($displayLevel, 'SECTION 4') !== false || $seqCount >= 3) { // RED (Major / Section 4)
-        $sheet->getStyle('F' . $rowIndex)->applyFromArray([
+        $sheet->getStyle('G' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]
         ]);
-        $sheet->getStyle('L' . $rowIndex)->applyFromArray([
+        $sheet->getStyle('M' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]
         ]);
     } else { // YELLOW (1st Minor Warning / 2nd Minor Warning)
-        $sheet->getStyle('F' . $rowIndex)->applyFromArray([
+        $sheet->getStyle('G' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF854D0E']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF08A']]
         ]);
-        $sheet->getStyle('L' . $rowIndex)->applyFromArray([
+        $sheet->getStyle('M' . $rowIndex)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['argb' => 'FF854D0E']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF08A']]
         ]);
@@ -492,10 +507,10 @@ try {
   }
 
   if ($rowIndex > $dataStartRow + 1) {
-      $sheet->getStyle('A'.($dataStartRow + 1).':L'.($rowIndex - 1))->applyFromArray($styleTableBody);
+      $sheet->getStyle('A'.($dataStartRow + 1).':M'.($rowIndex - 1))->applyFromArray($styleTableBody);
   }
 
-  foreach (range('A', 'L') as $col) {
+  foreach (range('A', 'M') as $col) {
     $sheet->getColumnDimension($col)->setAutoSize(true);
   }
 

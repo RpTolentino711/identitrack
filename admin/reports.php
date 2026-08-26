@@ -329,13 +329,6 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               <option value="SHS" <?php echo $selectedAudience==='SHS'?'selected':''; ?>>SHS Only</option>
             </select>
 
-            <select id="categorySelect" style="height:34px; border-radius:8px; border:1px solid #cfd4da; padding:0 10px; font-size:12px; font-weight:600; background:#fff; color:#1b2b6b;">
-              <option value="ALL">All Records (Complete Dataset)</option>
-              <option value="MINOR">Minor Offenses & Infractions (1st Warning, 2nd Warning, Section 4)</option>
-              <option value="MAJOR_SANCTIONS">Major Cases & Disciplinary Sanctions (NU Lipa Handbook Database)</option>
-              <option value="DISMISSED">Dismissed Cases & Offenses</option>
-            </select>
-
             <!-- Download Excel for chosen month/year -->
             <a class="btn-excel" id="exportBtn" href="AJAX/export_monthly_report_xlsx.php?month=<?php echo urlencode($selectedMonth); ?>&audience=<?php echo urlencode($selectedAudience); ?>&category=ALL">
               <span style="font-size:18px;">⬇</span>
@@ -387,7 +380,6 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
   <script>
     const monthSelect = document.getElementById('monthSelect');
     const audienceSelect = document.getElementById('audienceSelect');
-    const categorySelect = document.getElementById('categorySelect');
     const loading = document.getElementById('loading');
 
     const statTotal = document.getElementById('statTotal');
@@ -405,6 +397,11 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     let pieChart = null;
     let barChart = null;
     let trendChart = null;
+
+    const presentationColors = [
+      '#1d4ed8', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+      '#ec4899', '#06b6d4', '#f97316', '#64748b', '#0284c7'
+    ];
 
     function setLoading(isLoading) {
       if (!loading) return;
@@ -425,11 +422,9 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       return Math.round((part / total) * 100);
     }
 
-    async function loadReport(month, audience, category) {
+    async function loadReport(month, audience) {
       setLoading(true);
-
-      const cat = category || (categorySelect ? categorySelect.value : 'ALL');
-      const url = 'AJAX/reports_monthly_data.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
+      const url = 'AJAX/reports_monthly_data.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience) + '&category=ALL';
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('Request failed');
 
@@ -454,38 +449,67 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     function renderBreakdown(breakdown) {
       const pie = breakdown.pie;
       const labels = Array.isArray(pie.labels) ? pie.labels : [];
-      const colors = Array.isArray(pie.colors) ? pie.colors : [];
+      let colors = Array.isArray(pie.colors) && pie.colors.length ? pie.colors : presentationColors;
+
+      if (colors.length < labels.length) {
+        colors = labels.map((_, i) => presentationColors[i % presentationColors.length]);
+      }
 
       const colorByLabel = {};
       labels.forEach((label, i) => {
-        colorByLabel[String(label)] = String(colors[i] || '#6c757d');
+        colorByLabel[String(label)] = String(colors[i] || '#64748b');
       });
 
       const ctx = document.getElementById('pie');
       if (pieChart) pieChart.destroy();
       pieChart = new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
           labels: labels,
-          datasets: [{ data: pie.counts, backgroundColor: colors }]
+          datasets: [{
+            data: pie.counts,
+            backgroundColor: colors,
+            borderWidth: 2,
+            borderColor: '#ffffff',
+            hoverOffset: 6
+          }]
         },
         options: {
           responsive: true,
+          cutout: '60%',
           plugins: {
-            legend: { display: false }
+            legend: {
+              display: true,
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                padding: 10,
+                font: { size: 10, weight: '600' }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const pct = total ? Math.round((val / total) * 100) : 0;
+                  return ` ${context.label}: ${val} cases (${pct}%)`;
+                }
+              }
+            }
           }
         }
       });
 
       if (!breakdown.detailed || breakdown.detailed.length === 0) {
-        breakdownList.innerHTML = '<div class="muted">No offenses recorded for this month.</div>';
+        breakdownList.innerHTML = '<div class="muted">No offenses recorded for this period.</div>';
         return;
       }
 
       breakdownList.innerHTML = breakdown.detailed.map(d => `
         <div class="breakdown-row">
           <span class="breakdown-left">
-            <span class="breakdown-dot" style="background:${escapeHtml(colorByLabel[String(d.name)] || '#6c757d')}"></span>
+            <span class="breakdown-dot" style="background:${escapeHtml(colorByLabel[String(d.name)] || '#64748b')}"></span>
             <span class="breakdown-name">${escapeHtml(d.name)}</span>
           </span>
           <span class="breakdown-count">${escapeHtml(d.cnt)} cases</span>
@@ -503,20 +527,39 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
           datasets: [{
             label: 'Offenses',
             data: courses.counts,
-            backgroundColor: 'rgba(160,160,160,.55)',
-            borderColor: 'rgba(160,160,160,.85)',
-            borderWidth: 1.2
+            backgroundColor: '#3b4a9e',
+            borderColor: '#2d3878',
+            borderWidth: 1,
+            borderRadius: 6,
+            borderSkipped: false
           }]
         },
         options: {
           responsive: true,
-          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
-          plugins: { legend: { display: false } }
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0, font: { size: 10 } },
+              grid: { color: '#e2e8f0' }
+            },
+            x: {
+              ticks: { font: { size: 10, weight: '600' } },
+              grid: { display: false }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ` ${ctx.raw} Offenses`
+              }
+            }
+          }
         }
       });
 
       if (!courses.list || courses.list.length === 0) {
-        courseList.innerHTML = '<div class="muted">No data for this month.</div>';
+        courseList.innerHTML = '<div class="muted">No course data for this period.</div>';
         return;
       }
 
@@ -543,28 +586,50 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               label: 'Major Offenses',
               data: trend.major,
               borderColor: '#dc3545',
-              tension: 0.35,
-              fill: false,
-              pointRadius: 3,
-              borderWidth: 1.8,
-              pointBackgroundColor: '#dc3545'
+              backgroundColor: 'rgba(220, 53, 69, 0.08)',
+              tension: 0.38,
+              fill: true,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              borderWidth: 2.2,
+              pointBackgroundColor: '#dc3545',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 1.5
             },
             {
               label: 'Minor Offenses',
               data: trend.minor,
-              borderColor: '#ffc107',
-              tension: 0.35,
-              fill: false,
-              pointRadius: 3,
-              borderWidth: 1.8,
-              pointBackgroundColor: '#ffc107'
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.08)',
+              tension: 0.38,
+              fill: true,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              borderWidth: 2.2,
+              pointBackgroundColor: '#f59e0b',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 1.5
             }
           ]
         },
         options: {
           responsive: true,
-          plugins: { legend: { position: 'bottom' } },
-          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { font: { size: 11, weight: '600' } }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 },
+              grid: { color: '#e2e8f0' }
+            },
+            x: {
+              grid: { display: false }
+            }
+          }
         }
       });
     }
@@ -600,23 +665,22 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       return selectedVal;
     }
 
-    async function refresh(month, audience, category) {
+    async function refresh(month, audience) {
       try {
-        const cat = category || (categorySelect ? categorySelect.value : 'ALL');
         let activeMonth = month;
-        const data = await loadReport(activeMonth, audience, cat);
+        const data = await loadReport(activeMonth, audience);
 
         if (data.availableMonths) {
           const validMonth = updateMonthDropdown(data.availableMonths, activeMonth);
           if (validMonth && validMonth !== activeMonth) {
             activeMonth = validMonth;
-            const newData = await loadReport(activeMonth, audience, cat);
+            const newData = await loadReport(activeMonth, audience);
             renderStats(newData.stats);
             renderBreakdown(newData.breakdown);
             renderCourses(newData.courses);
             renderTrend(newData.trend);
             if (exportBtn) {
-              exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
+              exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=ALL';
             }
             return;
           }
@@ -627,9 +691,8 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
         renderCourses(data.courses);
         renderTrend(data.trend);
 
-        // IMPORTANT: export should download the SAME chosen month/year, audience, and category filter
         if (exportBtn) {
-          exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
+          exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=ALL';
         }
       } catch (e) {
         setLoading(false);
@@ -638,12 +701,11 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     }
 
     // initial load
-    refresh(monthSelect.value, audienceSelect.value, categorySelect ? categorySelect.value : 'ALL');
+    refresh(monthSelect.value, audienceSelect.value);
 
     // change filters via AJAX (and sync export)
-    monthSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value, categorySelect.value));
-    audienceSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value, categorySelect.value));
-    if (categorySelect) categorySelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value, categorySelect.value));
+    monthSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value));
+    audienceSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value));
   </script>
 </body>
 </html>
