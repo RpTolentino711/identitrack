@@ -346,10 +346,17 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
           </div>
         </section>
 
-        <div class="grid2">
           <!-- Offense breakdown -->
           <section class="panel breakdown-panel">
-            <h2>Offense Breakdown (This Month)</h2>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+              <h2 style="margin:0;">Offense Breakdown (This Month)</h2>
+              <select id="categorySelect" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:600; background:#ffffff; color:#1e293b; cursor:pointer; outline:none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <option value="ALL">All Breakdown Categories</option>
+                <option value="MINOR">Minor Offenses Only</option>
+                <option value="MAJOR">Major Offenses Only</option>
+                <option value="DISMISSED">Dismissed Offenses & Cases Only</option>
+              </select>
+            </div>
             <div class="breakdown-chart-wrap">
               <canvas id="pie" height="178"></canvas>
             </div>
@@ -450,9 +457,9 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       return lines;
     }
 
-    async function loadReport(month, audience) {
+    async function loadReport(month, audience, category = 'ALL') {
       setLoading(true);
-      const url = 'AJAX/reports_monthly_data.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience) + '&category=ALL';
+      const url = 'AJAX/reports_monthly_data.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(category);
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('Request failed');
 
@@ -719,22 +726,25 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       return selectedVal;
     }
 
-    async function refresh(month, audience) {
+    const categorySelect = document.getElementById('categorySelect');
+
+    async function refresh(month, audience, category) {
       try {
         let activeMonth = month;
-        const data = await loadReport(activeMonth, audience);
+        const cat = category || (categorySelect ? categorySelect.value : 'ALL');
+        const data = await loadReport(activeMonth, audience, cat);
 
         if (data.availableMonths) {
           const validMonth = updateMonthDropdown(data.availableMonths, activeMonth);
           if (validMonth && validMonth !== activeMonth) {
             activeMonth = validMonth;
-            const newData = await loadReport(activeMonth, audience);
+            const newData = await loadReport(activeMonth, audience, cat);
             renderStats(newData.stats);
             renderBreakdown(newData.breakdown);
             renderCourses(newData.courses);
             renderTrend(newData.trend);
             if (exportBtn) {
-              exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=ALL';
+              exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
             }
             return;
           }
@@ -746,7 +756,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
         renderTrend(data.trend);
 
         if (exportBtn) {
-          exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=ALL';
+          exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
         }
       } catch (e) {
         setLoading(false);
@@ -755,11 +765,14 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     }
 
     // initial load
-    refresh(monthSelect.value, audienceSelect.value);
+    refresh(monthSelect.value, audienceSelect.value, categorySelect ? categorySelect.value : 'ALL');
 
     // change filters via AJAX (and sync export)
-    monthSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value));
-    audienceSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value));
+    monthSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value, categorySelect ? categorySelect.value : 'ALL'));
+    audienceSelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value, categorySelect ? categorySelect.value : 'ALL'));
+    if (categorySelect) {
+      categorySelect.addEventListener('change', () => refresh(monthSelect.value, audienceSelect.value, categorySelect.value));
+    }
   </script>
 </body>
 </html>
