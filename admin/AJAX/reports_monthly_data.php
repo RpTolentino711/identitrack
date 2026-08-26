@@ -276,10 +276,10 @@ foreach ($breakdownRows as $r) {
     $tag = '(Minor)';
     $include = ($level === 'MINOR' || strpos($r['code'], 'MIN-') !== false) && !$isDismissed;
   } elseif ($category === 'MAJOR') {
-    $catNum = (int)($r['major_category'] ?? 5);
-    if ($catNum < 1 || $catNum > 5) $catNum = 5;
+    $catNum = (int)($r['major_category'] ?? 1);
+    if ($catNum < 1 || $catNum > 5) $catNum = 1;
     $tag = "(Major Cat $catNum)";
-    $include = ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false || $isMajorCase) && !$isDismissed;
+    $include = ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false) && !$isDismissed;
   } elseif ($category === 'DISMISSED') {
     $tag = $isDismissedCase ? '(Dismissed Case)' : '(Dismissed Offense)';
     $include = $isDismissed;
@@ -287,9 +287,9 @@ foreach ($breakdownRows as $r) {
     // ALL
     if ($isDismissed) {
       $tag = $isDismissedCase ? '(Dismissed Case)' : '(Dismissed Offense)';
-    } elseif ($level === 'MAJOR' || $isMajorCase) {
-      $catNum = (int)($r['major_category'] ?? 5);
-      if ($catNum < 1 || $catNum > 5) $catNum = 5;
+    } elseif ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false) {
+      $catNum = (int)($r['major_category'] ?? 1);
+      if ($catNum < 1 || $catNum > 5) $catNum = 1;
       $tag = "(Major Cat $catNum)";
     } else {
       $tag = '(Minor)';
