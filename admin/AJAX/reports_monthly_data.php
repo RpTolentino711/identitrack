@@ -72,8 +72,15 @@ $minorRow = db_one(
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
+   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ?
-     AND ot.level = 'MINOR' $audienceClause $dismissClause",
+     AND ot.level = 'MINOR'
+     AND COALESCE(o.status,'') != 'DISMISSED'
+     AND COALESCE(ot.level,'') != 'DISMISSED'
+     AND COALESCE(uc.status,'') != 'DISMISSED'
+     AND (uc.case_id IS NULL OR (COALESCE(uc.case_kind,'') NOT LIKE '%SECTION4%' AND COALESCE(uc.case_summary,'') NOT LIKE '%Section 4%'))
+     $audienceClause",
   [$monthStart, $monthEnd]
 );
 
@@ -82,8 +89,18 @@ $majorRow = db_one(
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
+   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ?
-     AND ot.level = 'MAJOR' $audienceClause $dismissClause",
+     AND COALESCE(o.status,'') != 'DISMISSED'
+     AND COALESCE(ot.level,'') != 'DISMISSED'
+     AND COALESCE(uc.status,'') != 'DISMISSED'
+     AND (
+       ot.level = 'MAJOR'
+       OR o.level = 'MAJOR'
+       OR (uc.case_id IS NOT NULL AND (COALESCE(uc.case_kind,'') LIKE '%SECTION4%' OR COALESCE(uc.case_summary,'') LIKE '%Section 4%'))
+     )
+     $audienceClause",
   [$monthStart, $monthEnd]
 );
 
@@ -93,13 +110,14 @@ $dismissedOffensesRow = db_one(
    JOIN student s ON s.student_id = o.student_id
    LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ? $audienceClause
-     AND uco.offense_id IS NULL
      AND (
        COALESCE(o.status,'') = 'DISMISSED'
        OR COALESCE(ot.level,'') = 'DISMISSED'
        OR COALESCE(o.level,'') = 'DISMISSED'
-     )",
+     )
+     AND (uc.case_id IS NULL OR uc.status != 'DISMISSED')",
   [$monthStart, $monthEnd]
 );
 
