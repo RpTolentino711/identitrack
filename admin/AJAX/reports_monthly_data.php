@@ -168,13 +168,17 @@ function clean_format_offense_name(string $rawName, string $level, bool $isDismi
 foreach ($hRecords as $hr) {
     $lvl = strtoupper($hr['level'] ?? 'MINOR');
     $sanctionStr = strtoupper((string)($hr['sanction'] ?? ''));
-    $isDismissed = strpos($sanctionStr, 'DISMISS') !== false || strpos($sanctionStr, 'NO SANCTION') !== false || strpos($sanctionStr, 'CLEARED') !== false;
+    $offNameStr  = strtoupper((string)($hr['offense'] ?? ''));
+    $isDismissed = strpos($sanctionStr, 'DISMISS') !== false 
+                || strpos($sanctionStr, 'NO SANCTION') !== false 
+                || strpos($sanctionStr, 'CLEARED') !== false
+                || strpos($offNameStr, 'DISMISS') !== false;
 
     if ($lvl === 'MINOR' && !$isDismissed) $hMinor++;
     elseif ($lvl === 'MAJOR' && !$isDismissed) $hMajor++;
 
     if ($isDismissed) {
-        if (strpos($sanctionStr, 'CASE') !== false || strpos($sanctionStr, 'UPCC') !== false || strpos($sanctionStr, 'HEARING') !== false || strpos($sanctionStr, 'PANEL') !== false) {
+        if (strpos($sanctionStr, 'CASE') !== false || strpos($sanctionStr, 'UPCC') !== false || strpos($sanctionStr, 'HEARING') !== false || strpos($sanctionStr, 'PANEL') !== false || strpos($offNameStr, 'EATING') !== false) {
             $hDismissedCases++;
         } else {
             $hDismissedOffenses++;
