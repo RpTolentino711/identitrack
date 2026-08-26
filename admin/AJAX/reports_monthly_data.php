@@ -429,11 +429,11 @@ foreach ($fallbackTopCourses as $p => $c) {
 arsort($academicCoursesMap);
 
 $courseBreakdown = [
-  'BSIT'    => ['minor' => 3, 'major' => 2, 'dismissed' => 0],
-  'BSBA-FM' => ['minor' => 0, 'major' => 0, 'dismissed' => 2],
-  'BSMT'    => ['minor' => 0, 'major' => 0, 'dismissed' => 1],
-  'BSCE'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
-  'BS PSYCH'=> ['minor' => 1, 'major' => 0, 'dismissed' => 0]
+  'BSIT'    => ['minor' => 3, 'major' => 2, 'dismissed' => 3],
+  'BSBA-FM' => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+  'BSMT'    => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+  'BSCE'    => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+  'BS PSYCH'=> ['minor' => 0, 'major' => 0, 'dismissed' => 0]
 ];
 
 $courseLabels = [];
