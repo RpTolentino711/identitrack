@@ -308,17 +308,7 @@ foreach ($breakdownRows as $r) {
   $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
 }
 
-if (strpos($month, '2026-08') !== false && empty($combinedBreakdownMap)) {
-  $combinedBreakdownMap = [
-    'Piercings, excessive and dangling earrings. (Minor)' => 1,
-    'Wearing clothing with inappropriate language and suggestive graphics that do not conform with the University\'s values. (Minor)' => 1,
-    'Bypassing the student entrance in bringing any item inside the University premises. (Minor)' => 1,
-    'Cheating or academic dishonesty, in online or face-to-face settings, before or during an examination. (Major Cat 2)' => 1,
-    'Wearing inappropriate attire within the University premises. (Major Cat 5)' => 1,
-    'Confiscated Item without Prohibited Component (e.g. Vape without battery/e-liquid) (Dismissed Offense)' => 2,
-    'Eating in classrooms, laboratories, offices, libraries, and study areas. (Dismissed Case)' => 1,
-  ];
-}
+// Real active system breakdown map
 foreach ($hBreakdownMap as $labelName => $cnt) {
   $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
 }
