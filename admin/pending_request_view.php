@@ -667,6 +667,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     </div>
   </div>
+  <!-- ─── Custom Warning Alert Modal ─── -->
+  <div class="modal-overlay" id="alertModal" style="z-index: 10000;">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width: 420px; padding: 28px 24px;">
+      <div style="width: 52px; height: 52px; border-radius: 50%; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      </div>
+      <h3 id="alertModalTitle" style="font-size: 18px; font-weight: 700; color: #1a1a1a; margin: 0 0 8px;">Notes Required</h3>
+      <p id="alertModalMessage" style="font-size: 13.5px; color: #4b5563; line-height: 1.5; margin: 0 0 20px; text-align: center;"></p>
+      <button type="button" class="btn btn-approve" id="alertModalOkBtn" style="width: 100%; justify-content: center; padding: 11px 16px; background: #3b4a9e; border-radius: 6px; font-weight: 700; color: #fff; cursor: pointer;">
+        OK, Got It
+      </button>
+    </div>
+  </div>
   <!-- ─────────────────────────────────── -->
 
   <div class="admin-shell">
@@ -823,26 +840,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 
   <script>
-    const overlay    = document.getElementById('approveModal');
-    const openBtn    = document.getElementById('openModalBtn');
-    const closeBtn   = document.getElementById('modalClose');
-    const cancelBtn  = document.getElementById('modalCancel');
-    const confirmBtn = document.getElementById('modalConfirm');
-    const pwInput    = document.getElementById('modalPassword');
-    const modalError = document.getElementById('modalError');
-    const togglePw   = document.getElementById('togglePw');
-    const eyeIcon    = document.getElementById('eyeIcon');
-    const notesField = document.getElementById('notes');
+    const overlay       = document.getElementById('approveModal');
+    const openBtn       = document.getElementById('openModalBtn');
+    const closeBtn      = document.getElementById('modalClose');
+    const cancelBtn     = document.getElementById('modalCancel');
+    const confirmBtn    = document.getElementById('modalConfirm');
+    const pwInput       = document.getElementById('modalPassword');
+    const modalError    = document.getElementById('modalError');
+    const togglePw      = document.getElementById('togglePw');
+    const eyeIcon       = document.getElementById('eyeIcon');
+    const notesField    = document.getElementById('notes');
+
+    const alertOverlay = document.getElementById('alertModal');
+    const alertTitle   = document.getElementById('alertModalTitle');
+    const alertMsg     = document.getElementById('alertModalMessage');
+    const alertOkBtn   = document.getElementById('alertModalOkBtn');
+
+    let postAlertFocusElement = null;
+
+    function showAlertModal(title, message, focusTarget = null) {
+      postAlertFocusElement = focusTarget;
+      if (alertTitle) alertTitle.textContent = title;
+      if (alertMsg) alertMsg.textContent = message;
+      if (alertOverlay) alertOverlay.classList.add('open');
+    }
+
+    function closeAlertModal() {
+      if (alertOverlay) alertOverlay.classList.remove('open');
+      if (postAlertFocusElement) {
+        postAlertFocusElement.focus();
+        postAlertFocusElement.style.borderColor = '#dc2626';
+        postAlertFocusElement.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.2)';
+        postAlertFocusElement = null;
+      }
+    }
+
+    if (alertOkBtn) alertOkBtn.addEventListener('click', closeAlertModal);
+    if (alertOverlay) {
+      alertOverlay.addEventListener('click', (e) => {
+        if (e.target === alertOverlay) closeAlertModal();
+      });
+    }
 
     function openModal() {
       const notesVal = notesField ? notesField.value.trim() : '';
       if (!notesVal) {
-        alert('⚠️ SDO Notes / Service Assignment Location is required! Please enter where the student will render service before approving.');
-        if (notesField) {
-          notesField.focus();
-          notesField.style.borderColor = '#dc2626';
-          notesField.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.2)';
-        }
+        showAlertModal(
+          'Notes Required',
+          'SDO Notes / Service Assignment Location is required! Please enter where the student will render service before approving.',
+          notesField
+        );
         return;
       }
       if (notesField) {
@@ -867,7 +914,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
+      if (e.key === 'Escape') {
+        if (alertOverlay && alertOverlay.classList.contains('open')) closeAlertModal();
+        else if (overlay && overlay.classList.contains('open')) closeModal();
+      }
     });
 
     // Toggle show/hide password
@@ -886,7 +936,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       confirmBtn.addEventListener('click', () => {
         const reqSelect = document.getElementById('selected_req_id');
         if (reqSelect && reqSelect.value === "") {
-          alert('You must select a task to assign.');
+          showAlertModal('Task Required', 'You must select a task to assign before approving.');
           return;
         }
 
