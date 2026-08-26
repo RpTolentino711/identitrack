@@ -575,43 +575,65 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     }
 
     function renderCourses(courses) {
-      const ctx = document.getElementById('bar');
+      const ctx = document.getElementById('courses');
       if (barChart) barChart.destroy();
+
+      const minorData = courses.minor || courses.counts.map(() => 0);
+      const majorData = courses.major || courses.counts.map(() => 0);
+      const dismissedData = courses.dismissed || courses.counts.map(() => 0);
+
       barChart = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: courses.labels,
-          datasets: [{
-            label: 'Offenses',
-            data: courses.counts,
-            backgroundColor: '#3b4a9e',
-            borderColor: '#2d3878',
-            borderWidth: 1,
-            borderRadius: 6,
-            borderSkipped: false,
-            maxBarThickness: 48,
-            categoryPercentage: 0.4,
-            barPercentage: 0.7
-          }]
+          datasets: [
+            {
+              label: 'Minor Offenses',
+              data: minorData,
+              backgroundColor: '#f59e0b',
+              borderRadius: 4,
+              maxBarThickness: 36
+            },
+            {
+              label: 'Major Offenses',
+              data: majorData,
+              backgroundColor: '#dc3545',
+              borderRadius: 4,
+              maxBarThickness: 36
+            },
+            {
+              label: 'Dismissed',
+              data: dismissedData,
+              backgroundColor: '#64748b',
+              borderRadius: 4,
+              maxBarThickness: 36
+            }
+          ]
         },
         options: {
           responsive: true,
           scales: {
             y: {
+              stacked: true,
               beginAtZero: true,
               ticks: { precision: 0, font: { size: 10 } },
               grid: { color: '#e2e8f0' }
             },
             x: {
+              stacked: true,
               ticks: { font: { size: 10, weight: '600' } },
               grid: { display: false }
             }
           },
           plugins: {
-            legend: { display: false },
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { boxWidth: 10, padding: 8, font: { size: 10, weight: '600' } }
+            },
             tooltip: {
               callbacks: {
-                label: (ctx) => ` ${ctx.raw} Offenses`
+                label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw}`
               }
             }
           }
@@ -627,12 +649,17 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
         const rawSecs = (c.sections || []).filter(s => s && s !== 'INF232' && s !== 'N/A');
         const secDisplay = rawSecs.length ? rawSecs.join(', ') : 'All Active Sections';
         return `
-          <div class="course-item">
-            <div class="course-top">
-              <span class="course-name">${escapeHtml(c.program)}</span>
-              <span class="course-count">${escapeHtml(c.cnt)} offenses</span>
+          <div class="course-item" style="padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
+            <div class="course-top" style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="course-name" style="font-weight:700; color:#1e293b;">${escapeHtml(c.program)}</span>
+              <span class="course-count" style="font-weight:700; color:#0f172a;">${escapeHtml(c.cnt)} offenses</span>
             </div>
-            <div class="course-sections">Sections: ${escapeHtml(secDisplay)}</div>
+            <div style="display:flex; gap:6px; margin:4px 0 2px; flex-wrap:wrap;">
+              <span style="background:#fef3c7; color:#b45309; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600;">Minor: ${c.minor || 0}</span>
+              <span style="background:#fee2e2; color:#991b1b; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600;">Major: ${c.major || 0}</span>
+              <span style="background:#f1f5f9; color:#475569; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600;">Dismissed: ${c.dismissed || 0}</span>
+            </div>
+            <div class="course-sections" style="font-size:10px; color:#64748b;">Sections: ${escapeHtml(secDisplay)}</div>
           </div>
         `;
       }).join('');

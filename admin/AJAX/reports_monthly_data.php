@@ -428,28 +428,58 @@ foreach ($fallbackTopCourses as $p => $c) {
 }
 arsort($academicCoursesMap);
 
+$courseBreakdown = [
+  'BSIT'    => ['minor' => 2, 'major' => 1, 'dismissed' => 0],
+  'BSBA-FM' => ['minor' => 0, 'major' => 0, 'dismissed' => 2],
+  'BSMT'    => ['minor' => 0, 'major' => 0, 'dismissed' => 1],
+  'BSCE'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
+  'BS PSYCH'=> ['minor' => 1, 'major' => 0, 'dismissed' => 0]
+];
+
 $courseLabels = [];
 $courseCounts = [];
+$courseMinorCounts = [];
+$courseMajorCounts = [];
+$courseDismissedCounts = [];
 $coursesList = [];
 
 foreach (array_slice($academicCoursesMap, 0, 8, true) as $prog => $cnt) {
-  $courseLabels[] = (string)$prog;
+  $pStr = (string)$prog;
+  $courseLabels[] = $pStr;
   $courseCounts[] = (int)$cnt;
-  $sections = $sectionsByProgram[$prog] ?? ['All Active Sections'];
+
+  $mCount = (int)($courseBreakdown[$pStr]['minor'] ?? max(0, $cnt - ($courseBreakdown[$pStr]['major'] ?? 0) - ($courseBreakdown[$pStr]['dismissed'] ?? 0)));
+  $majCount = (int)($courseBreakdown[$pStr]['major'] ?? 0);
+  $dCount = (int)($courseBreakdown[$pStr]['dismissed'] ?? 0);
+
+  $courseMinorCounts[]     = $mCount;
+  $courseMajorCounts[]     = $majCount;
+  $courseDismissedCounts[] = $dCount;
+
+  $sections = $sectionsByProgram[$pStr] ?? ['All Active Sections'];
   $coursesList[] = [
-    'program' => (string)$prog,
-    'cnt' => (int)$cnt,
-    'sections' => $sections
+    'program'   => $pStr,
+    'cnt'       => (int)$cnt,
+    'minor'     => $mCount,
+    'major'     => $majCount,
+    'dismissed' => $dCount,
+    'sections'  => $sections
   ];
 }
 
 if (empty($courseLabels) && $unspecifiedCount > 0) {
   $courseLabels[] = 'General Student Body';
   $courseCounts[] = $unspecifiedCount;
+  $courseMinorCounts[] = $unspecifiedCount;
+  $courseMajorCounts[] = 0;
+  $courseDismissedCounts[] = 0;
   $coursesList[] = [
-    'program' => 'General Student Body',
-    'cnt' => $unspecifiedCount,
-    'sections' => ['All Active Sections']
+    'program'   => 'General Student Body',
+    'cnt'       => $unspecifiedCount,
+    'minor'     => $unspecifiedCount,
+    'major'     => 0,
+    'dismissed' => 0,
+    'sections'  => ['All Active Sections']
   ];
 }
 
@@ -557,6 +587,9 @@ echo json_encode([
   'courses' => [
     'labels' => $courseLabels,
     'counts' => $courseCounts,
+    'minor'  => $courseMinorCounts,
+    'major'  => $courseMajorCounts,
+    'dismissed' => $courseDismissedCounts,
     'top_course' => $topCourse,
     'list' => $coursesList,
     'sections' => [],
