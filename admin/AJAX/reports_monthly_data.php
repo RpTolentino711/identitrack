@@ -63,9 +63,7 @@ $totalRow = db_one(
    FROM offense o
    JOIN student s ON s.student_id = o.student_id
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
-   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
-   WHERE o.date_committed BETWEEN ? AND ? $activeFilter",
+   WHERE o.date_committed BETWEEN ? AND ? $audienceClause",
   [$monthStart, $monthEnd]
 );
 
@@ -99,23 +97,16 @@ $dismissedOffensesRow = db_one(
        COALESCE(o.status,'') = 'DISMISSED'
        OR COALESCE(ot.level,'') = 'DISMISSED'
        OR COALESCE(o.level,'') = 'DISMISSED'
-       OR o.offense_id IN (
-           SELECT uco.offense_id
-           FROM upcc_case_offense uco
-           JOIN upcc_case uc ON uc.case_id = uco.case_id
-           WHERE uc.status = 'DISMISSED'
-       )
      )",
   [$monthStart, $monthEnd]
 );
 
-$dismissedUnlinkedCasesRow = db_one(
+$dismissedCasesRow = db_one(
   "SELECT COUNT(*) AS cnt
    FROM upcc_case uc
    JOIN student s ON s.student_id = uc.student_id
    WHERE uc.status = 'DISMISSED'
      AND uc.created_at BETWEEN ? AND ?
-     AND uc.case_id NOT IN (SELECT DISTINCT case_id FROM upcc_case_offense WHERE case_id IS NOT NULL)
      $audienceClause",
   [$monthStart, $monthEnd]
 );
@@ -164,7 +155,10 @@ foreach ($hRecords as $hr) {
 $totalCount = (int)($totalRow['cnt'] ?? 0) + $hTotal;
 $minorCount = (int)($minorRow['cnt'] ?? 0) + $hMinor;
 $majorCount = (int)($majorRow['cnt'] ?? 0) + $hMajor;
-$dismissedCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + (int)($dismissedUnlinkedCasesRow['cnt'] ?? 0) + $hDismissed;
+
+$dismissedOffensesCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + $hDismissed;
+$dismissedCasesCount    = (int)($dismissedCasesRow['cnt'] ?? 0);
+$dismissedTotalCount    = $dismissedOffensesCount + $dismissedCasesCount;
 
 // Active UPCC cases count (filtered by chosen month date range and audience)
 if ($monthStart === '1970-01-01 00:00:00') {
@@ -420,7 +414,9 @@ echo json_encode([
     'minor' => $minorCount,
     'major' => $majorCount,
     'active_cases' => $activeCases,
-    'dismissed' => $dismissedCount,
+    'dismissed' => $dismissedTotalCount,
+    'dismissed_offenses' => $dismissedOffensesCount,
+    'dismissed_cases' => $dismissedCasesCount,
   ],
   'breakdown' => [
     'pie' => [
