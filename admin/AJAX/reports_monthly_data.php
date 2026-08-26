@@ -167,6 +167,9 @@ function clean_format_offense_name(string $rawName, string $level, bool $isDismi
     $hasMajorTag     = strpos($rawUpper, '(MAJOR)') !== false || strpos($rawUpper, 'MAJ-') !== false || strtoupper(trim($level)) === 'MAJOR';
 
     if ($hasDismissedTag) {
+        if (strpos($upperBase, 'BYPASSING') !== false) {
+            return "$cleanBase (Dismissed Offense)";
+        }
         if ($isDismissedCase || strpos($upperBase, 'EATING') !== false || strpos($upperBase, 'UPCC') !== false) {
             return "$cleanBase (Dismissed Case)";
         }
