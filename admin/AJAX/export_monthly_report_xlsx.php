@@ -243,23 +243,52 @@ try {
   $sheet->getStyle('A2:M2')->applyFromArray($styleSubHeader);
   $sheet->getRowDimension(2)->setRowHeight(20);
 
-$dismissedOffensesVal = (int)($dismissedRow['cnt'] ?? 0);
-$dismissedCasesVal    = (int)($dismissedUnlinkedCasesRow['cnt'] ?? 0);
+$minorVal = 0;
+$directMajorVal = 0;
+$dismissedOffensesVal = 0;
 
-if (strpos($month, '2026-08') !== false) {
-    $minor = 3;
-    $major = 2;
-    $dismissedOffensesVal = 2;
-    $dismissedCasesVal = 1;
-    $activeCases = 0;
-    $total = $minor + $major + $dismissedOffensesVal + $dismissedCasesVal; // 8
+$offenseStatsRow = db_all(
+  "SELECT
+      SUM(CASE WHEN COALESCE(o.status,'') != 'DISMISSED' AND UPPER(COALESCE(ot.level,'')) = 'MINOR' THEN 1 ELSE 0 END) AS minor_cnt,
+      SUM(CASE WHEN COALESCE(o.status,'') != 'DISMISSED' AND UPPER(COALESCE(ot.level,'')) = 'MAJOR' THEN 1 ELSE 0 END) AS major_cnt,
+      SUM(CASE WHEN COALESCE(o.status,'') = 'DISMISSED' OR COALESCE(ot.level,'') = 'DISMISSED' THEN 1 ELSE 0 END) AS dismissed_offenses_cnt
+   FROM offense o
+   JOIN student s ON s.student_id = o.student_id
+   JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+   WHERE o.date_committed BETWEEN ? AND ?
+   $audienceClause",
+  [$monthStart, $monthEnd]
+);
+
+if (!empty($offenseStatsRow[0])) {
+    $minorVal = (int)($offenseStatsRow[0]['minor_cnt'] ?? 0);
+    $directMajorVal = (int)($offenseStatsRow[0]['major_cnt'] ?? 0);
+    $dismissedOffensesVal = (int)($offenseStatsRow[0]['dismissed_offenses_cnt'] ?? 0);
 }
+
+$upccStatsRow = db_all(
+  "SELECT
+      SUM(CASE WHEN UPPER(COALESCE(uc.status,'')) != 'DISMISSED' THEN 1 ELSE 0 END) AS major_cases_cnt,
+      SUM(CASE WHEN UPPER(COALESCE(uc.status,'')) = 'DISMISSED' THEN 1 ELSE 0 END) AS dismissed_cases_cnt
+   FROM upcc_case uc
+   JOIN student s ON s.student_id = uc.student_id
+   WHERE uc.created_at BETWEEN ? AND ?
+   $audienceClause",
+  [$monthStart, $monthEnd]
+);
+
+$majorCasesVal = (int)($upccStatsRow[0]['major_cases_cnt'] ?? 0);
+$dismissedCasesVal = (int)($upccStatsRow[0]['dismissed_cases_cnt'] ?? 0);
+
+$majorVal = $directMajorVal + $majorCasesVal;
+$total = $minorVal + $majorVal + $dismissedOffensesVal + $dismissedCasesVal;
+$activeCases = 0;
 
   // Summary Metrics (Dashboard style - 6 Cards covering A4:M5)
   $cards = [
       'A' => ['label' => 'TOTAL OFFENSES', 'val' => $total, 'hdrColor' => 'FF1B2B6B', 'valColor' => 'FF1B2B6B', 'bgColor' => 'FFF8FAFC', 'span' => 'A4:B4', 'vSpan' => 'A5:B5'],
-      'C' => ['label' => 'MINOR OFFENSES', 'val' => $minor, 'hdrColor' => 'FFB45309', 'valColor' => 'FFB45309', 'bgColor' => 'FFFEF3C7', 'span' => 'C4:D4', 'vSpan' => 'C5:D5'],
-      'E' => ['label' => 'MAJOR OFFENSES', 'val' => $major, 'hdrColor' => 'FF991B1B', 'valColor' => 'FF991B1B', 'bgColor' => 'FFFEE2E2', 'span' => 'E4:F4', 'vSpan' => 'E5:F5'],
+      'C' => ['label' => 'MINOR OFFENSES', 'val' => $minorVal, 'hdrColor' => 'FFB45309', 'valColor' => 'FFB45309', 'bgColor' => 'FFFEF3C7', 'span' => 'C4:D4', 'vSpan' => 'C5:D5'],
+      'E' => ['label' => 'MAJOR OFFENSES', 'val' => $majorVal, 'hdrColor' => 'FF991B1B', 'valColor' => 'FF991B1B', 'bgColor' => 'FFFEE2E2', 'span' => 'E4:F4', 'vSpan' => 'E5:F5'],
       'G' => ['label' => 'ACTIVE CASES', 'val' => $activeCases, 'hdrColor' => 'FF6B21A8', 'valColor' => 'FF6B21A8', 'bgColor' => 'FFF3E8FF', 'span' => 'G4:H4', 'vSpan' => 'G5:H5'],
       'I' => ['label' => 'DISMISSED OFFENSES', 'val' => $dismissedOffensesVal, 'hdrColor' => 'FF475569', 'valColor' => 'FF475569', 'bgColor' => 'FFF1F5F9', 'span' => 'I4:J4', 'vSpan' => 'I5:J5'],
       'K' => ['label' => 'DISMISSED CASES', 'val' => $dismissedCasesVal, 'hdrColor' => 'FF334155', 'valColor' => 'FF334155', 'bgColor' => 'FFE2E8F0', 'span' => 'K4:M4', 'vSpan' => 'K5:M5'],
