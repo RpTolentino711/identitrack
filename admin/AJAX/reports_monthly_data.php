@@ -181,29 +181,6 @@ function clean_format_offense_name(string $rawName, string $level, bool $isDismi
     return "$cleanBase (Minor)";
 }
 
-// -------------------- Breakdown (this month) --------------------
-$breakdownRows = db_all(
-  "SELECT
-      ot.offense_type_id,
-      ot.name,
-      ot.code,
-      ot.level,
-      ot.major_category,
-      o.status AS offense_status,
-      uc.status AS case_status,
-      COUNT(*) AS cnt
-   FROM offense o
-   JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-   JOIN student s ON s.student_id = o.student_id
-   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
-   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
-   WHERE o.date_committed BETWEEN ? AND ?
-   $audienceClause
-   GROUP BY ot.offense_type_id, ot.name, ot.code, ot.level, ot.major_category, o.status, uc.status
-   ORDER BY cnt DESC, ot.name ASC",
-  [$monthStart, $monthEnd]
-);
-
 foreach ($hRecords as $hr) {
     $lvl = strtoupper($hr['level'] ?? 'MINOR');
     $sanctionStr = strtoupper((string)($hr['sanction'] ?? ''));
