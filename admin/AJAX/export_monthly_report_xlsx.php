@@ -321,7 +321,7 @@ try {
   }
   $cEndRow = max(5, $cRow - 1);
 
-  // Create Doughnut / Pie Chart (Positions A7:F20)
+  // Create Doughnut / Pie Chart (Positions A7:F26 - Much Bigger)
   if (!empty($breakdownMap)) {
       $dataSeriesLabels = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheetTitle}'!\$AB\$4", null, 1)];
       $xAxisTickValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheetTitle}'!\$AA\$5:\$AA\${$bEndRow}", null, count($breakdownMap))];
@@ -346,11 +346,11 @@ try {
 
       $chart = new Chart('chart1', $chartTitle, $legend, $plotArea, true, 0, null, null);
       $chart->setTopLeftPosition('A7');
-      $chart->setBottomRightPosition('F20');
+      $chart->setBottomRightPosition('F26');
       $sheet->addChart($chart);
   }
 
-  // Create Column Bar Chart (Positions G7:M20)
+  // Create Column Bar Chart (Positions G7:M26 - Much Bigger)
   if (!empty($coursesMap)) {
       $dataSeriesLabels2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheetTitle}'!\$AF\$4", null, 1)];
       $xAxisTickValues2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheetTitle}'!\$AE\$5:\$AE\${$cEndRow}", null, count($coursesMap))];
@@ -374,19 +374,19 @@ try {
 
       $chart2 = new Chart('chart2', $chartTitle2, null, $plotArea2, true, 0, null, null);
       $chart2->setTopLeftPosition('G7');
-      $chart2->setBottomRightPosition('M20');
+      $chart2->setBottomRightPosition('M26');
       $sheet->addChart($chart2);
   }
 
   // Raw Data Title Header
-  $sheet->setCellValue('A21', 'DETAILED DISCIPLINARY LOGS & CASE RECORDS');
-  $sheet->mergeCells('A21:M21');
-  $sheet->getStyle('A21:M21')->applyFromArray([
+  $sheet->setCellValue('A27', 'DETAILED DISCIPLINARY LOGS & CASE RECORDS');
+  $sheet->mergeCells('A27:M27');
+  $sheet->getStyle('A27:M27')->applyFromArray([
       'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 13],
       'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
       'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1E293B']],
   ]);
-  $sheet->getRowDimension(21)->setRowHeight(28);
+  $sheet->getRowDimension(27)->setRowHeight(28);
 
   // Raw Data Section
   $headers = [
@@ -395,9 +395,10 @@ try {
     'Sanction / Penalty (NU Lipa Discipline Handbook)'
   ];
 
-  $dataStartRow = 22;
+  $dataStartRow = 28;
   $sheet->fromArray($headers, null, 'A' . $dataStartRow);
   $sheet->getStyle('A'.$dataStartRow.':M'.$dataStartRow)->applyFromArray($styleTableHeader);
+  $sheet->getRowDimension($dataStartRow)->setRowHeight(26);
   $sheet->getRowDimension($dataStartRow)->setRowHeight(26);
 
   $rowIndex = $dataStartRow + 1;
