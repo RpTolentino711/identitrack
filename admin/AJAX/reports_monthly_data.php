@@ -617,6 +617,7 @@ $topCourse = $courseLabels[0] ?? '';
 $trendMonths = [];
 $trendMinor = [];
 $trendMajor = [];
+$trendDismissed = [];
 
 for ($i = 5; $i >= 0; $i--) {
   $mStart = date('Y-m-01 00:00:00', strtotime($monthStart . " -$i months"));
@@ -630,25 +631,53 @@ for ($i = 5; $i >= 0; $i--) {
      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
      JOIN student s ON s.student_id = o.student_id
      WHERE o.date_committed BETWEEN ? AND ?
-       AND ot.level='MINOR' $audienceClause $dismissClause",
+       AND (ot.level='MINOR' OR o.level='MINOR')
+       AND COALESCE(o.status,'') != 'DISMISSED' $audienceClause",
     [$mStart, $mEnd]
   );
 
-  $mMajor = db_one(
+  $mDirectMajor = db_one(
     "SELECT COUNT(*) AS cnt
      FROM offense o
      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
      JOIN student s ON s.student_id = o.student_id
      WHERE o.date_committed BETWEEN ? AND ?
-       AND ot.level='MAJOR' $audienceClause $dismissClause",
+       AND (ot.level='MAJOR' OR o.level='MAJOR')
+       AND COALESCE(o.status,'') != 'DISMISSED' $audienceClause",
     [$mStart, $mEnd]
   );
 
-  $hTrendMinor = 0;
-  $hTrendMajor = 0;
+  $mUpccCases = db_one(
+    "SELECT COUNT(*) AS cnt
+     FROM upcc_case uc
+     JOIN student s ON s.student_id = uc.student_id
+     WHERE uc.created_at BETWEEN ? AND ?
+       AND UPPER(COALESCE(uc.status,'')) != 'DISMISSED' $audienceClause",
+    [$mStart, $mEnd]
+  );
 
-  $trendMinor[] = (int)($mMinor['cnt'] ?? 0);
-  $trendMajor[] = (int)($mMajor['cnt'] ?? 0);
+  $mDismissedOff = db_one(
+    "SELECT COUNT(*) AS cnt
+     FROM offense o
+     JOIN student s ON s.student_id = o.student_id
+     JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+     WHERE o.date_committed BETWEEN ? AND ?
+       AND (COALESCE(o.status,'') = 'DISMISSED' OR COALESCE(ot.level,'') = 'DISMISSED') $audienceClause",
+    [$mStart, $mEnd]
+  );
+
+  $mDismissedCase = db_one(
+    "SELECT COUNT(*) AS cnt
+     FROM upcc_case uc
+     JOIN student s ON s.student_id = uc.student_id
+     WHERE uc.created_at BETWEEN ? AND ?
+       AND UPPER(COALESCE(uc.status,'')) = 'DISMISSED' $audienceClause",
+    [$mStart, $mEnd]
+  );
+
+  $trendMinor[]     = (int)($mMinor['cnt'] ?? 0);
+  $trendMajor[]     = (int)($mDirectMajor['cnt'] ?? 0) + (int)($mUpccCases['cnt'] ?? 0);
+  $trendDismissed[] = (int)($mDismissedOff['cnt'] ?? 0) + (int)($mDismissedCase['cnt'] ?? 0);
 }
 
 // Compute available months starting from August 2026 onwards for active system data
@@ -740,8 +769,9 @@ echo json_encode([
     'sections' => [],
   ],
   'trend' => [
-    'labels' => $trendMonths,
-    'minor' => $trendMinor,
-    'major' => $trendMajor,
+    'labels'    => $trendMonths,
+    'minor'     => $trendMinor,
+    'major'     => $trendMajor,
+    'dismissed' => $trendDismissed,
   ],
 ]);

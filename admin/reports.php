@@ -388,7 +388,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
           <h2>Monthly Trend Analysis</h2>
           <canvas id="trend" height="96"></canvas>
           <div class="muted" style="margin-top:8px; font-weight:500;">
-            Showing last 6 months (Minor vs Major)
+            Showing last 6 months (Minor vs Major vs Dismissed)
           </div>
         </section>
       </div>
@@ -695,14 +695,31 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
 
     function renderTrend(trend) {
       const ctx = document.getElementById('trend');
+      if (!ctx) return;
       if (trendChart) trendChart.destroy();
+      const disData = trend.dismissed || trend.labels.map(() => 0);
+
       trendChart = new Chart(ctx, {
         type: 'line',
         data: {
           labels: trend.labels,
           datasets: [
             {
-              label: 'Major Offenses',
+              label: 'Minor Offenses',
+              data: trend.minor,
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.08)',
+              tension: 0.38,
+              fill: true,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              borderWidth: 2.2,
+              pointBackgroundColor: '#f59e0b',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 1.5
+            },
+            {
+              label: 'Major Offenses & Cases',
               data: trend.major,
               borderColor: '#dc3545',
               backgroundColor: 'rgba(220, 53, 69, 0.08)',
@@ -716,16 +733,16 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               pointBorderWidth: 1.5
             },
             {
-              label: 'Minor Offenses',
-              data: trend.minor,
-              borderColor: '#f59e0b',
-              backgroundColor: 'rgba(245, 158, 11, 0.08)',
+              label: 'Dismissed Offenses & Cases',
+              data: disData,
+              borderColor: '#64748b',
+              backgroundColor: 'rgba(100, 116, 139, 0.08)',
               tension: 0.38,
               fill: true,
               pointRadius: 4,
               pointHoverRadius: 6,
               borderWidth: 2.2,
-              pointBackgroundColor: '#f59e0b',
+              pointBackgroundColor: '#64748b',
               pointBorderColor: '#ffffff',
               pointBorderWidth: 1.5
             }
