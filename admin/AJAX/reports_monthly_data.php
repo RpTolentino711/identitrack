@@ -436,27 +436,14 @@ $courseBreakdown = [
   'BS PSYCH'=> ['minor' => 0, 'major' => 0, 'dismissed' => 0]
 ];
 
-$courseLabels = [];
-$courseCounts = [];
-$courseMinorCounts = [];
-$courseMajorCounts = [];
-$courseDismissedCounts = [];
 $coursesList = [];
-
 foreach (array_slice($academicCoursesMap, 0, 8, true) as $prog => $cnt) {
   $pStr = (string)$prog;
-  $courseLabels[] = $pStr;
-
   $mCount = (int)($courseBreakdown[$pStr]['minor'] ?? 0);
   $majCount = (int)($courseBreakdown[$pStr]['major'] ?? 0);
   $dCount = (int)($courseBreakdown[$pStr]['dismissed'] ?? 0);
   $totalCourseCnt = $mCount + $majCount + $dCount;
   if ($totalCourseCnt === 0) $totalCourseCnt = (int)$cnt;
-
-  $courseCounts[]          = $totalCourseCnt;
-  $courseMinorCounts[]     = $mCount;
-  $courseMajorCounts[]     = $majCount;
-  $courseDismissedCounts[] = $dCount;
 
   $sections = $sectionsByProgram[$pStr] ?? ['All Active Sections'];
   $coursesList[] = [
@@ -467,6 +454,24 @@ foreach (array_slice($academicCoursesMap, 0, 8, true) as $prog => $cnt) {
     'dismissed' => $dCount,
     'sections'  => $sections
   ];
+}
+
+usort($coursesList, function($a, $b) {
+  return $b['cnt'] - $a['cnt'];
+});
+
+$courseLabels = [];
+$courseCounts = [];
+$courseMinorCounts = [];
+$courseMajorCounts = [];
+$courseDismissedCounts = [];
+
+foreach ($coursesList as $c) {
+  $courseLabels[]          = (string)$c['program'];
+  $courseCounts[]          = (int)$c['cnt'];
+  $courseMinorCounts[]     = (int)$c['minor'];
+  $courseMajorCounts[]     = (int)$c['major'];
+  $courseDismissedCounts[] = (int)$c['dismissed'];
 }
 
 if (empty($courseLabels) && $unspecifiedCount > 0) {
