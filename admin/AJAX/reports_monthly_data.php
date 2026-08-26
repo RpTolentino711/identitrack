@@ -157,21 +157,23 @@ $hCoursesMap = [];
 
 function clean_format_offense_name(string $rawName, string $level, bool $isDismissed = false, bool $isDismissedCase = false): string {
     $clean = trim($rawName);
-    $upper = strtoupper($clean);
-
-    $hasDismissedTag = strpos($upper, '(DISMISSED') !== false || strpos($upper, 'DISM-') !== false || $isDismissed;
-    $hasMajorTag     = strpos($upper, '(MAJOR)') !== false || strpos($upper, 'MAJ-') !== false || strtoupper(trim($level)) === 'MAJOR';
-
+    
+    // Strip existing level tags from clean base first
     $cleanBase = preg_replace('/\s*\((Minor|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed)\)$/i', '', $clean);
+    $upperBase = strtoupper($cleanBase);
+    $rawUpper  = strtoupper($clean);
+
+    $hasDismissedTag = strpos($rawUpper, '(DISMISSED') !== false || strpos($rawUpper, 'DISM-') !== false || $isDismissed;
+    $hasMajorTag     = strpos($rawUpper, '(MAJOR)') !== false || strpos($rawUpper, 'MAJ-') !== false || strtoupper(trim($level)) === 'MAJOR';
 
     if ($hasDismissedTag) {
-        if ($isDismissedCase || strpos($upper, 'CASE') !== false || strpos($upper, 'UPCC') !== false || strpos($upper, 'EATING') !== false) {
+        if ($isDismissedCase || strpos($upperBase, 'EATING') !== false || strpos($upperBase, 'UPCC') !== false) {
             return "$cleanBase (Dismissed Case)";
         }
         return "$cleanBase (Dismissed Offense)";
     }
 
-    if ($hasMajorTag || strpos($upper, 'SECTION 4') !== false || strpos($upper, 'ATTIRE') !== false) {
+    if ($hasMajorTag || strpos($upperBase, 'SECTION 4') !== false || strpos($upperBase, 'ATTIRE') !== false) {
         return "$cleanBase (Major)";
     }
 
