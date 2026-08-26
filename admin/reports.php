@@ -456,8 +456,16 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       }
 
       const colorByLabel = {};
-      labels.forEach((label, i) => {
-        colorByLabel[String(label)] = String(colors[i] || '#64748b');
+      const chartColors = labels.map((label, i) => {
+        const lblStr = String(label);
+        if (lblStr.toLowerCase().includes('dismissed')) {
+          const c = '#64748b';
+          colorByLabel[lblStr] = c;
+          return c;
+        }
+        const c = String(colors[i % colors.length] || '#3b4a9e');
+        colorByLabel[lblStr] = c;
+        return c;
       });
 
       const ctx = document.getElementById('pie');
@@ -468,7 +476,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
           labels: labels,
           datasets: [{
             data: pie.counts,
-            backgroundColor: colors,
+            backgroundColor: chartColors,
             borderWidth: 2,
             borderColor: '#ffffff',
             hoverOffset: 6

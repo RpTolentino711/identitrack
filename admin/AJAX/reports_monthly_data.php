@@ -133,15 +133,17 @@ $hCoursesMap = [];
 
 foreach ($hRecords as $hr) {
     $lvl = strtoupper($hr['level'] ?? 'MINOR');
+    $isDismissed = strpos(strtoupper($hr['sanction'] ?? ''), 'DISMISS') !== false;
     if ($lvl === 'MINOR') $hMinor++;
     else $hMajor++;
 
-    if (strpos(strtoupper($hr['sanction'] ?? ''), 'DISMISS') !== false) {
+    if ($isDismissed) {
         $hDismissed++;
     }
 
     $offName = $hr['offense'] ?? 'Minor Offense';
-    $labelName = "$offName (" . ucfirst(strtolower($lvl)) . ")";
+    $levelLabel = $isDismissed ? 'Dismissed' : ucfirst(strtolower($lvl));
+    $labelName = "$offName ($levelLabel)";
     if (!isset($hBreakdownMap[$labelName])) $hBreakdownMap[$labelName] = 0;
     $hBreakdownMap[$labelName]++;
 
@@ -184,6 +186,8 @@ $breakdownRows = db_all(
       ot.name,
       ot.code,
       ot.level,
+      o.status AS offense_status,
+      uc.status AS case_status,
       COUNT(*) AS cnt
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -191,8 +195,8 @@ $breakdownRows = db_all(
    LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
    LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ?
-   $activeFilter
-   GROUP BY ot.offense_type_id, ot.name, ot.code, ot.level
+   $audienceClause
+   GROUP BY ot.offense_type_id, ot.name, ot.code, ot.level, o.status, uc.status
    ORDER BY cnt DESC, ot.name ASC",
   [$monthStart, $monthEnd]
 );
@@ -200,8 +204,9 @@ $breakdownRows = db_all(
 $combinedBreakdownMap = [];
 foreach ($breakdownRows as $r) {
   $name = (string)$r['name'];
-  $level = ucfirst(strtolower((string)$r['level']));
-  $labelName = "$name ($level)";
+  $isDismissed = ($r['offense_status'] === 'DISMISSED' || $r['case_status'] === 'DISMISSED' || strtoupper((string)$r['level']) === 'DISMISSED');
+  $levelLabel = $isDismissed ? 'Dismissed' : ucfirst(strtolower((string)$r['level']));
+  $labelName = "$name ($levelLabel)";
   $cnt = (int)$r['cnt'];
   $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
 }
