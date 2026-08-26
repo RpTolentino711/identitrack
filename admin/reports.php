@@ -422,6 +422,23 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       return Math.round((part / total) * 100);
     }
 
+    function wrapText(str, maxLen = 38) {
+      if (!str) return [];
+      const words = String(str).split(' ');
+      const lines = [];
+      let currentLine = '';
+      words.forEach(w => {
+        if ((currentLine + ' ' + w).trim().length <= maxLen) {
+          currentLine = (currentLine + ' ' + w).trim();
+        } else {
+          if (currentLine) lines.push(currentLine);
+          currentLine = w;
+        }
+      });
+      if (currentLine) lines.push(currentLine);
+      return lines;
+    }
+
     async function loadReport(month, audience) {
       setLoading(true);
       const url = 'AJAX/reports_monthly_data.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience) + '&category=ALL';
@@ -496,12 +513,21 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               }
             },
             tooltip: {
+              padding: 12,
+              caretPadding: 8,
+              titleFont: { size: 12, weight: '700' },
+              bodyFont: { size: 12, weight: '600' },
               callbacks: {
+                title: function(tooltipItems) {
+                  if (!tooltipItems.length) return '';
+                  const rawLabel = tooltipItems[0].label || '';
+                  return wrapText(rawLabel, 36);
+                },
                 label: function(context) {
                   const val = context.raw || 0;
                   const total = context.dataset.data.reduce((a, b) => a + b, 0);
                   const pct = total ? Math.round((val / total) * 100) : 0;
-                  return ` ${context.label}: ${val} cases (${pct}%)`;
+                  return `Cases: ${val} (${pct}% of total)`;
                 }
               }
             }

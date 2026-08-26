@@ -131,6 +131,16 @@ $hDismissed = 0;
 $hBreakdownMap = [];
 $hCoursesMap = [];
 
+function clean_format_offense_name(string $rawName, string $level, bool $isDismissed): string {
+    $clean = trim($rawName);
+    $clean = preg_replace('/\s*\((Minor|Major|Dismissed|minor|major|dismissed)\)$/i', '', $clean);
+    if ($isDismissed) {
+        return "$clean (Dismissed)";
+    }
+    $lvl = (strtoupper(trim($level)) === 'MAJOR') ? 'Major' : 'Minor';
+    return "$clean ($lvl)";
+}
+
 foreach ($hRecords as $hr) {
     $lvl = strtoupper($hr['level'] ?? 'MINOR');
     $isDismissed = strpos(strtoupper($hr['sanction'] ?? ''), 'DISMISS') !== false;
@@ -142,8 +152,7 @@ foreach ($hRecords as $hr) {
     }
 
     $offName = $hr['offense'] ?? 'Minor Offense';
-    $levelLabel = $isDismissed ? 'Dismissed' : ucfirst(strtolower($lvl));
-    $labelName = "$offName ($levelLabel)";
+    $labelName = clean_format_offense_name($offName, $lvl, $isDismissed);
     if (!isset($hBreakdownMap[$labelName])) $hBreakdownMap[$labelName] = 0;
     $hBreakdownMap[$labelName]++;
 
@@ -205,8 +214,7 @@ $combinedBreakdownMap = [];
 foreach ($breakdownRows as $r) {
   $name = (string)$r['name'];
   $isDismissed = ($r['offense_status'] === 'DISMISSED' || $r['case_status'] === 'DISMISSED' || strtoupper((string)$r['level']) === 'DISMISSED');
-  $levelLabel = $isDismissed ? 'Dismissed' : ucfirst(strtolower((string)$r['level']));
-  $labelName = "$name ($levelLabel)";
+  $labelName = clean_format_offense_name($name, (string)$r['level'], $isDismissed);
   $cnt = (int)$r['cnt'];
   $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
 }
