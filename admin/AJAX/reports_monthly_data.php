@@ -296,12 +296,10 @@ foreach ($combinedBreakdownMap as $labelName => $cnt) {
   $detailed[] = ['name' => $labelName, 'code' => 'INF', 'level' => $levelStr, 'cnt' => $cnt];
 
   $calcTotal += $cnt;
-  if (strpos($labelName, '(Dismissed)') !== false) {
-      if (strpos($labelName, 'Eating') !== false || strpos($labelName, 'Case') !== false || strpos($labelName, 'UPCC') !== false) {
-          $calcDismissedCases += $cnt;
-      } else {
-          $calcDismissedOffenses += $cnt;
-      }
+  if (strpos($labelName, 'Dismissed Case') !== false) {
+      $calcDismissedCases += $cnt;
+  } elseif (strpos($labelName, 'Dismissed Offense') !== false || strpos($labelName, 'Dismissed') !== false) {
+      $calcDismissedOffenses += $cnt;
   } elseif (strpos($labelName, '(Major)') !== false || strpos($labelName, 'attire') !== false) {
       $calcMajor += $cnt;
   } else {
