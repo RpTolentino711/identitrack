@@ -523,6 +523,29 @@ foreach ($courseBreakdownQuery as $cbq) {
   ];
 }
 
+// Add UPCC Major Cases & UPCC Dismissed Cases per program from upcc_case table
+$upccCourseCasesQuery = db_all(
+  "SELECT
+      COALESCE(NULLIF(s.program,''), 'N/A') AS program,
+      SUM(CASE WHEN UPPER(COALESCE(uc.status,'')) = 'DISMISSED' THEN 1 ELSE 0 END) AS dismissed_cases_cnt,
+      SUM(CASE WHEN UPPER(COALESCE(uc.status,'')) != 'DISMISSED' THEN 1 ELSE 0 END) AS major_cases_cnt
+   FROM upcc_case uc
+   JOIN student s ON s.student_id = uc.student_id
+   WHERE uc.created_at BETWEEN ? AND ?
+   $audienceClause
+   GROUP BY program",
+  [$monthStart, $monthEnd]
+);
+
+foreach ($upccCourseCasesQuery as $ucq) {
+  $p = (string)$ucq['program'];
+  if (!isset($courseBreakdown[$p])) {
+    $courseBreakdown[$p] = ['minor' => 0, 'major' => 0, 'dismissed' => 0];
+  }
+  $courseBreakdown[$p]['major']     += (int)$ucq['major_cases_cnt'];
+  $courseBreakdown[$p]['dismissed'] += (int)$ucq['dismissed_cases_cnt'];
+}
+
 $coursesList = [];
 foreach (array_slice($academicCoursesMap, 0, 8, true) as $prog => $cnt) {
   $pStr = (string)$prog;
@@ -532,9 +555,6 @@ foreach (array_slice($academicCoursesMap, 0, 8, true) as $prog => $cnt) {
     $majCount = (int)($courseBreakdown[$pStr]['major'] ?? 0);
     $dCount = (int)($courseBreakdown[$pStr]['dismissed'] ?? 0);
     $totalCourseCnt = $mCount + $majCount + $dCount;
-    if ($totalCourseCnt === 0 && strpos($month, '2026-08') === false) {
-      $totalCourseCnt = (int)$cnt;
-    }
   } else {
     $mCount = (int)$cnt;
     $majCount = 0;
