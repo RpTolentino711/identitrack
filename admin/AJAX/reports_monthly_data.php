@@ -143,9 +143,7 @@ $dismissedCasesRow = db_one(
   [$monthStart, $monthEnd]
 );
 
-require_once __DIR__ . '/../data/historical_dataset_cache.php';
-
-$hRecords = function_exists('get_filtered_historical_records') ? get_filtered_historical_records($monthStart, $monthEnd, $audience, $category) : [];
+$hRecords = [];
 
 $hTotal = count($hRecords);
 $hMinor = 0;
@@ -542,20 +540,18 @@ for ($i = 5; $i >= 0; $i--) {
     [$mStart, $mEnd]
   );
 
-  $hTrendRecords = function_exists('get_filtered_historical_records') ? get_filtered_historical_records($mStart, $mEnd, $audience, $category) : [];
   $hTrendMinor = 0;
   $hTrendMajor = 0;
-  foreach ($hTrendRecords as $htr) {
-    if (strtoupper($htr['level'] ?? 'MINOR') === 'MINOR') $hTrendMinor++;
-    else $hTrendMajor++;
-  }
 
-  $trendMinor[] = (int)($mMinor['cnt'] ?? 0) + $hTrendMinor;
-  $trendMajor[] = (int)($mMajor['cnt'] ?? 0) + $hTrendMajor;
+  $trendMinor[] = (int)($mMinor['cnt'] ?? 0);
+  $trendMajor[] = (int)($mMajor['cnt'] ?? 0);
 }
 
-// Compute available months for this specific audience and category
-$availableMonthsMap = [];
+// Compute available months starting from August 2026 onwards for active system data
+$availableMonthsMap = ['2026-08' => true];
+if (date('Y-m') >= '2026-08') {
+    $availableMonthsMap[date('Y-m')] = true;
+}
 
 $mysqlMonths = db_all(
     "SELECT DISTINCT DATE_FORMAT(o.date_committed, '%Y-%m') AS ym
@@ -568,19 +564,8 @@ $mysqlMonths = db_all(
      ORDER BY ym DESC"
 );
 foreach ($mysqlMonths as $mm) {
-    if (!empty($mm['ym'])) $availableMonthsMap[$mm['ym']] = true;
-}
-
-$maxYM = date('Y-m');
-if (function_exists('get_filtered_historical_records')) {
-    $allCatRecords = get_filtered_historical_records('1970-01-01 00:00:00', '2099-12-31 23:59:59', $audience, $category);
-    foreach ($allCatRecords as $hr) {
-        if (!empty($hr['date'])) {
-            $ym = date('Y-m', strtotime($hr['date']));
-            if ($ym <= $maxYM) {
-                $availableMonthsMap[$ym] = true;
-            }
-        }
+    if (!empty($mm['ym']) && $mm['ym'] >= '2026-08') {
+        $availableMonthsMap[$mm['ym']] = true;
     }
 }
 
