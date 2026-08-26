@@ -301,9 +301,9 @@ $calcDismissedCases = 0;
 foreach ($combinedBreakdownMap as $labelName => $cnt) {
   $levelStr = (strpos($labelName, 'Major') !== false) ? 'MAJOR' : 'MINOR';
 
-  $isDismissedItem = strpos($labelName, 'Dismissed') !== false;
-  $isMajorItem     = strpos($labelName, '(Major)') !== false || strpos($labelName, 'attire') !== false;
-  $isMinorItem     = !$isDismissedItem && !$isMajorItem;
+  $isDismissedItem = (strpos($labelName, 'Dismissed') !== false);
+  $isMajorItem     = (strpos($labelName, '(Major') !== false);
+  $isMinorItem     = (strpos($labelName, '(Minor)') !== false);
 
   $includeInChart = true;
   if ($category === 'MINOR' && !$isMinorItem) {
