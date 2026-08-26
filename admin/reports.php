@@ -565,7 +565,10 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
             borderColor: '#2d3878',
             borderWidth: 1,
             borderRadius: 6,
-            borderSkipped: false
+            borderSkipped: false,
+            maxBarThickness: 48,
+            categoryPercentage: 0.4,
+            barPercentage: 0.7
           }]
         },
         options: {
@@ -597,15 +600,19 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
         return;
       }
 
-      courseList.innerHTML = courses.list.map(c => `
-        <div class="course-item">
-          <div class="course-top">
-            <span class="course-name">${escapeHtml(c.program)}</span>
-            <span class="course-count">${escapeHtml(c.cnt)} offenses</span>
+      courseList.innerHTML = courses.list.map(c => {
+        const rawSecs = (c.sections || []).filter(s => s && s !== 'INF232' && s !== 'N/A');
+        const secDisplay = rawSecs.length ? rawSecs.join(', ') : 'All Active Sections';
+        return `
+          <div class="course-item">
+            <div class="course-top">
+              <span class="course-name">${escapeHtml(c.program)}</span>
+              <span class="course-count">${escapeHtml(c.cnt)} offenses</span>
+            </div>
+            <div class="course-sections">Sections: ${escapeHtml(secDisplay)}</div>
           </div>
-          <div class="course-sections">Sections: ${escapeHtml((c.sections || []).join(', ') || 'N/A')}</div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function renderTrend(trend) {
