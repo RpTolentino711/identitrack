@@ -211,13 +211,14 @@ foreach ($hRecords as $hr) {
     $hCoursesMap[$prog]++;
 }
 
-$totalCount = (int)($totalRow['cnt'] ?? 0) + $hTotal;
 $minorCount = $minorCountDb + $hMinor;
 $majorCount = $majorCountDb + $hMajor;
 
 $dismissedOffensesCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + $hDismissedOffenses;
 $dismissedCasesCount    = (int)($dismissedCasesRow['cnt'] ?? 0) + $hDismissedCases;
 $dismissedTotalCount    = $dismissedOffensesCount + $dismissedCasesCount;
+
+$totalCount = $minorCount + $majorCount + $dismissedOffensesCount;
 
 // Active UPCC cases count (filtered by chosen month date range and audience)
 if ($monthStart === '1970-01-01 00:00:00') {
