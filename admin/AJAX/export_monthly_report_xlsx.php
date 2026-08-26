@@ -205,33 +205,29 @@ $breakdownMap = [];
 $coursesMap = [];
 
 foreach ($rows as $r) {
-    if (strtoupper((string)($r['offense_level'] ?? '')) === 'MINOR') {
-        $minor++;
-    } else {
-        $major++;
-    }
-
-    $status = strtoupper((string)($r['status'] ?? ''));
-    if ($status === 'PENDING' || $status === 'UNDER_INVESTIGATION' || $status === 'UNDER_APPEAL') {
-        $activeCases++;
-    }
-
-    // Pie chart map with Major/Minor label!
-    $levelStr = ucfirst(strtolower((string)($r['offense_level'] ?? '')));
+    $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
+    $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
+    $offenseStatus = strtoupper((string)($r['status'] ?? ''));
+    $decidedCat = (int)($r['decided_category'] ?? 0);
     $name = (string)($r['offense_name'] ?? 'Unknown');
-    $labelName = "$name ($levelStr)";
-    
-    if (!isset($breakdownMap[$labelName])) {
-        $breakdownMap[$labelName] = 0;
-    }
-    $breakdownMap[$labelName]++;
+    $cleanBase = preg_replace('/\s*\((Minor|Major Category \d|Major Cat \d|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed)\)$/i', '', $name);
 
-    // Bar chart map
-    $prog = (string)($r['program'] ?? 'N/A');
-    if (!isset($coursesMap[$prog])) {
-        $coursesMap[$prog] = 0;
+    if ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED') {
+        $tag = ($caseStatus === 'DISMISSED') ? '(Dismissed Case)' : '(Dismissed Offense)';
+    } elseif ($decidedCat > 0) {
+        $tag = "(Major Cat {$decidedCat})";
+    } elseif ($offenseLevel === 'MAJOR' || strpos($r['offense_code'], 'MAJ-') !== false) {
+        $catNum = ($decidedCat > 0) ? $decidedCat : 5;
+        $tag = "(Major Cat {$catNum})";
+    } else {
+        $tag = '(Minor)';
     }
-    $coursesMap[$prog]++;
+
+    $labelName = "$cleanBase $tag";
+    $breakdownMap[$labelName] = ($breakdownMap[$labelName] ?? 0) + 1;
+
+    $prog = (string)($r['program'] ?? 'N/A');
+    $coursesMap[$prog] = ($coursesMap[$prog] ?? 0) + 1;
 }
 
 arsort($breakdownMap);
@@ -358,6 +354,11 @@ $activeCases = 0;
   $sheet->getRowDimension(5)->setRowHeight(34);
 
   // Hidden Data for Charts in Columns AA to AF
+  $sheet->setCellValue('AA4', 'Offense Category');
+  $sheet->setCellValue('AB4', 'Cases Count');
+  $sheet->setCellValue('AE4', 'Degree Program');
+  $sheet->setCellValue('AF4', 'Cases Count');
+
   $bRow = 5;
   foreach ($breakdownMap as $name => $count) {
       $sheet->setCellValue('AA' . $bRow, $name);
