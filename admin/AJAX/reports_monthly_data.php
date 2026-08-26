@@ -485,6 +485,10 @@ foreach (array_slice($academicCoursesMap, 0, 8, true) as $prog => $cnt) {
   ];
 }
 
+$coursesList = array_values(array_filter($coursesList, function($c) {
+  return (int)($c['cnt'] ?? 0) > 0;
+}));
+
 usort($coursesList, function($a, $b) {
   return $b['cnt'] - $a['cnt'];
 });
