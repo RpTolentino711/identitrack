@@ -439,23 +439,18 @@ foreach ($fallbackTopCourses as $p => $c) {
 arsort($academicCoursesMap);
 
 if (strpos($month, '2026-08') !== false) {
-  if ($audience === 'SHS') {
-    $courseBreakdown = [
-      'STEM'  => ['minor' => 1, 'major' => 1, 'dismissed' => 0],
-      'ABM'   => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
-      'HUMSS' => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
-      'TVL'   => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-      'GAS'   => ['minor' => 0, 'major' => 0, 'dismissed' => 0]
-    ];
-  } else {
-    $courseBreakdown = [
-      'BSIT'    => ['minor' => 3, 'major' => 2, 'dismissed' => 3],
-      'BSBA-FM' => ['minor' => 1, 'major' => 1, 'dismissed' => 0],
-      'BSMT'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
-      'BSCE'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
-      'BS PSYCH'=> ['minor' => 1, 'major' => 0, 'dismissed' => 0]
-    ];
-  }
+  $courseBreakdown = [
+    'BSIT'    => ['minor' => 3, 'major' => 2, 'dismissed' => 3],
+    'BSBA-FM' => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+    'BSMT'    => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+    'BSCE'    => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+    'BS PSYCH'=> ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+    'STEM'    => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+    'ABM'     => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+    'HUMSS'   => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+    'TVL'     => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+    'GAS'     => ['minor' => 0, 'major' => 0, 'dismissed' => 0]
+  ];
 } else {
   $courseBreakdown = [];
 }
@@ -464,12 +459,14 @@ $coursesList = [];
 foreach (array_slice($academicCoursesMap, 0, 8, true) as $prog => $cnt) {
   $pStr = (string)$prog;
 
-  if (strpos($month, '2026-08') !== false && isset($courseBreakdown[$pStr])) {
+  if (isset($courseBreakdown[$pStr])) {
     $mCount = (int)($courseBreakdown[$pStr]['minor'] ?? 0);
     $majCount = (int)($courseBreakdown[$pStr]['major'] ?? 0);
     $dCount = (int)($courseBreakdown[$pStr]['dismissed'] ?? 0);
     $totalCourseCnt = $mCount + $majCount + $dCount;
-    if ($totalCourseCnt === 0) $totalCourseCnt = (int)$cnt;
+    if ($totalCourseCnt === 0 && strpos($month, '2026-08') === false) {
+      $totalCourseCnt = (int)$cnt;
+    }
   } else {
     $mCount = (int)$cnt;
     $majCount = 0;
