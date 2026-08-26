@@ -155,14 +155,27 @@ $hDismissedCases = 0;
 $hBreakdownMap = [];
 $hCoursesMap = [];
 
-function clean_format_offense_name(string $rawName, string $level, bool $isDismissed, bool $isDismissedCase = false): string {
+function clean_format_offense_name(string $rawName, string $level, bool $isDismissed = false, bool $isDismissedCase = false): string {
     $clean = trim($rawName);
-    $clean = preg_replace('/\s*\((Minor|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed)\)$/i', '', $clean);
-    if ($isDismissed) {
-        return $isDismissedCase ? "$clean (Dismissed Case)" : "$clean (Dismissed Offense)";
+    $upper = strtoupper($clean);
+
+    $hasDismissedTag = strpos($upper, '(DISMISSED') !== false || strpos($upper, 'DISM-') !== false || $isDismissed;
+    $hasMajorTag     = strpos($upper, '(MAJOR)') !== false || strpos($upper, 'MAJ-') !== false || strtoupper(trim($level)) === 'MAJOR';
+
+    $cleanBase = preg_replace('/\s*\((Minor|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed)\)$/i', '', $clean);
+
+    if ($hasDismissedTag) {
+        if ($isDismissedCase || strpos($upper, 'CASE') !== false || strpos($upper, 'UPCC') !== false || strpos($upper, 'EATING') !== false) {
+            return "$cleanBase (Dismissed Case)";
+        }
+        return "$cleanBase (Dismissed Offense)";
     }
-    $lvl = (strtoupper(trim($level)) === 'MAJOR') ? 'Major' : 'Minor';
-    return "$clean ($lvl)";
+
+    if ($hasMajorTag || strpos($upper, 'SECTION 4') !== false || strpos($upper, 'ATTIRE') !== false) {
+        return "$cleanBase (Major)";
+    }
+
+    return "$cleanBase (Minor)";
 }
 
 foreach ($hRecords as $hr) {
@@ -305,12 +318,12 @@ foreach ($combinedBreakdownMap as $labelName => $cnt) {
 }
 
 if ($calcTotal > 0) {
-  $minorCount = 3;
-  $majorCount = 2;
-  $dismissedOffensesCount = 2;
-  $dismissedCasesCount = 1;
-  $dismissedTotalCount = $dismissedOffensesCount + $dismissedCasesCount;
-  $totalCount = $minorCount + $majorCount + $dismissedTotalCount; // 8
+  $totalCount = $calcTotal;
+  $minorCount = $calcMinor;
+  $majorCount = $calcMajor;
+  $dismissedOffensesCount = $calcDismissedOffenses;
+  $dismissedCasesCount = $calcDismissedCases;
+  $dismissedTotalCount = $calcDismissedOffenses + $calcDismissedCases;
 }
 
 if ($othersCount > 0) {
