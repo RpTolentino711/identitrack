@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($r['status'] !== 'PENDING') {
     $errors[] = 'This request is already processed.';
   } else if ($action === 'approve') {
-    if ($notes === '') {
+    if ($requestType === 'LOGIN' && $notes === '') {
       $errors[] = 'SDO Notes / Assignment Location is required before approving.';
     }
     if (!admin_verify_password($adminId, $doPassword)) {
@@ -794,9 +794,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   <?php endif; ?>
                 <?php endif; ?>
                 <label class="field-label" for="notes">
-                  SDO Notes / Assignment Location <span style="font-weight:800; color:#dc3545;">(Required *)</span>
+                  SDO Notes / Assignment Location 
+                  <?php if ($r['request_type'] === 'LOGIN'): ?>
+                    <span style="font-weight:800; color:#dc3545;">(Required *)</span>
+                  <?php else: ?>
+                    <span style="font-weight:600; color:#6c757d;">(Optional)</span>
+                  <?php endif; ?>
                 </label>
-                <textarea id="notes" name="notes" placeholder="Specify where the student will render service (e.g. University Library, SDO Office, Campus Grounds)..." required></textarea>
+                <textarea id="notes" name="notes" placeholder="<?php echo $r['request_type'] === 'LOGIN' ? 'Specify where the student will render service (e.g. University Library, SDO Office, Campus Grounds)...' : 'Optional SDO notes regarding manual logout validation...'; ?>" <?php echo $r['request_type'] === 'LOGIN' ? 'required' : ''; ?>></textarea>
 
                 <p class="approve-note">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -840,6 +845,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 
   <script>
+    const isLoginRequest = <?php echo json_encode($r['request_type'] === 'LOGIN'); ?>;
     const overlay       = document.getElementById('approveModal');
     const openBtn       = document.getElementById('openModalBtn');
     const closeBtn      = document.getElementById('modalClose');
@@ -884,7 +890,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     function openModal() {
       const notesVal = notesField ? notesField.value.trim() : '';
-      if (!notesVal) {
+      if (isLoginRequest && !notesVal) {
         showAlertModal(
           'Notes Required',
           'SDO Notes / Service Assignment Location is required! Please enter where the student will render service before approving.',
