@@ -67,6 +67,19 @@ $totalRow = db_one(
   [$monthStart, $monthEnd]
 );
 
+// Minor offenses
+$minorRow = db_one(
+  "SELECT COUNT(*) AS cnt
+   FROM offense o
+   JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+   JOIN student s ON s.student_id = o.student_id
+   WHERE o.date_committed BETWEEN ? AND ?
+     AND (ot.level = 'MINOR' OR o.level = 'MINOR')
+     AND COALESCE(o.status,'') != 'DISMISSED'
+     $audienceClause",
+  [$monthStart, $monthEnd]
+);
+
 // Direct Major offenses
 $directMajorRow = db_one(
   "SELECT COUNT(*) AS cnt
@@ -92,23 +105,8 @@ $sec4CasesRow = db_one(
   [$monthStart, $monthEnd]
 );
 
+$minorCountDb = (int)($minorRow['cnt'] ?? 0);
 $majorCountDb = (int)($directMajorRow['cnt'] ?? 0) + (int)($sec4CasesRow['cnt'] ?? 0);
-
-// Total non-dismissed DB offenses
-$nonDismissedDbRow = db_one(
-  "SELECT COUNT(*) AS cnt
-   FROM offense o
-   JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-   JOIN student s ON s.student_id = o.student_id
-   WHERE o.date_committed BETWEEN ? AND ?
-     AND COALESCE(o.status,'') != 'DISMISSED'
-     AND COALESCE(ot.level,'') != 'DISMISSED'
-     $audienceClause",
-  [$monthStart, $monthEnd]
-);
-
-$nonDismissedTotalDb = (int)($nonDismissedDbRow['cnt'] ?? 0);
-$minorCountDb = max(0, $nonDismissedTotalDb - $majorCountDb);
 
 $dismissedOffensesRow = db_one(
   "SELECT COUNT(*) AS cnt
