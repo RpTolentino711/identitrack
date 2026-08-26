@@ -11,6 +11,10 @@ require_once __DIR__ . '/../../database/database.php';
 require_admin();
 
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+header('Expires: 0');
 
 $month = trim((string)($_GET['month'] ?? date('Y-m')));
 if (strtoupper($month) === 'ALL') {

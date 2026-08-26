@@ -461,8 +461,8 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
 
     async function loadReport(month, audience, category = 'ALL') {
       setLoading(true);
-      const url = 'AJAX/reports_monthly_data.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(category);
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const url = 'AJAX/reports_monthly_data.php?month=' + encodeURIComponent(month) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(category) + '&_t=' + Date.now();
+      const res = await fetch(url, { headers: { 'Accept': 'application/json', 'Cache-Control': 'no-cache' } });
       if (!res.ok) throw new Error('Request failed');
 
       const json = await res.json();
