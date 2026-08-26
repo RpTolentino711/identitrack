@@ -271,10 +271,11 @@ $breakdownRows = db_all(
 
 $caseBreakdownRows = db_all(
   "SELECT
-      COALESCE(NULLIF(uc.case_summary,''), NULLIF(uc.case_kind,''), 'UPCC Hearing Case') AS name,
+      uc.case_id,
+      COALESCE(NULLIF(uc.case_summary,''), NULLIF(uc.case_kind,''), 'UPCC Hearing Case') AS raw_name,
       'MAJ-CASE' AS code,
       'MAJOR' AS level,
-      COALESCE(uc.decided_category, 5) AS major_category,
+      COALESCE(NULLIF(uc.decided_category, 0), 5) AS major_category,
       'OPEN' AS offense_status,
       uc.status AS case_status,
       COUNT(*) AS cnt
@@ -282,19 +283,18 @@ $caseBreakdownRows = db_all(
    JOIN student s ON s.student_id = uc.student_id
    WHERE uc.created_at BETWEEN ? AND ?
    $audienceClause
-   GROUP BY name, uc.decided_category, uc.status",
+   GROUP BY uc.case_id, raw_name, uc.decided_category, uc.status",
   [$monthStart, $monthEnd]
 );
 
-$allRows = array_merge($breakdownRows, $caseBreakdownRows);
-
 $combinedBreakdownMap = [];
-foreach ($allRows as $r) {
+
+// 1. Map base offenses from offense table
+foreach ($breakdownRows as $r) {
   $name = (string)$r['name'];
   $level = strtoupper((string)$r['level']);
   $isDismissedCase = ($r['case_status'] === 'DISMISSED');
   $isDismissed = ($r['offense_status'] === 'DISMISSED' || $isDismissedCase || $level === 'DISMISSED');
-  $isMajorCase = ($r['case_status'] !== null && $r['case_status'] !== 'DISMISSED');
 
   if ($category === 'MINOR') {
     $tag = '(Minor)';
@@ -303,7 +303,7 @@ foreach ($allRows as $r) {
     $catNum = (int)($r['major_category'] ?? 1);
     if ($catNum < 1 || $catNum > 5) $catNum = 1;
     $tag = "(Major Cat $catNum)";
-    $include = ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false || $isMajorCase) && !$isDismissed;
+    $include = ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false) && !$isDismissed;
   } elseif ($category === 'DISMISSED') {
     $tag = $isDismissedCase ? '(Dismissed Case)' : '(Dismissed Offense)';
     $include = $isDismissed;
@@ -311,7 +311,7 @@ foreach ($allRows as $r) {
     // ALL
     if ($isDismissed) {
       $tag = $isDismissedCase ? '(Dismissed Case)' : '(Dismissed Offense)';
-    } elseif ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false || $isMajorCase) {
+    } elseif ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false) {
       $catNum = (int)($r['major_category'] ?? 1);
       if ($catNum < 1 || $catNum > 5) $catNum = 1;
       $tag = "(Major Cat $catNum)";
@@ -325,6 +325,35 @@ foreach ($allRows as $r) {
     $cleanBase = preg_replace('/\s*\((Minor|Major Category \d|Major Cat \d|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed)\)$/i', '', $name);
     $labelName = "$cleanBase $tag";
     $cnt = (int)$r['cnt'];
+    $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
+  }
+}
+
+// 2. Map UPCC Cases from upcc_case table
+foreach ($caseBreakdownRows as $cr) {
+  $rawName = (string)$cr['raw_name'];
+  $caseStatus = (string)$cr['case_status'];
+  $isDismissedCase = ($caseStatus === 'DISMISSED' || strpos(strtoupper($rawName), 'DISMISS') !== false);
+  
+  if (strpos(strtoupper($rawName), 'SECTION4') !== false || strpos(strtoupper($rawName), 'SECTION 4') !== false) {
+    $baseName = 'Section 4 Minor Offense Escalation';
+  } else {
+    $baseName = 'UPCC Major Case';
+  }
+
+  if ($isDismissedCase) {
+    $tag = '(Dismissed Case)';
+    $include = ($category === 'ALL' || $category === 'DISMISSED');
+  } else {
+    $catNum = (int)($cr['major_category'] ?? 5);
+    if ($catNum < 1 || $catNum > 5) $catNum = 5;
+    $tag = "(Major Cat $catNum)";
+    $include = ($category === 'ALL' || $category === 'MAJOR' || $category === 'SANCTIONS' || $category === 'MAJOR_SANCTIONS');
+  }
+
+  if ($include) {
+    $labelName = "$baseName $tag";
+    $cnt = (int)$cr['cnt'];
     $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
   }
 }
