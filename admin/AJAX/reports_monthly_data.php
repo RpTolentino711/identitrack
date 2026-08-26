@@ -67,42 +67,48 @@ $totalRow = db_one(
   [$monthStart, $monthEnd]
 );
 
-$minorRow = db_one(
+// Direct Major offenses
+$directMajorRow = db_one(
   "SELECT COUNT(*) AS cnt
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
-   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
-   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ?
-     AND ot.level = 'MINOR'
+     AND (ot.level = 'MAJOR' OR o.level = 'MAJOR')
      AND COALESCE(o.status,'') != 'DISMISSED'
-     AND COALESCE(ot.level,'') != 'DISMISSED'
-     AND COALESCE(uc.status,'') != 'DISMISSED'
-     AND (uc.case_id IS NULL OR (COALESCE(uc.case_kind,'') NOT LIKE '%SECTION4%' AND COALESCE(uc.case_summary,'') NOT LIKE '%Section 4%'))
      $audienceClause",
   [$monthStart, $monthEnd]
 );
 
-$majorRow = db_one(
+// Section 4 Major Escalation Cases (1 Major count per Section 4 UPCC Case)
+$sec4CasesRow = db_one(
+  "SELECT COUNT(DISTINCT uc.case_id) AS cnt
+   FROM upcc_case uc
+   JOIN student s ON s.student_id = uc.student_id
+   WHERE uc.created_at BETWEEN ? AND ?
+     AND COALESCE(uc.status,'') != 'DISMISSED'
+     AND (COALESCE(uc.case_kind,'') LIKE '%SECTION4%' OR COALESCE(uc.case_summary,'') LIKE '%Section 4%')
+     $audienceClause",
+  [$monthStart, $monthEnd]
+);
+
+$majorCountDb = (int)($directMajorRow['cnt'] ?? 0) + (int)($sec4CasesRow['cnt'] ?? 0);
+
+// Total non-dismissed DB offenses
+$nonDismissedDbRow = db_one(
   "SELECT COUNT(*) AS cnt
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
-   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
-   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ?
      AND COALESCE(o.status,'') != 'DISMISSED'
      AND COALESCE(ot.level,'') != 'DISMISSED'
-     AND COALESCE(uc.status,'') != 'DISMISSED'
-     AND (
-       ot.level = 'MAJOR'
-       OR o.level = 'MAJOR'
-       OR (uc.case_id IS NOT NULL AND (COALESCE(uc.case_kind,'') LIKE '%SECTION4%' OR COALESCE(uc.case_summary,'') LIKE '%Section 4%'))
-     )
      $audienceClause",
   [$monthStart, $monthEnd]
 );
+
+$nonDismissedTotalDb = (int)($nonDismissedDbRow['cnt'] ?? 0);
+$minorCountDb = max(0, $nonDismissedTotalDb - $majorCountDb);
 
 $dismissedOffensesRow = db_one(
   "SELECT COUNT(*) AS cnt
@@ -186,8 +192,8 @@ foreach ($hRecords as $hr) {
 }
 
 $totalCount = (int)($totalRow['cnt'] ?? 0) + $hTotal;
-$minorCount = (int)($minorRow['cnt'] ?? 0) + $hMinor;
-$majorCount = (int)($majorRow['cnt'] ?? 0) + $hMajor;
+$minorCount = $minorCountDb + $hMinor;
+$majorCount = $majorCountDb + $hMajor;
 
 $dismissedOffensesCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + $hDismissedOffenses;
 $dismissedCasesCount    = (int)($dismissedCasesRow['cnt'] ?? 0) + $hDismissedCases;
