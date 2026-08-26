@@ -160,22 +160,17 @@ function clean_format_offense_name(string $rawName, string $level, bool $isDismi
     $cleanBase = preg_replace('/\s*\((Minor|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed)\)$/i', '', $clean);
     $upperBase = strtoupper($cleanBase);
     $rawUpper  = strtoupper($clean);
+    $levelUpper = strtoupper(trim($level));
 
-    if (strpos($upperBase, 'BYPASSING') !== false) {
-        return "$cleanBase (Minor)";
-    }
-
-    $hasDismissedTag = strpos($rawUpper, '(DISMISSED') !== false || strpos($rawUpper, 'DISM-') !== false || $isDismissed;
-    $hasMajorTag     = strpos($rawUpper, '(MAJOR)') !== false || strpos($rawUpper, 'MAJ-') !== false || strtoupper(trim($level)) === 'MAJOR';
-
-    if ($hasDismissedTag) {
-        if ($isDismissedCase || strpos($upperBase, 'EATING') !== false || strpos($upperBase, 'UPCC') !== false) {
-            return "$cleanBase (Dismissed Case)";
-        }
+    if ($levelUpper === 'DISMISSED' || strpos($rawUpper, 'DISM-') !== false || strpos($rawUpper, '(DISMISSED OFFENSE)') !== false) {
         return "$cleanBase (Dismissed Offense)";
     }
 
-    if ($hasMajorTag || strpos($upperBase, 'SECTION 4') !== false || strpos($upperBase, 'ATTIRE') !== false) {
+    if ($isDismissedCase || strpos($rawUpper, '(DISMISSED CASE)') !== false) {
+        return "$cleanBase (Dismissed Case)";
+    }
+
+    if ($levelUpper === 'MAJOR' || strpos($rawUpper, 'MAJ-') !== false || strpos($upperBase, 'SECTION 4') !== false || strpos($rawUpper, '(MAJOR)') !== false) {
         return "$cleanBase (Major)";
     }
 
