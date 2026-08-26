@@ -80,17 +80,11 @@ $monthLabel = date('F', strtotime($monthStart));
 $upccTotalRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case");
 $upccTotal = (int)($upccTotalRow['cnt'] ?? 0);
 
-$upccUnassignedRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE (assigned_department_id IS NULL OR assigned_department_id = 0) AND (assigned_panel_members IS NULL OR assigned_panel_members = '' OR assigned_panel_members = '[]')");
-$upccUnassigned = (int)($upccUnassignedRow['cnt'] ?? 0);
+$upccResolvedRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE UPPER(status) IN ('CLOSED', 'RESOLVED', 'SOLVED')");
+$upccResolved = (int)($upccResolvedRow['cnt'] ?? 0);
 
-$upccAssignedNoHearingRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE ((assigned_department_id IS NOT NULL AND assigned_department_id > 0) OR (assigned_panel_members IS NOT NULL AND assigned_panel_members <> '' AND assigned_panel_members <> '[]')) AND (hearing_date IS NULL OR hearing_date = '')");
-$upccAssignedNoHearing = (int)($upccAssignedNoHearingRow['cnt'] ?? 0);
-
-$upccSolvedRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE status IN ('CLOSED', 'RESOLVED', 'CANCELLED')");
-$upccSolved = (int)($upccSolvedRow['cnt'] ?? 0);
-
-$upccUnsolvedRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE status IN ('PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL')");
-$upccUnsolved = (int)($upccUnsolvedRow['cnt'] ?? 0);
+$upccDismissedRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE UPPER(status) = 'DISMISSED' OR final_decision LIKE '%DISMISS%'");
+$upccDismissed = (int)($upccDismissedRow['cnt'] ?? 0);
 
 // ------------------------------------------------------------
 // Appeals Breakdown
@@ -861,15 +855,12 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
               <div class="stat-title">UPCC Cases</div>
               <div class="stat-value"><?php echo $upccTotal; ?></div>
             </a>
-            <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; font-size: 0.75rem; color: #6b7280; line-height: 1.2;">
-              <a href="upcc_cases.php?filter=unassigned" style="text-decoration:none; color:inherit; display:block;">
-                Unassigned:<br><strong style="color:#ef4444; transition: opacity 0.15s;" onmouseover="this.style.opacity=0.7;" onmouseout="this.style.opacity=1;"><?php echo $upccUnassigned; ?></strong>
+            <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.75rem; color: #6b7280; line-height: 1.2;">
+              <a href="upcc_cases.php?filter=resolved" style="text-decoration:none; color:inherit; display:block;">
+                Resolved:<br><strong style="color:#10b981; font-weight:700; transition: opacity 0.15s;" onmouseover="this.style.opacity=0.7;" onmouseout="this.style.opacity=1;"><?php echo $upccResolved; ?></strong>
               </a>
-              <a href="upcc_cases.php?filter=unsolved" style="text-decoration:none; color:inherit; display:block;">
-                Unsolved:<br><strong style="color:#374151; transition: opacity 0.15s;" onmouseover="this.style.opacity=0.7;" onmouseout="this.style.opacity=1;"><?php echo $upccUnsolved; ?></strong>
-              </a>
-              <a href="upcc_cases.php?filter=solved" style="text-decoration:none; color:inherit; display:block;">
-                Solved:<br><strong style="color:#10b981; transition: opacity 0.15s;" onmouseover="this.style.opacity=0.7;" onmouseout="this.style.opacity=1;"><?php echo $upccSolved; ?></strong>
+              <a href="upcc_cases.php?filter=dismissed" style="text-decoration:none; color:inherit; display:block;">
+                Dismissed:<br><strong style="color:#64748b; font-weight:700; transition: opacity 0.15s;" onmouseover="this.style.opacity=0.7;" onmouseout="this.style.opacity=1;"><?php echo $upccDismissed; ?></strong>
               </a>
             </div>
           </div>
