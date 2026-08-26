@@ -99,11 +99,14 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
 
     .stats{
       display:grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
       margin: 10px 0 12px;
     }
-    @media (max-width: 991px) {
+    @media (max-width: 1100px) {
+      .stats{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
       .stats{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     .stat{
