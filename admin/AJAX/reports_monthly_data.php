@@ -269,9 +269,28 @@ $detailed = [];
 $othersCount = 0;
 $idx = 0;
 
+$calcTotal = 0;
+$calcMinor = 0;
+$calcMajor = 0;
+$calcDismissedOffenses = 0;
+$calcDismissedCases = 0;
+
 foreach ($combinedBreakdownMap as $labelName => $cnt) {
   $levelStr = (strpos($labelName, 'Major') !== false) ? 'MAJOR' : 'MINOR';
   $detailed[] = ['name' => $labelName, 'code' => 'INF', 'level' => $levelStr, 'cnt' => $cnt];
+
+  $calcTotal += $cnt;
+  if (strpos($labelName, '(Dismissed)') !== false) {
+      if (strpos($labelName, 'Eating') !== false || strpos($labelName, 'Case') !== false || strpos($labelName, 'UPCC') !== false) {
+          $calcDismissedCases += $cnt;
+      } else {
+          $calcDismissedOffenses += $cnt;
+      }
+  } elseif (strpos($labelName, '(Major)') !== false || strpos($labelName, 'attire') !== false) {
+      $calcMajor += $cnt;
+  } else {
+      $calcMinor += $cnt;
+  }
 
   if ($idx < $topN) {
     $pieLabels[] = $labelName;
@@ -280,6 +299,15 @@ foreach ($combinedBreakdownMap as $labelName => $cnt) {
     $othersCount += $cnt;
   }
   $idx++;
+}
+
+if ($calcTotal > 0) {
+  $totalCount = $calcTotal;
+  $minorCount = $calcMinor;
+  $majorCount = $calcMajor;
+  $dismissedOffensesCount = $calcDismissedOffenses;
+  $dismissedCasesCount = $calcDismissedCases;
+  $dismissedTotalCount = $calcDismissedOffenses + $calcDismissedCases;
 }
 
 if ($othersCount > 0) {
