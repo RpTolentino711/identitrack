@@ -289,16 +289,22 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
             <div class="sub" id="statMajorSub">—</div>
           </div>
 
+          <div class="stat gray">
+            <div class="label">Dismissed Offenses</div>
+            <div class="value" id="statDismissedOffenses" style="color:#64748b;">—</div>
+            <div class="sub" id="statDismissedOffensesSub">SDO Cleared / Voided</div>
+          </div>
+
           <div class="stat purple">
             <div class="label">Active Cases</div>
             <div class="value" id="statActive" style="color:#6f42c1;">—</div>
             <div class="sub">Under review</div>
           </div>
 
-          <div class="stat gray">
-            <div class="label">Dismissed</div>
-            <div class="value" id="statDismissed" style="color:#64748b;">—</div>
-            <div class="sub" id="statDismissedSub">Cleared / No sanction</div>
+          <div class="stat gray" style="border-left-color: #475569;">
+            <div class="label">Dismissed Cases</div>
+            <div class="value" id="statDismissedCases" style="color:#475569;">—</div>
+            <div class="sub">UPCC Panel Cleared</div>
           </div>
         </section>
 
@@ -385,11 +391,12 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     const statTotal = document.getElementById('statTotal');
     const statMinor = document.getElementById('statMinor');
     const statMajor = document.getElementById('statMajor');
+    const statDismissedOffenses = document.getElementById('statDismissedOffenses');
     const statActive = document.getElementById('statActive');
-    const statDismissed = document.getElementById('statDismissed');
+    const statDismissedCases = document.getElementById('statDismissedCases');
     const statMinorSub = document.getElementById('statMinorSub');
     const statMajorSub = document.getElementById('statMajorSub');
-    const statDismissedSub = document.getElementById('statDismissedSub');
+    const statDismissedOffensesSub = document.getElementById('statDismissedOffensesSub');
 
     const breakdownList = document.getElementById('breakdownList');
     const courseList = document.getElementById('courseList');
@@ -454,19 +461,16 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     }
 
     function renderStats(stats) {
-      statTotal.textContent = stats.total;
-      statMinor.textContent = stats.minor;
-      statMajor.textContent = stats.major;
-      statActive.textContent = stats.active_cases;
-      if (statDismissed) statDismissed.textContent = stats.dismissed || 0;
+      if (statTotal) statTotal.textContent = stats.total;
+      if (statMinor) statMinor.textContent = stats.minor;
+      if (statMajor) statMajor.textContent = stats.major;
+      if (statDismissedOffenses) statDismissedOffenses.textContent = stats.dismissed_offenses || 0;
+      if (statActive) statActive.textContent = stats.active_cases;
+      if (statDismissedCases) statDismissedCases.textContent = stats.dismissed_cases || 0;
 
-      statMinorSub.textContent = percent(stats.minor, stats.total) + '% of total';
-      statMajorSub.textContent = percent(stats.major, stats.total) + '% of total';
-      if (statDismissedSub) {
-        const offCnt = stats.dismissed_offenses || 0;
-        const caseCnt = stats.dismissed_cases || 0;
-        statDismissedSub.textContent = `${offCnt} Offenses | ${caseCnt} Cases`;
-      }
+      if (statMinorSub) statMinorSub.textContent = percent(stats.minor, stats.total) + '% of total';
+      if (statMajorSub) statMajorSub.textContent = percent(stats.major, stats.total) + '% of total';
+      if (statDismissedOffensesSub) statDismissedOffensesSub.textContent = percent(stats.dismissed_offenses || 0, stats.total) + '% of total';
     }
 
     function renderBreakdown(breakdown) {
