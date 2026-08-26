@@ -205,22 +205,24 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     .muted{ color:#6c757d; font-size:11px; font-weight:500; }
 
     .breakdown-panel{ padding: 14px 14px 12px; }
-    .breakdown-chart-wrap{ padding: 2px 6px 0; max-width: 340px; margin: 0 auto; }
+    .breakdown-chart-wrap{ padding: 2px 6px 0; max-width: 480px; margin: 0 auto; }
     .breakdown-title{ margin-top: 10px; font-weight:600; font-size:11px; color:#333; }
     .breakdown-list{ margin-top: 6px; }
     .breakdown-row{
       display:flex;
       justify-content: space-between;
-      align-items:center;
-      gap: 10px;
-      padding: 2px 0;
+      align-items:flex-start;
+      gap: 12px;
+      padding: 5px 0;
       font-size:11px;
       color:#353535;
+      border-bottom: 1px solid #f1f5f9;
     }
-    .breakdown-left{ display:flex; align-items:center; gap: 6px; min-width:0; }
-    .breakdown-dot{ width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
-    .breakdown-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .breakdown-count{ font-weight:600; color:#333; }
+    .breakdown-row:last-child{ border-bottom:none; }
+    .breakdown-left{ display:flex; align-items:flex-start; gap: 8px; flex:1; min-width:0; }
+    .breakdown-dot{ width:9px; height:9px; border-radius:50%; flex:0 0 auto; margin-top:3px; }
+    .breakdown-name{ white-space:normal; word-break:break-word; line-height:1.35; color:#1e293b; }
+    .breakdown-count{ font-weight:600; color:#0f172a; white-space:nowrap; flex:0 0 auto; align-self:flex-start; }
 
     .courses-chart-wrap{ max-width: 360px; margin: 0 auto; }
     .course-item{ padding: 3px 0 5px; }
@@ -527,9 +529,10 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               display: true,
               position: 'bottom',
               labels: {
-                boxWidth: 10,
-                padding: 10,
-                font: { size: 10, weight: '600' }
+                boxWidth: 8,
+                boxHeight: 8,
+                padding: 8,
+                font: { size: 10.5, weight: '600' }
               }
             },
             tooltip: {
