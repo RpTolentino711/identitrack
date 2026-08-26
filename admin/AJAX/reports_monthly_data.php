@@ -153,11 +153,11 @@ $hDismissedCases = 0;
 $hBreakdownMap = [];
 $hCoursesMap = [];
 
-function clean_format_offense_name(string $rawName, string $level, bool $isDismissed = false, bool $isDismissedCase = false): string {
+function clean_format_offense_name(string $rawName, string $level, bool $isDismissed = false, bool $isDismissedCase = false, $majorCategory = null): string {
     $clean = trim($rawName);
     
     // Strip existing level tags from clean base first
-    $cleanBase = preg_replace('/\s*\((Minor|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed)\)$/i', '', $clean);
+    $cleanBase = preg_replace('/\s*\((Minor|Major Category \d|Major Cat \d|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed)\)$/i', '', $clean);
     $upperBase = strtoupper($cleanBase);
     $rawUpper  = strtoupper($clean);
     $levelUpper = strtoupper(trim($level));
@@ -171,6 +171,13 @@ function clean_format_offense_name(string $rawName, string $level, bool $isDismi
     }
 
     if ($levelUpper === 'MAJOR' || strpos($rawUpper, 'MAJ-') !== false || strpos($upperBase, 'SECTION 4') !== false || strpos($rawUpper, '(MAJOR)') !== false) {
+        $catNum = (int)$majorCategory;
+        if ($catNum >= 1 && $catNum <= 5) {
+            return "$cleanBase (Major Cat $catNum)";
+        }
+        if (strpos($upperBase, 'SECTION 4') !== false) {
+            return "$cleanBase (Major Cat 5)";
+        }
         return "$cleanBase (Major)";
     }
 
@@ -246,6 +253,7 @@ $breakdownRows = db_all(
       ot.name,
       ot.code,
       ot.level,
+      ot.major_category,
       o.status AS offense_status,
       uc.status AS case_status,
       COUNT(*) AS cnt
@@ -256,7 +264,7 @@ $breakdownRows = db_all(
    LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ?
    $audienceClause
-   GROUP BY ot.offense_type_id, ot.name, ot.code, ot.level, o.status, uc.status
+   GROUP BY ot.offense_type_id, ot.name, ot.code, ot.level, ot.major_category, o.status, uc.status
    ORDER BY cnt DESC, ot.name ASC",
   [$monthStart, $monthEnd]
 );
@@ -266,7 +274,7 @@ foreach ($breakdownRows as $r) {
   $name = (string)$r['name'];
   $isDismissedCase = ($r['case_status'] === 'DISMISSED');
   $isDismissed = ($r['offense_status'] === 'DISMISSED' || $isDismissedCase || strtoupper((string)$r['level']) === 'DISMISSED');
-  $labelName = clean_format_offense_name($name, (string)$r['level'], $isDismissed, $isDismissedCase);
+  $labelName = clean_format_offense_name($name, (string)$r['level'], $isDismissed, $isDismissedCase, $r['major_category'] ?? null);
   $cnt = (int)$r['cnt'];
   $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
 }
