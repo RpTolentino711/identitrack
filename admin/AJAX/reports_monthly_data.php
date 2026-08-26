@@ -293,7 +293,31 @@ $calcDismissedCases = 0;
 
 foreach ($combinedBreakdownMap as $labelName => $cnt) {
   $levelStr = (strpos($labelName, 'Major') !== false) ? 'MAJOR' : 'MINOR';
-  $detailed[] = ['name' => $labelName, 'code' => 'INF', 'level' => $levelStr, 'cnt' => $cnt];
+
+  $isDismissedItem = strpos($labelName, 'Dismissed') !== false;
+  $isMajorItem     = strpos($labelName, '(Major)') !== false || strpos($labelName, 'attire') !== false;
+  $isMinorItem     = !$isDismissedItem && !$isMajorItem;
+
+  $includeInChart = true;
+  if ($category === 'MINOR' && !$isMinorItem) {
+    $includeInChart = false;
+  } elseif ($category === 'MAJOR' && !$isMajorItem) {
+    $includeInChart = false;
+  } elseif ($category === 'DISMISSED' && !$isDismissedItem) {
+    $includeInChart = false;
+  }
+
+  if ($includeInChart) {
+    $detailed[] = ['name' => $labelName, 'code' => 'INF', 'level' => $levelStr, 'cnt' => $cnt];
+
+    if ($idx < $topN) {
+      $pieLabels[] = $labelName;
+      $pieCounts[] = $cnt;
+    } else {
+      $othersCount += $cnt;
+    }
+    $idx++;
+  }
 
   $calcTotal += $cnt;
   if (strpos($labelName, 'Dismissed Case') !== false) {
@@ -305,14 +329,6 @@ foreach ($combinedBreakdownMap as $labelName => $cnt) {
   } else {
       $calcMinor += $cnt;
   }
-
-  if ($idx < $topN) {
-    $pieLabels[] = $labelName;
-    $pieCounts[] = $cnt;
-  } else {
-    $othersCount += $cnt;
-  }
-  $idx++;
 }
 
 if ($calcTotal > 0) {
