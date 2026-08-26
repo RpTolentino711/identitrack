@@ -419,7 +419,7 @@ foreach ($combinedCoursesMap as $prog => $cnt) {
 }
 
 // Guarantee Top 3 courses presentation
-$fallbackTopCourses = ['BSBA-FM' => 2, 'BSMT' => 1, 'BSCE' => 1, 'BS PSYCH' => 1];
+$fallbackTopCourses = ['BSBA-FM' => 0, 'BSMT' => 0, 'BSCE' => 0, 'BS PSYCH' => 0];
 foreach ($fallbackTopCourses as $p => $c) {
   if (count($academicCoursesMap) >= 3) break;
   if (!isset($academicCoursesMap[$p])) {
