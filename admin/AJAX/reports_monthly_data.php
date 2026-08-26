@@ -637,6 +637,36 @@ foreach ($mysqlMonths as $mm) {
 $availableMonths = array_keys($availableMonthsMap);
 usort($availableMonths, function($a, $b) { return strcmp($b, $a); });
 
+if ($category === 'MINOR') {
+  $dispTotal = $minorCount;
+  $dispMinor = $minorCount;
+  $dispMajor = 0;
+  $dispDismissedOffenses = 0;
+  $dispActiveCases = 0;
+  $dispDismissedCases = 0;
+} elseif ($category === 'MAJOR' || $category === 'SANCTIONS' || $category === 'MAJOR_SANCTIONS') {
+  $dispTotal = $majorCount;
+  $dispMinor = 0;
+  $dispMajor = $majorCount;
+  $dispDismissedOffenses = 0;
+  $dispActiveCases = $activeCases;
+  $dispDismissedCases = 0;
+} elseif ($category === 'DISMISSED') {
+  $dispTotal = $dismissedTotalCount;
+  $dispMinor = 0;
+  $dispMajor = 0;
+  $dispDismissedOffenses = $dismissedOffensesCount;
+  $dispActiveCases = 0;
+  $dispDismissedCases = $dismissedCasesCount;
+} else {
+  $dispTotal = $totalCount;
+  $dispMinor = $minorCount;
+  $dispMajor = $majorCount;
+  $dispDismissedOffenses = $dismissedOffensesCount;
+  $dispActiveCases = $activeCases;
+  $dispDismissedCases = $dismissedCasesCount;
+}
+
 echo json_encode([
   'ok' => true,
   'month' => $month,
@@ -644,13 +674,13 @@ echo json_encode([
   'category' => $category,
   'availableMonths' => $availableMonths,
   'stats' => [
-    'total' => $totalCount,
-    'minor' => $minorCount,
-    'major' => $majorCount,
-    'active_cases' => $activeCases,
-    'dismissed' => $dismissedTotalCount,
-    'dismissed_offenses' => $dismissedOffensesCount,
-    'dismissed_cases' => $dismissedCasesCount,
+    'total' => $dispTotal,
+    'minor' => $dispMinor,
+    'major' => $dispMajor,
+    'active_cases' => $dispActiveCases,
+    'dismissed' => $dispDismissedOffenses + $dispDismissedCases,
+    'dismissed_offenses' => $dispDismissedOffenses,
+    'dismissed_cases' => $dispDismissedCases,
   ],
   'breakdown' => [
     'pie' => [
