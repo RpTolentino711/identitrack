@@ -226,9 +226,10 @@ arsort($coursesMap);
 try {
   $spreadsheet = new Spreadsheet();
   $sheet = $spreadsheet->getActiveSheet();
-  $sheet->setTitle('Monthly Report');
+  $sheetTitle = 'Monthly Report';
+  $sheet->setTitle($sheetTitle);
   
-  $sheet->setShowGridlines(false);
+  $sheet->setShowGridlines(true);
 
   // Styling arrays
   $styleHeader = [
@@ -238,84 +239,77 @@ try {
   ];
   
   $styleSubHeader = [
-      'font' => ['italic' => true, 'color' => ['argb' => 'FFCCCCCC'], 'size' => 10],
+      'font' => ['italic' => true, 'color' => ['argb' => 'FFCBD5E1'], 'size' => 10],
       'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
       'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1B2B6B']],
   ];
 
-  $styleStatBox = [
-      'font' => ['bold' => true, 'size' => 11],
+  $styleStatCardHeader = [
+      'font' => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FFFFFFFF']],
       'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-      'borders' => ['outline' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']]],
-      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF2F2F2']],
-  ];
-
-  $styleStatVal = [
-      'font' => ['bold' => true, 'size' => 20, 'color' => ['argb' => 'FF000000']],
-      'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-      'borders' => ['outline' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']]],
+      'borders' => ['outline' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['argb' => 'FFCBD5E1']]],
   ];
 
   $styleTableHeader = [
       'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 11],
       'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF3B4A9E']],
+      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1B2B6B']],
   ];
   
   $styleTableBody = [
-      'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFBFBFBF']]],
+      'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFCBD5E1']]],
   ];
 
-  // Header
-  $sheet->setCellValue('A1', 'MONTHLY DISCIPLINE REPORT - ' . $titleMonthStr);
-  $sheet->mergeCells('A1:L1');
-  $sheet->getStyle('A1:L1')->applyFromArray($styleHeader);
-  $sheet->getRowDimension(1)->setRowHeight(30);
+  // Header Banner
+  $sheet->setCellValue('A1', 'NATIONAL UNIVERSITY LIPA — MONTHLY DISCIPLINE REPORT (' . $titleMonthStr . ')');
+  $sheet->mergeCells('A1:M1');
+  $sheet->getStyle('A1:M1')->applyFromArray($styleHeader);
+  $sheet->getRowDimension(1)->setRowHeight(34);
 
-  $sheet->setCellValue('A2', 'Generated: ' . date('Y-m-d H:i:s') . ' | Audience Filter: ' . $audience);
-  $sheet->mergeCells('A2:L2');
-  $sheet->getStyle('A2:L2')->applyFromArray($styleSubHeader);
+  $sheet->setCellValue('A2', 'Student Discipline Office • Generated: ' . date('F j, Y g:i A') . ' • Target Audience: ' . $audience);
+  $sheet->mergeCells('A2:M2');
+  $sheet->getStyle('A2:M2')->applyFromArray($styleSubHeader);
+  $sheet->getRowDimension(2)->setRowHeight(20);
 
-  // Summary Metrics (Dashboard style - 5 Cards)
-  $sheet->setCellValue('A4', 'TOTAL OFFENSES');
-  $sheet->setCellValue('C4', 'MINOR OFFENSES');
-  $sheet->setCellValue('E4', 'MAJOR OFFENSES');
-  $sheet->setCellValue('G4', 'ACTIVE CASES');
-  $sheet->setCellValue('I4', 'DISMISSED');
-  
-  $sheet->mergeCells('A4:B4');
-  $sheet->mergeCells('C4:D4');
-  $sheet->mergeCells('E4:F4');
-  $sheet->mergeCells('G4:H4');
-  $sheet->mergeCells('I4:J4');
-  
-  $sheet->getStyle('A4:J4')->applyFromArray($styleStatBox);
+  // Summary Metrics (Dashboard style - 6 Cards covering A4:M5)
+  $cards = [
+      'A' => ['label' => 'TOTAL OFFENSES', 'val' => $total, 'hdrColor' => 'FF1B2B6B', 'valColor' => 'FF1B2B6B', 'bgColor' => 'FFF8FAFC', 'span' => 'A4:B4', 'vSpan' => 'A5:B5'],
+      'C' => ['label' => 'MINOR OFFENSES', 'val' => $minor, 'hdrColor' => 'FFB45309', 'valColor' => 'FFB45309', 'bgColor' => 'FFFEF3C7', 'span' => 'C4:D4', 'vSpan' => 'C5:D5'],
+      'E' => ['label' => 'MAJOR OFFENSES', 'val' => $major, 'hdrColor' => 'FF991B1B', 'valColor' => 'FF991B1B', 'bgColor' => 'FFFEE2E2', 'span' => 'E4:F4', 'vSpan' => 'E5:F5'],
+      'G' => ['label' => 'ACTIVE CASES', 'val' => $activeCases, 'hdrColor' => 'FF6B21A8', 'valColor' => 'FF6B21A8', 'bgColor' => 'FFF3E8FF', 'span' => 'G4:H4', 'vSpan' => 'G5:H5'],
+      'I' => ['label' => 'DISMISSED OFFENSES', 'val' => (int)($dismissedRow['cnt'] ?? 0), 'hdrColor' => 'FF475569', 'valColor' => 'FF475569', 'bgColor' => 'FFF1F5F9', 'span' => 'I4:J4', 'vSpan' => 'I5:J5'],
+      'K' => ['label' => 'DISMISSED CASES', 'val' => (int)($dismissedUnlinkedCasesRow['cnt'] ?? 0), 'hdrColor' => 'FF334155', 'valColor' => 'FF334155', 'bgColor' => 'FFE2E8F0', 'span' => 'K4:M4', 'vSpan' => 'K5:M5'],
+  ];
 
-  $sheet->setCellValue('A5', $total);
-  $sheet->setCellValue('C5', $minor);
-  $sheet->setCellValue('E5', $major);
-  $sheet->setCellValue('G5', $activeCases);
-  $sheet->setCellValue('I5', $dismissedCount);
+  foreach ($cards as $colKey => $c) {
+      $sheet->setCellValue($colKey . '4', $c['label']);
+      $sheet->mergeCells($c['span']);
+      $sheet->getStyle($c['span'])->applyFromArray([
+          'font' => ['bold' => true, 'size' => 9, 'color' => ['argb' => 'FFFFFFFF']],
+          'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+          'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $c['hdrColor']]],
+      ]);
 
-  $sheet->mergeCells('A5:B5');
-  $sheet->mergeCells('C5:D5');
-  $sheet->mergeCells('E5:F5');
-  $sheet->mergeCells('G5:H5');
-  $sheet->mergeCells('I5:J5');
+      $sheet->setCellValue($colKey . '5', $c['val']);
+      $sheet->mergeCells($c['vSpan']);
+      $sheet->getStyle($c['vSpan'])->applyFromArray([
+          'font' => ['bold' => true, 'size' => 20, 'color' => ['argb' => $c['valColor']]],
+          'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+          'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $c['bgColor']]],
+          'borders' => ['outline' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['argb' => $c['hdrColor']]]],
+      ]);
+  }
+  $sheet->getRowDimension(4)->setRowHeight(18);
+  $sheet->getRowDimension(5)->setRowHeight(34);
 
-  $sheet->getStyle('A5:J5')->applyFromArray($styleStatVal);
-  $sheet->getStyle('E5')->getFont()->getColor()->setARGB('FFC00000'); // Red for major
-  $sheet->getStyle('C5')->getFont()->getColor()->setARGB('FFE69300'); // Orange for minor
-  $sheet->getStyle('I5')->getFont()->getColor()->setARGB('FF64748B'); // Gray for dismissed
-  $sheet->getRowDimension(5)->setRowHeight(36);
-
-  // Hidden Data for Charts
+  // Hidden Data for Charts in Columns AA to AF
   $bRow = 5;
   foreach ($breakdownMap as $name => $count) {
       $sheet->setCellValue('AA' . $bRow, $name);
       $sheet->setCellValue('AB' . $bRow, $count);
       $bRow++;
   }
+  $bEndRow = max(5, $bRow - 1);
 
   $cRow = 5;
   $topN = 8;
@@ -325,36 +319,51 @@ try {
       $cRow++;
       if ($cRow >= 5 + $topN) break;
   }
+  $cEndRow = max(5, $cRow - 1);
 
-  // Create Pie Chart
+  // Create Doughnut / Pie Chart (Positions A7:F20)
   if (!empty($breakdownMap)) {
-      $dataSeriesLabels = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Worksheet!$AB$4', null, 1)];
-      $xAxisTickValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Worksheet!$AA$5:$AA$' . ($bRow - 1), null, count($breakdownMap))];
-      $dataSeriesValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Worksheet!$AB$5:$AB$' . ($bRow - 1), null, count($breakdownMap))];
+      $dataSeriesLabels = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheetTitle}'!\$AB\$4", null, 1)];
+      $xAxisTickValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheetTitle}'!\$AA\$5:\$AA\${$bEndRow}", null, count($breakdownMap))];
+      $dataSeriesValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'{$sheetTitle}'!\$AB\$5:\$AB\${$bEndRow}", null, count($breakdownMap))];
 
-      $series = new DataSeries(DataSeries::TYPE_PIECHART, null, range(0, count($dataSeriesValues) - 1), $dataSeriesLabels, $xAxisTickValues, $dataSeriesValues);
+      $series = new DataSeries(
+          DataSeries::TYPE_DOUGHNUTCHART,
+          null,
+          range(0, count($dataSeriesValues) - 1),
+          $dataSeriesLabels,
+          $xAxisTickValues,
+          $dataSeriesValues
+      );
       
       $layout = new \PhpOffice\PhpSpreadsheet\Chart\Layout();
       $layout->setShowVal(true);
       $layout->setShowPercent(true);
       
       $plotArea = new PlotArea($layout, [$series]);
-      $legend = new Legend(Legend::POSITION_RIGHT, null, false);
-      $chartTitle = new Title('Offense Breakdown (Major/Minor)');
+      $legend = new Legend(Legend::POSITION_BOTTOM, null, false);
+      $chartTitle = new Title('Offense Breakdown Distribution');
 
       $chart = new Chart('chart1', $chartTitle, $legend, $plotArea, true, 0, null, null);
-      $chart->setTopLeftPosition('B7');
-      $chart->setBottomRightPosition('E20');
+      $chart->setTopLeftPosition('A7');
+      $chart->setBottomRightPosition('F20');
       $sheet->addChart($chart);
   }
 
-  // Create Bar Chart
+  // Create Column Bar Chart (Positions G7:M20)
   if (!empty($coursesMap)) {
-      $dataSeriesLabels2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Worksheet!$AF$4', null, 1)];
-      $xAxisTickValues2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Worksheet!$AE$5:$AE$' . ($cRow - 1), null, count($coursesMap))];
-      $dataSeriesValues2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Worksheet!$AF$5:$AF$' . ($cRow - 1), null, count($coursesMap))];
+      $dataSeriesLabels2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheetTitle}'!\$AF\$4", null, 1)];
+      $xAxisTickValues2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheetTitle}'!\$AE\$5:\$AE\${$cEndRow}", null, count($coursesMap))];
+      $dataSeriesValues2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'{$sheetTitle}'!\$AF\$5:\$AF\${$cEndRow}", null, count($coursesMap))];
 
-      $series2 = new DataSeries(DataSeries::TYPE_BARCHART, DataSeries::GROUPING_STANDARD, range(0, count($dataSeriesValues2) - 1), $dataSeriesLabels2, $xAxisTickValues2, $dataSeriesValues2);
+      $series2 = new DataSeries(
+          DataSeries::TYPE_BARCHART,
+          DataSeries::GROUPING_STANDARD,
+          range(0, count($dataSeriesValues2) - 1),
+          $dataSeriesLabels2,
+          $xAxisTickValues2,
+          $dataSeriesValues2
+      );
       $series2->setPlotDirection(DataSeries::DIRECTION_COL);
       
       $layout2 = new \PhpOffice\PhpSpreadsheet\Chart\Layout();
@@ -364,10 +373,20 @@ try {
       $chartTitle2 = new Title('Top Courses by Offenses');
 
       $chart2 = new Chart('chart2', $chartTitle2, null, $plotArea2, true, 0, null, null);
-      $chart2->setTopLeftPosition('F7');
-      $chart2->setBottomRightPosition('J20');
+      $chart2->setTopLeftPosition('G7');
+      $chart2->setBottomRightPosition('M20');
       $sheet->addChart($chart2);
   }
+
+  // Raw Data Title Header
+  $sheet->setCellValue('A21', 'DETAILED DISCIPLINARY LOGS & CASE RECORDS');
+  $sheet->mergeCells('A21:M21');
+  $sheet->getStyle('A21:M21')->applyFromArray([
+      'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 13],
+      'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1E293B']],
+  ]);
+  $sheet->getRowDimension(21)->setRowHeight(28);
 
   // Raw Data Section
   $headers = [
@@ -377,11 +396,9 @@ try {
   ];
 
   $dataStartRow = 22;
-  $sheet->setCellValue('A' . ($dataStartRow - 1), 'RAW DATA EXPORT');
-  $sheet->getStyle('A' . ($dataStartRow - 1))->getFont()->setBold(true)->setSize(14);
-  
   $sheet->fromArray($headers, null, 'A' . $dataStartRow);
   $sheet->getStyle('A'.$dataStartRow.':M'.$dataStartRow)->applyFromArray($styleTableHeader);
+  $sheet->getRowDimension($dataStartRow)->setRowHeight(26);
 
   $rowIndex = $dataStartRow + 1;
   foreach ($rows as $r) {
