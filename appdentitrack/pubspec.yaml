@@ -22,7 +22,6 @@ dependencies:
 
   url_launcher: ^6.1.14
   file_picker: ^11.0.2
-  geolocator: ^13.0.2
 
 dev_dependencies:
   flutter_test:

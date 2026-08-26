@@ -107,7 +107,11 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
 
     if (isMajorOrSection4 || hasCase) {
       final status = widget.offense.status.toUpperCase();
-      return status == 'RESOLVED' || status == 'CLOSED' || status == 'CANCELLED' || status == 'DISMISSED';
+      final isEnded = status.contains('RESOLVED') ||
+          status.contains('CLOSED') ||
+          status.contains('CANCELLED') ||
+          status.contains('DISMISSED');
+      return isEnded;
     }
 
     return true;

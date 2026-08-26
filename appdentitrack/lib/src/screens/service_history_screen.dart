@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/community_service_api.dart';
 import 'shared_bottom_nav.dart';
@@ -123,15 +122,11 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
     });
   }
 
-  Timer? _locationTimer;
-  Position? _lastPosition;
-  int _stationarySeconds = 0;
   bool _shownPauseDialog = false;
   String? _previousSessionStatus;
 
   @override
   void dispose() {
-    _locationTimer?.cancel();
     super.dispose();
   }
 
@@ -180,8 +175,6 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
               _showPauseAlertModal(active.pauseReason);
             });
           }
-        } else if (active.sessionStatus == 'ACTIVE') {
-          _startLocationMonitoring();
         }
       }
     } catch (e) {
@@ -195,124 +188,6 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
         debugPrint('Silent background refresh error: $e');
       }
     }
-  }
-
-  Future<void> _startLocationMonitoring() async {
-    if (_locationTimer != null && _locationTimer!.isActive) {
-      return;
-    }
-
-    try {
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚠️ Location permission is required for community service movement tracking.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 5),
-            ),
-          );
-        }
-        return;
-      }
-
-      try {
-        _lastPosition = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-        );
-      } catch (_) {}
-
-      _locationTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
-        final active = _data?.activeSession;
-        if (active == null || active.sessionStatus == 'PAUSED') return;
-
-        try {
-          bool currentServiceEnabled = await Geolocator.isLocationServiceEnabled();
-          LocationPermission currentPermission = await Geolocator.checkPermission();
-
-          if (!currentServiceEnabled) {
-            await _triggerGPSDisabledPause('GPS Location Services turned OFF during active service');
-            return;
-          }
-
-          if (currentPermission == LocationPermission.deniedForever) {
-            await _triggerGPSDisabledPause('Location permission revoked by student');
-            return;
-          }
-
-          Position pos = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-          );
-
-          if (_lastPosition != null) {
-            double dist10s = Geolocator.distanceBetween(
-              _lastPosition!.latitude,
-              _lastPosition!.longitude,
-              pos.latitude,
-              pos.longitude,
-            );
-
-            // Step displacement over 10s on a stationary table is < 10m or speed < 0.7 m/s:
-            if (dist10s < 10.0 || pos.speed < 0.7) {
-              _stationarySeconds += 10;
-              if (_stationarySeconds >= 300) { // 5 minutes of no movement!
-                await _triggerStationaryPause();
-              }
-            } else {
-              _stationarySeconds = 0;
-            }
-          }
-          _lastPosition = pos;
-        } catch (_) {
-          bool isGpsOn = await Geolocator.isLocationServiceEnabled();
-          if (!isGpsOn) {
-            await _triggerGPSDisabledPause('GPS Location Services turned OFF during active service');
-          } else {
-            _stationarySeconds += 10;
-            if (_stationarySeconds >= 300) {
-              await _triggerStationaryPause();
-            }
-          }
-        }
-      });
-    } catch (_) {}
-  }
-
-  Future<void> _triggerGPSDisabledPause(String reason) async {
-    _locationTimer?.cancel();
-    final active = _data?.activeSession;
-    if (active == null) return;
-
-    try {
-      await _api.pauseSession(
-        studentId: widget.studentId,
-        sessionId: active.sessionId,
-        reason: reason,
-      );
-    } catch (_) {}
-
-    await _load();
-  }
-
-  Future<void> _triggerStationaryPause() async {
-    _locationTimer?.cancel();
-    final active = _data?.activeSession;
-    if (active == null) return;
-
-    try {
-      await _api.pauseSession(
-        studentId: widget.studentId,
-        sessionId: active.sessionId,
-        reason: 'Stationary for 5 minutes',
-      );
-    } catch (_) {}
-
-    await _load();
   }
 
   void _showPauseAlertModal(String reason) {

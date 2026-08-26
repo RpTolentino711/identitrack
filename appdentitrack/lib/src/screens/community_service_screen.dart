@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 
 import 'services/community_service_api.dart';
 
@@ -35,10 +34,7 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
   PendingManualRequest? _pendingManualRequest;
 
   Timer? _ticker;
-  Timer? _locationTimer;
   Timer? _pausedPollTimer;
-  Position? _lastPosition;
-  int _stationarySeconds = 0;
   bool _shownPauseDialog = false;
   String? _previousSessionStatus;
   Duration _elapsed = Duration.zero;
@@ -55,7 +51,6 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
   @override
   void dispose() {
     _ticker?.cancel();
-    _locationTimer?.cancel();
     _pausedPollTimer?.cancel();
     super.dispose();
   }
@@ -99,7 +94,6 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
 
   void _syncTimer() {
     _ticker?.cancel();
-    _locationTimer?.cancel();
     _pausedPollTimer?.cancel();
 
     final s = _activeSession;
@@ -137,9 +131,6 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
       return;
     }
 
-    // Session ACTIVE -> start location tracking
-    _startLocationMonitoring();
-
     final start = _parseServerDateTime(s.timeIn);
     if (start == null) {
       if (mounted) setState(() => _elapsed = Duration.zero);
@@ -174,90 +165,6 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
         }
       } catch (_) {}
     });
-  }
-
-  Future<void> _startLocationMonitoring() async {
-    if (_locationTimer != null && _locationTimer!.isActive) {
-      return;
-    }
-
-    try {
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚠️ Location permission is required to verify your community service movement.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 6),
-            ),
-          );
-        }
-      }
-
-      try {
-        _lastPosition = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-        );
-      } catch (_) {}
-
-      _locationTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
-        if (_activeSession == null || _activeSession?.sessionStatus == 'PAUSED') return;
-
-        try {
-          Position pos = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-          );
-
-          if (_lastPosition != null) {
-            double dist15s = Geolocator.distanceBetween(
-              _lastPosition!.latitude,
-              _lastPosition!.longitude,
-              pos.latitude,
-              pos.longitude,
-            );
-
-            if (dist15s < 10.0 || pos.speed < 0.7) {
-              _stationarySeconds += 15;
-              if (_stationarySeconds >= 300) { // 5 minutes of no movement!
-                _triggerStationaryPause();
-              }
-            } else {
-              _stationarySeconds = 0;
-            }
-          }
-          _lastPosition = pos;
-        } catch (_) {
-          // If location check fails (e.g. phone sitting stationary on table), increment stationary time!
-          _stationarySeconds += 15;
-          if (_stationarySeconds >= 300) {
-            _triggerStationaryPause();
-          }
-        }
-      });
-    } catch (_) {}
-  }
-
-  Future<void> _triggerStationaryPause() async {
-    _locationTimer?.cancel();
-    _ticker?.cancel();
-
-    final s = _activeSession;
-    if (s == null) return;
-
-    try {
-      await _api.pauseSession(
-        studentId: widget.studentId,
-        sessionId: s.sessionId,
-        reason: 'Stationary for 5 minutes',
-      );
-    } catch (_) {}
-
-    await _load();
   }
 
   void _showPauseAlertModal(String reason) {
