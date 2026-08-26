@@ -719,7 +719,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               pointBorderWidth: 1.5
             },
             {
-              label: 'Major Offenses & Cases',
+              label: 'Major Offenses',
               data: trend.major,
               borderColor: '#dc3545',
               backgroundColor: 'rgba(220, 53, 69, 0.08)',
@@ -733,7 +733,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               pointBorderWidth: 1.5
             },
             {
-              label: 'Dismissed Offenses & Cases',
+              label: 'Dismissed Offenses',
               data: disData,
               borderColor: '#64748b',
               backgroundColor: 'rgba(100, 116, 139, 0.08)',
