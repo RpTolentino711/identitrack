@@ -391,32 +391,23 @@ foreach ($combinedBreakdownMap as $labelName => $cnt) {
   $idx++;
 
   $calcTotal += $cnt;
-  if (strpos($labelName, 'Dismissed Case') !== false) {
+  if (strpos($labelName, '(Dismissed Case)') !== false) {
       $calcDismissedCases += $cnt;
-  } elseif (strpos($labelName, 'Dismissed Offense') !== false || strpos($labelName, 'Dismissed') !== false) {
+  } elseif (strpos($labelName, '(Dismissed Offense)') !== false) {
       $calcDismissedOffenses += $cnt;
-  } elseif (strpos($labelName, '(Major)') !== false || strpos($labelName, 'attire') !== false) {
+  } elseif (strpos($labelName, '(Major') !== false) {
       $calcMajor += $cnt;
   } else {
       $calcMinor += $cnt;
   }
 }
 
-if (strpos($month, '2026-08') !== false) {
-  $minorCount = 3;
-  $majorCount = 2;
-  $dismissedOffensesCount = 2;
-  $dismissedCasesCount = 1;
-  $dismissedTotalCount = $dismissedOffensesCount + $dismissedCasesCount;
-  $totalCount = $minorCount + $majorCount + $dismissedTotalCount; // 8
-} else {
-  $minorCount = $calcMinor;
-  $majorCount = $calcMajor;
-  $dismissedOffensesCount = $calcDismissedOffenses;
-  $dismissedCasesCount = $calcDismissedCases;
-  $dismissedTotalCount = $dismissedOffensesCount + $dismissedCasesCount;
-  $totalCount = $calcTotal;
-}
+$minorCount = $calcMinor;
+$majorCount = $calcMajor;
+$dismissedOffensesCount = $calcDismissedOffenses;
+$dismissedCasesCount = $calcDismissedCases;
+$dismissedTotalCount = $dismissedOffensesCount + $dismissedCasesCount;
+$totalCount = $calcTotal;
 
 if ($othersCount > 0) {
   $pieLabels[] = 'Others';
