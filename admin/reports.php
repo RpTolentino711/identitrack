@@ -592,37 +592,40 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               label: 'Minor',
               data: minorData,
               backgroundColor: '#f59e0b',
-              borderRadius: 6,
-              barThickness: 24
+              maxBarThickness: 64,
+              categoryPercentage: 0.6,
+              barPercentage: 0.7
             },
             {
               label: 'Major',
               data: majorData,
               backgroundColor: '#dc3545',
-              borderRadius: 6,
-              barThickness: 24
+              maxBarThickness: 64,
+              categoryPercentage: 0.6,
+              barPercentage: 0.7
             },
             {
               label: 'Dismissed',
               data: dismissedData,
               backgroundColor: '#64748b',
-              borderRadius: 6,
-              barThickness: 24
+              borderRadius: { topLeft: 6, topRight: 6 },
+              maxBarThickness: 64,
+              categoryPercentage: 0.6,
+              barPercentage: 0.7
             }
           ]
         },
         options: {
-          indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
           scales: {
-            x: {
+            y: {
               stacked: true,
               beginAtZero: true,
               ticks: { precision: 0, font: { size: 11, weight: '500' } },
               grid: { color: '#f1f5f9' }
             },
-            y: {
+            x: {
               stacked: true,
               ticks: { font: { size: 12, weight: '700' }, color: '#1e293b' },
               grid: { display: false }
