@@ -592,38 +592,39 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               label: 'Minor',
               data: minorData,
               backgroundColor: '#f59e0b',
-              borderRadius: 4,
-              maxBarThickness: 32
+              borderRadius: 6,
+              barThickness: 24
             },
             {
               label: 'Major',
               data: majorData,
               backgroundColor: '#dc3545',
-              borderRadius: 4,
-              maxBarThickness: 32
+              borderRadius: 6,
+              barThickness: 24
             },
             {
               label: 'Dismissed',
               data: dismissedData,
               backgroundColor: '#64748b',
-              borderRadius: 4,
-              maxBarThickness: 32
+              borderRadius: 6,
+              barThickness: 24
             }
           ]
         },
         options: {
+          indexAxis: 'y',
           responsive: true,
-          maintainAspectRatio: true,
+          maintainAspectRatio: false,
           scales: {
-            y: {
-              stacked: true,
-              beginAtZero: true,
-              ticks: { precision: 0, font: { size: 10, weight: '500' } },
-              grid: { color: '#f1f5f9' }
-            },
             x: {
               stacked: true,
-              ticks: { font: { size: 10, weight: '600' } },
+              beginAtZero: true,
+              ticks: { precision: 0, font: { size: 11, weight: '500' } },
+              grid: { color: '#f1f5f9' }
+            },
+            y: {
+              stacked: true,
+              ticks: { font: { size: 12, weight: '700' }, color: '#1e293b' },
               grid: { display: false }
             }
           },
@@ -632,11 +633,11 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               display: true,
               position: 'top',
               align: 'end',
-              labels: { boxWidth: 8, boxHeight: 8, padding: 8, font: { size: 10, weight: '600' } }
+              labels: { boxWidth: 10, boxHeight: 10, padding: 10, font: { size: 11, weight: '600' } }
             },
             tooltip: {
               callbacks: {
-                label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw} cases`
+                label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw} offenses`
               }
             }
           }
@@ -644,25 +645,46 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       });
 
       if (!courses.list || courses.list.length === 0) {
-        courseList.innerHTML = '<div class="muted">No course data for this period.</div>';
+        courseList.innerHTML = '<div class="muted" style="padding:12px; text-align:center;">No course data recorded for this period.</div>';
         return;
       }
 
       courseList.innerHTML = courses.list.map(c => {
         const rawSecs = (c.sections || []).filter(s => s && s !== 'INF232' && s !== 'N/A');
         const secDisplay = rawSecs.length ? rawSecs.join(', ') : 'All Active Sections';
+        const total = c.cnt || 1;
+        const minorPct = Math.round(((c.minor || 0) / total) * 100);
+        const majorPct = Math.round(((c.major || 0) / total) * 100);
+        const disPct   = Math.round(((c.dismissed || 0) / total) * 100);
+
         return `
-          <div class="course-item" style="padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
-            <div class="course-top" style="display:flex; justify-content:space-between; align-items:center;">
-              <span class="course-name" style="font-weight:700; color:#1e293b; font-size:12px;">${escapeHtml(c.program)}</span>
-              <span class="course-count" style="font-weight:700; color:#0f172a; font-size:12px;">${escapeHtml(c.cnt)} offenses</span>
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div>
+                <span style="font-size:14px; font-weight:800; color:#0f172a; letter-spacing:-0.2px;">${escapeHtml(c.program)}</span>
+                <span style="font-size:11px; color:#64748b; margin-left:8px; font-weight:500;">Sections: ${escapeHtml(secDisplay)}</span>
+              </div>
+              <span style="background:#1e293b; color:#ffffff; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;">${escapeHtml(c.cnt)} Total Offenses</span>
             </div>
-            <div style="display:flex; gap:6px; margin:4px 0 2px; flex-wrap:wrap;">
-              <span style="background:#fef3c7; color:#b45309; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600;">Minor: ${c.minor || 0}</span>
-              <span style="background:#fee2e2; color:#991b1b; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600;">Major: ${c.major || 0}</span>
-              <span style="background:#f1f5f9; color:#475569; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600;">Dismissed: ${c.dismissed || 0}</span>
+
+            <!-- Proportion Progress Bar -->
+            <div style="height:8px; width:100%; background:#f1f5f9; border-radius:4px; overflow:hidden; display:flex; margin-bottom:10px;">
+              ${c.minor ? `<div style="width:${minorPct}%; background:#f59e0b;" title="Minor: ${c.minor}"></div>` : ''}
+              ${c.major ? `<div style="width:${majorPct}%; background:#dc3545;" title="Major: ${c.major}"></div>` : ''}
+              ${c.dismissed ? `<div style="width:${disPct}%; background:#64748b;" title="Dismissed: ${c.dismissed}"></div>` : ''}
             </div>
-            <div class="course-sections" style="font-size:10px; color:#64748b;">Sections: ${escapeHtml(secDisplay)}</div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <div style="display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:#b45309; background:#fef3c7; padding:3px 9px; border-radius:6px;">
+                <span style="width:6px; height:6px; border-radius:50%; background:#f59e0b;"></span> Minor: ${c.minor || 0}
+              </div>
+              <div style="display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:#991b1b; background:#fee2e2; padding:3px 9px; border-radius:6px;">
+                <span style="width:6px; height:6px; border-radius:50%; background:#dc3545;"></span> Major: ${c.major || 0}
+              </div>
+              <div style="display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:#334155; background:#f1f5f9; padding:3px 9px; border-radius:6px;">
+                <span style="width:6px; height:6px; border-radius:50%; background:#64748b;"></span> Dismissed: ${c.dismissed || 0}
+              </div>
+            </div>
           </div>
         `;
       }).join('');
