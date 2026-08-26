@@ -170,14 +170,6 @@ function clean_format_offense_name(string $rawName, string $level, bool $isDismi
         return "$cleanBase (Dismissed Case)";
     }
 
-    // Force MINOR level and MIN- codes to always be (Minor) unless explicit Section 4 Major escalation
-    if ($levelUpper === 'MINOR' || strpos($rawUpper, 'MIN-') !== false) {
-        if (strpos($upperBase, 'SECTION 4') !== false) {
-            return "$cleanBase (Major Cat 5)";
-        }
-        return "$cleanBase (Minor)";
-    }
-
     if ($levelUpper === 'MAJOR' || strpos($rawUpper, 'MAJ-') !== false || $isMajorCase || strpos($upperBase, 'SECTION 4') !== false || strpos($rawUpper, '(MAJOR)') !== false) {
         $catNum = (int)$majorCategory;
         if ($catNum >= 1 && $catNum <= 5) {
