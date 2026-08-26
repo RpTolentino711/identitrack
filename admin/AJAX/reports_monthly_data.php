@@ -264,8 +264,27 @@ $breakdownRows = db_all(
   [$monthStart, $monthEnd]
 );
 
+$caseBreakdownRows = db_all(
+  "SELECT
+      COALESCE(NULLIF(uc.case_summary,''), NULLIF(uc.case_kind,''), 'UPCC Hearing Case') AS name,
+      'MAJ-CASE' AS code,
+      'MAJOR' AS level,
+      COALESCE(uc.decided_category, 5) AS major_category,
+      'OPEN' AS offense_status,
+      uc.status AS case_status,
+      COUNT(*) AS cnt
+   FROM upcc_case uc
+   JOIN student s ON s.student_id = uc.student_id
+   WHERE uc.created_at BETWEEN ? AND ?
+   $audienceClause
+   GROUP BY name, uc.decided_category, uc.status",
+  [$monthStart, $monthEnd]
+);
+
+$allRows = array_merge($breakdownRows, $caseBreakdownRows);
+
 $combinedBreakdownMap = [];
-foreach ($breakdownRows as $r) {
+foreach ($allRows as $r) {
   $name = (string)$r['name'];
   $level = strtoupper((string)$r['level']);
   $isDismissedCase = ($r['case_status'] === 'DISMISSED');
@@ -279,7 +298,7 @@ foreach ($breakdownRows as $r) {
     $catNum = (int)($r['major_category'] ?? 1);
     if ($catNum < 1 || $catNum > 5) $catNum = 1;
     $tag = "(Major Cat $catNum)";
-    $include = ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false) && !$isDismissed;
+    $include = ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false || $isMajorCase) && !$isDismissed;
   } elseif ($category === 'DISMISSED') {
     $tag = $isDismissedCase ? '(Dismissed Case)' : '(Dismissed Offense)';
     $include = $isDismissed;
@@ -287,7 +306,7 @@ foreach ($breakdownRows as $r) {
     // ALL
     if ($isDismissed) {
       $tag = $isDismissedCase ? '(Dismissed Case)' : '(Dismissed Offense)';
-    } elseif ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false) {
+    } elseif ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false || $isMajorCase) {
       $catNum = (int)($r['major_category'] ?? 1);
       if ($catNum < 1 || $catNum > 5) $catNum = 1;
       $tag = "(Major Cat $catNum)";
