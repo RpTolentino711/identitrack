@@ -465,21 +465,30 @@ foreach ($fallbackTopCourses as $p => $c) {
 }
 arsort($academicCoursesMap);
 
-if (strpos($month, '2026-08') !== false) {
-  $courseBreakdown = [
-    'BSIT'    => ['minor' => 3, 'major' => 2, 'dismissed' => 3],
-    'BSBA-FM' => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'BSMT'    => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'BSCE'    => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'BS PSYCH'=> ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'STEM'    => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'ABM'     => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'HUMSS'   => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'TVL'     => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
-    'GAS'     => ['minor' => 0, 'major' => 0, 'dismissed' => 0]
+// Dynamically calculate course breakdown (minor, major, dismissed) per program from database
+$courseBreakdownQuery = db_all(
+  "SELECT
+      COALESCE(NULLIF(s.program,''), 'N/A') AS program,
+      SUM(CASE WHEN COALESCE(o.status,'') != 'DISMISSED' AND COALESCE(ot.level,'') != 'DISMISSED' AND UPPER(COALESCE(ot.level,'')) = 'MINOR' THEN 1 ELSE 0 END) AS minor_cnt,
+      SUM(CASE WHEN COALESCE(o.status,'') != 'DISMISSED' AND COALESCE(ot.level,'') != 'DISMISSED' AND UPPER(COALESCE(ot.level,'')) = 'MAJOR' THEN 1 ELSE 0 END) AS major_cnt,
+      SUM(CASE WHEN COALESCE(o.status,'') = 'DISMISSED' OR COALESCE(ot.level,'') = 'DISMISSED' THEN 1 ELSE 0 END) AS dismissed_cnt
+   FROM offense o
+   JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+   JOIN student s ON s.student_id = o.student_id
+   WHERE o.date_committed BETWEEN ? AND ?
+   $audienceClause
+   GROUP BY program",
+  [$monthStart, $monthEnd]
+);
+
+$courseBreakdown = [];
+foreach ($courseBreakdownQuery as $cbq) {
+  $p = (string)$cbq['program'];
+  $courseBreakdown[$p] = [
+    'minor'     => (int)$cbq['minor_cnt'],
+    'major'     => (int)$cbq['major_cnt'],
+    'dismissed' => (int)$cbq['dismissed_cnt']
   ];
-} else {
-  $courseBreakdown = [];
 }
 
 $coursesList = [];
