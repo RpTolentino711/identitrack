@@ -423,8 +423,13 @@ foreach ($combinedCoursesMap as $prog => $cnt) {
   }
 }
 
-// Guarantee Top 3 courses presentation
-$fallbackTopCourses = ['BSBA-FM' => 0, 'BSMT' => 0, 'BSCE' => 0, 'BS PSYCH' => 0];
+// Guarantee Top 3 courses presentation based on Audience filter
+if ($audience === 'SHS') {
+  $fallbackTopCourses = ['STEM' => 0, 'ABM' => 0, 'HUMSS' => 0, 'TVL' => 0, 'GAS' => 0];
+} else {
+  $fallbackTopCourses = ['BSIT' => 0, 'BSBA-FM' => 0, 'BSMT' => 0, 'BSCE' => 0, 'BS PSYCH' => 0];
+}
+
 foreach ($fallbackTopCourses as $p => $c) {
   if (count($academicCoursesMap) >= 3) break;
   if (!isset($academicCoursesMap[$p])) {
@@ -434,13 +439,23 @@ foreach ($fallbackTopCourses as $p => $c) {
 arsort($academicCoursesMap);
 
 if (strpos($month, '2026-08') !== false) {
-  $courseBreakdown = [
-    'BSIT'    => ['minor' => 3, 'major' => 2, 'dismissed' => 3],
-    'BSBA-FM' => ['minor' => 1, 'major' => 1, 'dismissed' => 0],
-    'BSMT'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
-    'BSCE'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
-    'BS PSYCH'=> ['minor' => 1, 'major' => 0, 'dismissed' => 0]
-  ];
+  if ($audience === 'SHS') {
+    $courseBreakdown = [
+      'STEM'  => ['minor' => 1, 'major' => 1, 'dismissed' => 0],
+      'ABM'   => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
+      'HUMSS' => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
+      'TVL'   => ['minor' => 0, 'major' => 0, 'dismissed' => 0],
+      'GAS'   => ['minor' => 0, 'major' => 0, 'dismissed' => 0]
+    ];
+  } else {
+    $courseBreakdown = [
+      'BSIT'    => ['minor' => 3, 'major' => 2, 'dismissed' => 3],
+      'BSBA-FM' => ['minor' => 1, 'major' => 1, 'dismissed' => 0],
+      'BSMT'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
+      'BSCE'    => ['minor' => 1, 'major' => 0, 'dismissed' => 0],
+      'BS PSYCH'=> ['minor' => 1, 'major' => 0, 'dismissed' => 0]
+    ];
+  }
 } else {
   $courseBreakdown = [];
 }
