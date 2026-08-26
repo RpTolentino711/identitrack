@@ -292,12 +292,42 @@ $breakdownRows = db_all(
 $combinedBreakdownMap = [];
 foreach ($breakdownRows as $r) {
   $name = (string)$r['name'];
+  $level = strtoupper((string)$r['level']);
   $isDismissedCase = ($r['case_status'] === 'DISMISSED');
-  $isDismissed = ($r['offense_status'] === 'DISMISSED' || $isDismissedCase || strtoupper((string)$r['level']) === 'DISMISSED');
+  $isDismissed = ($r['offense_status'] === 'DISMISSED' || $isDismissedCase || $level === 'DISMISSED');
   $isMajorCase = ($r['case_status'] !== null && $r['case_status'] !== 'DISMISSED');
-  $labelName = clean_format_offense_name($name, (string)$r['level'], $isDismissed, $isDismissedCase, $r['major_category'] ?? null, $isMajorCase);
-  $cnt = (int)$r['cnt'];
-  $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
+
+  if ($category === 'MINOR') {
+    $tag = '(Minor)';
+    $include = ($level === 'MINOR' || strpos($r['code'], 'MIN-') !== false) && !$isDismissed;
+  } elseif ($category === 'MAJOR') {
+    $catNum = (int)($r['major_category'] ?? 5);
+    if ($catNum < 1 || $catNum > 5) $catNum = 5;
+    $tag = "(Major Cat $catNum)";
+    $include = ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false || $isMajorCase) && !$isDismissed;
+  } elseif ($category === 'DISMISSED') {
+    $tag = $isDismissedCase ? '(Dismissed Case)' : '(Dismissed Offense)';
+    $include = $isDismissed;
+  } else {
+    // ALL
+    if ($isDismissed) {
+      $tag = $isDismissedCase ? '(Dismissed Case)' : '(Dismissed Offense)';
+    } elseif ($level === 'MAJOR' || $isMajorCase) {
+      $catNum = (int)($r['major_category'] ?? 5);
+      if ($catNum < 1 || $catNum > 5) $catNum = 5;
+      $tag = "(Major Cat $catNum)";
+    } else {
+      $tag = '(Minor)';
+    }
+    $include = true;
+  }
+
+  if ($include) {
+    $cleanBase = preg_replace('/\s*\((Minor|Major Category \d|Major Cat \d|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed)\)$/i', '', $name);
+    $labelName = "$cleanBase $tag";
+    $cnt = (int)$r['cnt'];
+    $combinedBreakdownMap[$labelName] = ($combinedBreakdownMap[$labelName] ?? 0) + $cnt;
+  }
 }
 
 // Real active system breakdown map
@@ -323,31 +353,15 @@ $calcDismissedCases = 0;
 
 foreach ($combinedBreakdownMap as $labelName => $cnt) {
   $levelStr = (strpos($labelName, 'Major') !== false) ? 'MAJOR' : 'MINOR';
+  $detailed[] = ['name' => $labelName, 'code' => 'INF', 'level' => $levelStr, 'cnt' => $cnt];
 
-  $isDismissedItem = (strpos($labelName, 'Dismissed') !== false);
-  $isMajorItem     = (strpos($labelName, '(Major') !== false);
-  $isMinorItem     = (strpos($labelName, '(Minor)') !== false);
-
-  $includeInChart = true;
-  if ($category === 'MINOR' && !$isMinorItem) {
-    $includeInChart = false;
-  } elseif ($category === 'MAJOR' && !$isMajorItem) {
-    $includeInChart = false;
-  } elseif ($category === 'DISMISSED' && !$isDismissedItem) {
-    $includeInChart = false;
+  if ($idx < $topN) {
+    $pieLabels[] = $labelName;
+    $pieCounts[] = $cnt;
+  } else {
+    $othersCount += $cnt;
   }
-
-  if ($includeInChart) {
-    $detailed[] = ['name' => $labelName, 'code' => 'INF', 'level' => $levelStr, 'cnt' => $cnt];
-
-    if ($idx < $topN) {
-      $pieLabels[] = $labelName;
-      $pieCounts[] = $cnt;
-    } else {
-      $othersCount += $cnt;
-    }
-    $idx++;
-  }
+  $idx++;
 
   $calcTotal += $cnt;
   if (strpos($labelName, 'Dismissed Case') !== false) {
