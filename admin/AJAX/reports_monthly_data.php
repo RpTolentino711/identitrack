@@ -293,8 +293,7 @@ $combinedBreakdownMap = [];
 foreach ($breakdownRows as $r) {
   $name = (string)$r['name'];
   $level = strtoupper((string)$r['level']);
-  $isDismissedCase = ($r['case_status'] === 'DISMISSED');
-  $isDismissed = ($r['offense_status'] === 'DISMISSED' || $isDismissedCase || $level === 'DISMISSED');
+  $isDismissed = ($r['offense_status'] === 'DISMISSED' || $level === 'DISMISSED');
 
   if ($category === 'MINOR') {
     $tag = '(Minor)';
@@ -305,12 +304,12 @@ foreach ($breakdownRows as $r) {
     $tag = "(Major Cat $catNum)";
     $include = ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false) && !$isDismissed;
   } elseif ($category === 'DISMISSED') {
-    $tag = $isDismissedCase ? '(Dismissed Case)' : '(Dismissed Offense)';
+    $tag = '(Dismissed Offense)';
     $include = $isDismissed;
   } else {
     // ALL
     if ($isDismissed) {
-      $tag = $isDismissedCase ? '(Dismissed Case)' : '(Dismissed Offense)';
+      $tag = '(Dismissed Offense)';
     } elseif ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false) {
       $catNum = (int)($r['major_category'] ?? 1);
       if ($catNum < 1 || $catNum > 5) $catNum = 1;
