@@ -92,7 +92,9 @@ $dismissedOffensesRow = db_one(
    FROM offense o
    JOIN student s ON s.student_id = o.student_id
    LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
    WHERE o.date_committed BETWEEN ? AND ? $audienceClause
+     AND uco.offense_id IS NULL
      AND (
        COALESCE(o.status,'') = 'DISMISSED'
        OR COALESCE(ot.level,'') = 'DISMISSED'
@@ -105,9 +107,15 @@ $dismissedCasesRow = db_one(
   "SELECT COUNT(*) AS cnt
    FROM upcc_case uc
    JOIN student s ON s.student_id = uc.student_id
-   WHERE uc.status = 'DISMISSED'
-     AND uc.created_at BETWEEN ? AND ?
-     $audienceClause",
+   WHERE (
+     uc.status = 'DISMISSED'
+     OR uc.final_decision LIKE '%DISMISS%'
+     OR uc.final_decision LIKE '%CLEARED%'
+     OR uc.final_decision LIKE '%NO SANCTION%'
+     OR uc.decided_category = 0
+   )
+   AND uc.created_at BETWEEN ? AND ?
+   $audienceClause",
   [$monthStart, $monthEnd]
 );
 
@@ -118,7 +126,8 @@ $hRecords = function_exists('get_filtered_historical_records') ? get_filtered_hi
 $hTotal = count($hRecords);
 $hMinor = 0;
 $hMajor = 0;
-$hDismissed = 0;
+$hDismissedOffenses = 0;
+$hDismissedCases = 0;
 $hBreakdownMap = [];
 $hCoursesMap = [];
 
@@ -134,12 +143,18 @@ function clean_format_offense_name(string $rawName, string $level, bool $isDismi
 
 foreach ($hRecords as $hr) {
     $lvl = strtoupper($hr['level'] ?? 'MINOR');
-    $isDismissed = strpos(strtoupper($hr['sanction'] ?? ''), 'DISMISS') !== false;
-    if ($lvl === 'MINOR') $hMinor++;
-    else $hMajor++;
+    $sanctionStr = strtoupper((string)($hr['sanction'] ?? ''));
+    $isDismissed = strpos($sanctionStr, 'DISMISS') !== false || strpos($sanctionStr, 'NO SANCTION') !== false || strpos($sanctionStr, 'CLEARED') !== false;
+
+    if ($lvl === 'MINOR' && !$isDismissed) $hMinor++;
+    elseif ($lvl === 'MAJOR' && !$isDismissed) $hMajor++;
 
     if ($isDismissed) {
-        $hDismissed++;
+        if (strpos($sanctionStr, 'CASE') !== false || strpos($sanctionStr, 'UPCC') !== false || strpos($sanctionStr, 'HEARING') !== false || strpos($sanctionStr, 'PANEL') !== false) {
+            $hDismissedCases++;
+        } else {
+            $hDismissedOffenses++;
+        }
     }
 
     $offName = $hr['offense'] ?? 'Minor Offense';
@@ -156,8 +171,8 @@ $totalCount = (int)($totalRow['cnt'] ?? 0) + $hTotal;
 $minorCount = (int)($minorRow['cnt'] ?? 0) + $hMinor;
 $majorCount = (int)($majorRow['cnt'] ?? 0) + $hMajor;
 
-$dismissedOffensesCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + $hDismissed;
-$dismissedCasesCount    = (int)($dismissedCasesRow['cnt'] ?? 0);
+$dismissedOffensesCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + $hDismissedOffenses;
+$dismissedCasesCount    = (int)($dismissedCasesRow['cnt'] ?? 0) + $hDismissedCases;
 $dismissedTotalCount    = $dismissedOffensesCount + $dismissedCasesCount;
 
 // Active UPCC cases count (filtered by chosen month date range and audience)
