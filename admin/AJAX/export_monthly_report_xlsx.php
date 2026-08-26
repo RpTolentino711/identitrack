@@ -60,24 +60,20 @@ if ($category === 'MINOR') {
     $categoryClause = " AND (COALESCE(o.status,'') = 'DISMISSED' OR COALESCE(ot.level,'') = 'DISMISSED' OR COALESCE(o.level,'') = 'DISMISSED' OR uc.status = 'DISMISSED') ";
 }
 
-// Clause to exclude dismissed offenses & cases from active report totals
-$dismissClause = " AND COALESCE(o.status,'') != 'DISMISSED'
-                   AND COALESCE(ot.level,'') != 'DISMISSED'
-                   AND COALESCE(o.level,'') != 'DISMISSED'
-                   AND o.offense_id NOT IN (
-                       SELECT uco.offense_id
-                       FROM upcc_case_offense uco
-                       JOIN upcc_case uc ON uc.case_id = uco.case_id
-                       WHERE uc.status = 'DISMISSED'
-                   ) ";
-
-$activeFilter = ($category === 'DISMISSED') ? ($audienceClause . $categoryClause) : ($audienceClause . $dismissClause . $categoryClause);
+$offenseFilter = $audienceClause;
+if ($category === 'MINOR') {
+    $offenseFilter .= " AND (ot.level = 'MINOR' OR o.level = 'MINOR') AND COALESCE(o.status,'') != 'DISMISSED' ";
+} elseif ($category === 'MAJOR_SANCTIONS' || $category === 'SANCTIONS' || $category === 'MAJOR') {
+    $offenseFilter .= " AND (ot.level = 'MAJOR' OR o.level = 'MAJOR') AND COALESCE(o.status,'') != 'DISMISSED' ";
+} elseif ($category === 'DISMISSED') {
+    $offenseFilter .= " AND (COALESCE(o.status,'') = 'DISMISSED' OR COALESCE(ot.level,'') = 'DISMISSED') ";
+}
 
 // 1. Fetch raw data
 $params = [':start' => $monthStart, ':end' => $monthEnd];
 db_add_encryption_key($params);
 
-$rows = db_all(
+$offenseRows = db_all(
   "SELECT
       o.offense_id,
       o.student_id,
@@ -93,21 +89,67 @@ $rows = db_all(
       o.status,
       o.date_committed,
       " . db_decrypt_col('description', 'o') . " AS description,
-      uc.case_id,
-      uc.case_kind,
-      uc.decided_category,
-      uc.final_decision,
-      uc.status AS case_status
+      NULL AS case_id,
+      NULL AS case_kind,
+      0 AS decided_category,
+      NULL AS final_decision,
+      NULL AS case_status
    FROM offense o
    JOIN student s ON s.student_id = o.student_id
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
-   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN :start AND :end
-   $activeFilter
+   $offenseFilter
    ORDER BY o.date_committed DESC",
   $params
 );
+
+$caseRows = [];
+if ($category !== 'MINOR') {
+  $caseFilter = $audienceClause;
+  if ($category === 'MAJOR' || $category === 'SANCTIONS' || $category === 'MAJOR_SANCTIONS') {
+    $caseFilter .= " AND UPPER(COALESCE(uc.status,'')) != 'DISMISSED' ";
+  } elseif ($category === 'DISMISSED') {
+    $caseFilter .= " AND UPPER(COALESCE(uc.status,'')) = 'DISMISSED' ";
+  }
+
+  $caseRowsQuery = db_all(
+    "SELECT
+        CONCAT('CASE-', uc.case_id) AS offense_id,
+        uc.student_id,
+        {$segmentExpr} AS segment,
+        CONCAT(" . db_decrypt_col('student_ln', 's') . ", ', ', " . db_decrypt_col('student_fn', 's') . ") AS student_name,
+        COALESCE(NULLIF(s.program,''), 'N/A') AS program,
+        COALESCE(NULLIF(s.section,''), 'N/A') AS section,
+        'MAJOR' AS offense_level,
+        'UPCC-CASE' AS offense_code,
+        COALESCE(NULLIF(uc.case_summary,''), NULLIF(uc.case_kind,''), 'UPCC Hearing Case') AS offense_name,
+        NULL AS intervention_first,
+        NULL AS intervention_second,
+        uc.status AS status,
+        uc.created_at AS date_committed,
+        COALESCE(" . db_decrypt_col('case_summary', 'uc') . ", uc.case_kind, 'UPCC Case Record') AS description,
+        uc.case_id,
+        uc.case_kind,
+        COALESCE(NULLIF(uc.decided_category,0), 5) AS decided_category,
+        uc.final_decision,
+        uc.status AS case_status
+     FROM upcc_case uc
+     JOIN student s ON s.student_id = uc.student_id
+     WHERE uc.created_at BETWEEN :start AND :end
+     $caseFilter
+     ORDER BY uc.created_at DESC",
+    $params
+  );
+
+  foreach ($caseRowsQuery as $crq) {
+    if (strpos(strtoupper((string)$crq['offense_name']), 'SECTION4') !== false || strpos(strtoupper((string)$crq['offense_name']), 'SECTION 4') !== false) {
+      $crq['offense_name'] = 'Section 4 Minor Offense Escalation';
+    }
+    $caseRows[] = $crq;
+  }
+}
+
+$rows = array_merge($offenseRows, $caseRows);
 
 $hRecords = [];
 
