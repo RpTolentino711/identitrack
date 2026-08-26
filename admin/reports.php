@@ -575,7 +575,8 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     }
 
     function renderCourses(courses) {
-      const ctx = document.getElementById('courses');
+      const ctx = document.getElementById('bar');
+      if (!ctx) return;
       if (barChart) barChart.destroy();
 
       const minorData = courses.minor || courses.counts.map(() => 0);
@@ -588,36 +589,37 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
           labels: courses.labels,
           datasets: [
             {
-              label: 'Minor Offenses',
+              label: 'Minor',
               data: minorData,
               backgroundColor: '#f59e0b',
               borderRadius: 4,
-              maxBarThickness: 36
+              maxBarThickness: 32
             },
             {
-              label: 'Major Offenses',
+              label: 'Major',
               data: majorData,
               backgroundColor: '#dc3545',
               borderRadius: 4,
-              maxBarThickness: 36
+              maxBarThickness: 32
             },
             {
               label: 'Dismissed',
               data: dismissedData,
               backgroundColor: '#64748b',
               borderRadius: 4,
-              maxBarThickness: 36
+              maxBarThickness: 32
             }
           ]
         },
         options: {
           responsive: true,
+          maintainAspectRatio: true,
           scales: {
             y: {
               stacked: true,
               beginAtZero: true,
-              ticks: { precision: 0, font: { size: 10 } },
-              grid: { color: '#e2e8f0' }
+              ticks: { precision: 0, font: { size: 10, weight: '500' } },
+              grid: { color: '#f1f5f9' }
             },
             x: {
               stacked: true,
@@ -629,11 +631,12 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
             legend: {
               display: true,
               position: 'top',
-              labels: { boxWidth: 10, padding: 8, font: { size: 10, weight: '600' } }
+              align: 'end',
+              labels: { boxWidth: 8, boxHeight: 8, padding: 8, font: { size: 10, weight: '600' } }
             },
             tooltip: {
               callbacks: {
-                label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw}`
+                label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw} cases`
               }
             }
           }
@@ -651,8 +654,8 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
         return `
           <div class="course-item" style="padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
             <div class="course-top" style="display:flex; justify-content:space-between; align-items:center;">
-              <span class="course-name" style="font-weight:700; color:#1e293b;">${escapeHtml(c.program)}</span>
-              <span class="course-count" style="font-weight:700; color:#0f172a;">${escapeHtml(c.cnt)} offenses</span>
+              <span class="course-name" style="font-weight:700; color:#1e293b; font-size:12px;">${escapeHtml(c.program)}</span>
+              <span class="course-count" style="font-weight:700; color:#0f172a; font-size:12px;">${escapeHtml(c.cnt)} offenses</span>
             </div>
             <div style="display:flex; gap:6px; margin:4px 0 2px; flex-wrap:wrap;">
               <span style="background:#fef3c7; color:#b45309; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600;">Minor: ${c.minor || 0}</span>
