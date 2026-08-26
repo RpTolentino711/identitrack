@@ -526,14 +526,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
           cutout: '60%',
           plugins: {
             legend: {
-              display: true,
-              position: 'bottom',
-              labels: {
-                boxWidth: 8,
-                boxHeight: 8,
-                padding: 8,
-                font: { size: 10.5, weight: '600' }
-              }
+              display: false
             },
             tooltip: {
               padding: 12,
