@@ -14,6 +14,7 @@ $rows = db_all(
      ot.code AS offense_code,
      ot.name AS offense_name,
      ot.level AS offense_level,
+     ot.major_category AS major_category,
      CONCAT(COALESCE(s.student_fn,''), ' ', COALESCE(s.student_ln,'')) AS student_name,
      sg.full_name AS guard_name
    FROM guard_violation_report r
@@ -35,6 +36,7 @@ foreach ((array)$rows as $r) {
     'offense_code' => (string)($r['offense_code'] ?? ''),
     'offense_name' => (string)($r['offense_name'] ?? ''),
     'offense_level' => (string)($r['offense_level'] ?? ''),
+    'major_category' => (int)($r['major_category'] ?? 0),
     'description' => (string)($r['description'] ?? ''),
     'date_committed_label' => !empty($r['date_committed']) ? date('M d, Y h:i A', strtotime((string)$r['date_committed'])) : '',
     'created_at_label' => !empty($r['created_at']) ? date('M d, Y h:i A', strtotime((string)$r['created_at'])) : '',

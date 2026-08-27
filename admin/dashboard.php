@@ -108,6 +108,7 @@ $pendingGuardQueue = db_all(
      ot.code AS offense_code,
      ot.name AS offense_name,
      ot.level AS offense_level,
+     ot.major_category AS major_category,
      CONCAT(COALESCE(" . db_decrypt_col('student_fn', 's') . ",''), ' ', COALESCE(" . db_decrypt_col('student_ln', 's') . ",'')) AS student_name,
      sg.full_name AS guard_name
    FROM guard_violation_report r

@@ -11,31 +11,38 @@ $activeSidebar = 'offenses';
 $admin   = admin_current();
 $adminId = (int)($admin['admin_id'] ?? 0);
 
-$level = strtoupper(trim((string)($_GET['level'] ?? $_POST['level'] ?? 'MINOR')));
-if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level = 'MINOR';
-
-$category = (int)($_GET['major_category'] ?? $_POST['major_category'] ?? 0);
-$studentIdPrefill = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
-
 $pendingReportIdInit = (int)($_GET['report_id'] ?? $_GET['pending_report_id'] ?? $_GET['rid'] ?? $_POST['pending_report_id'] ?? 0);
+$pgrLevel = null;
+$pgrCat = null;
+$pgrTypeId = 0;
+
 if ($pendingReportIdInit > 0) {
     $pgrInit = db_one(
-        "SELECT pgr.*, ot.level AS offense_level, ot.major_category
+        "SELECT pgr.*, ot.level AS offense_level, ot.major_category, ot.offense_type_id
          FROM guard_violation_report pgr
          LEFT JOIN offense_type ot ON ot.offense_type_id = pgr.offense_type_id
          WHERE pgr.report_id = ?",
         [$pendingReportIdInit]
     );
     if ($pgrInit) {
-        if (!isset($_GET['level']) && !isset($_POST['level']) && !empty($pgrInit['offense_level'])) {
-            $level = strtoupper((string)$pgrInit['offense_level']);
-            if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level = 'MINOR';
+        if (!empty($pgrInit['offense_level'])) {
+            $pgrLevel = strtoupper((string)$pgrInit['offense_level']);
         }
-        if (!isset($_GET['major_category']) && !isset($_POST['major_category']) && isset($pgrInit['major_category'])) {
-            $category = (int)$pgrInit['major_category'];
+        if (isset($pgrInit['major_category'])) {
+            $pgrCat = (int)$pgrInit['major_category'];
+        }
+        if (!empty($pgrInit['offense_type_id'])) {
+            $pgrTypeId = (int)$pgrInit['offense_type_id'];
         }
     }
 }
+
+$level = $pgrLevel ?: strtoupper(trim((string)($_GET['level'] ?? $_POST['level'] ?? 'MINOR')));
+if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level = 'MINOR';
+
+$category = $pgrCat !== null ? $pgrCat : (int)($_GET['major_category'] ?? $_POST['major_category'] ?? 0);
+$studentIdPrefill = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
+$postExistingTypeId = (int)($_POST['offense_type_id'] ?? $pgrTypeId ?? 0);
 
 if (isset($_GET['mark_stage']) && isset($_GET['offense_id'])) {
     $stage = trim((string)$_GET['mark_stage']);
@@ -423,14 +430,14 @@ if ($pendingGuardReport) {
     } elseif (!empty($pendingGuardReport['created_at'])) {
       $postDate = date('Y-m-d\TH:i', is_numeric($pendingGuardReport['created_at']) ? (int)$pendingGuardReport['created_at'] : strtotime((string)$pendingGuardReport['created_at']));
     }
-    if (!isset($_GET['level']) && !isset($_POST['level']) && !empty($pendingGuardReport['offense_level'])) {
+    if (!empty($pendingGuardReport['offense_level'])) {
       $level = strtoupper((string)$pendingGuardReport['offense_level']);
       if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level = 'MINOR';
     }
     if (isset($pendingGuardReport['major_category'])) {
       $category = (int)$pendingGuardReport['major_category'];
     }
-    if ($postExistingTypeId <= 0 && !empty($pendingGuardReport['offense_type_id'])) {
+    if (!empty($pendingGuardReport['offense_type_id'])) {
       $postExistingTypeId = (int)$pendingGuardReport['offense_type_id'];
     }
   }
