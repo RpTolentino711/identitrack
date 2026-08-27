@@ -1816,7 +1816,7 @@ function fmt_case_id(int $id, string $created): string {
                                 <td style="white-space:nowrap;">
                                     <div style="display:inline-flex; align-items:center; gap:4px;">
                                         <span class="badge <?= $statusBadgeClass ?>"><?= e($statusLabel) ?></span>
-                                        <?php if ($statusRaw === 'CLOSED' || $statusRaw === 'RESOLVED'): ?>
+                                        <?php if (in_array($statusRaw, ['CLOSED', 'RESOLVED'], true)): ?>
                                             <?php
                                             $rowCatNum = (int)($c['decided_category'] ?? $c['hearing_vote_consensus_category'] ?? 0);
                                             if (($rowCatNum === 1 || $rowCatNum === 2) && empty($c['nfi_file_path'])):
@@ -2903,9 +2903,7 @@ function selectCase(row) {
         }
 
         if (nfiContainer) {
-            if (isDismissed) {
-                nfiContainer.style.display = 'none';
-            } else {
+            if (isClosedStatus && isCat1or2) {
                 nfiContainer.style.display = 'block';
                 if (nfiCaseIdInput) nfiCaseIdInput.value = caseId;
                 if (nfiUploadForm) nfiUploadForm.style.display = 'block';
@@ -2960,6 +2958,8 @@ function selectCase(row) {
                     if (nfiUploadBtnLabel) nfiUploadBtnLabel.textContent = '📋 Upload Notice of Formative Intervention (NFI)';
                     if (nfiUploadForm) nfiUploadForm.style.display = 'block';
                 }
+            } else {
+                nfiContainer.style.display = 'none';
             }
         }
 
