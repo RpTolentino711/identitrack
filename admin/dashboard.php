@@ -1525,17 +1525,13 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                 + '<a href="offense_new.php?student_id=' + encodeURIComponent(String(g.student_id||'')) + '" class="student-id" style="text-decoration:none; color:#1d4ed8; font-weight:600; cursor:pointer; display:block;" title="Tap to register offense for this student" onclick="event.stopPropagation();">' + esc(g.student_id) + '</a>'
               + '</div>'
             + '</div>'
-            + '<button type="button" class="guard-review-btn open-guard-modal"'
-              + ' data-report-id="' + esc(g.report_id) + '"'
-              + ' data-student-id="' + esc(g.student_id) + '"'
-              + ' data-student-name="' + esc(sName) + '"'
-              + ' data-guard-name="' + esc(g.guard_name || 'Unknown') + '"'
-              + ' data-offense-code="' + esc(g.offense_code) + '"'
-              + ' data-offense-name="' + esc(g.offense_name) + '"'
-              + ' data-offense-level="' + esc(g.offense_level) + '"'
-              + ' data-date-committed="' + esc(g.date_committed_label) + '"'
-              + ' data-submitted-at="' + esc(g.created_at_label) + '"'
-              + ' data-description="' + esc(g.description || '') + '">Review</button>'
+            + '<a href="offense_new.php?report_id=' + encodeURIComponent(String(g.report_id||''))
+              + '&student_id=' + encodeURIComponent(String(g.student_id||''))
+              + '&level=' + encodeURIComponent(String(g.offense_level||''))
+              + '&major_category=' + encodeURIComponent(String(g.major_category||0)) + '"'
+              + ' class="guard-review-btn"'
+              + ' style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;"'
+              + ' title="Tap to review and autofill offense form for this report">Review</a>'
           + '</div>'
         + '</div>';
       }).join('');
@@ -1602,8 +1598,10 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
     poll();
     setInterval(poll, 8000);
 
-    /* ── Event listeners ── */
     feedList.addEventListener('click', function (ev) {
+      if (ev.target.closest('a.guard-review-btn')) {
+        return; // Direct navigation to offense_new.php
+      }
       var btn = ev.target.closest('.open-guard-modal');
       if (!btn) return;
       openModal({
