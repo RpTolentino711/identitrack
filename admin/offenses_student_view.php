@@ -1628,28 +1628,9 @@ $majorCount = $rawMajorCount + count($escalationGroups);
               </div>
 
               <div class="guard-review-actions" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-
-                <a href="<?php echo htmlspecialchars($pendingReviewUrl); ?>" class="guard-pill guard-pill-approve" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:800;">
-                  🔍 Review &amp; Autofill Offense Form
+                <a href="<?php echo htmlspecialchars($pendingReviewUrl); ?>" class="guard-pill guard-pill-approve" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:800; padding:10px 22px; font-size:14px; border-radius:10px; box-shadow:0 3px 10px rgba(22,163,74,0.3);">
+                  Review
                 </a>
-
-                <form method="post" style="margin:0;" id="guardApproveForm">
-                  <input type="hidden" name="action" value="approve_guard_report" />
-                  <input type="hidden" name="report_id" value="<?php echo (int)$pendingGuardReport['report_id']; ?>" />
-                  <button type="submit" class="guard-pill" style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; font-weight:700;">Quick Approve</button>
-                </form>
-
-                <form method="post" style="margin:0;" id="guardDismissForm">
-                  <input type="hidden" name="action" value="dismiss_guard_report" />
-                  <input type="hidden" name="report_id" value="<?php echo (int)$pendingGuardReport['report_id']; ?>" />
-                  <button type="button" class="guard-pill" style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; font-weight:700;" id="guardDismissBtn" onclick="if(confirm('Record this report as DISMISSED for administrative tracking only?')) this.form.submit();">Dismiss (Record Only)</button>
-                </form>
-
-                <form method="post" style="margin:0;" id="guardRejectForm">
-                  <input type="hidden" name="action" value="reject_guard_report" />
-                  <input type="hidden" name="report_id" value="<?php echo (int)$pendingGuardReport['report_id']; ?>" />
-                  <button type="button" class="guard-pill guard-pill-reject" id="guardRejectBtn">Reject (Keep in History)</button>
-                </form>
               </div>
             </section>
           <?php endif; ?>
