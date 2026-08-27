@@ -214,11 +214,10 @@ foreach ($rows as $r) {
 
     if ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED') {
         $tag = ($caseStatus === 'DISMISSED') ? '(Dismissed Case)' : '(Dismissed Offense)';
-    } elseif ($decidedCat > 0) {
+    } elseif ($decidedCat >= 1 && $decidedCat <= 5) {
         $tag = "(Major Cat {$decidedCat})";
     } elseif ($offenseLevel === 'MAJOR' || strpos($r['offense_code'], 'MAJ-') !== false) {
-        $catNum = ($decidedCat > 0) ? $decidedCat : 5;
-        $tag = "(Major Cat {$catNum})";
+        $tag = "(Pending Category Assignment)";
     } else {
         $tag = '(Minor)';
     }

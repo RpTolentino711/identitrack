@@ -177,7 +177,7 @@ function clean_format_offense_name(string $rawName, string $level, bool $isDismi
         if ($catNum >= 1 && $catNum <= 5) {
             return "$cleanBase (Major Cat $catNum)";
         }
-        return "$cleanBase (Major Cat 5)";
+        return "$cleanBase (Pending Category Assignment)";
     }
 
     return "$cleanBase (Minor)";
@@ -344,9 +344,12 @@ foreach ($caseBreakdownRows as $cr) {
     $tag = '(Dismissed Case)';
     $include = ($category === 'ALL' || $category === 'DISMISSED');
   } else {
-    $catNum = (int)($cr['major_category'] ?? 5);
-    if ($catNum < 1 || $catNum > 5) $catNum = 5;
-    $tag = "(Major Cat $catNum)";
+    $catNum = (int)($cr['major_category'] ?? 0);
+    if ($catNum >= 1 && $catNum <= 5) {
+      $tag = "(Major Cat $catNum)";
+    } else {
+      $tag = "(Pending Category Assignment)";
+    }
     $include = ($category === 'ALL' || $category === 'MAJOR' || $category === 'SANCTIONS' || $category === 'MAJOR_SANCTIONS');
   }
 
