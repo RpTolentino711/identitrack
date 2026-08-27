@@ -510,8 +510,8 @@ if ($letterParam && (int)($_GET['offense_id'] ?? 0) > 0) {
     $_SESSION['pending_letter_type']       = (string)($_GET['type'] ?? '');
 }
 
-// Auto-detect is ONLY active if an explicit letter/success redirect parameter is present OR if session has an active pending workflow
-$hasActiveWorkflowRequest = $successMode || $letterParam || !empty($_SESSION['pending_letter_offense_id']) || !empty($_SESSION['pending_nte_offense_id']) || !empty($_SESSION['pending_evidence_offense_id']);
+// Auto-detect is ONLY active if an explicit letter parameter is present (letter=1) OR if session has an active pending letter workflow (NOT for 1st minor warning!)
+$hasActiveWorkflowRequest = $letterParam || !empty($_SESSION['pending_letter_offense_id']) || !empty($_SESSION['pending_nte_offense_id']) || !empty($_SESSION['pending_evidence_offense_id']);
 
 if ($letterOffenseId <= 0 && $hasActiveWorkflowRequest && !empty($studentIdPrefill)) {
     $unsentOffense = db_one(
@@ -3459,7 +3459,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   const NTE_PENDING_MODE = <?php echo json_encode($ntePendingMode); ?>;
   const EVIDENCE_PENDING_MODE = <?php echo json_encode($evidencePendingMode); ?>;
   const LETTER_TYPE = <?php echo json_encode($letterType); ?>;
-  const IS_SECTION4_ESCALATION = <?php echo json_encode(!empty($isSection4EscalationOffense) || $letterType === 'escalation' || $letterType === 'major'); ?>;
+  const IS_SECTION4_ESCALATION = <?php echo json_encode((!empty($isSection4EscalationOffense) || $letterType === 'escalation' || $letterType === 'major') && ($letterType === 'escalation' || $letterType === 'major')); ?>;
   const SUCCESS_MODE = <?php echo json_encode($successMode); ?>;
   const INIT_LEVEL  = <?php echo json_encode($level); ?>;
   const SHOW_STUDENT_RECORD_MODAL = <?php echo json_encode($studentInfo && ($liveMinorCount + $liveMajorCount > 0 || count($liveActiveUpccCases) > 0)); ?>;
