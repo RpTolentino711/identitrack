@@ -230,6 +230,13 @@ foreach ($rows as $r) {
     $coursesMap[$prog] = ($coursesMap[$prog] ?? 0) + 1;
 }
 
+if (empty($breakdownMap)) {
+    $breakdownMap['No Offenses Logged'] = 0;
+}
+if (empty($coursesMap)) {
+    $coursesMap['No Courses Logged'] = 0;
+}
+
 arsort($breakdownMap);
 arsort($coursesMap);
 
