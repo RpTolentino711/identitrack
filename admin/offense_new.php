@@ -433,7 +433,20 @@ if ($postStudentId !== '') {
   }
 }
 
-$pendingGuardReport = !empty($pendingGuardReports) ? $pendingGuardReports[0] : null;
+$pendingGuardReport = null;
+if (!empty($pendingGuardReports)) {
+  if ($pendingReportIdInit > 0) {
+    foreach ($pendingGuardReports as $p) {
+      if ((int)($p['report_id'] ?? 0) === $pendingReportIdInit) {
+        $pendingGuardReport = $p;
+        break;
+      }
+    }
+  }
+  if (!$pendingGuardReport) {
+    $pendingGuardReport = $pendingGuardReports[0];
+  }
+}
 
 if ($pendingGuardReport) {
   $pendingReportId = (int)$pendingGuardReport['report_id'];
@@ -2181,8 +2194,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
     <?php
       $cleanReportsJs = [];
+      $initReportIdx = 0;
       if (!empty($pendingGuardReports)) {
-          foreach ($pendingGuardReports as $pr) {
+          foreach ($pendingGuardReports as $idxKey => $pr) {
+              if (!empty($pendingGuardReport) && (int)($pr['report_id'] ?? 0) === (int)$pendingGuardReport['report_id']) {
+                  $initReportIdx = $idxKey;
+              }
               $cleanReportsJs[] = [
                   'report_id' => (int)($pr['report_id'] ?? 0),
                   'student_id' => (string)($pr['student_id'] ?? ''),
@@ -2190,6 +2207,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   'offense_code' => (string)($pr['offense_code'] ?? ''),
                   'offense_name' => (string)($pr['offense_name'] ?? ''),
                   'offense_level' => (string)($pr['offense_level'] ?? ''),
+                  'major_category' => (int)($pr['major_category'] ?? 0),
                   'guard_name' => (string)($pr['guard_name'] ?? ''),
                   'description' => (string)($pr['description'] ?? ''),
                   'created_at' => (string)($pr['created_at'] ?? ''),
@@ -2199,7 +2217,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
     ?>
     window.guardReportsList = <?php echo json_encode($cleanReportsJs); ?> || [];
-    window.currentReportIndex = 0;
+    window.currentReportIndex = <?php echo (int)$initReportIdx; ?>;
 
     window.selectGuardReportIndex = function(idx) {
         if (!window.guardReportsList || window.guardReportsList.length === 0) return;
