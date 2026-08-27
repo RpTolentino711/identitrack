@@ -582,10 +582,19 @@ if ($targetOffenseId > 0) {
         elseif ($isEsc && empty($_SESSION['evidence_done_' . $targetOffenseId])) {
             $evidencePendingMode = true;
             $letterOffenseId = $targetOffenseId;
-            $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : 'escalation';
         }
     }
 }
+$letterMinorNo = (int)($_GET['minor_no'] ?? 0);
+if ($letterMinorNo <= 0 && isset($mCount) && $mCount > 0) {
+    $letterMinorNo = $mCount;
+}
+if ($letterMinorNo <= 0 && !empty($studentIdPrefill)) {
+    $mRowCalc = db_one("SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MINOR'", [':sid' => $studentIdPrefill]);
+    $letterMinorNo = (int)($mRowCalc['cnt'] ?? 0);
+}
+$letterEscNum = max(1, (int)ceil($letterMinorNo / 3));
+$letterOrdStr = getOrdinal($letterEscNum);
 
 // ── Live student data ─────────────────────────────────────────────────────────
 $liveMinorCount      = 0;
@@ -3104,8 +3113,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             <div class="modal-header" style="border-bottom: 2px solid #fecaca; background: #fff5f5; padding: 16px 24px;">
               <h3 style="color: #991b1b; display: flex; align-items: center; gap: 8px;">
                 <?php
-                  if ($letterType === 'escalation') echo '📧 Guardian Notification — Section 4 Panel Referral';
-                  elseif ($letterType === 'letter')  echo '📧 Guardian Notification — 2nd Minor Offense';
+                  if ($letterType === 'escalation') echo '📧 Guardian Notification — Section 4 Panel Referral (' . htmlspecialchars($letterOrdStr) . ' Escalation - Offense #' . $letterMinorNo . ')';
+                  elseif ($letterType === 'letter')  echo '📧 Guardian Notification — 2nd Minor Offense (Offense #' . $letterMinorNo . ')';
                   elseif ($letterType === 'major')   echo '📧 Guardian Notification — Major Offense';
                   else echo '📧 Guardian Notification';
                 ?>
@@ -3138,7 +3147,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       if ($letterType === 'major') {
                           $defaultBody = "Dear Guardian,\n\nThis is an urgent official notification from the Student Discipline Office. We are writing to formally inform you that your student has been involved in a MAJOR disciplinary offense.\n\nDue to the severity of this infraction, an immediate investigation is currently underway by the University Panel on Community Conduct (UPCC). Such offenses carry significant consequences, which may include suspension or expulsion. We strongly advise that you discuss this matter with your student immediately.\n\n";
                       } elseif ($letterType === 'escalation') {
-                          $defaultBody = "Dear Guardian,\n\nThis is an official notice to inform you that your student has accumulated their 3rd minor offense, which triggers an automatic escalation to a Major Offense status under our discipline policy.\n\nThe student's case has now been forwarded to the University Panel on Community Conduct (UPCC), and a formal investigation is underway. We ask for your immediate cooperation as we review these repeated infractions.\n\nPlease see the detailed notice below for the complete offense history.\n\n";
+                          $defaultBody = "Dear Guardian,\n\nThis is an official notice to inform you that your student has accumulated Minor Offense #{$letterMinorNo} ({$letterOrdStr} Section 4 Escalation), which triggers an automatic escalation to Major Offense status under our discipline policy.\n\nThe student's case has now been forwarded to the University Panel on Community Conduct (UPCC) for formal investigation. We ask for your immediate cooperation as we review these repeated infractions.\n\nPlease see the detailed notice below for the complete offense history.\n\n";
                       } elseif ($letterType === 'letter') {
                           $defaultBody = "Dear Guardian,\n\nThis is to inform you that your student has been reported for a second minor conduct offense. Please see the detailed notice below for more information regarding this incident.\n\n";
                       } else {
@@ -3291,9 +3300,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <img src="../assets/logo.png" alt="IdentiTrack Logo" style="height: 64px; margin-bottom: 24px;">
         
         <?php if ($letterType === 'escalation'): ?>
-          <h3 style="margin: 0 0 12px 0; font-size: 20px; color: var(--red);">🚨 Section 4 Triggered</h3>
+          <h3 style="margin: 0 0 12px 0; font-size: 20px; color: var(--red);">🚨 Section 4 Triggered (<?php echo htmlspecialchars($letterOrdStr); ?> Escalation)</h3>
           <p style="font-size:14px;color:var(--text-2);line-height:1.6; margin: 0 0 24px 0;">
-            <strong style="color:var(--red);">3rd Minor Offense!</strong> The student has reached Section 4. A UPCC case has been automatically created. Please send the guardian notification below.
+            <strong style="color:var(--red);">Minor Offense #<?php echo $letterMinorNo; ?> (<?php echo htmlspecialchars($letterOrdStr); ?> Section 4 Escalation)!</strong> The student has reached their <?php echo htmlspecialchars($letterOrdStr); ?> Section 4 Escalation. A UPCC case has been automatically created. Please send the guardian notification below.
           </p>
         <?php elseif ($letterType === 'major' && $level === 'MAJOR'): ?>
           <h3 style="margin: 0 0 12px 0; font-size: 20px; color: var(--red);">🚨 Major Offense</h3>
@@ -3351,12 +3360,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     <div class="modal-content" style="max-width: 520px; border-radius: 16px; overflow: hidden; position: relative; border: 2px solid var(--navy, #1b2b6b);">
       <div class="modal-header" style="background: var(--navy, #1b2b6b); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <h3 style="margin:0; font-size: 18px; font-weight: 800; color: white;">📄 Form F-005: Notice To Explain</h3>
+          <h3 style="margin:0; font-size: 18px; font-weight: 800; color: white;">📄 Form F-005: Notice To Explain (<?php echo htmlspecialchars($letterOrdStr); ?> Escalation - Offense #<?php echo $letterMinorNo; ?>)</h3>
         </div>
       </div>
       <div class="modal-body" style="padding: 24px;">
         <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; color: #1e40af; font-weight: 600;">
-          ℹ️ Attach the official Form F-005 document file below if you wish to send it to the student.
+          ℹ️ Attach the official Form F-005 document file for <strong>Minor Offense #<?php echo $letterMinorNo; ?> (<?php echo htmlspecialchars($letterOrdStr); ?> Section 4 Escalation)</strong> below to send it to the student.
         </div>
 
         <div style="margin-bottom: 24px; background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px dashed var(--navy, #1b2b6b);">
