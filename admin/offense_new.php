@@ -172,10 +172,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
         "UPDATE guard_violation_report SET status = 'APPROVED' WHERE report_id = :rid",
         [':rid' => $pendingReportIdSubmit]
       );
-      db_exec(
-        "UPDATE notification SET is_read = 1 WHERE item_type = 'VIOLATION' AND report_id = :rid",
-        [':rid' => $pendingReportIdSubmit]
-      );
+      try {
+        db_exec(
+          "UPDATE notification SET is_read = 1 WHERE (type = 'GUARD_REPORT' AND related_id = :rid) OR (related_table = 'guard_violation_report' AND related_id = :rid)",
+          [':rid' => (string)$pendingReportIdSubmit]
+        );
+      } catch (\Throwable $e) {}
     }
 
     // ── AFTER INSERT LOGIC ────────────────────────────────────────────────
