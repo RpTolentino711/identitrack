@@ -40,9 +40,23 @@ if ($pendingReportIdInit > 0) {
 $level = $pgrLevel ?: strtoupper(trim((string)($_GET['level'] ?? $_POST['level'] ?? 'MINOR')));
 if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level = 'MINOR';
 
-$category = $pgrCat !== null ? $pgrCat : (int)($_GET['major_category'] ?? $_POST['major_category'] ?? 0);
+$category = ($pgrCat !== null && $pgrCat > 0) ? $pgrCat : (int)($_GET['major_category'] ?? $_POST['major_category'] ?? 0);
 $studentIdPrefill = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
 $postExistingTypeId = (int)($_POST['offense_type_id'] ?? $pgrTypeId ?? 0);
+
+// Auto-detect level and major_category if offense_type_id is known from pending guard report
+if ($postExistingTypeId > 0) {
+    $otInfo = db_one("SELECT level, major_category FROM offense_type WHERE offense_type_id = ?", [$postExistingTypeId]);
+    if ($otInfo) {
+        if (!empty($otInfo['level'])) {
+            $level = strtoupper((string)$otInfo['level']);
+            if ($level !== 'MINOR' && $level !== 'MAJOR' && $level !== 'DISMISSED') $level = 'MINOR';
+        }
+        if (isset($otInfo['major_category']) && (int)$otInfo['major_category'] > 0) {
+            $category = (int)$otInfo['major_category'];
+        }
+    }
+}
 
 if (isset($_GET['mark_stage']) && isset($_GET['offense_id'])) {
     $stage = trim((string)$_GET['mark_stage']);
@@ -65,8 +79,10 @@ $categoryDescriptions = [
 ];
 
 // ── Load offense types ──────────────────────────────────────────────────────
-$offenseTypes       = [];
-$postExistingTypeId = (int)($_POST['offense_type_id'] ?? 0);
+$offenseTypes = [];
+if ($postExistingTypeId <= 0) {
+  $postExistingTypeId = (int)($_POST['offense_type_id'] ?? 0);
+}
 
 if ($level === 'MINOR') {
   $offenseTypes = db_all(
@@ -2315,7 +2331,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
             if (isMajor && targetCategory > 0) {
                 const catSelect = document.getElementById('major_category');
-                if (catSelect && catSelect.value != targetCategory) {
+                if (catSelect) {
                     catSelect.value = targetCategory;
                     if (typeof onCategoryChange === 'function') {
                         onCategoryChange(targetCategory);
