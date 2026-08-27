@@ -947,7 +947,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                       </div>
                     </div>
                     <a
-                      href="offense_new.php?report_id=<?php echo (int)$g['report_id']; ?>&student_id=<?php echo urlencode((string)$g['student_id']); ?>"
+                      href="offense_new.php?report_id=<?php echo (int)$g['report_id']; ?>&student_id=<?php echo urlencode((string)$g['student_id']); ?>&level=<?php echo urlencode((string)$g['offense_level']); ?>&major_category=<?php echo (int)($g['major_category'] ?? 0); ?>"
                       class="guard-review-btn"
                       style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;"
                       title="Tap to review and autofill offense form for this report"
