@@ -275,7 +275,7 @@ $caseBreakdownRows = db_all(
       COALESCE(NULLIF(uc.case_summary,''), NULLIF(uc.case_kind,''), 'UPCC Hearing Case') AS raw_name,
       'MAJ-CASE' AS code,
       'MAJOR' AS level,
-      COALESCE(NULLIF(uc.decided_category, 0), 5) AS major_category,
+      uc.decided_category AS major_category,
       'OPEN' AS offense_status,
       uc.status AS case_status,
       COUNT(*) AS cnt
@@ -299,9 +299,8 @@ foreach ($breakdownRows as $r) {
     $tag = '(Minor)';
     $include = ($level === 'MINOR' || strpos($r['code'], 'MIN-') !== false) && !$isDismissed;
   } elseif ($category === 'MAJOR') {
-    $catNum = (int)($r['major_category'] ?? 1);
-    if ($catNum < 1 || $catNum > 5) $catNum = 1;
-    $tag = "(Major Cat $catNum)";
+    $catNum = (int)($r['major_category'] ?? 0);
+    $tag = ($catNum >= 1 && $catNum <= 5) ? "(Major Cat $catNum)" : "(Pending Category Assignment)";
     $include = ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false) && !$isDismissed;
   } elseif ($category === 'DISMISSED') {
     $tag = '(Dismissed Offense)';
@@ -311,9 +310,8 @@ foreach ($breakdownRows as $r) {
     if ($isDismissed) {
       $tag = '(Dismissed Offense)';
     } elseif ($level === 'MAJOR' || strpos($r['code'], 'MAJ-') !== false) {
-      $catNum = (int)($r['major_category'] ?? 1);
-      if ($catNum < 1 || $catNum > 5) $catNum = 1;
-      $tag = "(Major Cat $catNum)";
+      $catNum = (int)($r['major_category'] ?? 0);
+      $tag = ($catNum >= 1 && $catNum <= 5) ? "(Major Cat $catNum)" : "(Pending Category Assignment)";
     } else {
       $tag = '(Minor)';
     }
