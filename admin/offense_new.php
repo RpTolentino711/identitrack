@@ -2215,6 +2215,43 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         const applyDataUpdates = () => {
             const ordStr = getOrdinal(idx + 1);
 
+            const isMajor = (r.offense_level === 'MAJOR' || (r.offense_code && r.offense_code.indexOf('MAJ-') !== -1));
+            
+            // Dynamic Red / Green banner theme updates
+            const bannerCard = document.getElementById('pendingGuardReportBanner');
+            const layer1 = document.getElementById('cardStackLayer1');
+            const layer2 = document.getElementById('cardStackLayer2');
+            const carouselHdr = document.getElementById('guardCarouselHeader');
+            const autoBtn = document.getElementById('btnAutoFillGuard');
+            const iconBox = document.getElementById('bannerIconBox');
+            const reportBadge = document.getElementById('bannerReportBadge');
+            
+            if (isMajor) {
+                if (bannerCard) {
+                    bannerCard.style.background = '#fef2f2';
+                    bannerCard.style.borderColor = '#fca5a5';
+                    bannerCard.style.boxShadow = '0 10px 25px rgba(220,38,38,0.15)';
+                }
+                if (layer1) { layer1.style.background = '#fef2f2'; layer1.style.borderColor = '#fca5a5'; }
+                if (layer2) { layer2.style.background = '#fee2e2'; layer2.style.borderColor = '#fca5a5'; }
+                if (carouselHdr) carouselHdr.style.borderBottom = '1px dashed #fca5a5';
+                if (autoBtn) { autoBtn.style.background = '#dc2626'; autoBtn.style.boxShadow = '0 2px 8px rgba(220,38,38,0.3)'; }
+                if (iconBox) { iconBox.style.background = '#fee2e2'; iconBox.style.color = '#dc2626'; }
+                if (reportBadge) { reportBadge.style.background = '#dc2626'; }
+            } else {
+                if (bannerCard) {
+                    bannerCard.style.background = '#f0fdf4';
+                    bannerCard.style.borderColor = '#86efac';
+                    bannerCard.style.boxShadow = '0 10px 25px rgba(22,163,74,0.15)';
+                }
+                if (layer1) { layer1.style.background = '#f0fdf4'; layer1.style.borderColor = '#a7f3d0'; }
+                if (layer2) { layer2.style.background = '#dcfce7'; layer2.style.borderColor = '#86efac'; }
+                if (carouselHdr) carouselHdr.style.borderBottom = '1px dashed #86efac';
+                if (autoBtn) { autoBtn.style.background = '#16a34a'; autoBtn.style.boxShadow = '0 2px 8px rgba(22,163,74,0.3)'; }
+                if (iconBox) { iconBox.style.background = '#dcfce7'; iconBox.style.color = '#16a34a'; }
+                if (reportBadge) { reportBadge.style.background = '#16a34a'; }
+            }
+
             // Update banner UI elements
             const badge = document.getElementById('bannerReportBadge');
             if (badge) badge.textContent = ordStr + ' Report (# ' + r.report_id + ')';
@@ -2224,9 +2261,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             if (pillsContainer && window.guardReportsList && window.guardReportsList.length > 1) {
                 pillsContainer.innerHTML = window.guardReportsList.map((item, i) => {
                     const isActive = (i === idx);
+                    const itemIsMajor = (item.offense_level === 'MAJOR' || (item.offense_code && item.offense_code.indexOf('MAJ-') !== -1));
                     const label = getOrdinal(i + 1) + ' Report';
-                    const activeStyle = 'background:#16a34a; color:#ffffff; font-weight:800; font-size:11.5px; padding:5px 14px; border-radius:12px; border:none; cursor:pointer; box-shadow:0 2px 6px rgba(22,163,74,0.35); transition:all 0.18s;';
-                    const inactiveStyle = 'background:#ffffff; color:#15803d; font-weight:700; font-size:11.5px; padding:5px 14px; border-radius:12px; border:1px solid #86efac; cursor:pointer; transition:all 0.18s;';
+                    const activeBg = itemIsMajor ? '#dc2626' : '#16a34a';
+                    const activeShadow = itemIsMajor ? 'rgba(220,38,38,0.35)' : 'rgba(22,163,74,0.35)';
+                    const inactiveColor = itemIsMajor ? '#991b1b' : '#15803d';
+                    const inactiveBorder = itemIsMajor ? '#fca5a5' : '#86efac';
+                    const activeStyle = `background:${activeBg}; color:#ffffff; font-weight:800; font-size:11.5px; padding:5px 14px; border-radius:12px; border:none; cursor:pointer; box-shadow:0 2px 6px ${activeShadow}; transition:all 0.18s;`;
+                    const inactiveStyle = `background:#ffffff; color:${inactiveColor}; font-weight:700; font-size:11.5px; padding:5px 14px; border-radius:12px; border:1px solid ${inactiveBorder}; cursor:pointer; transition:all 0.18s;`;
                     return `<button type="button" onclick="selectGuardReportIndex(${i})" style="${isActive ? activeStyle : inactiveStyle}" title="Click to switch to ${label} (Report #${item.report_id})">${isActive ? '🛡️ ' : ''}${label}${isActive ? ' (Active)' : ''}</button>`;
                 }).join('');
             }
@@ -2259,12 +2301,47 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             const notes = document.getElementById('bannerGuardNotes');
             if (notes) notes.textContent = '"' + (r.description || 'No additional notes provided.') + '"';
 
+            // Sync Level & Category Selects & UI Tabs
+            const targetLevel = isMajor ? 'MAJOR' : (r.offense_level || 'MINOR');
+            const targetCategory = parseInt(r.major_category) || 0;
+
+            const levelSelect = document.getElementById('levelSelect');
+            if (levelSelect && levelSelect.value !== targetLevel) {
+                levelSelect.value = targetLevel;
+                if (typeof onLevelChange === 'function') {
+                    onLevelChange(targetLevel);
+                }
+            }
+
+            if (isMajor && targetCategory > 0) {
+                const catSelect = document.getElementById('major_category');
+                if (catSelect && catSelect.value != targetCategory) {
+                    catSelect.value = targetCategory;
+                    if (typeof onCategoryChange === 'function') {
+                        onCategoryChange(targetCategory);
+                    }
+                }
+            }
+
             // Update hidden input & auto-fill form inputs
             const hiddenInput = document.getElementById('pending_report_id');
             if (hiddenInput) hiddenInput.value = r.report_id;
 
             const typeSelect = document.getElementById('offense_type_id');
             if (typeSelect && r.offense_type_id > 0) {
+                let optFound = false;
+                for (let i = 0; i < typeSelect.options.length; i++) {
+                    if (typeSelect.options[i].value == r.offense_type_id) {
+                        optFound = true;
+                        break;
+                    }
+                }
+                if (!optFound) {
+                    const opt = document.createElement('option');
+                    opt.value = r.offense_type_id;
+                    opt.textContent = (r.offense_code || '') + ' - ' + (r.offense_name || '');
+                    typeSelect.appendChild(opt);
+                }
                 typeSelect.value = r.offense_type_id;
             }
             const descInput = document.getElementById('description');
@@ -2705,22 +2782,35 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <?php 
           $pReportsCount = is_array($pendingGuardReports) ? count($pendingGuardReports) : 0;
           if ($pReportsCount > 0): 
+            $isMajorBanner = ($level === 'MAJOR' || (isset($pendingGuardReport['offense_level']) && strtoupper($pendingGuardReport['offense_level']) === 'MAJOR'));
+            $bgMain = $isMajorBanner ? '#fef2f2' : '#f0fdf4';
+            $borderMain = $isMajorBanner ? '1.5px solid #fca5a5' : '1.5px solid #86efac';
+            $shadowMain = $isMajorBanner ? '0 10px 25px rgba(220,38,38,0.15)' : '0 10px 25px rgba(22,163,74,0.15)';
+            $textPrimary = $isMajorBanner ? '#991b1b' : '#15803d';
+            $textSec = $isMajorBanner ? '#dc2626' : '#16a34a';
+            $iconBg = $isMajorBanner ? '#fee2e2' : '#dcfce7';
+            $badgeBg = $isMajorBanner ? '#dc2626' : '#16a34a';
+            $badgeBorder = $isMajorBanner ? '#fca5a5' : '#86efac';
+            $stackLayer1Bg = $isMajorBanner ? '#fef2f2' : '#f0fdf4';
+            $stackLayer1Border = $isMajorBanner ? '1.5px solid #fca5a5' : '1.5px solid #a7f3d0';
+            $stackLayer2Bg = $isMajorBanner ? '#fee2e2' : '#dcfce7';
+            $stackLayer2Border = $isMajorBanner ? '1.5px solid #fca5a5' : '1.5px solid #86efac';
         ?>
           <div id="pendingGuardReportStackWrapper" style="margin-bottom: 28px;">
             <div id="pendingGuardReportStackContainer" style="position: relative; perspective: 1000px;">
 
               <!-- 3D Card Deck Stack Layers Behind Main Card -->
-              <div id="cardStackLayer2" style="position:absolute; top:12px; bottom:-10px; left:16px; right:16px; z-index:1; background:#dcfce7; border:1.5px solid #86efac; border-radius:18px; transform:scale(0.96); opacity:0.75; box-shadow:0 4px 12px rgba(0,0,0,0.05); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.3s ease;"></div>
-              <div id="cardStackLayer1" style="position:absolute; top:6px; bottom:-5px; left:8px; right:8px; z-index:2; background:#f0fdf4; border:1.5px solid #a7f3d0; border-radius:18px; transform:scale(0.98); opacity:0.92; box-shadow:0 6px 16px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.3s ease;"></div>
+              <div id="cardStackLayer2" style="position:absolute; top:12px; bottom:-10px; left:16px; right:16px; z-index:1; background:<?php echo $stackLayer2Bg; ?>; border:<?php echo $stackLayer2Border; ?>; border-radius:18px; transform:scale(0.96); opacity:0.75; box-shadow:0 4px 12px rgba(0,0,0,0.05); display:<?php echo $pReportsCount > 2 ? 'block' : 'none'; ?>; transition:all 0.3s ease;"></div>
+              <div id="cardStackLayer1" style="position:absolute; top:6px; bottom:-5px; left:8px; right:8px; z-index:2; background:<?php echo $stackLayer1Bg; ?>; border:<?php echo $stackLayer1Border; ?>; border-radius:18px; transform:scale(0.98); opacity:0.92; box-shadow:0 6px 16px rgba(0,0,0,0.08); display:<?php echo $pReportsCount > 1 ? 'block' : 'none'; ?>; transition:all 0.3s ease;"></div>
 
               <!-- Active 3D Banner Card -->
-              <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:#f0fdf4; border:1.5px solid #86efac; border-radius:16px; padding:18px 22px; box-shadow: 0 10px 25px rgba(22,163,74,0.15); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
+              <div id="pendingGuardReportBanner" style="position:relative; z-index:3; background:<?php echo $bgMain; ?>; border:<?php echo $borderMain; ?>; border-radius:16px; padding:18px 22px; box-shadow: <?php echo $shadowMain; ?>; transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.3s ease;">
                 
                 <!-- Tabbed Report Carousel Header -->
-                <div id="guardCarouselHeader" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px dashed #86efac; flex-wrap:wrap; gap:10px;">
-                  <div style="font-size:13px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <span style="background:#dcfce7; color:#16a34a; padding:4px 10px; border-radius:10px; font-size:12px;">🛡️ Pending Security Guard Reports (<?php echo $pReportsCount; ?> Total)</span>
-                    <span id="carouselReportCounter" style="font-size:11.5px; color:#16a34a; font-weight:700;">Showing 1st Report of <?php echo $pReportsCount; ?></span>
+                <div id="guardCarouselHeader" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:<?php echo $isMajorBanner ? '1px dashed #fca5a5' : '1px dashed #86efac'; ?>; flex-wrap:wrap; gap:10px;">
+                  <div style="font-size:13px; font-weight:800; color:<?php echo $textPrimary; ?>; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span id="bannerReportTitlePill" style="background:<?php echo $iconBg; ?>; color:<?php echo $textSec; ?>; padding:4px 10px; border-radius:10px; font-size:12px;">🛡️ Pending Security Guard Reports (<?php echo $pReportsCount; ?> Total)</span>
+                    <span id="carouselReportCounter" style="font-size:11.5px; color:<?php echo $textSec; ?>; font-weight:700;">Showing 1st Report of <?php echo $pReportsCount; ?></span>
                   </div>
 
                   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -2729,8 +2819,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                         <!-- Clickable report tabs generated by JS -->
                       </div>
                       <div style="display:inline-flex; gap:4px; margin-left:4px;">
-                        <button type="button" id="btnPrevReport" onclick="prevGuardReportCarousel()" style="padding:4px 10px; background:#ffffff; border:1px solid #86efac; color:#15803d; font-weight:800; border-radius:8px; cursor:pointer; font-size:12px; transition:all 0.15s;" title="Previous Report">‹</button>
-                        <button type="button" id="btnNextReport" onclick="nextGuardReportCarousel()" style="padding:4px 10px; background:#ffffff; border:1px solid #86efac; color:#15803d; font-weight:800; border-radius:8px; cursor:pointer; font-size:12px; transition:all 0.15s;" title="Next Report">›</button>
+                        <button type="button" id="btnPrevReport" onclick="prevGuardReportCarousel()" style="padding:4px 10px; background:#ffffff; border:1px solid <?php echo $badgeBorder; ?>; color:<?php echo $textPrimary; ?>; font-weight:800; border-radius:8px; cursor:pointer; font-size:12px; transition:all 0.15s;" title="Previous Report">‹</button>
+                        <button type="button" id="btnNextReport" onclick="nextGuardReportCarousel()" style="padding:4px 10px; background:#ffffff; border:1px solid <?php echo $badgeBorder; ?>; color:<?php echo $textPrimary; ?>; font-weight:800; border-radius:8px; cursor:pointer; font-size:12px; transition:all 0.15s;" title="Next Report">›</button>
                       </div>
                     <?php endif; ?>
                   </div>
@@ -2738,31 +2828,31 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
                 <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
                   <div style="display:flex; align-items:flex-start; gap:14px; flex:1; min-width:260px;">
-                    <div style="width:44px; height:44px; border-radius:12px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; box-shadow:0 2px 6px rgba(22,163,74,0.2);">
+                    <div id="bannerIconBox" style="width:44px; height:44px; border-radius:12px; background:<?php echo $iconBg; ?>; color:<?php echo $textSec; ?>; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
                       🛡️
                     </div>
                     <div>
-                      <div style="font-size:14px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                      <div style="font-size:14px; font-weight:800; color:<?php echo $textPrimary; ?>; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <span>Pending Security Guard Violation Report</span>
-                        <span id="bannerReportBadge" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:800; padding:2px 10px; border-radius:12px;">1st Report (#<?php echo (int)($pendingGuardReport['report_id'] ?? 0); ?>)</span>
-                        <span style="background:#ffffff; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
+                        <span id="bannerReportBadge" style="background:<?php echo $badgeBg; ?>; color:#ffffff; font-size:11px; font-weight:800; padding:2px 10px; border-radius:12px;">1st Report (#<?php echo (int)($pendingGuardReport['report_id'] ?? 0); ?>)</span>
+                        <span style="background:#ffffff; color:<?php echo $textPrimary; ?>; border:1px solid <?php echo $badgeBorder; ?>; font-size:11px; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">✓ Details Auto-Filled</span>
                       </div>
-                      <div id="bannerGuardMeta" style="font-size:12.5px; color:#16a34a; margin-top:3px; font-weight:600;">
+                      <div id="bannerGuardMeta" style="font-size:12.5px; color:<?php echo $textSec; ?>; margin-top:3px; font-weight:600;">
                         Filed by <strong><?php echo htmlspecialchars((string)($pendingGuardReport['guard_name'] ?? 'Campus Security Guard')); ?></strong> on <?php echo htmlspecialchars(!empty($pendingGuardReport['created_at']) ? ph_date('M j, Y h:i A', $pendingGuardReport['created_at']) : 'Recently'); ?>
                       </div>
-                      <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:12px 16px; border-radius:10px; border:1px solid #bbf7d0; line-height:1.4; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-                        <div style="font-weight:700; color:#15803d; margin-bottom:2px;">
-                          Reported Offense: <span id="bannerOffenseTitle" style="color:#0f172a; font-weight:800;"><?php echo htmlspecialchars((string)($pendingGuardReport['offense_name'] ?? 'Violation Report')); ?> (<?php echo htmlspecialchars((string)($pendingGuardReport['offense_code'] ?? 'MIN-01')); ?>)</span>
+                      <div style="margin-top:8px; font-size:12.5px; color:#1e293b; background:#ffffff; padding:12px 16px; border-radius:10px; border:1px solid <?php echo $isMajorBanner ? '#fecaca' : '#bbf7d0'; ?>; line-height:1.4; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                        <div style="font-weight:700; color:<?php echo $textPrimary; ?>; margin-bottom:2px;">
+                          Reported Offense: <span id="bannerOffenseTitle" style="color:<?php echo $isMajorBanner ? '#991b1b' : '#0f172a'; ?>; font-weight:800;"><?php echo htmlspecialchars((string)($pendingGuardReport['offense_name'] ?? 'Violation Report')); ?> (<?php echo htmlspecialchars((string)($pendingGuardReport['offense_code'] ?? 'MIN-01')); ?>)</span>
                         </div>
                         <div>
-                          <span style="font-weight:700; color:#15803d;">Guard Notes:</span>
+                          <span style="font-weight:700; color:<?php echo $textPrimary; ?>;">Guard Notes:</span>
                           <em id="bannerGuardNotes" style="color:#334155;">"<?php echo htmlspecialchars((string)($pendingGuardReport['description'] ?? 'No additional notes provided.')); ?>"</em>
                         </div>
                       </div>
                     </div>
                   </div>
                   <div style="align-self:center; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <button type="button" id="btnAutoFillGuard" onclick="autoFillCurrentGuardReport()" style="padding:9px 16px; background:#16a34a; color:#ffffff; font-weight:700; font-size:12.5px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 8px rgba(22,163,74,0.3);">
+                    <button type="button" id="btnAutoFillGuard" onclick="autoFillCurrentGuardReport()" style="padding:9px 16px; background:<?php echo $badgeBg; ?>; color:#ffffff; font-weight:700; font-size:12.5px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
                       ✓ Details Auto-Filled
                     </button>
                     <button type="button" id="btnRejectGuard" onclick="triggerCurrentGuardRejection()" style="padding:9px 14px; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; font-weight:700; font-size:12.5px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
