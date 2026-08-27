@@ -934,6 +934,7 @@ body::before{content:'';position:fixed;inset:0;z-index:-2;
 .field label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
 .fld-input{width:100%;border:1px solid var(--border-glass);background:rgba(0,0,0,.2);color:var(--text-main);
     border-radius:12px;padding:12px 16px;font-family:var(--font-b);font-size:13px;transition:all .2s}
+.fld-input option, select option{background-color:#1e293b !important;color:#f8fafc !important;padding:8px 12px}
 .fld-input:focus{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px rgba(99,102,241,.2)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:12px;
     cursor:pointer;padding:10px 18px;font-family:var(--font-b);font-size:13px;font-weight:700;text-decoration:none;transition:all .2s}
