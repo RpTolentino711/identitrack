@@ -1467,7 +1467,7 @@ $students = db_all($sql, $params) ?: [];
             : '<span class="badge badge-minor">Minor</span>');
 
       const statusCls   = ['OPEN','RESOLVED','VOID','DISMISSED'].includes(status) ? status : (level === 'DISMISSED' ? 'DISMISSED' : 'OPEN');
-      const statusBadge = `<span class="status-badge status-${statusCls}">${esc(status)}</span>`;
+      const statusBadge = (status === 'OPEN') ? '' : `<span class="status-badge status-${statusCls}">${esc(status)}</span>`;
 
       let extraBadgesHtml = '';
       if (level === 'MAJOR') {

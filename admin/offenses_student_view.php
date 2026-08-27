@@ -2054,7 +2054,9 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                             <?php echo $punishStatus; ?>
                           <?php endif; ?>
                         </div>
-                        <span class="badge <?php echo $statusBadge; ?>"><?php echo e($statusLabel); ?></span>
+                        <?php if ($statusLabel !== 'Open'): ?>
+                          <span class="badge <?php echo $statusBadge; ?>"><?php echo e($statusLabel); ?></span>
+                        <?php endif; ?>
                       </div>
                       <div class="off-name"><?php echo e((string)$h['name']); ?></div>
                       <?php if (!empty($h['description'])): ?>
