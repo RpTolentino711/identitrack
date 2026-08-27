@@ -344,7 +344,7 @@ $postDate      = (string)($_POST['date_committed'] ?? $defaultDate);
 $postDesc      = (string)($_POST['description']    ?? '');
 
 // ── Pending Guard Violation Report Lookup ─────────────────────────────────────────
-$pendingReportId = (int)($_GET['pending_report_id'] ?? $_POST['pending_report_id'] ?? 0);
+$pendingReportId = (int)($_GET['report_id'] ?? $_GET['pending_report_id'] ?? $_GET['rid'] ?? $_POST['pending_report_id'] ?? 0);
 $pendingGuardReports = [];
 
 if ($pendingReportId > 0) {
@@ -396,8 +396,10 @@ if ($pendingGuardReport) {
     if ($postDesc === '' && !empty($pendingGuardReport['description'])) {
       $postDesc = (string)$pendingGuardReport['description'];
     }
-    if (!empty($pendingGuardReport['created_at'])) {
-      $postDate = ph_date('Y-m-d\TH:i', $pendingGuardReport['created_at'] ?? null);
+    if (!empty($pendingGuardReport['date_committed'])) {
+      $postDate = date('Y-m-d\TH:i', strtotime((string)$pendingGuardReport['date_committed']));
+    } elseif (!empty($pendingGuardReport['created_at'])) {
+      $postDate = date('Y-m-d\TH:i', is_numeric($pendingGuardReport['created_at']) ? (int)$pendingGuardReport['created_at'] : strtotime((string)$pendingGuardReport['created_at']));
     }
     if (!isset($_GET['level']) && !isset($_POST['level']) && !empty($pendingGuardReport['offense_level'])) {
       $level = strtoupper((string)$pendingGuardReport['offense_level']);

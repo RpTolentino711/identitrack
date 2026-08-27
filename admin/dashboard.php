@@ -946,21 +946,12 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                         <a href="offense_new.php?student_id=<?php echo urlencode((string)$g['student_id']); ?>" class="student-id" style="text-decoration:none; color:var(--blue); font-weight:600; cursor:pointer; display:block;" title="Tap to register offense for this student" onclick="event.stopPropagation();"><?php echo e((string)$g['student_id']); ?></a>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      class="guard-review-btn open-guard-modal"
-                      data-report-id="<?php echo (int)$g['report_id']; ?>"
-                      data-student-id="<?php echo htmlspecialchars((string)$g['student_id'], ENT_QUOTES, 'UTF-8'); ?>"
-                      data-student-name="<?php echo htmlspecialchars($sDisplay, ENT_QUOTES, 'UTF-8'); ?>"
-                      data-student-initials="<?php echo htmlspecialchars($initials, ENT_QUOTES, 'UTF-8'); ?>"
-                      data-guard-name="<?php echo htmlspecialchars((string)($g['guard_name'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8'); ?>"
-                      data-offense-code="<?php echo htmlspecialchars((string)$g['offense_code'], ENT_QUOTES, 'UTF-8'); ?>"
-                      data-offense-name="<?php echo htmlspecialchars((string)$g['offense_name'], ENT_QUOTES, 'UTF-8'); ?>"
-                      data-offense-level="<?php echo htmlspecialchars((string)$g['offense_level'], ENT_QUOTES, 'UTF-8'); ?>"
-                      data-date-committed="<?php echo htmlspecialchars(date('M d, Y g:i A', strtotime((string)$g['date_committed'])), ENT_QUOTES, 'UTF-8'); ?>"
-                      data-submitted-at="<?php echo htmlspecialchars(date('M d, Y g:i A', strtotime((string)$g['created_at'])), ENT_QUOTES, 'UTF-8'); ?>"
-                      data-description="<?php echo htmlspecialchars((string)($g['description'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
-                    >Review</button>
+                    <a
+                      href="offense_new.php?report_id=<?php echo (int)$g['report_id']; ?>&student_id=<?php echo urlencode((string)$g['student_id']); ?>"
+                      class="guard-review-btn"
+                      style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;"
+                      title="Tap to review and autofill offense form for this report"
+                    >Review</a>
                   </div>
                 </div>
               <?php endforeach; ?>
