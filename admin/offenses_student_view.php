@@ -1582,10 +1582,11 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                     $isCurrent = $pendingReportId > 0 && (int)$gr['report_id'] === $pendingReportId;
                     $isMajor = strtoupper((string)$gr['offense_level']) === 'MAJOR';
                     $isPending = $statusKey === 'PENDING';
+                    $reviewUrl = 'offense_new.php?report_id=' . (int)$gr['report_id'] . '&student_id=' . urlencode($studentId) . '&level=' . urlencode((string)$gr['offense_level']) . '&major_category=' . (int)($gr['major_category'] ?? 0);
                   ?>
-                  <<?php echo $isPending ? 'a href="offenses_student_view.php?student_id=' . urlencode($studentId) . '&pending_report_id=' . (int)$gr['report_id'] . '"' : 'div'; ?> 
+                  <<?php echo $isPending ? 'a href="' . htmlspecialchars($reviewUrl) . '"' : 'div'; ?> 
                      class="guard-report-item <?php echo $isCurrent ? 'current' : ''; ?> <?php echo $isMajor ? 'major' : ''; ?> <?php echo $isPending ? 'clickable' : ''; ?>"
-                     <?php echo $isPending ? 'style="text-decoration:none; color:inherit; display:block;"' : ''; ?>>
+                     <?php echo $isPending ? 'style="text-decoration:none; color:inherit; display:block;" title="Click to Review and Autofill in Offense Form"' : ''; ?>>
                     <div class="guard-report-top">
                       <div class="guard-report-title">#<?php echo (int)$gr['report_id']; ?> • <?php echo e((string)$gr['offense_code']); ?> - <?php echo e((string)$gr['offense_name']); ?></div>
                       <span class="guard-status <?php echo e($statusClass); ?>"><?php echo e($statusKey !== '' ? $statusKey : 'PENDING'); ?></span>
@@ -1608,7 +1609,10 @@ $majorCount = $rawMajorCount + count($escalationGroups);
           <?php endif; ?>
 
           <?php if ($pendingGuardReport): ?>
-            <?php $isPendingMajor = strtoupper((string)$pendingGuardReport['offense_level']) === 'MAJOR'; ?>
+            <?php 
+              $isPendingMajor = strtoupper((string)$pendingGuardReport['offense_level']) === 'MAJOR'; 
+              $pendingReviewUrl = 'offense_new.php?report_id=' . (int)$pendingGuardReport['report_id'] . '&student_id=' . urlencode($studentId) . '&level=' . urlencode((string)$pendingGuardReport['offense_level']) . '&major_category=' . (int)($pendingGuardReport['major_category'] ?? 0);
+            ?>
             <section class="guard-review-panel anim-pop <?php echo $isPendingMajor ? 'major' : ''; ?>" aria-label="Guard report review" style="animation: panelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;">
               <div class="guard-review-head">
                 <h2 class="guard-review-title">Pending Guard Report Review</h2>
@@ -1625,10 +1629,14 @@ $majorCount = $rawMajorCount + count($escalationGroups);
 
               <div class="guard-review-actions" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
 
+                <a href="<?php echo htmlspecialchars($pendingReviewUrl); ?>" class="guard-pill guard-pill-approve" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:800;">
+                  🔍 Review &amp; Autofill Offense Form
+                </a>
+
                 <form method="post" style="margin:0;" id="guardApproveForm">
                   <input type="hidden" name="action" value="approve_guard_report" />
                   <input type="hidden" name="report_id" value="<?php echo (int)$pendingGuardReport['report_id']; ?>" />
-                  <button type="button" class="guard-pill guard-pill-approve" id="guardApproveBtn">Approve and Record</button>
+                  <button type="submit" class="guard-pill" style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; font-weight:700;">Quick Approve</button>
                 </form>
 
                 <form method="post" style="margin:0;" id="guardDismissForm">
