@@ -327,7 +327,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     return [
         'text' => null,
         'engine' => 'IdentiTrack AI',
-        'error' => 'AI Assistant engine unavailable.'
+        'error' => 'AI Assistant requires either Local Ollama LLaMA (running on http://localhost:11434) or a configured Cloud AI Key. Please run "ollama run llama3" locally.'
     ];
 }
 
