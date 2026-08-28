@@ -60,10 +60,7 @@ function getGeminiApiKeys(): array
         $keys[] = $reqKey;
     }
 
-    // 2. Verified active default key
-    $keys[] = base64_decode('QVEuQWI4Uk42SzVTc2lYQi1YYjdXbTByOW82ZkhGRkdVWk94UUJMTmVQcTUyLUhjby1YS2xn');
-
-    // 3. Session key
+    // 2. Session key
     if (!empty($_SESSION['GEMINI_API_KEY'])) {
         $rawSession = trim((string)$_SESSION['GEMINI_API_KEY']);
         $splitS = preg_split('/[\s,;\n\r]+/', $rawSession);
