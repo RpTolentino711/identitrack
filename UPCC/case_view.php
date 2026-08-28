@@ -3018,10 +3018,10 @@ syncLive(); // immediate first call
     }
 }
 </style>
-<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:390px;height:530px;max-height:85vh;background:rgba(9, 14, 26, 0.95);backdrop-filter:blur(20px);border:1px solid rgba(56, 189, 248, 0.25);border-radius:24px;box-shadow:0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(14, 165, 233, 0.15);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%);opacity:0;visibility:hidden;pointer-events:none;transition:transform .4s cubic-bezier(0.16, 1, 0.3, 1), opacity .3s, visibility .3s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:390px;height:530px;max-height:85vh;background:rgba(9, 14, 26, 0.95);backdrop-filter:blur(20px);border:1px solid rgba(56, 189, 248, 0.25);border-radius:24px;box-shadow:0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(14, 165, 233, 0.15);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%);opacity:0;visibility:hidden;pointer-events:none;transition:transform .4s cubic-bezier(0.16, 1, 0.3, 1), opacity .3s, visibility .3s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;box-sizing:border-box;">
   
   <!-- DRAWER HEADER -->
-  <div style="background:rgba(15, 23, 42, 0.9);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);">
+  <div style="background:rgba(15, 23, 42, 0.9);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);box-sizing:border-box;flex-shrink:0;">
     <div style="display:flex;align-items:center;gap:12px;">
       <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 15px rgba(14,165,233,0.4);">
         ✨
@@ -3040,7 +3040,7 @@ syncLive(); // immediate first call
   </div>
 
   <!-- CHAT MESSAGES THREAD -->
-  <div id="aiChatThread" style="flex:1;padding:16px;overflow-y:auto;background:transparent;display:flex;flex-direction:column;gap:14px;">
+  <div id="aiChatThread" style="flex:1;padding:16px;overflow-y:auto;background:transparent;display:flex;flex-direction:column;gap:14px;box-sizing:border-box;">
     <div style="text-align:center;padding:30px 20px;color:#64748b;font-size:12px;">
       <div style="font-size:26px;margin-bottom:8px;opacity:0.8;">🧠</div>
       Initializing AI Assistant...
@@ -3048,9 +3048,9 @@ syncLive(); // immediate first call
   </div>
 
   <!-- BOTTOM INPUT BAR -->
-  <div style="padding:12px 14px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:flex-end;">
-    <textarea id="aiChatInput" rows="1" placeholder="Ask AI about this hearing..." style="flex:1;background:rgba(30, 41, 59, 0.7);border:1px solid rgba(255,255,255,0.1);color:#f8fafc;padding:10px 16px;border-radius:20px;font-size:13px;outline:none;resize:none;max-height:100px;line-height:1.4;transition:all .2s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;word-break:break-word;overflow-wrap:break-word;height:40px;" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';" onfocus="if(!this.disabled){this.style.borderColor='rgba(56,189,248,0.5)';this.style.background='rgba(30,41,59,0.95)';}" onblur="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(30,41,59,0.7)';" onkeydown="if(event.key==='Enter' && !event.shiftKey && !this.disabled){ event.preventDefault(); sendAiChat(); }"></textarea>
-    <button id="aiSendBtn" onclick="sendAiChat()" title="Send Message" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.4);transition:all .2s;flex-shrink:0;margin-bottom:1px;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+  <div style="padding:14px 16px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:center;box-sizing:border-box;flex-shrink:0;margin-top:auto;">
+    <textarea id="aiChatInput" rows="1" placeholder="Ask AI about this hearing..." style="flex:1;background:rgba(30, 41, 59, 0.7);border:1px solid rgba(255,255,255,0.1);color:#f8fafc;padding:10px 16px;border-radius:20px;font-size:13px;outline:none;resize:none;max-height:100px;line-height:1.3;transition:all .2s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;word-break:break-word;overflow-wrap:break-word;height:42px;min-height:42px;box-sizing:border-box;" oninput="this.style.height='auto';this.style.height=Math.max(42,Math.min(this.scrollHeight,100))+'px';" onfocus="if(!this.disabled){this.style.borderColor='rgba(56,189,248,0.5)';this.style.background='rgba(30,41,59,0.95)';}" onblur="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(30,41,59,0.7)';" onkeydown="if(event.key==='Enter' && !event.shiftKey && !this.disabled){ event.preventDefault(); sendAiChat(); }"></textarea>
+    <button id="aiSendBtn" onclick="sendAiChat()" title="Send Message" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;border:none;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.4);transition:all .2s;flex-shrink:0;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
     </button>
   </div>
