@@ -47,60 +47,7 @@ function getDynamicHandbookRules(): string
     return $rules;
 }
 
-/**
- * Helper to retrieve all configured Gemini API Keys from request, session, database, environment, or constants
- */
-function getGeminiApiKeys(): array
-{
-    $keys = [];
 
-    // 1. Explicit request param key
-    $reqKey = trim((string)($_POST['api_key'] ?? $_GET['api_key'] ?? ''));
-    if ($reqKey !== '') {
-        $keys[] = $reqKey;
-    }
-
-    // 2. Session key
-    if (!empty($_SESSION['GEMINI_API_KEY'])) {
-        $rawSession = trim((string)$_SESSION['GEMINI_API_KEY']);
-        $splitS = preg_split('/[\s,;\n\r]+/', $rawSession);
-        foreach ($splitS as $sk) {
-            $sk = trim($sk);
-            if ($sk !== '') $keys[] = $sk;
-        }
-    }
-
-    // 4. Database config key(s)
-    try {
-        $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'gemini_api_key' LIMIT 1");
-        if ($cfg && !empty($cfg['config_value'])) {
-            $raw = trim((string)$cfg['config_value']);
-            $split = preg_split('/[\s,;\n\r]+/', $raw);
-            foreach ($split as $k) {
-                $k = trim($k);
-                if ($k !== '') $keys[] = $k;
-            }
-        }
-    } catch (\Throwable $e) {}
-
-    // 5. Environment or constant keys
-    if (defined('GEMINI_API_KEY')) {
-        $keys[] = (string)GEMINI_API_KEY;
-    }
-
-    $envKey = trim((string)($_ENV['GEMINI_API_KEY'] ?? $_SERVER['GEMINI_API_KEY'] ?? getenv('GEMINI_API_KEY') ?: ''));
-    if ($envKey !== '') {
-        $keys[] = $envKey;
-    }
-
-    return array_values(array_unique(array_filter($keys)));
-}
-
-function getGeminiApiKey(): string
-{
-    $keys = getGeminiApiKeys();
-    return $keys[0] ?? '';
-}
 
 /**
  * Formats raw JSON punishment details into clean human text
@@ -304,161 +251,15 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         ];
     }
 
-    // 3. Fallback: Cloud AI Engine with PII Anonymization & Privacy Protection
-    $cloudResult = callGemini($safeSysPrompt, $safeUserPrompt);
-    if ($cloudResult !== null && trim($cloudResult) !== '') {
-        return [
-            'text' => $cloudResult,
-            'engine' => 'Cloud AI Engine (Anonymized Privacy Mode)',
-            'privacy' => '🔒 PII Anonymized & Masked (RA 10173 Compliant)'
-        ];
-    }
-
     return [
         'text' => null,
-        'engine' => 'None',
-        'error' => $GLOBALS['LAST_OLLAMA_ERROR'] ?? $GLOBALS['LAST_GEMINI_ERROR'] ?? 'AI Engine unavailable.'
+        'engine' => 'Local LLaMA (Ollama Offline AI Engine)',
+        'error' => $GLOBALS['LAST_OLLAMA_ERROR'] ?? 'Local Ollama LLaMA AI server is offline on http://localhost:11434. Please start Ollama locally.'
     ];
-}
-
-/**
- * Calls Google Gemini API model with Multi-Key Failover Auto-Rotation
- */
-function callGemini(string $systemPrompt, string $userPrompt): ?string
-{
-    $apiKeys = getGeminiApiKeys();
-    if (empty($apiKeys)) {
-        $GLOBALS['LAST_GEMINI_ERROR'] = '🔑 Gemini API Key is required. Please configure your Google Gemini API Key.';
-        return null;
-    }
-
-    $models = ['gemini-3.5-flash', 'gemini-3.6-flash'];
-    $lastErr = '';
-    $hasQuotaLimit = false;
-
-    foreach ($apiKeys as $keyIndex => $geminiKey) {
-        $geminiKey = trim($geminiKey);
-
-        foreach ($models as $model) {
-            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
-            $headers = [
-                'Content-Type: application/json'
-            ];
-            
-            $payload = [
-                'contents' => [
-                    ['role' => 'user', 'parts' => [['text' => $systemPrompt . "\n\n" . $userPrompt]]]
-                ],
-                'generationConfig' => [
-                    'temperature' => 0.2,
-                    'maxOutputTokens' => 3000
-                ],
-                'safetySettings' => [
-                    ['category' => 'HARM_CATEGORY_HARASSMENT', 'threshold' => 'BLOCK_NONE'],
-                    ['category' => 'HARM_CATEGORY_HATE_SPEECH', 'threshold' => 'BLOCK_NONE'],
-                    ['category' => 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold' => 'BLOCK_NONE'],
-                    ['category' => 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold' => 'BLOCK_NONE']
-                ]
-            ];
-
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 12);
-
-            $res = curl_exec($ch);
-            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlErr = curl_error($ch);
-            curl_close($ch);
-
-            if ($httpCode === 200 && $res) {
-                $data = json_decode($res, true);
-                if (isset($data['error']['message'])) {
-                    $lastErr = "Gemini API Error ({$model}): " . $data['error']['message'];
-                    continue;
-                }
-                $extractedText = '';
-                if (isset($data['candidates'][0]['content']['parts']) && is_array($data['candidates'][0]['content']['parts'])) {
-                    foreach ($data['candidates'][0]['content']['parts'] as $part) {
-                        if (!empty($part['text'])) {
-                            $extractedText .= $part['text'] . "\n";
-                        }
-                    }
-                }
-                $extractedText = trim($extractedText);
-                if ($extractedText !== '') {
-                    return $extractedText;
-                }
-                $finishReason = $data['candidates'][0]['finishReason'] ?? null;
-                $blockReason = $data['promptFeedback']['blockReason'] ?? null;
-                if ($blockReason || ($finishReason && $finishReason !== 'STOP')) {
-                    $lastErr = "Gemini API ({$model}) response blocked: " . ($blockReason ?: "Finish Reason: {$finishReason}");
-                    continue;
-                }
-            }
-
-            if ($httpCode === 404) {
-                continue;
-            }
-
-            if ($httpCode === 429) {
-                $hasQuotaLimit = true;
-                $lastErr = "⚠️ Google Gemini Free Tier Rate Limit Active (HTTP 429). Please wait ~30-45 seconds for Google quota reset, or add a fresh key in the AI drawer.";
-                continue;
-            }
-
-            if ($res) {
-                $errData = json_decode($res, true);
-                $msg = $errData['error']['message'] ?? "Model {$model} returned status {$httpCode}";
-                $lastErr = "Gemini API Error ({$model}): {$msg}";
-            } else {
-                $lastErr = "cURL Error: " . ($curlErr ?: "HTTP {$httpCode} failed");
-            }
-        }
-    }
-
-    $GLOBALS['LAST_GEMINI_ERROR'] = $lastErr !== '' ? $lastErr : '⚠️ Google Gemini API request failed. Please check your API key.';
-    return null;
 }
 
 try {
     $action = trim((string)($_GET['action'] ?? $_POST['action'] ?? 'suggest'));
-
-    // ── ACTION: set_key — dynamically set session & database Gemini API Key from UI ──
-    if ($action === 'set_key') {
-        $newKey = trim((string)($_POST['key'] ?? $_GET['key'] ?? ''));
-        if ($newKey !== '') {
-            $existingKeys = getGeminiApiKeys();
-            $splitNew = preg_split('/[\s,;\n\r]+/', $newKey);
-            $combined = array_values(array_unique(array_filter(array_merge($splitNew, $existingKeys))));
-            $saveVal = implode("\n", $combined);
-
-            $_SESSION['GEMINI_API_KEY'] = $saveVal;
-            try {
-                db_exec("CREATE TABLE IF NOT EXISTS system_config (config_key VARCHAR(100) PRIMARY KEY, config_value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
-                db_exec("REPLACE INTO system_config (config_key, config_value) VALUES ('gemini_api_key', :k)", [':k' => $saveVal]);
-            } catch (\Throwable $e) {}
-
-            echo json_encode([
-                'ok' => true, 
-                'total_keys' => count($combined),
-                'message' => '🔑 ' . count($combined) . ' Gemini API Key(s) active in key pool! Automatic failover enabled.'
-            ]);
-        } else {
-            echo json_encode(['ok' => false, 'error' => 'Please provide a valid Gemini API Key.']);
-        }
-        exit;
-    }
-
-    // ── ACTION: get_key_status ──
-    if ($action === 'get_key_status') {
-        $key = getGeminiApiKey();
-        echo json_encode(['ok' => true, 'configured' => $key !== '']);
-        exit;
-    }
 
     $caseId = (int)($_GET['case_id'] ?? $_POST['case_id'] ?? 0);
     $studentId = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
@@ -625,7 +426,9 @@ try {
                 'precedent_cases' => $exactPrecedents,
                 'ai_explanation' => $aiText,
                 'ai_available' => $aiText !== null,
-                'key_required' => getGeminiApiKey() === ''
+                'key_required' => false,
+                'engine' => $aiEngineName,
+                'privacy' => $aiPrivacyNotice
             ]);
             exit;
         }
@@ -667,7 +470,7 @@ try {
 
         echo json_encode([
             'ok' => true,
-            'source' => $aiText !== null ? 'ai_new_offense_suggestion' : 'ai_key_required',
+            'source' => $aiText !== null ? 'ai_new_offense_suggestion' : 'ai_offline',
             'is_new_offense_type' => true,
             'student_id' => $targetStudentId,
             'student_name' => $studentName,
@@ -677,7 +480,7 @@ try {
             'suggested_hours' => $suggestedHours,
             'ai_rationale' => $rationale,
             'ai_available' => $aiText !== null,
-            'key_required' => getGeminiApiKey() === '' && strpos($aiEngineName, 'Local') === false,
+            'key_required' => false,
             'engine' => $aiEngineName,
             'privacy' => $aiEngineRes['privacy'] ?? '🔒 Anonymized'
         ]);

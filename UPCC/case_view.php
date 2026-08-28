@@ -3063,6 +3063,8 @@ let isAiStreamingStopped = false;
 let currentLoadingNodeId = null;
 let currentTypewriterTimer = null;
 
+function escHtml(str) { return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
 function toggleAiDrawer(forceState) {
     const drawer = document.getElementById('aiChatDrawer');
     const bubble = document.getElementById('aiFloatingBubble');
@@ -3247,33 +3249,7 @@ function typewriteAiReply(containerThread, rawText) {
     streamStep();
 }
 
-  function submitGeminiKey() {
-      const kInput = document.getElementById('customApiKeyInput');
-      const keyVal = kInput ? kInput.value.trim() : '';
-      if (!keyVal) {
-          alert('Please enter your Google Gemini API key.');
-          return;
-      }
 
-      fetch(`../admin/api_ai_suggest_sanction.php?action=set_key`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ key: keyVal })
-      })
-      .then(res => res.json())
-      .then(data => {
-          if (data.ok) {
-              alert('🔑 Gemini API Key configured successfully for session! You can now chat live with Gemini AI.');
-              const thread = document.getElementById('aiChatThread');
-              if (thread) {
-                  thread.innerHTML += `<div style="text-align:left;margin-top:6px;"><div style="background:rgba(16, 185, 129, 0.2);border:1px solid rgba(16, 185, 129, 0.4);color:#6ee7b7;padding:10px 14px;border-radius:14px;font-size:12px;">✅ Gemini API Key Active! Ask any question to test live AI responses.</div></div>`;
-                  thread.scrollTop = thread.scrollHeight;
-              }
-          } else {
-              alert('Error: ' + (data.error || 'Failed to save key.'));
-          }
-      });
-  }
 
   function sendAiChat(presetText) {
       const input = document.getElementById('aiChatInput');
@@ -3349,18 +3325,7 @@ function typewriteAiReply(containerThread, rawText) {
                     const errDiv = document.createElement('div');
                     errDiv.style.cssText = 'text-align:left;margin-top:6px;';
                     
-                    if (data.key_required || errText.includes('Quota Exceeded') || errText.includes('429')) {
-                        errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.95);border:1px solid rgba(234, 179, 8, 0.4);color:#fef08a;padding:12px 14px;border-radius:14px;font-size:12px;line-height:1.5;">
-                          <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">🔑</span> <span>Add Backup Gemini API Key</span></div>
-                          <div style="color:#e2e8f0;margin-bottom:8px;">${errText}</div>
-                          <div style="display:flex;gap:6px;">
-                            <input type="password" id="customApiKeyInput" placeholder="Paste new AIzaSy... key here" style="flex:1;background:#0f172a;border:1px solid #334155;color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;outline:none;" />
-                            <button onclick="submitGeminiKey()" style="background:#2563eb;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">+ Add to Key Pool</button>
-                          </div>
-                        </div>`;
-                    } else {
-                        errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ ${errText}</div>`;
-                    }
+                    errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ ${errText}</div>`;
                     thread.appendChild(errDiv);
                     thread.scrollTop = thread.scrollHeight;
                 }
