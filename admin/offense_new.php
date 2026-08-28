@@ -274,6 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
         redirect('offense_new.php?level=MINOR&student_id=' . urlencode($student_id) . '&letter=1&offense_id=' . $newOffenseId . '&type=letter&minor_no=' . $afterMinor . '&success=1');
       } else {
         // 1st minor in cycle is Warning only
+        unset($_SESSION['pending_letter_offense_id'], $_SESSION['pending_letter_type'], $_SESSION['pending_nte_offense_id'], $_SESSION['pending_evidence_offense_id']);
         redirect('offense_new.php?level=MINOR&student_id=' . urlencode($student_id) . '&success=1');
       }
 
@@ -505,13 +506,20 @@ $letterType      = (string)($_GET['type'] ?? $_SESSION['pending_letter_type'] ??
 $successMode     = ((int)($_GET['success'] ?? 0) === 1);
 $letterParam     = ((int)($_GET['letter'] ?? 0) === 1);
 
+// If successMode is active WITHOUT letter=1 (e.g. 1st minor warning), clear any stale pending session workflows
+if ($successMode && !$letterParam) {
+    unset($_SESSION['pending_letter_offense_id'], $_SESSION['pending_letter_type'], $_SESSION['pending_nte_offense_id'], $_SESSION['pending_evidence_offense_id']);
+    $letterOffenseId = 0;
+    $letterType = '';
+}
+
 if ($letterParam && (int)($_GET['offense_id'] ?? 0) > 0) {
     $_SESSION['pending_letter_offense_id'] = (int)$_GET['offense_id'];
     $_SESSION['pending_letter_type']       = (string)($_GET['type'] ?? '');
 }
 
-// Auto-detect is ONLY active if an explicit letter parameter is present (letter=1) OR if session has an active pending letter workflow (NOT for 1st minor warning!)
-$hasActiveWorkflowRequest = $letterParam || !empty($_SESSION['pending_letter_offense_id']) || !empty($_SESSION['pending_nte_offense_id']) || !empty($_SESSION['pending_evidence_offense_id']);
+// Auto-detect workflow ONLY if letterParam (letter=1) is explicitly set in URL
+$hasActiveWorkflowRequest = $letterParam && (int)($_GET['offense_id'] ?? 0) > 0;
 
 if ($letterOffenseId <= 0 && $hasActiveWorkflowRequest && !empty($studentIdPrefill)) {
     $unsentOffense = db_one(
@@ -547,7 +555,7 @@ $ntePendingMode = false;
 $evidencePendingMode = false;
 $isSection4EscalationOffense = false;
 
-$targetOffenseId = $hasActiveWorkflowRequest ? (int)($_GET['offense_id'] ?? $_SESSION['pending_letter_offense_id'] ?? $_SESSION['pending_nte_offense_id'] ?? $_SESSION['pending_evidence_offense_id'] ?? $letterOffenseId) : 0;
+$targetOffenseId = $hasActiveWorkflowRequest ? (int)($_GET['offense_id'] ?? $letterOffenseId) : 0;
 
 if ($targetOffenseId > 0) {
     $offCheck = db_one(
