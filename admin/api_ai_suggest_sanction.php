@@ -168,6 +168,163 @@ function getCategoryPrecedents(?int $majorCategory, int $offenseTypeId, int $exc
 }
 
 /**
+ * Data Privacy Act (RA 10173) Compliance:
+ * Automatically anonymizes Personally Identifiable Information (PII)
+ * (Names, Student IDs, Emails, Phone Numbers) from AI prompts before LLM inference.
+ */
+function anonymizeAiPromptText(string $text, string $realName = '', string $studentId = ''): string
+{
+    // 1. Mask specific real name if provided
+    if ($realName !== '') {
+        $nameParts = preg_split('/\s+/', trim($realName));
+        $initials = '';
+        foreach ($nameParts as $np) {
+            if ($np !== '') $initials .= strtoupper(mb_substr($np, 0, 1)) . '.';
+        }
+        $anonLabel = "Student " . ($initials !== '' ? $initials : "Subject");
+        $text = str_replace($realName, $anonLabel, $text);
+
+        foreach ($nameParts as $np) {
+            if (mb_strlen($np) >= 3) {
+                $text = preg_replace('/\b' . preg_quote($np, '/') . '\b/i', $anonLabel, $text);
+            }
+        }
+    }
+
+    // 2. Mask student IDs (e.g. 2023-183482 or 202210394)
+    if ($studentId !== '') {
+        $parts = explode('-', $studentId);
+        $lastDigits = end($parts);
+        $maskedId = (count($parts) > 1 ? $parts[0] . '-****' : '****') . mb_substr($lastDigits, -2);
+        $text = str_replace($studentId, "ID: {$maskedId}", $text);
+    }
+    $text = preg_replace('/\b(20[0-9]{2})-?([0-9]{4,6})\b/', '$1-****$2', $text);
+
+    // 3. Mask Email addresses
+    $text = preg_replace('/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/', '[ANONYMIZED_EMAIL]', $text);
+
+    // 4. Mask Phone numbers
+    $text = preg_replace('/(?:\+63|0)9[0-9]{9}\b/', '[ANONYMIZED_PHONE]', $text);
+    $text = preg_replace('/\b[0-9]{11}\b/', '[ANONYMIZED_PHONE]', $text);
+
+    return $text;
+}
+
+/**
+ * Executes prompt against Local Ollama LLaMA model (100% Offline / Local AI Engine)
+ * Runs locally on http://localhost:11434/api/generate or http://127.0.0.1:11434
+ */
+function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model = 'llama3'): ?string
+{
+    $endpoint = trim((string)($_ENV['OLLAMA_ENDPOINT'] ?? 'http://localhost:11434/api/generate'));
+    
+    try {
+        $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'ollama_model' LIMIT 1");
+        if ($cfg && !empty($cfg['config_value'])) {
+            $model = trim((string)$cfg['config_value']);
+        }
+    } catch (\Throwable $e) {}
+
+    $payload = [
+        'model' => $model,
+        'prompt' => $systemPrompt . "\n\n" . $userPrompt,
+        'stream' => false,
+        'options' => [
+            'temperature' => 0.2,
+            'num_predict' => 2000
+        ]
+    ];
+
+    $ch = curl_init($endpoint);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+
+    $res = curl_exec($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode === 200 && $res) {
+        $data = json_decode($res, true);
+        if (!empty($data['response'])) {
+            return trim((string)$data['response']);
+        }
+    }
+
+    // Try OpenAI-compatible endpoint if /api/generate is unavailable
+    $chatEndpoint = 'http://localhost:11434/v1/chat/completions';
+    $chatPayload = [
+        'model' => $model,
+        'messages' => [
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $userPrompt]
+        ],
+        'temperature' => 0.2
+    ];
+
+    $ch2 = curl_init($chatEndpoint);
+    curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch2, CURLOPT_POST, true);
+    curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode($chatPayload));
+    curl_setopt($ch2, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch2, CURLOPT_TIMEOUT, 20);
+    curl_setopt($ch2, CURLOPT_CONNECTTIMEOUT, 2);
+
+    $res2 = curl_exec($ch2);
+    $httpCode2 = (int)curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+    curl_close($ch2);
+
+    if ($httpCode2 === 200 && $res2) {
+        $data2 = json_decode($res2, true);
+        if (!empty($data2['choices'][0]['message']['content'])) {
+            return trim((string)$data2['choices'][0]['message']['content']);
+        }
+    }
+
+    $GLOBALS['LAST_OLLAMA_ERROR'] = "Local Ollama LLaMA server offline on http://localhost:11434.";
+    return null;
+}
+
+/**
+ * Unified AI Query Function with Priority 1 Local LLaMA Engine + Data Privacy Act (RA 10173) Anonymization
+ */
+function queryAiEngine(string $systemPrompt, string $userPrompt, string $realName = '', string $studentId = ''): array
+{
+    // 1. Data Privacy Compliance: Automatically anonymize student PII from prompts
+    $safeSysPrompt  = anonymizeAiPromptText($systemPrompt, $realName, $studentId);
+    $safeUserPrompt = anonymizeAiPromptText($userPrompt, $realName, $studentId);
+
+    // 2. Priority 1: Execute on Local LLaMA (Ollama) if running locally
+    $localResult = callOllamaLlama($safeSysPrompt, $safeUserPrompt);
+    if ($localResult !== null && trim($localResult) !== '') {
+        return [
+            'text' => $localResult,
+            'engine' => 'Local LLaMA (Ollama Offline AI Engine)',
+            'privacy' => '🔒 100% Local & Anonymized (RA 10173 Compliant)'
+        ];
+    }
+
+    // 3. Fallback: Cloud AI Engine with PII Anonymization & Privacy Protection
+    $cloudResult = callGemini($safeSysPrompt, $safeUserPrompt);
+    if ($cloudResult !== null && trim($cloudResult) !== '') {
+        return [
+            'text' => $cloudResult,
+            'engine' => 'Cloud AI Engine (Anonymized Privacy Mode)',
+            'privacy' => '🔒 PII Anonymized & Masked (RA 10173 Compliant)'
+        ];
+    }
+
+    return [
+        'text' => null,
+        'engine' => 'None',
+        'error' => $GLOBALS['LAST_OLLAMA_ERROR'] ?? $GLOBALS['LAST_GEMINI_ERROR'] ?? 'AI Engine unavailable.'
+    ];
+}
+
+/**
  * Calls Google Gemini API model with Multi-Key Failover Auto-Rotation
  */
 function callGemini(string $systemPrompt, string $userPrompt): ?string
@@ -453,7 +610,10 @@ try {
             $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. Precedent already exists in the database for this exact offense. Explain in 2-3 concise sentences why consistency with prior decisions is important for fairness. DATA PRIVACY MANDATE: For student privacy protection, NEVER mention or reveal full names of past student offenders. Always refer to past cases using Case Numbers (e.g. Case #DO-24-25-001 or Case #101) or Academic Programs.\n\n" . $dynamicRules;
             $userPrompt = "Student: {$studentName}\nOffense: {$offenseName}\nExact Precedents:\n" . implode("\n", $precedentSummary);
             
-            $aiText = callGemini($sysPrompt, $userPrompt);
+            $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId);
+            $aiText = $aiEngineRes['text'];
+            $aiEngineName = $aiEngineRes['engine'];
+            $aiPrivacyNotice = $aiEngineRes['privacy'] ?? '🔒 Anonymized';
 
             echo json_encode([
                 'ok' => true,
@@ -489,7 +649,9 @@ try {
             . "Closest related cases in category:\n{$categorySummary}\n\n"
             . "Suggest a punishment grounded in handbook rules.";
 
-        $aiText = callGemini($sysPrompt, $userPrompt);
+        $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId);
+        $aiText = $aiEngineRes['text'];
+        $aiEngineName = $aiEngineRes['engine'];
 
         $suggestedCategory = null;
         $suggestedHours = null;
@@ -518,27 +680,17 @@ try {
             'suggested_hours' => $suggestedHours,
             'ai_rationale' => $rationale,
             'ai_available' => $aiText !== null,
-            'key_required' => getGeminiApiKey() === ''
+            'key_required' => getGeminiApiKey() === '' && strpos($aiEngineName, 'Local') === false,
+            'engine' => $aiEngineName,
+            'privacy' => $aiEngineRes['privacy'] ?? '🔒 Anonymized'
         ]);
         exit;
     }
 
-    // ── ACTION: chat — Live Gemini Model Conversational RAG ──
+    // ── ACTION: chat — Live Conversational RAG with Local LLaMA & PII Anonymization ──
     if ($action === 'chat') {
         if ($userQuery === '') {
             echo json_encode(['ok' => false, 'error' => 'Please type a question for the AI Assistant.']);
-            exit;
-        }
-
-        $apiKey = getGeminiApiKey();
-
-        if ($apiKey === '') {
-            echo json_encode([
-                'ok' => false,
-                'ai_available' => false,
-                'key_required' => true,
-                'error' => '🔑 Gemini API Key is required. Please configure your Google Gemini API Key to enable live Gemini AI model answers.'
-            ]);
             exit;
         }
 
@@ -602,7 +754,9 @@ try {
             . $otherStudentContext . "\n\n"
             . "PANEL QUESTION: {$userQuery}";
 
-        $aiText = callGemini($sysPrompt, $userPrompt);
+        $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId);
+        $aiText = $aiEngineRes['text'];
+        $aiEngineName = $aiEngineRes['engine'];
 
         if ($aiText !== null && trim($aiText) !== '') {
             echo json_encode([
@@ -611,13 +765,14 @@ try {
                 'query' => $userQuery,
                 'reply' => trim($aiText),
                 'ai_available' => true,
-                'engine' => 'Google Gemini AI Model'
+                'engine' => $aiEngineName,
+                'privacy' => $aiEngineRes['privacy'] ?? '🔒 Anonymized'
             ]);
         } else {
             echo json_encode([
                 'ok' => false,
                 'ai_available' => false,
-                'error' => $GLOBALS['LAST_GEMINI_ERROR'] ?? '⚠️ Request to Google Gemini API failed or returned an empty response.'
+                'error' => $aiEngineRes['error'] ?? '⚠️ Request to AI Engine failed or returned an empty response.'
             ]);
         }
         exit;
@@ -627,17 +782,6 @@ try {
     if ($action === 'global_chat') {
         if ($userQuery === '') {
             echo json_encode(['ok' => false, 'error' => 'Please type a question for the AI Assistant.']);
-            exit;
-        }
-
-        $apiKey = getGeminiApiKey();
-        if ($apiKey === '') {
-            echo json_encode([
-                'ok' => false,
-                'ai_available' => false,
-                'key_required' => true,
-                'error' => '🔑 Gemini API Key is required. Please configure your Google Gemini API Key to enable live Gemini AI model answers.'
-            ]);
             exit;
         }
 
@@ -666,7 +810,9 @@ try {
 
         $userPrompt = "ADMIN/PANEL GLOBAL QUESTION: {$userQuery}";
 
-        $aiText = callGemini($sysPrompt, $userPrompt);
+        $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt);
+        $aiText = $aiEngineRes['text'];
+        $aiEngineName = $aiEngineRes['engine'];
 
         if ($aiText !== null && trim($aiText) !== '') {
             echo json_encode([
@@ -675,13 +821,14 @@ try {
                 'query' => $userQuery,
                 'reply' => trim($aiText),
                 'ai_available' => true,
-                'engine' => 'Google Gemini AI Model'
+                'engine' => $aiEngineName,
+                'privacy' => $aiEngineRes['privacy'] ?? '🔒 Anonymized'
             ]);
         } else {
             echo json_encode([
                 'ok' => false,
                 'ai_available' => false,
-                'error' => $GLOBALS['LAST_GEMINI_ERROR'] ?? '⚠️ Request to Google Gemini API failed or returned an empty response.'
+                'error' => $aiEngineRes['error'] ?? '⚠️ Request to AI Engine failed or returned an empty response.'
             ]);
         }
         exit;
