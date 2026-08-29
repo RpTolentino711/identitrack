@@ -174,8 +174,7 @@ function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model
     } catch (\Throwable $e) {}
 
     $endpoints = [
-        'http://127.0.0.1:11434/api/generate',
-        'http://localhost:11434/api/generate'
+        'http://127.0.0.1:11434/api/generate'
     ];
 
     $lastErr = '';
