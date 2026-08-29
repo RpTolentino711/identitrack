@@ -160,7 +160,7 @@ function anonymizeAiPromptText(string $text, string $realName = '', string $stud
  */
 function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model = 'llama3.2'): ?string
 {
-    $models = ['llama3.2', 'llama3.2:latest'];
+    $models = ['llama3.2:latest', 'llama3.2'];
 
     try {
         $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'ollama_model' LIMIT 1");
@@ -185,7 +185,6 @@ function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model
     } catch (\Throwable $e) {}
 
     $endpoints[] = 'http://127.0.0.1:11434/api/generate';
-    $endpoints[] = 'http://localhost:11434/api/generate';
     $endpoints = array_values(array_unique(array_filter($endpoints)));
 
     $lastErr = '';
