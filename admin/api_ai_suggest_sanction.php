@@ -235,7 +235,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     return [
         'text' => null,
         'engine' => 'Local LLaMA (Offline System Engine)',
-        'error' => '🔒 Local AI Engine Standby: Please start your local Ollama server (run "ollama run llama3" in terminal). 100% offline & local data privacy mode active.'
+        'error' => '🔒 Local AI Engine Standby: ' . ($GLOBALS['LAST_OLLAMA_ERROR'] ?? 'Please start your local Ollama server (run "ollama run llama3.2" in terminal). 100% offline & local data privacy mode active.')
     ];
 }
 
