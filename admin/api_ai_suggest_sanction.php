@@ -158,7 +158,7 @@ function anonymizeAiPromptText(string $text, string $realName = '', string $stud
  * Executes prompt against Local Ollama LLaMA model (100% Offline / Local AI Engine)
  * Runs locally on http://localhost:11434/api/generate or http://127.0.0.1:11434
  */
-function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model = 'llama3'): ?string
+function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model = 'llama3.2'): ?string
 {
     $endpoint = trim((string)($_ENV['OLLAMA_ENDPOINT'] ?? 'http://localhost:11434/api/generate'));
     
