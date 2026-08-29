@@ -160,11 +160,6 @@ function anonymizeAiPromptText(string $text, string $realName = '', string $stud
  */
 function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model = 'llama3.2'): ?string
 {
-    $endpoints = [
-        'http://127.0.0.1:11434/api/generate',
-        'http://localhost:11434/api/generate'
-    ];
-
     $models = array_values(array_unique(array_filter([$model, 'llama3.2', 'llama3.2:latest', 'llama3', 'llama3:latest'])));
 
     try {
@@ -175,9 +170,16 @@ function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model
         }
     } catch (\Throwable $e) {}
 
+    $endpoints = [
+        'http://127.0.0.1:11434/api/generate',
+        'http://localhost:11434/api/generate'
+    ];
+
+    $lastErr = '';
+
     foreach ($endpoints as $endpoint) {
         foreach ($models as $mod) {
-            $payload = [
+            $payload = json_encode([
                 'model' => $mod,
                 'prompt' => $systemPrompt . "\n\n" . $userPrompt,
                 'stream' => false,
@@ -185,18 +187,22 @@ function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model
                     'temperature' => 0.2,
                     'num_predict' => 2000
                 ]
-            ];
+            ]);
 
+            // Method 1: cURL
             $ch = curl_init($endpoint);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
             curl_setopt($ch, CURLOPT_TIMEOUT, 60);
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 
             $res = curl_exec($ch);
             $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr = curl_error($ch);
             curl_close($ch);
 
             if ($httpCode === 200 && $res) {
@@ -205,10 +211,33 @@ function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model
                     return trim((string)$data['response']);
                 }
             }
+
+            if ($curlErr !== '') {
+                $lastErr = "cURL ({$mod}): " . $curlErr;
+            } elseif ($httpCode > 0) {
+                $lastErr = "HTTP {$httpCode} ({$mod})";
+            }
+
+            // Method 2: PHP Stream Context fallback if cURL extension has socket constraints in XAMPP
+            $ctx = stream_context_create([
+                'http' => [
+                    'method'  => 'POST',
+                    'header'  => "Content-Type: application/json\r\n",
+                    'content' => $payload,
+                    'timeout' => 60
+                ]
+            ]);
+            $streamRes = @file_get_contents($endpoint, false, $ctx);
+            if ($streamRes) {
+                $data = json_decode($streamRes, true);
+                if (!empty($data['response'])) {
+                    return trim((string)$data['response']);
+                }
+            }
         }
     }
 
-    $GLOBALS['LAST_OLLAMA_ERROR'] = "Local Ollama LLaMA server offline or starting up on http://127.0.0.1:11434.";
+    $GLOBALS['LAST_OLLAMA_ERROR'] = "Ollama Local Engine standby on http://127.0.0.1:11434 (" . ($lastErr ?: "Connection reset") . ")";
     return null;
 }
 
