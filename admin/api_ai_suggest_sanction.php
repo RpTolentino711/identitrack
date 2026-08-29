@@ -247,71 +247,8 @@ function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model
 }
 
 /**
- * Cloud LLM API Call with 100% Data Privacy Act (RA 10173) Anonymization
- * Used on live production web servers where local Ollama port 11434 is unreachable.
- * Panel members use the live website with ZERO software installation required!
- * ZERO real student names, IDs, or phone numbers are transmitted.
- */
-function callCloudAiEngine(string $systemPrompt, string $userPrompt): ?string
-{
-    $keys = [];
-    $envKey = trim((string)($_ENV['CLOUD_AI_KEY'] ?? $_ENV['GEMINI_API_KEY'] ?? getenv('CLOUD_AI_KEY') ?: ''));
-    if ($envKey !== '') $keys[] = $envKey;
-
-    try {
-        $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'cloud_ai_key' LIMIT 1");
-        if ($cfg && !empty($cfg['config_value'])) {
-            $keys[] = trim((string)$cfg['config_value']);
-        }
-    } catch (\Throwable $e) {}
-
-    // Verified production server fallback key
-    $keys[] = base64_decode('QVEuQWI4Uk42SzVTc2lYQi1YYjdXbTByOW82ZkhGRkdVWk94UUJMTmVQcTUyLUhjby1YS2xn');
-
-    $apiKeys = array_values(array_unique(array_filter($keys)));
-
-    foreach ($apiKeys as $gKey) {
-        $gKey = trim($gKey);
-        if ($gKey === '') continue;
-
-        $models = ['gemini-1.5-flash', 'gemini-2.0-flash'];
-        foreach ($models as $model) {
-            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($gKey);
-            $payload = [
-                'contents' => [
-                    ['role' => 'user', 'parts' => [['text' => $systemPrompt . "\n\n" . $userPrompt]]]
-                ],
-                'generationConfig' => [
-                    'temperature' => 0.2,
-                    'maxOutputTokens' => 2000
-                ]
-            ];
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 12);
-            
-            $res = curl_exec($ch);
-            $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($code === 200 && $res) {
-                $data = json_decode($res, true);
-                if (!empty($data['candidates'][0]['content']['parts'][0]['text'])) {
-                    return trim((string)$data['candidates'][0]['content']['parts'][0]['text']);
-                }
-            }
-        }
-    }
-
-    return null;
-}
-
-/**
- * Unified AI Query Function with Priority 1 Local LLaMA Engine + Live Production Anonymized Fallback
+ * Unified 100% Local AI Query Function via Local Ollama LLaMA Engine (Offline System)
+ * Zero external cloud API calls — 100% Data Privacy Act (RA 10173) compliant.
  */
 function queryAiEngine(string $systemPrompt, string $userPrompt, string $realName = '', string $studentId = ''): array
 {
@@ -319,7 +256,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $safeSysPrompt  = anonymizeAiPromptText($systemPrompt, $realName, $studentId);
     $safeUserPrompt = anonymizeAiPromptText($userPrompt, $realName, $studentId);
 
-    // 2. Priority 1: Execute on Local LLaMA (Ollama) if running locally
+    // 2. Execute 100% Locally via Local LLaMA (Ollama)
     $localResult = callOllamaLlama($safeSysPrompt, $safeUserPrompt);
     if ($localResult !== null && trim($localResult) !== '') {
         return [
@@ -329,20 +266,10 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         ];
     }
 
-    // 3. Live Production Fallback: Anonymized Cloud AI Engine (Zero PII Exposed)
-    $cloudResult = callCloudAiEngine($safeSysPrompt, $safeUserPrompt);
-    if ($cloudResult !== null && trim($cloudResult) !== '') {
-        return [
-            'text' => $cloudResult,
-            'engine' => 'Anonymized Cloud AI (Data Privacy Protected)',
-            'privacy' => '🔒 PII Anonymized & Masked (RA 10173 Compliant)'
-        ];
-    }
-
     return [
         'text' => null,
-        'engine' => 'IdentiTrack AI',
-        'error' => 'AI Assistant engine unavailable.'
+        'engine' => 'Local LLaMA (Ollama Engine)',
+        'error' => '🔒 Local AI Engine Standby: ' . ($GLOBALS['LAST_OLLAMA_ERROR'] ?? 'Please start your local Ollama server (run "ollama run llama3.2" in terminal). 100% offline & local data privacy mode active.')
     ];
 }
 
