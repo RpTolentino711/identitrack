@@ -160,75 +160,55 @@ function anonymizeAiPromptText(string $text, string $realName = '', string $stud
  */
 function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model = 'llama3.2'): ?string
 {
-    $endpoint = trim((string)($_ENV['OLLAMA_ENDPOINT'] ?? 'http://localhost:11434/api/generate'));
-    
+    $endpoints = [
+        'http://127.0.0.1:11434/api/generate',
+        'http://localhost:11434/api/generate'
+    ];
+
+    $models = array_values(array_unique(array_filter([$model, 'llama3.2', 'llama3.2:latest', 'llama3', 'llama3:latest'])));
+
     try {
         $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'ollama_model' LIMIT 1");
         if ($cfg && !empty($cfg['config_value'])) {
-            $model = trim((string)$cfg['config_value']);
+            array_unshift($models, trim((string)$cfg['config_value']));
+            $models = array_values(array_unique($models));
         }
     } catch (\Throwable $e) {}
 
-    $payload = [
-        'model' => $model,
-        'prompt' => $systemPrompt . "\n\n" . $userPrompt,
-        'stream' => false,
-        'options' => [
-            'temperature' => 0.2,
-            'num_predict' => 2000
-        ]
-    ];
+    foreach ($endpoints as $endpoint) {
+        foreach ($models as $mod) {
+            $payload = [
+                'model' => $mod,
+                'prompt' => $systemPrompt . "\n\n" . $userPrompt,
+                'stream' => false,
+                'options' => [
+                    'temperature' => 0.2,
+                    'num_predict' => 2000
+                ]
+            ];
 
-    $ch = curl_init($endpoint);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+            $ch = curl_init($endpoint);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
 
-    $res = curl_exec($ch);
-    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+            $res = curl_exec($ch);
+            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
 
-    if ($httpCode === 200 && $res) {
-        $data = json_decode($res, true);
-        if (!empty($data['response'])) {
-            return trim((string)$data['response']);
+            if ($httpCode === 200 && $res) {
+                $data = json_decode($res, true);
+                if (!empty($data['response'])) {
+                    return trim((string)$data['response']);
+                }
+            }
         }
     }
 
-    // Try OpenAI-compatible endpoint if /api/generate is unavailable
-    $chatEndpoint = 'http://localhost:11434/v1/chat/completions';
-    $chatPayload = [
-        'model' => $model,
-        'messages' => [
-            ['role' => 'system', 'content' => $systemPrompt],
-            ['role' => 'user', 'content' => $userPrompt]
-        ],
-        'temperature' => 0.2
-    ];
-
-    $ch2 = curl_init($chatEndpoint);
-    curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch2, CURLOPT_POST, true);
-    curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode($chatPayload));
-    curl_setopt($ch2, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch2, CURLOPT_TIMEOUT, 20);
-    curl_setopt($ch2, CURLOPT_CONNECTTIMEOUT, 2);
-
-    $res2 = curl_exec($ch2);
-    $httpCode2 = (int)curl_getinfo($ch2, CURLINFO_HTTP_CODE);
-    curl_close($ch2);
-
-    if ($httpCode2 === 200 && $res2) {
-        $data2 = json_decode($res2, true);
-        if (!empty($data2['choices'][0]['message']['content'])) {
-            return trim((string)$data2['choices'][0]['message']['content']);
-        }
-    }
-
-    $GLOBALS['LAST_OLLAMA_ERROR'] = "Local Ollama LLaMA server offline on http://localhost:11434.";
+    $GLOBALS['LAST_OLLAMA_ERROR'] = "Local Ollama LLaMA server offline or starting up on http://127.0.0.1:11434.";
     return null;
 }
 
