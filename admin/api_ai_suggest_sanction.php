@@ -158,9 +158,9 @@ function anonymizeAiPromptText(string $text, string $realName = '', string $stud
  * Executes prompt against Local Ollama LLaMA model (100% Offline / Local AI Engine)
  * Runs locally on http://localhost:11434/api/generate or http://127.0.0.1:11434
  */
-function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model = 'llama3.2'): ?string
+function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model = 'llama3.2:latest'): ?string
 {
-    $models = array_values(array_unique(array_filter([$model, 'llama3.2', 'llama3.2:latest', 'llama3', 'llama3:latest'])));
+    $models = array_values(array_unique(array_filter(['llama3.2:latest', 'llama3.2', $model, 'llama3', 'llama3:latest'])));
 
     try {
         $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'ollama_model' LIMIT 1");
@@ -210,6 +210,11 @@ function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model
                 if (!empty($data['response'])) {
                     return trim((string)$data['response']);
                 }
+            }
+
+            if ($httpCode === 404) {
+                // Model tag not pulled; move silently to next candidate
+                continue;
             }
 
             if ($curlErr !== '') {
