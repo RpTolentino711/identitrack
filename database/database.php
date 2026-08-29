@@ -79,16 +79,15 @@ function db(): PDO
       PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
       PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
       PDO::ATTR_EMULATE_PREPARES   => true, 
-      PDO::ATTR_TIMEOUT            => 2,
+      PDO::ATTR_TIMEOUT            => 1,
     ];
 
     $attempts = [
+      ['host' => '127.0.0.1', 'db' => 'identitrack', 'user' => 'root', 'pass' => ''],
+      ['host' => 'localhost', 'db' => 'identitrack', 'user' => 'root', 'pass' => ''],
       ['host' => $host, 'db' => $dbname, 'user' => $user, 'pass' => $pass],
       ['host' => '127.0.0.1', 'db' => 'u321173822_track', 'user' => 'u321173822_titrack', 'pass' => 'Pogilameg@10'],
       ['host' => 'localhost', 'db' => 'u321173822_track', 'user' => 'u321173822_titrack', 'pass' => 'Pogilameg@10'],
-      ['host' => 'localhost', 'db' => 'identitrack', 'user' => 'root', 'pass' => 'Pogilameg@10'],
-      ['host' => 'localhost', 'db' => 'identitrack', 'user' => 'root', 'pass' => ''],
-      ['host' => '127.0.0.1', 'db' => 'identitrack', 'user' => 'root', 'pass' => ''],
     ];
 
     $lastErr = null;
@@ -104,7 +103,7 @@ function db(): PDO
     }
 
     if ($pdo === null) {
-      die("DB Connection failed: " . ($lastErr ? $lastErr->getMessage() : "Unable to connect to MySQL database server."));
+      throw new \RuntimeException("MySQL Database is currently stopped or unreachable. Please start MySQL in your XAMPP Control Panel.");
     }
   }
   return $pdo;
