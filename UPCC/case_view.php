@@ -757,7 +757,9 @@ $offenses = db_all(
 $priorResolvedCases = db_all(
     "SELECT uc.case_id, uc.status, uc.created_at, uc.updated_at, uc.decided_category, uc.punishment_details,
             GROUP_CONCAT(DISTINCT ot.code ORDER BY ot.code SEPARATOR ', ') AS offense_codes,
-            GROUP_CONCAT(DISTINCT ot.name ORDER BY ot.code SEPARATOR ' | ') AS offense_names
+            GROUP_CONCAT(DISTINCT ot.name ORDER BY ot.code SEPARATOR ' | ') AS offense_names,
+            SUM(CASE WHEN ot.level = 'MAJOR' THEN 1 ELSE 0 END) AS major_count,
+            SUM(CASE WHEN ot.level = 'MINOR' THEN 1 ELSE 0 END) AS minor_count
      FROM upcc_case uc
      LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
      LEFT JOIN offense o ON o.offense_id = uco.offense_id
@@ -772,7 +774,9 @@ $priorResolvedCases = db_all(
 $otherPendingCases = db_all(
     "SELECT uc.case_id, uc.status, uc.created_at, uc.updated_at,
             GROUP_CONCAT(DISTINCT ot.code ORDER BY ot.code SEPARATOR ', ') AS offense_codes,
-            GROUP_CONCAT(DISTINCT ot.name ORDER BY ot.code SEPARATOR ' | ') AS offense_names
+            GROUP_CONCAT(DISTINCT ot.name ORDER BY ot.code SEPARATOR ' | ') AS offense_names,
+            SUM(CASE WHEN ot.level = 'MAJOR' THEN 1 ELSE 0 END) AS major_count,
+            SUM(CASE WHEN ot.level = 'MINOR' THEN 1 ELSE 0 END) AS minor_count
      FROM upcc_case uc
      LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
      LEFT JOIN offense o ON o.offense_id = uco.offense_id
@@ -1375,10 +1379,18 @@ hr{border-color:var(--border-glass);margin:16px 0}
                                 <div class="empty" style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px; background: rgba(0,0,0,0.1); border-radius: 10px; border: 1px dashed var(--border-glass);">
                                     Clean Disciplinary Record: No prior resolved cases found for this student.
                                 </div>
-                            <?php else: foreach ($priorResolvedCases as $rc): ?>
+                            <?php else: foreach ($priorResolvedCases as $rc):
+                                $isMajorResolved = ((int)($rc['major_count'] ?? 0)) > 0;
+                                $resolvedLvlBadge = $isMajorResolved 
+                                    ? '<span class="badge badge-blue" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4);">MAJOR OFFENSE</span>'
+                                    : '<span class="badge badge-amber" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4);">SECTION 4 (MINOR)</span>';
+                            ?>
                                 <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 12px;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
-                                        <span style="font-weight: 800; color: #6ee7b7; font-size: 13px;">Case #<?= htmlspecialchars((string)$rc['case_id']) ?></span>
+                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                            <span style="font-weight: 800; color: #6ee7b7; font-size: 13px;">Case #<?= htmlspecialchars((string)$rc['case_id']) ?></span>
+                                            <?= $resolvedLvlBadge ?>
+                                        </div>
                                         <span class="badge badge-emerald" style="font-size: 10px; text-transform: uppercase;">RESOLVED</span>
                                     </div>
                                     <div style="font-weight: 700; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
@@ -1402,12 +1414,20 @@ hr{border-color:var(--border-glass);margin:16px 0}
                             <div style="font-size: 13px; font-weight: 700; color: #fcd34d; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
                                 <span>⚠️</span> Other Active / Pending Cases Under Investigation
                             </div>
-                            <?php foreach ($otherPendingCases as $pc): ?>
+                            <?php foreach ($otherPendingCases as $pc):
+                                $isMajorPending = ((int)($pc['major_count'] ?? 0)) > 0;
+                                $pendingLvlBadge = $isMajorPending 
+                                    ? '<span class="badge badge-blue" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4);">MAJOR OFFENSE</span>'
+                                    : '<span class="badge badge-amber" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4);">SECTION 4 (MINOR)</span>';
+                            ?>
                                 <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 12px;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
-                                        <a href="case_view.php?id=<?= (int)$pc['case_id'] ?>" style="font-weight: 800; color: #fcd34d; font-size: 13px; text-decoration: underline;">
-                                            Case #<?= htmlspecialchars((string)$pc['case_id']) ?> ↗
-                                        </a>
+                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                            <a href="case_view.php?id=<?= (int)$pc['case_id'] ?>" style="font-weight: 800; color: #fcd34d; font-size: 13px; text-decoration: underline;">
+                                                Case #<?= htmlspecialchars((string)$pc['case_id']) ?> ↗
+                                            </a>
+                                            <?= $pendingLvlBadge ?>
+                                        </div>
                                         <span class="badge badge-amber" style="font-size: 10px; text-transform: uppercase;">
                                             <?= htmlspecialchars(str_replace('_', ' ', (string)$pc['status'])) ?>
                                         </span>
