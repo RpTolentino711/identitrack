@@ -754,6 +754,36 @@ $offenses = db_all(
     [':c' => $caseId, ':__enckey' => db_encryption_key()]
 );
 
+$priorResolvedCases = db_all(
+    "SELECT uc.case_id, uc.status, uc.created_at, uc.updated_at, uc.decided_category, uc.punishment_details,
+            GROUP_CONCAT(DISTINCT ot.code ORDER BY ot.code SEPARATOR ', ') AS offense_codes,
+            GROUP_CONCAT(DISTINCT ot.name ORDER BY ot.code SEPARATOR ' | ') AS offense_names
+     FROM upcc_case uc
+     LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
+     LEFT JOIN offense o ON o.offense_id = uco.offense_id
+     LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+     WHERE uc.student_id = :sid AND uc.case_id != :cid
+       AND uc.status IN ('RESOLVED', 'CLOSED', 'FINALIZED')
+     GROUP BY uc.case_id
+     ORDER BY uc.created_at DESC",
+    [':sid' => $case['student_id'], ':cid' => $caseId]
+);
+
+$otherPendingCases = db_all(
+    "SELECT uc.case_id, uc.status, uc.created_at, uc.updated_at,
+            GROUP_CONCAT(DISTINCT ot.code ORDER BY ot.code SEPARATOR ', ') AS offense_codes,
+            GROUP_CONCAT(DISTINCT ot.name ORDER BY ot.code SEPARATOR ' | ') AS offense_names
+     FROM upcc_case uc
+     LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
+     LEFT JOIN offense o ON o.offense_id = uco.offense_id
+     LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+     WHERE uc.student_id = :sid AND uc.case_id != :cid
+       AND uc.status NOT IN ('RESOLVED', 'CLOSED', 'FINALIZED', 'DISMISSED', 'CANCELLED')
+     GROUP BY uc.case_id
+     ORDER BY uc.created_at DESC",
+    [':sid' => $case['student_id'], ':cid' => $caseId]
+);
+
 $discussion = db_all(
     "SELECT d.message, d.created_at, d.reply_to_message_id, d.upcc_id, d.admin_id,
             COALESCE(u.full_name, a.full_name) AS full_name,
@@ -1276,47 +1306,122 @@ hr{border-color:var(--border-glass);margin:16px 0}
                            </div>
                         </div>
 
-                        <!-- Offense List Header -->
-                        <div style="font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 14px;">Case Offenses & Details</div>
-                        <div class="offense-list">
-                            <?php if (empty($offenses)): ?>
-                                <div class="empty">No linked offenses found.</div>
-                            <?php else: foreach ($offenses as $idx => $offense):
-                                $lvl = strtoupper((string)($offense['level'] ?? 'MINOR'));
-                                $lvlClass = $lvl === 'MAJOR' ? 'badge-blue' : 'badge-amber';
-                            ?>
-                                <details class="offense-item" <?= $idx === 0 ? 'open' : '' ?>>
-                                    <summary>
-                                        <div class="offense-main">
-                                            <div class="offense-code"><?= htmlspecialchars($offense['code']) ?></div>
-                                            <div class="offense-name"><?= htmlspecialchars($offense['offense_name']) ?></div>
-                                            <div class="offense-meta"><?= $lvl ?> • <?= fmt_dt((string)$offense['date_committed']) ?></div>
+                        <!-- SUB-TABS NAVIGATION FOR OFFENSES & STUDENT CASE HISTORY -->
+                        <div class="case-breakdown-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-glass); padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-tab active-tab-btn" onclick="switchBreakdownTab('current-offenses', this)" style="border-radius: 8px; font-weight: 700; font-size: 12px; padding: 8px 14px; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); cursor: pointer; transition: all 0.2s;">
+                                📌 Current Case Offenses (<?= count($offenses) ?>)
+                            </button>
+                            <button type="button" class="btn btn-tab" onclick="switchBreakdownTab('prior-resolved', this)" style="border-radius: 8px; font-weight: 700; font-size: 12px; padding: 8px 14px; background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid var(--border-glass); cursor: pointer; transition: all 0.2s;">
+                                ✅ Prior Resolved Cases (<?= count($priorResolvedCases) ?>)
+                            </button>
+                            <?php if (!empty($otherPendingCases)): ?>
+                            <button type="button" class="btn btn-tab" onclick="switchBreakdownTab('other-pending', this)" style="border-radius: 8px; font-weight: 700; font-size: 12px; padding: 8px 14px; background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); cursor: pointer; transition: all 0.2s;">
+                                ⏳ Other Pending Cases (<?= count($otherPendingCases) ?>)
+                            </button>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- TAB 1: CURRENT CASE OFFENSES -->
+                        <div id="tab-current-offenses" class="breakdown-tab-content">
+                            <!-- Offense List Header -->
+                            <div style="font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 14px;">Case Offenses & Details</div>
+                            <div class="offense-list">
+                                <?php if (empty($offenses)): ?>
+                                    <div class="empty">No linked offenses found.</div>
+                                <?php else: foreach ($offenses as $idx => $offense):
+                                    $lvl = strtoupper((string)($offense['level'] ?? 'MINOR'));
+                                    $lvlClass = $lvl === 'MAJOR' ? 'badge-blue' : 'badge-amber';
+                                ?>
+                                    <details class="offense-item" <?= $idx === 0 ? 'open' : '' ?>>
+                                        <summary>
+                                            <div class="offense-main">
+                                                <div class="offense-code"><?= htmlspecialchars($offense['code']) ?></div>
+                                                <div class="offense-name"><?= htmlspecialchars($offense['offense_name']) ?></div>
+                                                <div class="offense-meta"><?= $lvl ?> • <?= fmt_dt((string)$offense['date_committed']) ?></div>
+                                            </div>
+                                            <div class="badge <?= $lvlClass ?>"><?= $lvl ?></div>
+                                        </summary>
+                                        <div class="offense-body">
+                                            <?php if (!empty(trim((string)$offense['description']))): ?>
+                                            <div class="offense-row">
+                                                <div class="label">Description</div>
+                                                <div class="value"><?= htmlspecialchars((string)$offense['description']) ?></div>
+                                            </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty(trim((string)($offense['intervention_first'] ?? '')))): ?>
+                                            <div class="offense-row">
+                                                <div class="label">1st intervention</div>
+                                                <div class="value"><?= htmlspecialchars((string)$offense['intervention_first']) ?></div>
+                                            </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty(trim((string)($offense['intervention_second'] ?? '')))): ?>
+                                            <div class="offense-row">
+                                                <div class="label">2nd intervention</div>
+                                                <div class="value"><?= htmlspecialchars((string)$offense['intervention_second']) ?></div>
+                                            </div>
+                                            <?php endif; ?>
                                         </div>
-                                        <div class="badge <?= $lvlClass ?>"><?= $lvl ?></div>
-                                    </summary>
-                                    <div class="offense-body">
-                                        <?php if (!empty(trim((string)$offense['description']))): ?>
-                                        <div class="offense-row">
-                                            <div class="label">Description</div>
-                                            <div class="value"><?= htmlspecialchars((string)$offense['description']) ?></div>
-                                        </div>
-                                        <?php endif; ?>
-                                        <?php if (!empty(trim((string)($offense['intervention_first'] ?? '')))): ?>
-                                        <div class="offense-row">
-                                            <div class="label">1st intervention</div>
-                                            <div class="value"><?= htmlspecialchars((string)$offense['intervention_first']) ?></div>
-                                        </div>
-                                        <?php endif; ?>
-                                        <?php if (!empty(trim((string)($offense['intervention_second'] ?? '')))): ?>
-                                        <div class="offense-row">
-                                            <div class="label">2nd intervention</div>
-                                            <div class="value"><?= htmlspecialchars((string)$offense['intervention_second']) ?></div>
-                                        </div>
-                                        <?php endif; ?>
+                                    </details>
+                                <?php endforeach; endif; ?>
+                            </div>
+                        </div>
+
+                        <!-- TAB 2: PRIOR RESOLVED CASES -->
+                        <div id="tab-prior-resolved" class="breakdown-tab-content" style="display: none;">
+                            <div style="font-size: 13px; font-weight: 700; color: #a7f3d0; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                                <span>📜</span> Student's Resolved Disciplinary History
+                            </div>
+                            <?php if (empty($priorResolvedCases)): ?>
+                                <div class="empty" style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px; background: rgba(0,0,0,0.1); border-radius: 10px; border: 1px dashed var(--border-glass);">
+                                    Clean Disciplinary Record: No prior resolved cases found for this student.
+                                </div>
+                            <?php else: foreach ($priorResolvedCases as $rc): ?>
+                                <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                                        <span style="font-weight: 800; color: #6ee7b7; font-size: 13px;">Case #<?= htmlspecialchars((string)$rc['case_id']) ?></span>
+                                        <span class="badge badge-emerald" style="font-size: 10px; text-transform: uppercase;">RESOLVED</span>
                                     </div>
-                                </details>
+                                    <div style="font-weight: 700; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
+                                        <?= htmlspecialchars((string)($rc['offense_names'] ?: 'General Violation')) ?>
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+                                        Code: <?= htmlspecialchars((string)($rc['offense_codes'] ?: 'N/A')) ?> • Resolved <?= fmt_dt((string)$rc['updated_at']) ?>
+                                    </div>
+                                    <?php if (!empty($rc['decided_category'])): ?>
+                                        <div style="font-size: 11px; color: #a7f3d0; background: rgba(16,185,129,0.15); padding: 4px 8px; border-radius: 6px; display: inline-block; font-weight: 700;">
+                                            Decided Penalty: Category <?= (int)$rc['decided_category'] ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             <?php endforeach; endif; ?>
                         </div>
+
+                        <?php if (!empty($otherPendingCases)): ?>
+                        <!-- TAB 3: OTHER PENDING CASES -->
+                        <div id="tab-other-pending" class="breakdown-tab-content" style="display: none;">
+                            <div style="font-size: 13px; font-weight: 700; color: #fcd34d; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                                <span>⚠️</span> Other Active / Pending Cases Under Investigation
+                            </div>
+                            <?php foreach ($otherPendingCases as $pc): ?>
+                                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                                        <a href="case_view.php?id=<?= (int)$pc['case_id'] ?>" style="font-weight: 800; color: #fcd34d; font-size: 13px; text-decoration: underline;">
+                                            Case #<?= htmlspecialchars((string)$pc['case_id']) ?> ↗
+                                        </a>
+                                        <span class="badge badge-amber" style="font-size: 10px; text-transform: uppercase;">
+                                            <?= htmlspecialchars(str_replace('_', ' ', (string)$pc['status'])) ?>
+                                        </span>
+                                    </div>
+                                    <div style="font-weight: 700; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
+                                        <?= htmlspecialchars((string)($pc['offense_names'] ?: 'General Violation')) ?>
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">
+                                        Code: <?= htmlspecialchars((string)($pc['offense_codes'] ?: 'N/A')) ?> • Created <?= fmt_dt((string)$pc['created_at']) ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
@@ -3341,6 +3446,32 @@ function typewriteAiReply(containerThread, rawText) {
             thread.appendChild(errDiv);
             thread.scrollTop = thread.scrollHeight;
         });
+  }
+
+  function switchBreakdownTab(tabName, btn) {
+      document.querySelectorAll('.breakdown-tab-content').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.case-breakdown-tabs .btn-tab').forEach(b => {
+          b.style.background = 'rgba(255, 255, 255, 0.05)';
+          b.style.color = 'var(--text-muted)';
+          b.style.borderColor = 'var(--border-glass)';
+      });
+
+      const target = document.getElementById('tab-' + tabName);
+      if (target) target.style.display = 'block';
+
+      if (tabName === 'current-offenses') {
+          btn.style.background = 'rgba(59, 130, 246, 0.2)';
+          btn.style.color = '#93c5fd';
+          btn.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+      } else if (tabName === 'prior-resolved') {
+          btn.style.background = 'rgba(16, 185, 129, 0.2)';
+          btn.style.color = '#6ee7b7';
+          btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      } else if (tabName === 'other-pending') {
+          btn.style.background = 'rgba(245, 158, 11, 0.2)';
+          btn.style.color = '#fcd34d';
+          btn.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+      }
   }
   </script>
   </body>
