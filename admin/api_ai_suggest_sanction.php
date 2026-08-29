@@ -173,9 +173,20 @@ function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model
         }
     } catch (\Throwable $e) {}
 
-    $endpoints = [
-        'http://127.0.0.1:11434/api/generate'
-    ];
+    $endpoints = [];
+    $customEp = trim((string)($_ENV['OLLAMA_ENDPOINT'] ?? getenv('OLLAMA_ENDPOINT') ?: ''));
+    if ($customEp !== '') $endpoints[] = $customEp;
+
+    try {
+        $cfgEp = db_one("SELECT config_value FROM system_config WHERE config_key = 'ollama_endpoint' LIMIT 1");
+        if ($cfgEp && !empty($cfgEp['config_value'])) {
+            $endpoints[] = trim((string)$cfgEp['config_value']);
+        }
+    } catch (\Throwable $e) {}
+
+    $endpoints[] = 'http://127.0.0.1:11434/api/generate';
+    $endpoints[] = 'http://localhost:11434/api/generate';
+    $endpoints = array_values(array_unique(array_filter($endpoints)));
 
     $lastErr = '';
 
