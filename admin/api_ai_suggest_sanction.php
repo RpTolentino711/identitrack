@@ -280,11 +280,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
         return "👋 **Hello Panel Member! I am IdentiTrack AI**, your Hearing Advisory Assistant.\n\n"
              . "I am loaded with the **NU Lipa Student Handbook**, disciplinary policies, and 204 historical case precedents.\n\n"
              . "You can ask me questions such as:\n"
-             . "• *\"What sanction should we recommend for this case?\"*\n"
-             . "• *\"What is the policy for 3 minor offenses?\"*\n"
-             . "• *\"How many community service hours should be assigned?\"*\n"
-             . "• *\"Can the student appeal the decision?\"*\n"
-             . "• *\"What happens if a student lies during the hearing?\"*";
+             . "• \"What sanction should we recommend for this case?\"\n"
+             . "• \"What is the policy for 3 minor offenses?\"\n"
+             . "• \"How many community service hours should be assigned?\"\n"
+             . "• \"Can the student appeal the decision?\"\n"
+             . "• \"What happens if a student lies during the hearing?\"";
     }
 
     // 2. DISHONESTY / PERJURY / LYING DURING HEARING
