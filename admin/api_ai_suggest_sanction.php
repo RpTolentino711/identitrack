@@ -546,12 +546,17 @@ try {
     ", [':sid' => $targetStudentId]);
 
     $csStatusText = "No active community service requirement on file.";
-    if ($csReq && (float)($csReq['hours_required'] ?? 0) >= 1.0) {
-        $hrsReq = round((float)$csReq['hours_required'], 1);
-        $hrsComp = round((float)($csReq['hours_completed'] ?? 0), 1);
-        $hrsRem = max(0.0, round($hrsReq - $hrsComp, 1));
+    if ($csReq && (float)($csReq['hours_required'] ?? 0) > 0) {
+        $rawReq = (float)$csReq['hours_required'];
+        $rawComp = (float)($csReq['hours_completed'] ?? 0);
+        $rawRem = max(0.0, $rawReq - $rawComp);
+        
+        $hrsReqStr = $rawReq < 1.0 ? round($rawReq * 60) . " mins (" . round($rawReq, 1) . "h)" : round($rawReq, 1) . "h";
+        $hrsCompStr = round($rawComp, 1) . "h";
+        $hrsRemStr = $rawRem < 1.0 && $rawRem > 0 ? round($rawRem * 60) . " mins (" . round($rawRem, 1) . "h)" : round($rawRem, 1) . "h";
+        
         $isClockedIn = (int)($csReq['active_session_count'] ?? 0) > 0 ? "YES (Clocked In)" : "NO";
-        $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsComp}h / {$hrsReq}h completed, {$hrsRem}h remaining | Clocked In: {$isClockedIn})";
+        $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsCompStr} / {$hrsReqStr} completed, {$hrsRemStr} remaining | Clocked In: {$isClockedIn})";
     }
 
     // ── Detailed Prior Cases & Categories Breakdown for AI Assistant ──────────
