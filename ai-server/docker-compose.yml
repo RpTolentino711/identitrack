@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  ai-server:
+    build: .
+    container_name: identitrack-ai-server
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - API_KEY=identitrack_production_secret_key_2026
+      - AI_PROVIDER=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
