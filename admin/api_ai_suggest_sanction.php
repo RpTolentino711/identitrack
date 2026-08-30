@@ -574,24 +574,42 @@ try {
         $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsCompStr} / {$hrsReqStr} completed — {$sessionText} | Clocked In: {$isClockedIn})";
     }
 
-    // ── Detailed Prior Cases & Categories Breakdown for AI Assistant ──────────
+    // ── Current Hearing Offenses attached to this Case ID ─────────────────────
+    $currentCaseOffenses = db_all("
+        SELECT DISTINCT ot.name AS offense_name, ot.level AS offense_level
+        FROM upcc_case_offense uco
+        JOIN offense o ON o.offense_id = uco.offense_id
+        JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+        WHERE uco.case_id = :cid
+    ", [':cid' => $caseId]);
+
+    $currentOffensesText = $offenseName;
+    if (!empty($currentCaseOffenses)) {
+        $cLines = [];
+        foreach ($currentCaseOffenses as $co) {
+            $cLines[] = "  • {$co['offense_name']} ({$co['offense_level']})";
+        }
+        $currentOffensesText = implode("\n", $cLines);
+    }
+
+    // ── Detailed Prior Resolved Cases Breakdown for AI Assistant ──────────────
     $priorCasesWithCat = db_all("
         SELECT c.case_id, c.decided_category, c.status, c.created_at, ot.name AS offense_name, ot.level AS offense_level
         FROM upcc_case c
         LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
         LEFT JOIN offense o ON o.offense_id = uco.offense_id
         LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-        WHERE c.student_id = :sid AND c.case_id != :cid
+        WHERE c.student_id = :sid AND c.case_id != :cid AND c.status IN ('RESOLVED', 'CLOSED', 'DECIDED')
         ORDER BY c.case_id DESC
     ", [':sid' => $targetStudentId, ':cid' => $caseId]);
 
-    $priorCasesBreakdownText = "No prior UPCC cases on file for {$studentName}.";
+    $priorCasesBreakdownText = "No prior resolved UPCC cases on file for {$studentName}.";
     if (!empty($priorCasesWithCat)) {
         $lines = [];
         foreach ($priorCasesWithCat as $pc) {
-            $catStr = !empty($pc['decided_category']) ? "Category {$pc['decided_category']}" : "No Category Assigned";
+            $catStr = !empty($pc['decided_category']) ? "Category {$pc['decided_category']}" : "Decided";
             $offName = !empty($pc['offense_name']) ? $pc['offense_name'] : "Disciplinary Offense";
-            $lines[] = "  • Case #{$pc['case_id']} (Committed by {$studentName}): {$offName} — Decided Sanction: {$catStr} [Status: {$pc['status']}]";
+            $lines[] = "  • Case #{$pc['case_id']}: {$offName} — {$catStr} [{$pc['status']}]";
         }
         $priorCasesBreakdownText = implode("\n", $lines);
     }
@@ -756,9 +774,9 @@ try {
 
         $userPrompt = "ACTIVE HEARING CASE DATA:\n"
             . "• Student Name: {$studentName} (ID: {$targetStudentId})\n"
-            . "• Offense Charged: {$offenseName} (Level: {$offenseLevel}, Instance #{$instanceCount})\n"
+            . "• Current Hearing Case (#{$caseId}) Offenses:\n{$currentOffensesText}\n"
             . "• Total Major Offenses: {$totalMajorCount}\n"
-            . "• Total Prior Cases: {$totalPrior}\n"
+            . "• Total Prior Resolved Cases: {$totalPrior}\n"
             . "• Prior Cases & Categories Breakdown:\n{$priorCasesBreakdownText}\n"
             . "• Community Service Status: {$csStatusText}\n"
             . "• Precedent Record for this Offense:\n{$precedentContext}"
