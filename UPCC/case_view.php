@@ -3301,29 +3301,39 @@ async function runAiAnalysis() {
     const insufBox = document.getElementById('ai-insufficient-state');
     const confBox = document.getElementById('ai-conflict-state');
 
+    const dInitBox = document.getElementById('ai-drawer-initial-state');
+    const dLoadBox = document.getElementById('ai-drawer-loading-state');
+    const dResBox = document.getElementById('ai-drawer-result-card');
+    const dInsufBox = document.getElementById('ai-drawer-insufficient-state');
+    const dConfBox = document.getElementById('ai-drawer-conflict-state');
+
     if (initBox) initBox.style.display = 'none';
     if (resBox) resBox.style.display = 'none';
     if (insufBox) insufBox.style.display = 'none';
     if (confBox) confBox.style.display = 'none';
     if (loadBox) loadBox.style.display = 'block';
 
+    if (dInitBox) dInitBox.style.display = 'none';
+    if (dResBox) dResBox.style.display = 'none';
+    if (dInsufBox) dInsufBox.style.display = 'none';
+    if (dConfBox) dConfBox.style.display = 'none';
+    if (dLoadBox) dLoadBox.style.display = 'block';
+
     const steps = [
-        { id: 'step-1', text: '✓ Reviewing case information' },
-        { id: 'step-2', text: '✓ Checking verified historical cases' },
-        { id: 'step-3', text: '● Comparing similar cases' },
-        { id: 'step-4', text: '○ Checking handbook compatibility' },
-        { id: 'step-5', text: '○ Preparing recommendation' }
+        { id: 'step-1', dId: 'drawer-step-1', text: '✓ Reviewing case information' },
+        { id: 'step-2', dId: 'drawer-step-2', text: '✓ Checking verified historical cases' },
+        { id: 'step-3', dId: 'drawer-step-3', text: '● Comparing similar cases' },
+        { id: 'step-4', dId: 'drawer-step-4', text: '○ Checking handbook compatibility' },
+        { id: 'step-5', dId: 'drawer-step-5', text: '○ Preparing recommendation' }
     ];
 
     let stepIdx = 0;
     const interval = setInterval(() => {
         if (stepIdx < steps.length) {
             const el = document.getElementById(steps[stepIdx].id);
-            if (el) {
-                el.innerHTML = steps[stepIdx].text;
-                el.style.color = '#f8fafc';
-                el.style.fontWeight = '600';
-            }
+            const dEl = document.getElementById(steps[stepIdx].dId);
+            if (el) { el.innerHTML = steps[stepIdx].text; el.style.color = '#f8fafc'; el.style.fontWeight = '600'; }
+            if (dEl) { dEl.innerHTML = steps[stepIdx].text; dEl.style.color = '#f8fafc'; dEl.style.fontWeight = '600'; }
             stepIdx++;
         } else {
             clearInterval(interval);
@@ -3338,18 +3348,22 @@ async function runAiAnalysis() {
 
         clearInterval(interval);
         if (loadBox) loadBox.style.display = 'none';
+        if (dLoadBox) dLoadBox.style.display = 'none';
 
         if (!data || !data.ok) {
             if (insufBox) insufBox.style.display = 'block';
+            if (dInsufBox) dInsufBox.style.display = 'block';
             return;
         }
 
         if (data.status === 'insufficient_evidence') {
             if (insufBox) insufBox.style.display = 'block';
+            if (dInsufBox) dInsufBox.style.display = 'block';
             return;
         }
         if (data.status === 'handbook_conflict') {
             if (confBox) confBox.style.display = 'block';
+            if (dConfBox) dConfBox.style.display = 'block';
             return;
         }
 
@@ -3359,32 +3373,51 @@ async function runAiAnalysis() {
         const confPct = document.getElementById('ai-confidence-pct');
         const modVer = document.getElementById('ai-model-ver');
 
-        if (recTitle) recTitle.textContent = data.suggested_category_label || `CATEGORY ${data.suggested_category}`;
-        if (evCnt) evCnt.textContent = `${data.similar_cases || 8} similar verified cases`;
-        
+        const dRecTitle = document.getElementById('drawer-ai-rec-title');
+        const dEvCnt = document.getElementById('drawer-ai-evidence-cnt');
+        const dPatStr = document.getElementById('drawer-ai-pattern-str');
+        const dConfPct = document.getElementById('drawer-ai-confidence-pct');
+
+        const recLabel = data.suggested_category_label || `CATEGORY ${data.suggested_category}`;
+        if (recTitle) recTitle.textContent = recLabel;
+        if (dRecTitle) dRecTitle.textContent = recLabel;
+
+        const evLabel = `${data.similar_cases || 8} similar verified cases`;
+        if (evCnt) evCnt.textContent = evLabel;
+        if (dEvCnt) dEvCnt.textContent = evLabel;
+
         const mostCommon = data.most_common_historical || `Category ${data.suggested_category}`;
-        if (patStr) patStr.textContent = `${data.similar_cases || 8} similar cases → ${mostCommon}`;
-        
-        const confVal = Math.round((data.confidence || 0.78) * 100);
-        if (confPct) confPct.textContent = `${confVal}%`;
+        const patLabel = `${data.similar_cases || 8} similar cases → ${mostCommon}`;
+        if (patStr) patStr.textContent = patLabel;
+        if (dPatStr) dPatStr.textContent = patLabel;
+
+        const confVal = Math.round((data.confidence || 0.78) * 100) + '%';
+        if (confPct) confPct.textContent = confVal;
+        if (dConfPct) dConfPct.textContent = confVal;
+
         if (modVer) modVer.textContent = data.model_version || 'UPCC-RF-v1.0';
 
         const distTable = document.getElementById('ai-hist-dist-table');
-        if (distTable && data.historical_distribution) {
-            let html = '<div style="display:flex;gap:12px;flex-wrap:wrap;">';
+        const dDistTable = document.getElementById('drawer-ai-hist-dist-table');
+        if (data.historical_distribution) {
+            let html = '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
             for (const [cat, cnt] of Object.entries(data.historical_distribution)) {
-                html += `<div style="background:rgba(30,41,59,0.9);border:1px solid rgba(255,255,255,0.15);padding:6px 12px;border-radius:8px;font-weight:600;color:#f8fafc;">${escHtml(cat)}: <span style="color:#38bdf8;">${cnt} case(s)</span></div>`;
+                html += `<div style="background:rgba(30,41,59,0.9);border:1px solid rgba(255,255,255,0.15);padding:5px 10px;border-radius:8px;font-weight:600;color:#f8fafc;">${escHtml(cat)}: <span style="color:#38bdf8;">${cnt}</span></div>`;
             }
             html += '</div>';
-            distTable.innerHTML = html;
+            if (distTable) distTable.innerHTML = html;
+            if (dDistTable) dDistTable.innerHTML = html;
         }
 
         if (resBox) resBox.style.display = 'block';
+        if (dResBox) dResBox.style.display = 'block';
 
     } catch (err) {
         clearInterval(interval);
         if (loadBox) loadBox.style.display = 'none';
+        if (dLoadBox) dLoadBox.style.display = 'none';
         if (insufBox) insufBox.style.display = 'block';
+        if (dInsufBox) dInsufBox.style.display = 'block';
     }
 }
 
@@ -3437,7 +3470,201 @@ function closeHandbookModal() {
     const modal = document.getElementById('handbookBasisModal');
     if (modal) modal.style.display = 'none';
 }
+
+let isAiDrawerOpen = false;
+function toggleAiDrawer(forceState) {
+    const drawer = document.getElementById('aiChatDrawer');
+    const bubble = document.getElementById('aiFloatingBubble');
+    if (!drawer) return;
+    
+    if (typeof forceState === 'boolean') {
+        isAiDrawerOpen = forceState;
+    } else {
+        isAiDrawerOpen = !isAiDrawerOpen;
+    }
+
+    if (isAiDrawerOpen) {
+        drawer.style.transform = 'translateY(0)';
+        drawer.style.opacity = '1';
+        drawer.style.visibility = 'visible';
+        drawer.style.pointerEvents = 'auto';
+        if (bubble) bubble.style.display = 'none';
+    } else {
+        drawer.style.transform = 'translateY(120%)';
+        drawer.style.opacity = '0';
+        drawer.style.visibility = 'hidden';
+        drawer.style.pointerEvents = 'none';
+        if (bubble) bubble.style.display = 'flex';
+    }
+}
+
+function toggleDrawerWhyPanel() {
+    const p = document.getElementById('ai-drawer-why-panel');
+    if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
 </script>
+
+<!-- FLOATING AI ASSISTANT BUBBLE (Bottom-Right) -->
+<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:100005;cursor:pointer;display:flex;align-items:center;gap:12px;background:rgba(15, 23, 42, 0.92);backdrop-filter:blur(14px);color:#fff;padding:12px 22px;border-radius:50px;box-shadow:0 12px 35px rgba(2, 132, 199, 0.4);border:1px solid rgba(56, 189, 248, 0.5);font-family:var(--font);font-weight:700;font-size:14px;letter-spacing:0.3px;transition:all .3s cubic-bezier(0.16, 1, 0.3, 1);" onmouseover="this.style.transform='translateY(-4px) scale(1.03)';this.style.borderColor='rgba(56, 189, 248, 0.9)';" onmouseout="this.style.transform='translateY(0) scale(1)';this.style.borderColor='rgba(56, 189, 248, 0.5)';">
+  <div style="position:relative;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 14px rgba(14,165,233,0.7);">
+    ✨
+    <span style="position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-radius:50%;background:#10b981;border:2px solid #0f172a;"></span>
+  </div>
+  <span>IdentiTrack AI</span>
+</div>
+
+<!-- SLIDE-UP FLOATING GLASS DRAWER -->
+<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:420px;height:620px;max-height:88vh;background:rgba(9, 14, 26, 0.96);backdrop-filter:blur(24px);border:1px solid rgba(56, 189, 248, 0.35);border-radius:24px;box-shadow:0 25px 60px rgba(0,0,0,0.8), 0 0 40px rgba(14, 165, 233, 0.2);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%);opacity:0;visibility:hidden;pointer-events:none;transition:transform .4s cubic-bezier(0.16, 1, 0.3, 1), opacity .3s, visibility .3s;box-sizing:border-box;">
+  
+  <!-- DRAWER HEADER -->
+  <div style="background:rgba(15, 23, 42, 0.95);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 15px rgba(14,165,233,0.4);">
+        ✨
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:14px;color:#f8fafc;letter-spacing:0.2px;">IdentiTrack AI</div>
+        <div style="font-size:11px;color:#38bdf8;display:flex;align-items:center;gap:5px;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span> Hearing Advisory Assistant
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <button onclick="toggleAiDrawer(false)" title="Close" style="background:rgba(255,255,255,0.05);border:none;color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)';this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8';">✕</button>
+    </div>
+  </div>
+
+  <!-- DRAWER CONTENT (DECISION SUPPORT ASSISTANT) -->
+  <div style="flex:1;padding:18px;overflow-y:auto;">
+    <!-- INITIAL STATE -->
+    <div id="ai-drawer-initial-state" style="text-align: center; padding: 1.5rem 0.5rem;">
+      <div style="font-size: 2.4rem; margin-bottom: 0.75rem;">🤖</div>
+      <h4 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; font-weight: 700; color: #f8fafc;">Ready to analyze this case</h4>
+      <p style="margin: 0 auto 1.5rem auto; font-size: 0.85rem; color: #94a3b8; line-height: 1.5;">
+        The AI will compare this case against 2,295 verified historical UPCC cases and handbook rules to generate an advisory recommendation.
+      </p>
+      <button type="button" class="btn btn-primary" onclick="runAiAnalysis()" style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; border-radius: 12px; padding: 0.75rem 2rem; font-size: 0.9rem; font-weight: 700; color: #fff; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4); transition: all 0.2s;">
+        ✦ SUGGEST
+      </button>
+      <div style="font-size: 0.73rem; color: #64748b; margin-top: 1rem; font-weight: 500;">
+        Advisory only. Final authority remains with the UPCC Panel.
+      </div>
+    </div>
+
+    <!-- LOADING STATE -->
+    <div id="ai-drawer-loading-state" style="display: none; padding: 1.5rem 0.5rem;">
+      <div style="font-weight: 700; font-size: 0.95rem; color: #f8fafc; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px;">
+        <span class="spinner-sm" style="width: 18px; height: 18px; border: 3px solid #64748b; border-top-color: #38bdf8; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite;"></span>
+        Analyzing case...
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.83rem;">
+        <div id="drawer-step-1" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Reviewing case information</div>
+        <div id="drawer-step-2" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Checking verified historical cases</div>
+        <div id="drawer-step-3" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Comparing similar cases</div>
+        <div id="drawer-step-4" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Checking handbook compatibility</div>
+        <div id="drawer-step-5" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Preparing recommendation</div>
+      </div>
+    </div>
+
+    <!-- RESULT SUCCESS CARD -->
+    <div id="ai-drawer-result-card" style="display: none;">
+      <div style="border-left: 4px solid #38bdf8; background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; border: 1px solid rgba(255,255,255,0.08);">
+        <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 4px;">AI Suggested Intervention</div>
+        <div style="font-size: 1.8rem; font-weight: 800; color: #38bdf8; margin-bottom: 1rem;" id="drawer-ai-rec-title">CATEGORY 2</div>
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 1rem;">
+          <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
+            <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Historical Evidence</span>
+            <strong style="font-size: 0.85rem; color: #f8fafc;" id="drawer-ai-evidence-cnt">8 similar verified cases</strong>
+          </div>
+          <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
+            <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Historical Pattern</span>
+            <strong style="font-size: 0.85rem; color: #f8fafc;" id="drawer-ai-pattern-str">6 of 8 cases → Category 2</strong>
+          </div>
+          <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
+            <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Confidence</span>
+            <strong style="font-size: 0.85rem; color: #38bdf8;" id="drawer-ai-confidence-pct">78%</strong>
+          </div>
+          <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
+            <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Version</span>
+            <strong style="font-size: 0.8rem; color: #cbd5e1;">UPCC-RF-v1.0</strong>
+          </div>
+        </div>
+
+        <div style="font-size: 0.73rem; color: #94a3b8; line-height: 1.4; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 8px 12px;">
+          ℹ️ <em>This value represents model confidence based on pattern similarity, not absolute certainty. The UPCC Panel retains complete authority over the final decision.</em>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <button type="button" class="btn btn-secondary" onclick="toggleDrawerWhyPanel()" style="background: rgba(255,255,255,0.1); color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 700; font-size: 0.85rem; cursor: pointer;">
+          [ WHY? ]
+        </button>
+        <span style="font-size: 0.73rem; color: #64748b; font-weight: 500;">Advisory only. Panel makes final decision.</span>
+      </div>
+
+      <!-- WHY PANEL EXPANDABLE DRAWER -->
+      <div id="ai-drawer-why-panel" style="display: none; margin-top: 1.25rem; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 1.25rem;">
+        <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; font-weight: 700; color: #f8fafc; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
+          WHY THIS WAS SUGGESTED
+        </h4>
+        <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 1rem;">
+          The AI identified similar verified cases with matching offense attributes and handbook classification.
+        </p>
+
+        <!-- HISTORICAL BREAKDOWN TABLE -->
+        <div style="margin-bottom: 1.25rem;">
+          <div style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin-bottom: 6px;">HISTORICAL EVIDENCE DISTRIBUTION</div>
+          <div id="drawer-ai-hist-dist-table" style="background: rgba(30,41,59,0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 14px; font-size: 0.82rem;">
+          </div>
+        </div>
+
+        <!-- BUTTONS FOR SIMILAR CASES & HANDBOOK BASIS -->
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1rem;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="openSimilarCasesModal()" style="border: 1px solid #38bdf8; color: #38bdf8; font-weight: 600; font-size: 0.8rem; border-radius: 8px; padding: 6px 14px; background: transparent; cursor: pointer;">
+            [ VIEW SIMILAR CASES ]
+          </button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="openHandbookModal()" style="border: 1px solid #94a3b8; color: #94a3b8; font-weight: 600; font-size: 0.8rem; border-radius: 8px; padding: 6px 14px; background: transparent; cursor: pointer;">
+            [ VIEW HANDBOOK BASIS ]
+          </button>
+        </div>
+
+        <!-- MODEL INFORMATION -->
+        <div style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px 14px; font-size: 0.75rem; color: #94a3b8; line-height: 1.5;">
+          <strong>MODEL DETAILS:</strong><br>
+          • Model Version: UPCC-RF-v1.0<br>
+          • Training Dataset: UPCC-DATA-v1.0 (2,295 verified cases)<br>
+          • Minimum Similarity Threshold: 70% | Required Similar Cases: 3
+        </div>
+      </div>
+    </div>
+
+    <!-- INSUFFICIENT EVIDENCE STATE -->
+    <div id="ai-drawer-insufficient-state" style="display: none; text-align: center; padding: 1rem 0.5rem;">
+      <div style="font-size: 2.2rem; margin-bottom: 0.75rem;">⚠️</div>
+      <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 700; color: #f87171;">INSUFFICIENT HISTORICAL EVIDENCE</h4>
+      <p style="margin: 0 auto 1.25rem auto; font-size: 0.85rem; color: #fca5a5; line-height: 1.5;">
+        The system could not find enough sufficiently similar verified UPCC cases to provide a reliable recommendation.
+      </p>
+      <button type="button" class="btn btn-secondary" onclick="openHandbookModal()" style="border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+        [ VIEW HANDBOOK BASIS ]
+      </button>
+    </div>
+
+    <!-- HANDBOOK CONFLICT STATE -->
+    <div id="ai-drawer-conflict-state" style="display: none; text-align: center; padding: 1rem 0.5rem;">
+      <div style="font-size: 2.2rem; margin-bottom: 0.75rem;">🚫</div>
+      <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 700; color: #f87171;">HANDBOOK RULE CONFLICT</h4>
+      <p style="margin: 0 auto 1.25rem auto; font-size: 0.85rem; color: #fca5a5; line-height: 1.5;">
+        The model recommendation conflicts with Student Handbook rules. Recommendation withheld.
+      </p>
+      <button type="button" class="btn btn-secondary" onclick="openHandbookModal()" style="border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+        [ VIEW HANDBOOK ]
+      </button>
+    </div>
+
+  </div>
+</div>
 
 <!-- MODAL: Anonymized Similar Historical Cases -->
 <div id="similarCasesModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
