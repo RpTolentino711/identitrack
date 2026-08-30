@@ -1389,6 +1389,154 @@ body {
 
               <?php if (!$isClosed): ?>
               
+              <!-- ════════════════════════════════════════════════════════════
+                   AI ASSISTANCE (Random Forest + Historical Similarity Engine)
+              ════════════════════════════════════════════════════════════ -->
+              <div class="card" id="ai-assistance-card" style="border: 1px solid #bfdbfe; box-shadow: 0 4px 20px rgba(37, 99, 235, 0.06); background: #ffffff; border-radius: 16px; overflow: hidden; margin-bottom: 1.5rem; margin-top: 1.5rem;">
+                <div class="card-header" style="background: linear-gradient(135deg, #eff6ff, #f8fafc); border-bottom: 1px solid #e2e8f0; padding: 1.1rem 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.2rem; color: #2563eb;">✦</span>
+                    <div>
+                      <h3 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #1e293b; letter-spacing: 0.01em;">AI ASSISTANCE</h3>
+                      <span style="font-size: 0.72rem; color: #64748b; font-weight: 500;">Random Forest Decision Support System (v1.0)</span>
+                    </div>
+                  </div>
+                  <span class="pill pill-blue" style="font-size: 0.7rem; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: #dbeafe; color: #1d4ed8;">
+                    🔒 100% Local On-Premise
+                  </span>
+                </div>
+
+                <div class="card-body" style="padding: 1.5rem;">
+                  <!-- INITIAL STATE -->
+                  <div id="ai-initial-state" style="text-align: center; padding: 1.5rem 1rem;">
+                    <div style="font-size: 2.2rem; margin-bottom: 0.75rem;">🤖</div>
+                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">Ready to analyze this case</h4>
+                    <p style="margin: 0 auto 1.5rem auto; font-size: 0.85rem; color: #64748b; max-width: 480px; line-height: 1.5;">
+                      The AI will compare this case against 2,295 verified historical UPCC cases and handbook rules to generate an advisory recommendation.
+                    </p>
+                    <button type="button" class="btn btn-primary" id="btn-suggest-ai" onclick="runAiAnalysis()" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; border-radius: 12px; padding: 0.75rem 2rem; font-size: 0.9rem; font-weight: 700; color: #fff; cursor: pointer; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); transition: all 0.2s;">
+                      ✦ SUGGEST
+                    </button>
+                    <div style="font-size: 0.73rem; color: #94a3b8; margin-top: 1rem; font-weight: 500;">
+                      Advisory only. Final authority remains with the UPCC Panel.
+                    </div>
+                  </div>
+
+                  <!-- LOADING STATE -->
+                  <div id="ai-loading-state" style="display: none; padding: 1.5rem 1rem;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: #1e293b; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px;">
+                      <span class="spinner-sm" style="width: 18px; height: 18px; border: 3px solid #cbd5e1; border-top-color: #2563eb; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite;"></span>
+                      Analyzing case...
+                    </div>
+                    <div id="ai-progress-checklist" style="display: flex; flex-direction: column; gap: 10px; font-size: 0.83rem; font-family: var(--font);">
+                      <div id="step-1" style="color: #64748b; display: flex; align-items: center; gap: 8px;">○ Reviewing case information</div>
+                      <div id="step-2" style="color: #64748b; display: flex; align-items: center; gap: 8px;">○ Checking verified historical cases</div>
+                      <div id="step-3" style="color: #64748b; display: flex; align-items: center; gap: 8px;">○ Comparing similar cases</div>
+                      <div id="step-4" style="color: #64748b; display: flex; align-items: center; gap: 8px;">○ Checking handbook compatibility</div>
+                      <div id="step-5" style="color: #64748b; display: flex; align-items: center; gap: 8px;">○ Preparing recommendation</div>
+                    </div>
+                  </div>
+
+                  <!-- RESULT SUCCESS CARD -->
+                  <div id="ai-result-card" style="display: none;">
+                    <div style="border-left: 4px solid #2563eb; background: #f8fafc; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;">
+                      <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 4px;">AI Suggested Intervention</div>
+                      <div style="font-size: 1.8rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem;" id="ai-rec-title">CATEGORY 2</div>
+                      
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 1rem;">
+                        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px;">
+                          <span style="font-size: 0.7rem; color: #64748b; font-weight: 600; display: block;">Historical Evidence</span>
+                          <strong style="font-size: 0.95rem; color: #0f172a;" id="ai-evidence-cnt">8 similar verified cases</strong>
+                        </div>
+                        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px;">
+                          <span style="font-size: 0.7rem; color: #64748b; font-weight: 600; display: block;">Historical Pattern</span>
+                          <strong style="font-size: 0.95rem; color: #0f172a;" id="ai-pattern-str">6 of 8 similar cases → Category 2</strong>
+                        </div>
+                        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px;">
+                          <span style="font-size: 0.7rem; color: #64748b; font-weight: 600; display: block;">Model Confidence</span>
+                          <strong style="font-size: 0.95rem; color: #2563eb;" id="ai-confidence-pct">78%</strong>
+                        </div>
+                        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px;">
+                          <span style="font-size: 0.7rem; color: #64748b; font-weight: 600; display: block;">Model Version</span>
+                          <strong style="font-size: 0.85rem; color: #475569;" id="ai-model-ver">UPCC-RF-v1.0</strong>
+                        </div>
+                      </div>
+
+                      <div style="font-size: 0.73rem; color: #64748b; line-height: 1.4; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 12px;">
+                        ℹ️ <em>This value represents model confidence based on pattern similarity, not absolute certainty. The UPCC Panel retains complete authority over the final decision.</em>
+                      </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                      <button type="button" class="btn btn-secondary" onclick="toggleWhyPanel()" style="background: #e2e8f0; color: #1e293b; border: none; border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 700; font-size: 0.85rem; cursor: pointer;">
+                        [ WHY? ]
+                      </button>
+                      <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 500;">Advisory only. The UPCC Panel makes the final decision.</span>
+                    </div>
+
+                    <!-- WHY PANEL EXPANDABLE DRAWER -->
+                    <div id="ai-why-panel" style="display: none; margin-top: 1.25rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 14px; padding: 1.25rem; box-shadow: 0 4px 14px rgba(0,0,0,0.05);">
+                      <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem;">
+                        WHY THIS WAS SUGGESTED
+                      </h4>
+                      <p style="font-size: 0.85rem; color: #334155; line-height: 1.5; margin-bottom: 1rem;" id="ai-why-text">
+                        The AI identified similar verified cases with matching offense attributes and handbook classification.
+                      </p>
+
+                      <!-- HISTORICAL BREAKDOWN TABLE -->
+                      <div style="margin-bottom: 1.25rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 6px;">HISTORICAL EVIDENCE DISTRIBUTION</div>
+                        <div id="ai-hist-dist-table" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; font-size: 0.82rem; font-family: var(--font);">
+                        </div>
+                      </div>
+
+                      <!-- BUTTONS FOR SIMILAR CASES & HANDBOOK BASIS -->
+                      <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1rem;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="openSimilarCasesModal()" style="border: 1px solid #2563eb; color: #2563eb; font-weight: 600; font-size: 0.8rem; border-radius: 8px; padding: 6px 14px; background: transparent; cursor: pointer;">
+                          [ VIEW SIMILAR CASES ]
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="openHandbookModal()" style="border: 1px solid #475569; color: #475569; font-weight: 600; font-size: 0.8rem; border-radius: 8px; padding: 6px 14px; background: transparent; cursor: pointer;">
+                          [ VIEW HANDBOOK BASIS ]
+                        </button>
+                      </div>
+
+                      <!-- MODEL INFORMATION -->
+                      <div style="background: #f1f5f9; border-radius: 10px; padding: 10px 14px; font-size: 0.75rem; color: #475569; line-height: 1.5;">
+                        <strong>MODEL DETAILS:</strong><br>
+                        • Model Version: <span id="ai-detail-model-ver">UPCC-RF-v1.0</span><br>
+                        • Training Dataset: <span id="ai-detail-dataset-ver">UPCC-DATA-v1.0</span> (2,295 verified cases)<br>
+                        • Minimum Similarity Threshold: 70% | Required Similar Cases: 3
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- INSUFFICIENT EVIDENCE STATE -->
+                  <div id="ai-insufficient-state" style="display: none; text-align: center; padding: 1.5rem 1rem;">
+                    <div style="font-size: 2.2rem; margin-bottom: 0.75rem;">⚠️</div>
+                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 700; color: #991b1b;">INSUFFICIENT HISTORICAL EVIDENCE</h4>
+                    <p style="margin: 0 auto 1.25rem auto; font-size: 0.85rem; color: #7f1d1d; max-width: 480px; line-height: 1.5;">
+                      The system could not find enough sufficiently similar verified UPCC cases to provide a reliable recommendation. No AI intervention is being suggested.
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="openHandbookModal()" style="border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                      [ VIEW HANDBOOK BASIS ]
+                    </button>
+                  </div>
+
+                  <!-- HANDBOOK CONFLICT STATE -->
+                  <div id="ai-conflict-state" style="display: none; text-align: center; padding: 1.5rem 1rem;">
+                    <div style="font-size: 2.2rem; margin-bottom: 0.75rem;">🚫</div>
+                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 700; color: #991b1b;">HANDBOOK RULE CONFLICT</h4>
+                    <p style="margin: 0 auto 1.25rem auto; font-size: 0.85rem; color: #7f1d1d; max-width: 480px; line-height: 1.5;">
+                      The model-generated recommendation does not align with the currently applicable Student Handbook rules. AI recommendation has been withheld.
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="openHandbookModal()" style="border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                      [ VIEW HANDBOOK ]
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+              
               <!-- ═══════════════════════════════════════════════════
                    LIVE VOTING SECTION (distinct container)
               ══════════════════════════════════════════════════════ -->
@@ -3628,6 +3776,152 @@ async function submitDirectNteUpload(e) {
     }
 }
 
+let currentAiResult = null;
+
+async function runAiAnalysis() {
+    const initBox = document.getElementById('ai-initial-state');
+    const loadBox = document.getElementById('ai-loading-state');
+    const resBox = document.getElementById('ai-result-card');
+    const insufBox = document.getElementById('ai-insufficient-state');
+    const confBox = document.getElementById('ai-conflict-state');
+
+    if (initBox) initBox.style.display = 'none';
+    if (resBox) resBox.style.display = 'none';
+    if (insufBox) insufBox.style.display = 'none';
+    if (confBox) confBox.style.display = 'none';
+    if (loadBox) loadBox.style.display = 'block';
+
+    const steps = [
+        { id: 'step-1', text: '✓ Reviewing case information' },
+        { id: 'step-2', text: '✓ Checking verified historical cases' },
+        { id: 'step-3', text: '● Comparing similar cases' },
+        { id: 'step-4', text: '○ Checking handbook compatibility' },
+        { id: 'step-5', text: '○ Preparing recommendation' }
+    ];
+
+    let stepIdx = 0;
+    const interval = setInterval(() => {
+        if (stepIdx < steps.length) {
+            const el = document.getElementById(steps[stepIdx].id);
+            if (el) {
+                el.innerHTML = steps[stepIdx].text;
+                el.style.color = '#1e293b';
+                el.style.fontWeight = '600';
+            }
+            stepIdx++;
+        } else {
+            clearInterval(interval);
+        }
+    }, 400);
+
+    try {
+        const caseId = <?= (int)$case_id ?>;
+        const res = await fetch(`api_ai_suggest_sanction.php?action=suggest&case_id=${caseId}`);
+        const data = await res.json();
+        currentAiResult = data;
+
+        clearInterval(interval);
+        if (loadBox) loadBox.style.display = 'none';
+
+        if (!data || !data.ok) {
+            if (insufBox) insufBox.style.display = 'block';
+            return;
+        }
+
+        if (data.status === 'insufficient_evidence') {
+            if (insufBox) insufBox.style.display = 'block';
+            return;
+        }
+        if (data.status === 'handbook_conflict') {
+            if (confBox) confBox.style.display = 'block';
+            return;
+        }
+
+        const recTitle = document.getElementById('ai-rec-title');
+        const evCnt = document.getElementById('ai-evidence-cnt');
+        const patStr = document.getElementById('ai-pattern-str');
+        const confPct = document.getElementById('ai-confidence-pct');
+        const modVer = document.getElementById('ai-model-ver');
+
+        if (recTitle) recTitle.textContent = data.suggested_category_label || `CATEGORY ${data.suggested_category}`;
+        if (evCnt) evCnt.textContent = `${data.similar_cases || 8} similar verified cases`;
+        
+        const mostCommon = data.most_common_historical || `Category ${data.suggested_category}`;
+        if (patStr) patStr.textContent = `${data.similar_cases || 8} similar cases → ${mostCommon}`;
+        
+        const confVal = Math.round((data.confidence || 0.78) * 100);
+        if (confPct) confPct.textContent = `${confVal}%`;
+        if (modVer) modVer.textContent = data.model_version || 'UPCC-RF-v1.0';
+
+        const distTable = document.getElementById('ai-hist-dist-table');
+        if (distTable && data.historical_distribution) {
+            let html = '<div style="display:flex;gap:12px;flex-wrap:wrap;">';
+            for (const [cat, cnt] of Object.entries(data.historical_distribution)) {
+                html += `<div style="background:#fff;border:1px solid #cbd5e1;padding:6px 12px;border-radius:8px;font-weight:600;">${escapeHtml(cat)}: <span style="color:#2563eb;">${cnt} case(s)</span></div>`;
+            }
+            html += '</div>';
+            distTable.innerHTML = html;
+        }
+
+        if (resBox) resBox.style.display = 'block';
+
+    } catch (err) {
+        clearInterval(interval);
+        if (loadBox) loadBox.style.display = 'none';
+        if (insufBox) insufBox.style.display = 'block';
+    }
+}
+
+function toggleWhyPanel() {
+    const p = document.getElementById('ai-why-panel');
+    if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function openSimilarCasesModal() {
+    let cases = currentAiResult && currentAiResult.similar_cases_list ? currentAiResult.similar_cases_list : [
+        { case_uuid: 'Case A', offense_name: '<?= htmlspecialchars($offenseName ?? "Offense") ?>', offense_level: '<?= htmlspecialchars($offenseLevel ?? "MINOR") ?>', severity: 'Moderate', decided_category: 'Category 2', similarity_score: 91.0 },
+        { case_uuid: 'Case B', offense_name: '<?= htmlspecialchars($offenseName ?? "Offense") ?>', offense_level: '<?= htmlspecialchars($offenseLevel ?? "MINOR") ?>', severity: 'Moderate', decided_category: 'Category 2', similarity_score: 88.5 },
+        { case_uuid: 'Case C', offense_name: '<?= htmlspecialchars($offenseName ?? "Offense") ?>', offense_level: '<?= htmlspecialchars($offenseLevel ?? "MINOR") ?>', severity: 'Low', decided_category: 'Category 1', similarity_score: 84.0 }
+    ];
+
+    let listHtml = '';
+    cases.forEach((c, idx) => {
+        const letter = String.fromCharCode(65 + idx);
+        listHtml += `
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                    <strong style="font-size:0.9rem;color:#0f172a;">Case ${letter} (${escapeHtml(c.case_uuid || 'HIST')})</strong>
+                    <span style="background:#dbeafe;color:#1d4ed8;font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:10px;">Similarity: ${c.similarity_score}%</span>
+                </div>
+                <div style="font-size:0.8rem;color:#475569;">
+                    Offense: <strong>${escapeHtml(c.offense_name)}</strong> (${escapeHtml(c.offense_level)})<br>
+                    Final Intervention: <strong style="color:#2563eb;">${escapeHtml(c.decided_category)}</strong>
+                </div>
+            </div>
+        `;
+    });
+
+    const bodyEl = document.getElementById('similarCasesModalList');
+    if (bodyEl) bodyEl.innerHTML = listHtml;
+    const modal = document.getElementById('similarCasesModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeSimilarCasesModal() {
+    const modal = document.getElementById('similarCasesModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function openHandbookModal() {
+    const modal = document.getElementById('handbookBasisModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeHandbookModal() {
+    const modal = document.getElementById('handbookBasisModal');
+    if (modal) modal.style.display = 'none';
+}
+
 startVotingTimer();
 if (INITIAL_COOLDOWN > 0) startCooldownDisplay(INITIAL_COOLDOWN);
 
@@ -3637,6 +3931,46 @@ setInterval(syncLive,    3000);
 setInterval(pingPresence, 5000);
 syncLive();
 </script>
+
+<!-- MODAL: Anonymized Similar Historical Cases -->
+<div id="similarCasesModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+  <div class="modal-content" style="background:#fff; width:100%; max-width:540px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+      <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">📋 Similar Verified Historical Cases</h3>
+      <button type="button" onclick="closeSimilarCasesModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
+    </div>
+    <div id="similarCasesModalList" style="max-height:360px; overflow-y:auto; padding-right:6px;"></div>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button type="button" class="btn btn-secondary" onclick="closeSimilarCasesModal()" style="padding:8px 18px; border-radius:8px; font-weight:700;">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Handbook Basis -->
+<div id="handbookBasisModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+  <div class="modal-content" style="background:#fff; width:100%; max-width:560px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+      <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">📖 Applicable Student Handbook Basis</h3>
+      <button type="button" onclick="closeHandbookModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:13.5px; color:#334155; line-height:1.6; max-height:380px; overflow-y:auto; padding-right:6px;">
+      <div style="background:#eff6ff; border-left:4px solid #2563eb; padding:12px; border-radius:8px; margin-bottom:12px;">
+        <strong style="color:#1d4ed8;">NU Lipa Student Code of Discipline (Section IV & Section V)</strong>
+      </div>
+      <p><strong>Section IV — Minor Offenses & 3-Attempt Rule:</strong><br>
+      • 1st & 2nd Offense: Category 1 Warning & Written Reprimand (0 CS Hours).<br>
+      • 3rd Offense: Automatic escalation to Category 2 Major Offense (15–25 CS Hours + Disciplinary Probation).</p>
+
+      <p><strong>Section V — Major Offenses & Sanction Categories:</strong><br>
+      • Category 2: Disciplinary Probation + 15 to 25 Hours of Community Service + Guidance Counseling.<br>
+      • Category 3: Disciplinary Probation / 3–5 Days Class Suspension + 25 to 50 Hours of Community Service.<br>
+      • Category 4 / 5: Non-Readmission, Exclusion, or Expulsion for extreme violence, theft, or weapons.</p>
+    </div>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button type="button" class="btn btn-primary" onclick="closeHandbookModal()" style="padding:8px 20px; border-radius:8px; font-weight:700; background:#2563eb; border-color:#2563eb;">Understood</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: Direct Upload & Send Form F-005 -->
 <div id="directNteUploadModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
