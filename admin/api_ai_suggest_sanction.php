@@ -359,11 +359,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
     // 6. COMMUNITY SERVICE HOURS & ATTENDANCE
     if (preg_match('/\b(community service|cs|hour|hours|clock|attend|session|requirement)\b/i', $promptLower)) {
         return $studentHeader
-             . "⏱️ **Community Service Hours Calculation Matrix**:\n\n"
+             . "⏱️ **Community Service Hours Calculation Matrix (Ground-Truth Policy)**:\n\n"
              . "• **Active Status for " . ($extractedName ?: "Student") . "**: " . ($extractedCS ?: "No ongoing service requirement on file.") . "\n\n"
-             . "• **Category 1 (Minor Initial Violation)**: 10 to 15 Hours of Community Service.\n"
-             . "• **Category 2 (Repeated / Major Offense)**: 15 to 25 Hours of Community Service.\n"
-             . "• **Category 3 (Severe / Repeat Major Offense)**: 25 to 50 Hours of Community Service.\n\n"
+             . "• **Category 1 (Minor Initial Violation)**: **0 Hours** (No University Service Required — Written Reprimand & Formative Counseling ONLY).\n"
+             . "• **Category 2 (Repeated / Major Offense)**: **15 to 25 Hours** of University Service.\n"
+             . "• **Category 3 (Severe / Repeat Major Offense)**: **25 to 50 Hours** of University Service.\n\n"
              . "💡 *IdentiTrack Tracking*: All service sessions are verified via photo check-in/check-out logs in the guard module.";
     }
 
@@ -371,9 +371,9 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
     if (preg_match('/\b(section 4|minor|escalat|3-attempt|three|repeat|count)\b/i', $promptLower)) {
         return $studentHeader
              . "📌 **Section 4 Minor Offense Escalation Policy**:\n\n"
-             . "• **1st Offense**: Written Reprimand & Category 1 Warning (10 Hours CS).\n"
-             . "• **2nd Offense**: Category 1 Sanction & 15 Hours CS.\n"
-             . "• **3rd Offense (3-Attempt Rule)**: **AUTOMATIC ESCALATION** — Accumulating 3 minor offenses converts the case into a **Category 2 Major Offense**.\n\n"
+             . "• **1st Offense**: Written Reprimand & Category 1 Warning (**0 Hours CS**).\n"
+             . "• **2nd Offense**: Category 1 Warning (**0 Hours CS**).\n"
+             . "• **3rd Offense (3-Attempt Rule)**: **AUTOMATIC ESCALATION** — Accumulating 3 minor offenses converts the case into a **Category 2 Major Offense** (**15–25 Hours CS**).\n\n"
              . "📋 *Panel Note*: " . ($extractedName ?: "The student") . " currently has " . ($extractedPriors !== '' ? "{$extractedPriors} prior recorded case(s)" : "0 prior records") . " on file.";
     }
 
@@ -384,15 +384,15 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
                  . "⚖️ **IdentiTrack AI Advisory Recommendation (Major Offense)**:\n\n"
                  . "• **Target Student**: " . ($extractedName ?: "Active Case Student") . "\n"
                  . "• **Recommended Category**: **Category 2 or Category 3 Sanction**.\n"
-                 . "• **Prescribed Actions**: Disciplinary Probation, 25–40 Hours of Community Service, and Formal Parental Notification.\n"
+                 . "• **Prescribed Actions**: Disciplinary Probation, 15–35 Hours of University Service, and Formal Parental Notification.\n"
                  . "• **Policy Basis**: NU Lipa Student Handbook Section 5 (Major Offenses Matrix).\n\n"
                  . "📋 *Committee Step*: Ensure all panel members submit their vote before majority consensus timer expires.";
         } else {
             return $studentHeader
                  . "⚖️ **IdentiTrack AI Advisory Recommendation (Minor Offense)**:\n\n"
                  . "• **Target Student**: " . ($extractedName ?: "Active Case Student") . "\n"
-                 . "• **Recommended Category**: **Category 1 Sanction** (or Category 2 if 2nd/3rd repeat offense).\n"
-                 . "• **Prescribed Actions**: Official Warning, 10–15 Hours of Community Service, and Guidance Counseling.\n"
+                 . "• **Recommended Category**: **Category 1 Warning (0 Hours CS)** — Escalates to **Category 2 (15–25 Hours CS)** on 3rd accumulated offense.\n"
+                 . "• **Prescribed Actions**: Official Reprimand, Guidance Counseling, and Handbook Compliance Orientation.\n"
                  . "• **Policy Basis**: NU Lipa Student Handbook Section 4 (Minor Offenses Matrix).\n\n"
                  . "📋 *Committee Step*: Check the 'Prior Resolved Cases' tab to verify prior offense frequency.";
         }
