@@ -121,13 +121,24 @@ class UPCCPredictor:
 
 if __name__ == "__main__":
     predictor = UPCCPredictor()
-    test_case = {
-        "case_id": "UPCC-2026-001",
-        "offense_name": "BRINGING IN VAPE",
-        "offense_level": "MAJOR",
-        "severity": "Moderate",
-        "previous_offenses_count": 1
-    }
-    res = predictor.predict_case(test_case)
-    print("Prediction Test Result:")
-    print(json.dumps(res, indent=2))
+    case_data = {}
+    if len(sys.argv) > 1:
+        arg = sys.argv[1]
+        if os.path.exists(arg):
+            with open(arg, 'r', encoding='utf-8') as f:
+                case_data = json.load(f)
+        else:
+            try:
+                case_data = json.loads(arg)
+            except Exception:
+                case_data = {}
+    if not case_data:
+        case_data = {
+            "case_id": "UPCC-2026-001",
+            "offense_name": "BRINGING IN VAPE",
+            "offense_level": "MAJOR",
+            "severity": "Moderate",
+            "previous_offenses_count": 1
+        }
+    res = predictor.predict_case(case_data)
+    print(json.dumps(res))
