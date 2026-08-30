@@ -276,6 +276,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
     $extractedCS = "";
     $extractedPriors = "";
 
+    $extractedBreakdown = "";
     if (preg_match('/Student Name:\s*(.*?)\s*\(ID:\s*(.*?)\)/i', $userPrompt, $m)) {
         $extractedName = trim($m[1]);
         $rawId = trim($m[2]);
@@ -290,11 +291,18 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
     if (preg_match('/Total Prior Cases:\s*(\d+)/i', $userPrompt, $m)) {
         $extractedPriors = trim($m[1]);
     }
+    if (preg_match('/Prior Cases & Categories Breakdown:\s*(.*?)\n\s*• Community Service Status:/s', $userPrompt, $m)) {
+        $rawBd = trim($m[1]);
+        if (strpos($rawBd, 'No prior UPCC cases') === false) {
+            $extractedBreakdown = $rawBd;
+        }
+    }
 
     if ($extractedName !== '' || $extractedOffense !== '') {
         $studentHeader = "👤 **Active Student File**: " . ($extractedName ?: 'Student') . ($extractedId ? " (ID: {$extractedId})" : "") . "\n"
                        . ($extractedOffense ? "📋 **Current Offense**: {$extractedOffense}\n" : "")
                        . ($extractedPriors !== '' ? "📊 **Prior Resolved Records**: {$extractedPriors} case(s)\n" : "")
+                       . ($extractedBreakdown !== '' ? "{$extractedBreakdown}\n" : "")
                        . ($extractedCS ? "⏱️ **Community Service Log**: {$extractedCS}\n" : "")
                        . "──────────────\n\n";
     }
