@@ -3265,7 +3265,32 @@ startVotingTimer();
 setInterval(syncLive,    3000);   // poll every 3 seconds
 setInterval(pingPresence, 5000);  // ping presence every 5 seconds
 syncLive(); // immediate first call
-</script>
+
+function switchBreakdownTab(tabName, btn) {
+    document.querySelectorAll('.breakdown-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.case-breakdown-tabs .btn-tab').forEach(b => {
+        b.style.background = 'rgba(255, 255, 255, 0.05)';
+        b.style.color = 'var(--text-muted)';
+        b.style.borderColor = 'var(--border-glass)';
+    });
+
+    const target = document.getElementById('tab-' + tabName);
+    if (target) target.style.display = 'block';
+
+    if (tabName === 'current-offenses') {
+        btn.style.background = 'rgba(59, 130, 246, 0.2)';
+        btn.style.color = '#93c5fd';
+        btn.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+    } else if (tabName === 'prior-resolved') {
+        btn.style.background = 'rgba(16, 185, 129, 0.2)';
+        btn.style.color = '#6ee7b7';
+        btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+    } else if (tabName === 'other-pending') {
+        btn.style.background = 'rgba(245, 158, 11, 0.2)';
+        btn.style.color = '#fcd34d';
+        btn.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+    }
+}
 
 let currentAiResult = null;
 
@@ -3455,32 +3480,3 @@ function closeHandbookModal() {
 </div>
 </body>
 </html>
-
-  function switchBreakdownTab(tabName, btn) {
-      document.querySelectorAll('.breakdown-tab-content').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('.case-breakdown-tabs .btn-tab').forEach(b => {
-          b.style.background = 'rgba(255, 255, 255, 0.05)';
-          b.style.color = 'var(--text-muted)';
-          b.style.borderColor = 'var(--border-glass)';
-      });
-
-      const target = document.getElementById('tab-' + tabName);
-      if (target) target.style.display = 'block';
-
-      if (tabName === 'current-offenses') {
-          btn.style.background = 'rgba(59, 130, 246, 0.2)';
-          btn.style.color = '#93c5fd';
-          btn.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-      } else if (tabName === 'prior-resolved') {
-          btn.style.background = 'rgba(16, 185, 129, 0.2)';
-          btn.style.color = '#6ee7b7';
-          btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-      } else if (tabName === 'other-pending') {
-          btn.style.background = 'rgba(245, 158, 11, 0.2)';
-          btn.style.color = '#fcd34d';
-          btn.style.borderColor = 'rgba(245, 158, 11, 0.3)';
-      }
-  }
-  </script>
-  </body>
-  </html>
