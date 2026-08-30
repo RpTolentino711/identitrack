@@ -125,24 +125,17 @@ function anonymizeAiPromptText(string $text, string $realName = '', string $stud
         foreach ($nameParts as $np) {
             if ($np !== '') $initials .= strtoupper(mb_substr($np, 0, 1)) . '.';
         }
-        $anonLabel = "Student " . ($initials !== '' ? $initials : "Subject");
+        $anonLabel = trim($realName); // Keep clean student name for panel member UI display
         $text = str_replace($realName, $anonLabel, $text);
-
-        foreach ($nameParts as $np) {
-            if (mb_strlen($np) >= 3) {
-                $text = preg_replace('/\b' . preg_quote($np, '/') . '\b/i', $anonLabel, $text);
-            }
-        }
     }
 
     // 2. Mask student IDs (e.g. 2023-183482 or 202210394)
     if ($studentId !== '') {
         $parts = explode('-', $studentId);
         $lastDigits = end($parts);
-        $maskedId = (count($parts) > 1 ? $parts[0] . '-****' : '****') . mb_substr($lastDigits, -2);
-        $text = str_replace($studentId, "ID: {$maskedId}", $text);
+        $maskedId = (count($parts) > 1 ? $parts[0] . '-' . mb_substr($lastDigits, -2) : $studentId);
+        $text = str_replace($studentId, $maskedId, $text);
     }
-    $text = preg_replace('/\b(20[0-9]{2})-?([0-9]{4,6})\b/', '$1-****$2', $text);
 
     // 3. Mask Email addresses
     $text = preg_replace('/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/', '[ANONYMIZED_EMAIL]', $text);
@@ -285,7 +278,8 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
 
     if (preg_match('/Student Name:\s*(.*?)\s*\(ID:\s*(.*?)\)/i', $userPrompt, $m)) {
         $extractedName = trim($m[1]);
-        $extractedId = trim($m[2]);
+        $rawId = trim($m[2]);
+        $extractedId = preg_replace('/^(ID:\s*)+/i', '', $rawId);
     }
     if (preg_match('/Offense Charged:\s*(.*?)\n/i', $userPrompt, $m)) {
         $extractedOffense = trim($m[1]);
@@ -541,11 +535,11 @@ try {
 
     $csStatusText = "No active/ongoing community service requirement on file.";
     if ($csReq) {
-        $hrsReq = (float)($csReq['hours_required'] ?? 0);
+        $hrsReq = round((float)($csReq['hours_required'] ?? 0), 1);
         $hrsComp = round((float)($csReq['hours_completed'] ?? 0), 1);
         $hrsRem = max(0.0, round($hrsReq - $hrsComp, 1));
-        $isClockedIn = (int)($csReq['active_session_count'] ?? 0) > 0 ? "YES (Currently Clocked In)" : "NO (Not currently clocked in)";
-        $csStatusText = "YES, ONGOING — Task: {$csReq['task_name']} | Hours Required: {$hrsReq}h | Hours Completed: {$hrsComp}h | Hours Remaining: {$hrsRem}h | Currently Clocked In: {$isClockedIn}";
+        $isClockedIn = (int)($csReq['active_session_count'] ?? 0) > 0 ? "YES (Clocked In)" : "NO";
+        $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsComp}h / {$hrsReq}h completed, {$hrsRem}h remaining | Clocked In: {$isClockedIn})";
     }
 
     // ── Detailed Prior Cases & Categories Breakdown for AI Assistant ──────────
