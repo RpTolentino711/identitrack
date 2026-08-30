@@ -621,14 +621,9 @@ try {
 
         $lines = [];
         foreach ($groupedCases as $cId => $cInfo) {
-            $catVal = (int)($cInfo['decided_category'] ?? 0);
-            if ($catVal > 0) {
-                $catStr = "Category {$catVal} Sanction";
-            } else {
-                $catStr = "Sanction Decision Pending";
-            }
             $offList = !empty($cInfo['offenses']) ? implode("; ", array_unique($cInfo['offenses'])) : "Disciplinary Offense";
-            $lines[] = "  • Case #{$cId}: {$offList} — {$catStr} [{$cInfo['status']}]";
+            $cleanOffList = rtrim(trim($offList), '.;');
+            $lines[] = "  • Case #{$cId}: {$cleanOffList}";
         }
         $priorCasesBreakdownText = implode("\n", $lines);
     }
