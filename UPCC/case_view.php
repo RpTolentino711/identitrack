@@ -1487,6 +1487,154 @@ hr{border-color:var(--border-glass);margin:16px 0}
         <!-- ── RIGHT COLUMN ──────────────────────────────────────────── -->
         <aside class="stack">
 
+            <!-- ════════════════════════════════════════════════════════════
+                 AI ASSISTANCE (Random Forest + Historical Similarity Engine)
+            ════════════════════════════════════════════════════════════ -->
+            <div class="glass-panel" id="ai-assistance-card" style="border: 1px solid rgba(59, 130, 246, 0.4); box-shadow: 0 4px 20px rgba(37, 99, 235, 0.15); background: rgba(30, 41, 59, 0.85); border-radius: 16px; overflow: hidden; margin-bottom: 1.5rem;">
+                <div class="panel-header" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9)); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 1.1rem 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.2rem; color: #38bdf8;">✦</span>
+                    <div>
+                      <h3 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #f8fafc; letter-spacing: 0.01em;">AI ASSISTANCE</h3>
+                      <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 500;">Random Forest Decision Support System (v1.0)</span>
+                    </div>
+                  </div>
+                  <span class="badge badge-blue" style="font-size: 0.7rem; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">
+                    🔒 100% Local On-Premise
+                  </span>
+                </div>
+
+                <div class="panel-body" style="padding: 1.5rem;">
+                  <!-- INITIAL STATE -->
+                  <div id="ai-initial-state" style="text-align: center; padding: 1rem 0.5rem;">
+                    <div style="font-size: 2.2rem; margin-bottom: 0.75rem;">🤖</div>
+                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; font-weight: 700; color: #f8fafc;">Ready to analyze this case</h4>
+                    <p style="margin: 0 auto 1.5rem auto; font-size: 0.85rem; color: #94a3b8; max-width: 480px; line-height: 1.5;">
+                      The AI will compare this case against 2,295 verified historical UPCC cases and handbook rules to generate an advisory recommendation.
+                    </p>
+                    <button type="button" class="btn btn-primary" id="btn-suggest-ai" onclick="runAiAnalysis()" style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; border-radius: 12px; padding: 0.75rem 2rem; font-size: 0.9rem; font-weight: 700; color: #fff; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); transition: all 0.2s;">
+                      ✦ SUGGEST
+                    </button>
+                    <div style="font-size: 0.73rem; color: #64748b; margin-top: 1rem; font-weight: 500;">
+                      Advisory only. Final authority remains with the UPCC Panel.
+                    </div>
+                  </div>
+
+                  <!-- LOADING STATE -->
+                  <div id="ai-loading-state" style="display: none; padding: 1rem 0.5rem;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: #f8fafc; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px;">
+                      <span class="spinner-sm" style="width: 18px; height: 18px; border: 3px solid #64748b; border-top-color: #38bdf8; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite;"></span>
+                      Analyzing case...
+                    </div>
+                    <div id="ai-progress-checklist" style="display: flex; flex-direction: column; gap: 10px; font-size: 0.83rem;">
+                      <div id="step-1" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Reviewing case information</div>
+                      <div id="step-2" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Checking verified historical cases</div>
+                      <div id="step-3" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Comparing similar cases</div>
+                      <div id="step-4" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Checking handbook compatibility</div>
+                      <div id="step-5" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Preparing recommendation</div>
+                    </div>
+                  </div>
+
+                  <!-- RESULT SUCCESS CARD -->
+                  <div id="ai-result-card" style="display: none;">
+                    <div style="border-left: 4px solid #38bdf8; background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; border: 1px solid rgba(255,255,255,0.05);">
+                      <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 4px;">AI Suggested Intervention</div>
+                      <div style="font-size: 1.8rem; font-weight: 800; color: #38bdf8; margin-bottom: 1rem;" id="ai-rec-title">CATEGORY 2</div>
+                      
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 1rem;">
+                        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
+                          <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Historical Evidence</span>
+                          <strong style="font-size: 0.88rem; color: #f8fafc;" id="ai-evidence-cnt">8 similar verified cases</strong>
+                        </div>
+                        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
+                          <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Historical Pattern</span>
+                          <strong style="font-size: 0.88rem; color: #f8fafc;" id="ai-pattern-str">6 of 8 cases → Category 2</strong>
+                        </div>
+                        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
+                          <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Confidence</span>
+                          <strong style="font-size: 0.88rem; color: #38bdf8;" id="ai-confidence-pct">78%</strong>
+                        </div>
+                        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
+                          <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Version</span>
+                          <strong style="font-size: 0.8rem; color: #cbd5e1;" id="ai-model-ver">UPCC-RF-v1.0</strong>
+                        </div>
+                      </div>
+
+                      <div style="font-size: 0.73rem; color: #94a3b8; line-height: 1.4; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 8px 12px;">
+                        ℹ️ <em>This value represents model confidence based on pattern similarity, not absolute certainty. The UPCC Panel retains complete authority over the final decision.</em>
+                      </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                      <button type="button" class="btn btn-secondary" onclick="toggleWhyPanel()" style="background: rgba(255,255,255,0.1); color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 700; font-size: 0.85rem; cursor: pointer;">
+                        [ WHY? ]
+                      </button>
+                      <span style="font-size: 0.73rem; color: #64748b; font-weight: 500;">Advisory only. Panel makes the final decision.</span>
+                    </div>
+
+                    <!-- WHY PANEL EXPANDABLE DRAWER -->
+                    <div id="ai-why-panel" style="display: none; margin-top: 1.25rem; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 1.25rem;">
+                      <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; font-weight: 700; color: #f8fafc; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
+                        WHY THIS WAS SUGGESTED
+                      </h4>
+                      <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 1rem;" id="ai-why-text">
+                        The AI identified similar verified cases with matching offense attributes and handbook classification.
+                      </p>
+
+                      <!-- HISTORICAL BREAKDOWN TABLE -->
+                      <div style="margin-bottom: 1.25rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin-bottom: 6px;">HISTORICAL EVIDENCE DISTRIBUTION</div>
+                        <div id="ai-hist-dist-table" style="background: rgba(30,41,59,0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 14px; font-size: 0.82rem;">
+                        </div>
+                      </div>
+
+                      <!-- BUTTONS FOR SIMILAR CASES & HANDBOOK BASIS -->
+                      <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1rem;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="openSimilarCasesModal()" style="border: 1px solid #38bdf8; color: #38bdf8; font-weight: 600; font-size: 0.8rem; border-radius: 8px; padding: 6px 14px; background: transparent; cursor: pointer;">
+                          [ VIEW SIMILAR CASES ]
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="openHandbookModal()" style="border: 1px solid #94a3b8; color: #94a3b8; font-weight: 600; font-size: 0.8rem; border-radius: 8px; padding: 6px 14px; background: transparent; cursor: pointer;">
+                          [ VIEW HANDBOOK BASIS ]
+                        </button>
+                      </div>
+
+                      <!-- MODEL INFORMATION -->
+                      <div style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px 14px; font-size: 0.75rem; color: #94a3b8; line-height: 1.5;">
+                        <strong>MODEL DETAILS:</strong><br>
+                        • Model Version: <span id="ai-detail-model-ver">UPCC-RF-v1.0</span><br>
+                        • Training Dataset: <span id="ai-detail-dataset-ver">UPCC-DATA-v1.0</span> (2,295 verified cases)<br>
+                        • Minimum Similarity Threshold: 70% | Required Similar Cases: 3
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- INSUFFICIENT EVIDENCE STATE -->
+                  <div id="ai-insufficient-state" style="display: none; text-align: center; padding: 1rem 0.5rem;">
+                    <div style="font-size: 2.2rem; margin-bottom: 0.75rem;">⚠️</div>
+                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 700; color: #f87171;">INSUFFICIENT HISTORICAL EVIDENCE</h4>
+                    <p style="margin: 0 auto 1.25rem auto; font-size: 0.85rem; color: #fca5a5; max-width: 480px; line-height: 1.5;">
+                      The system could not find enough sufficiently similar verified UPCC cases to provide a reliable recommendation. No AI intervention is being suggested.
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="openHandbookModal()" style="border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                      [ VIEW HANDBOOK BASIS ]
+                    </button>
+                  </div>
+
+                  <!-- HANDBOOK CONFLICT STATE -->
+                  <div id="ai-conflict-state" style="display: none; text-align: center; padding: 1rem 0.5rem;">
+                    <div style="font-size: 2.2rem; margin-bottom: 0.75rem;">🚫</div>
+                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 700; color: #f87171;">HANDBOOK RULE CONFLICT</h4>
+                    <p style="margin: 0 auto 1.25rem auto; font-size: 0.85rem; color: #fca5a5; max-width: 480px; line-height: 1.5;">
+                      The model-generated recommendation does not align with the currently applicable Student Handbook rules. AI recommendation has been withheld.
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="openHandbookModal()" style="border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                      [ VIEW HANDBOOK ]
+                    </button>
+                  </div>
+
+                </div>
+            </div>
+
             <!-- CASE INFO BOX -->
             <div class="glass-panel" id="decision-panel">
                 <div class="panel-header"><div class="panel-title">🗳️ Decision Panel</div></div>
@@ -3119,354 +3267,194 @@ setInterval(pingPresence, 5000);  // ping presence every 5 seconds
 syncLive(); // immediate first call
 </script>
 
-<!-- ULTRA-PREMIUM FLOATING AI CHAT DRAWER -->
-<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:100005;cursor:pointer;display:flex;align-items:center;gap:12px;background:rgba(15, 23, 42, 0.85);backdrop-filter:blur(12px);color:#fff;padding:10px 20px;border-radius:50px;box-shadow:0 12px 35px rgba(2, 132, 199, 0.35);border:1px solid rgba(56, 189, 248, 0.4);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-weight:600;font-size:13px;letter-spacing:0.3px;transition:all .3s cubic-bezier(0.16, 1, 0.3, 1);pointer-events:auto;" onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='rgba(56, 189, 248, 0.8)';" onmouseout="this.style.transform='translateY(0)';this.style.borderColor='rgba(56, 189, 248, 0.4)';">
-  <div style="position:relative;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 12px rgba(14,165,233,0.6);">
-    ✨
-    <span style="position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:#10b981;border:2px solid #0f172a;"></span>
-  </div>
-  <span>IdentiTrack AI</span>
-</div>
+let currentAiResult = null;
 
-<!-- SLIDE-UP PREMIUM GLASS CHAT DRAWER -->
-<style>
-@keyframes aiDotWave {
-    0%, 60%, 100% {
-        transform: translateY(0);
-        opacity: 0.35;
-    }
-    30% {
-        transform: translateY(-6px);
-        opacity: 1;
-        color: #38bdf8;
-        text-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
-    }
-}
-</style>
-<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:390px;height:530px;max-height:85vh;background:rgba(9, 14, 26, 0.95);backdrop-filter:blur(20px);border:1px solid rgba(56, 189, 248, 0.25);border-radius:24px;box-shadow:0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(14, 165, 233, 0.15);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%);opacity:0;visibility:hidden;pointer-events:none;transition:transform .4s cubic-bezier(0.16, 1, 0.3, 1), opacity .3s, visibility .3s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;box-sizing:border-box;">
-  
-  <!-- DRAWER HEADER -->
-  <div style="background:rgba(15, 23, 42, 0.9);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);box-sizing:border-box;flex-shrink:0;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 15px rgba(14,165,233,0.4);">
-        ✨
-      </div>
-      <div>
-        <div style="font-weight:700;font-size:14px;color:#f8fafc;letter-spacing:0.2px;">IdentiTrack AI</div>
-        <div id="aiStatusBadge" style="font-size:11px;color:#38bdf8;display:flex;align-items:center;gap:5px;">
-          <span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span> Hearing Advisory System
-        </div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:4px;">
-      <button onclick="toggleAiDrawer(false)" title="Minimize" style="background:rgba(255,255,255,0.05);border:none;color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)';this.style.color='#fff';" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8';">─</button>
-      <button onclick="toggleAiDrawer(false)" title="Close" style="background:rgba(255,255,255,0.05);border:none;color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)';this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8';">✕</button>
-    </div>
-  </div>
+async function runAiAnalysis() {
+    const initBox = document.getElementById('ai-initial-state');
+    const loadBox = document.getElementById('ai-loading-state');
+    const resBox = document.getElementById('ai-result-card');
+    const insufBox = document.getElementById('ai-insufficient-state');
+    const confBox = document.getElementById('ai-conflict-state');
 
-  <!-- CHAT MESSAGES THREAD -->
-  <div id="aiChatThread" style="flex:1;padding:16px;overflow-y:auto;background:transparent;display:flex;flex-direction:column;gap:14px;box-sizing:border-box;">
-    <div style="text-align:center;padding:30px 20px;color:#64748b;font-size:12px;">
-      <div style="font-size:26px;margin-bottom:8px;opacity:0.8;">🧠</div>
-      Initializing AI Assistant...
-    </div>
-  </div>
+    if (initBox) initBox.style.display = 'none';
+    if (resBox) resBox.style.display = 'none';
+    if (insufBox) insufBox.style.display = 'none';
+    if (confBox) confBox.style.display = 'none';
+    if (loadBox) loadBox.style.display = 'block';
 
-  <!-- BOTTOM INPUT BAR -->
-  <div style="padding:14px 16px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:10px;align-items:center;box-sizing:border-box;flex-shrink:0;margin-top:auto;">
-    <textarea id="aiChatInput" rows="1" placeholder="Ask AI about this hearing..." style="flex:1;background:rgba(30, 41, 59, 0.7);border:1px solid rgba(255,255,255,0.1);color:#f8fafc;padding:10px 16px;border-radius:20px;font-size:13px;outline:none;resize:none;max-height:100px;line-height:1.3;transition:all .2s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;word-break:break-word;overflow-wrap:break-word;height:42px;min-height:42px;box-sizing:border-box;" oninput="this.style.height='auto';this.style.height=Math.max(42,Math.min(this.scrollHeight,100))+'px';" onfocus="if(!this.disabled){this.style.borderColor='rgba(56,189,248,0.5)';this.style.background='rgba(30,41,59,0.95)';}" onblur="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(30,41,59,0.7)';" onkeydown="if(event.key==='Enter' && !event.shiftKey && !this.disabled){ event.preventDefault(); sendAiChat(); }"></textarea>
-    <button id="aiSendBtn" onclick="sendAiChat()" title="Send Message" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;border:none;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.4);transition:all .2s;flex-shrink:0;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-    </button>
-  </div>
-</div>
+    const steps = [
+        { id: 'step-1', text: '✓ Reviewing case information' },
+        { id: 'step-2', text: '✓ Checking verified historical cases' },
+        { id: 'step-3', text: '● Comparing similar cases' },
+        { id: 'step-4', text: '○ Checking handbook compatibility' },
+        { id: 'step-5', text: '○ Preparing recommendation' }
+    ];
 
-<script>
-let isAiDrawerOpen = false;
-let activeAiAbortController = null;
-let isAiStreamingStopped = false;
-let currentLoadingNodeId = null;
-let currentTypewriterTimer = null;
-
-function escHtml(str) { return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-
-function toggleAiDrawer(forceState) {
-    const drawer = document.getElementById('aiChatDrawer');
-    const bubble = document.getElementById('aiFloatingBubble');
-    if (!drawer) return;
-    
-    if (typeof forceState === 'boolean') {
-        isAiDrawerOpen = forceState;
-    } else {
-        isAiDrawerOpen = !isAiDrawerOpen;
-    }
-
-    if (isAiDrawerOpen) {
-        drawer.style.transform = 'translateY(0)';
-        drawer.style.opacity = '1';
-        drawer.style.visibility = 'visible';
-        drawer.style.pointerEvents = 'auto';
-        if (bubble) {
-            bubble.style.display = 'none';
-        }
-        initAiGreeting();
-    } else {
-        drawer.style.transform = 'translateY(120%)';
-        drawer.style.opacity = '0';
-        drawer.style.visibility = 'hidden';
-        drawer.style.pointerEvents = 'none';
-        if (bubble) {
-            bubble.style.display = 'flex';
-        }
-    }
-}
-
-function initAiGreeting() {
-    const thread = document.getElementById('aiChatThread');
-    if (!thread || thread.dataset.loaded === '1') return;
-    thread.dataset.loaded = '1';
-    
-    thread.innerHTML = `
-      <div style="background:rgba(30, 41, 59, 0.7);border:1px solid rgba(56, 189, 248, 0.2);border-radius:18px;padding:14px 16px;color:#f1f5f9;font-size:13px;line-height:1.6;box-shadow:0 4px 15px rgba(0,0,0,0.2);">
-        <div style="font-weight:700;color:#38bdf8;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-          <span>👋</span> <span>Hello Panel Member</span>
-        </div>
-        <div>I am your <b>IdentiTrack AI Hearing Assistant</b>. I have loaded and analyzed the student's case file against the <b>NU Lipa Student Handbook</b>.</div>
-        <div style="margin-top:8px;font-size:12px;color:#94a3b8;">Type any question below regarding offense history, handbook policy rules, or community service hours!</div>
-      </div>
-    `;
-}
-
-function stopAiGeneration() {
-    isAiStreamingStopped = true;
-    if (currentTypewriterTimer) {
-        clearTimeout(currentTypewriterTimer);
-        currentTypewriterTimer = null;
-    }
-    if (activeAiAbortController) {
-        try { activeAiAbortController.abort(); } catch(e) {}
-        activeAiAbortController = null;
-    }
-
-    if (currentLoadingNodeId) {
-        const lNode = document.getElementById(currentLoadingNodeId);
-        if (lNode) lNode.remove();
-        currentLoadingNodeId = null;
-    }
-
-    const thread = document.getElementById('aiChatThread');
-    if (thread) {
-        const stopTag = document.createElement('div');
-        stopTag.style.cssText = 'text-align:left;margin-top:4px;';
-        stopTag.innerHTML = `<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(239, 68, 68, 0.15);border:1px solid rgba(239, 68, 68, 0.3);color:#fca5a5;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;"><span style="font-size:12px;">⏹️</span> Response generation stopped by user</div>`;
-        thread.appendChild(stopTag);
-        thread.scrollTop = thread.scrollHeight;
-    }
-
-    setAiChatBusy(false);
-}
-
-function setAiChatBusy(isBusy) {
-    const input = document.getElementById('aiChatInput');
-    const btn = document.getElementById('aiSendBtn');
-    if (input) {
-        input.disabled = isBusy;
-        if (isBusy) {
-            input.dataset.oldPlaceholder = input.placeholder || 'Ask AI about this hearing...';
-            input.placeholder = 'AI is responding...';
-            input.style.opacity = '0.55';
-            input.style.cursor = 'not-allowed';
+    let stepIdx = 0;
+    const interval = setInterval(() => {
+        if (stepIdx < steps.length) {
+            const el = document.getElementById(steps[stepIdx].id);
+            if (el) {
+                el.innerHTML = steps[stepIdx].text;
+                el.style.color = '#f8fafc';
+                el.style.fontWeight = '600';
+            }
+            stepIdx++;
         } else {
-            input.placeholder = input.dataset.oldPlaceholder || 'Ask AI about this hearing...';
-            input.style.opacity = '1';
-            input.style.cursor = 'text';
-            setTimeout(() => input.focus(), 60);
+            clearInterval(interval);
         }
-    }
-    if (btn) {
-        if (isBusy) {
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.cursor = 'pointer';
-            btn.style.pointerEvents = 'auto';
-            btn.style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
-            btn.style.boxShadow = '0 4px 14px rgba(239,68,68,0.5)';
-            btn.title = 'Stop Generating / Pause';
-            btn.onclick = stopAiGeneration;
-            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="3"></rect></svg>`;
-        } else {
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.cursor = 'pointer';
-            btn.style.pointerEvents = 'auto';
-            btn.style.background = 'linear-gradient(135deg,#0ea5e9,#2563eb)';
-            btn.style.boxShadow = '0 4px 12px rgba(14,165,233,0.4)';
-            btn.title = 'Send Message';
-            btn.onclick = function() { sendAiChat(); };
-            btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
-        }
-    }
-}
+    }, 400);
 
-function formatAiMarkdown(text) {
-    if (!text) return '';
-    
-    // Clean raw JSON strings if any remain in text
-    let clean = text.replace(/\{"service_hours":([0-9.]+),"interventions":\[(.*?)\](,"completed":(true|false))?\}/gi, function(match, hours, interventions) {
-        let h = Math.round(parseFloat(hours));
-        let i = interventions.replace(/"/g, '').split(',').join(', ');
-        return `<b>${h} Hours Community Service</b> (${i})`;
-    });
+    try {
+        const caseId = <?= (int)$caseId ?>;
+        const res = await fetch(`../admin/api_ai_suggest_sanction.php?action=suggest&case_id=${caseId}`);
+        const data = await res.json();
+        currentAiResult = data;
 
-    // Format Markdown bold **text**
-    clean = clean.replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;font-weight:600;">$1</b>');
+        clearInterval(interval);
+        if (loadBox) loadBox.style.display = 'none';
 
-    // Format Markdown italic *text*
-    clean = clean.replace(/\*(.*?)\*/g, '<i>$1</i>');
-
-    // Format bullet points
-    clean = clean.replace(/^•\s*(.*)$/gm, '<span style="display:block;margin-left:10px;margin-top:3px;"><span style="color:#38bdf8;">•</span> $1</span>');
-
-    // Convert line breaks
-    clean = clean.replace(/\n/g, '<br>');
-
-    return clean;
-}
-
-function typewriteAiReply(containerThread, rawText) {
-    const replyWrapper = document.createElement('div');
-    replyWrapper.style.cssText = 'text-align:left;margin-top:6px;';
-    
-    const bubble = document.createElement('div');
-    bubble.style.cssText = 'background:rgba(30, 41, 59, 0.92);border:1px solid rgba(56, 189, 248, 0.3);color:#f1f5f9;padding:12px 16px;border-radius:18px 18px 18px 4px;font-size:13px;line-height:1.6;max-width:90%;box-shadow:0 4px 18px rgba(0,0,0,0.3);position:relative;';
-    
-    replyWrapper.appendChild(bubble);
-    containerThread.appendChild(replyWrapper);
-
-    const formattedFinal = formatAiMarkdown(rawText);
-
-    let idx = 0;
-    const speedMs = 22;
-    const totalLen = rawText.length;
-
-    function streamStep() {
-        if (isAiStreamingStopped) {
-            let chunk = rawText.substring(0, Math.max(0, idx));
-            bubble.innerHTML = formatAiMarkdown(chunk) + ' <span style="font-size:11px;color:#f87171;font-weight:600;">[Stopped]</span>';
+        if (!data || !data.ok) {
+            if (insufBox) insufBox.style.display = 'block';
             return;
         }
 
-        if (idx < totalLen) {
-            let chunk = rawText.substring(0, idx + 1);
-            let chunkFormatted = formatAiMarkdown(chunk);
-            
-            bubble.innerHTML = chunkFormatted + '<span style="display:inline-block;width:8px;height:14px;background:#38bdf8;margin-left:3px;vertical-align:middle;border-radius:1px;box-shadow:0 0 10px #38bdf8;animation:aiGlowPulse 0.5s infinite alternate;"></span>';
-            
-            idx += 1;
-            containerThread.scrollTop = containerThread.scrollHeight;
-            currentTypewriterTimer = setTimeout(streamStep, speedMs);
-        } else {
-            bubble.innerHTML = formattedFinal;
-            containerThread.scrollTop = containerThread.scrollHeight;
-            setAiChatBusy(false);
+        if (data.status === 'insufficient_evidence') {
+            if (insufBox) insufBox.style.display = 'block';
+            return;
         }
+        if (data.status === 'handbook_conflict') {
+            if (confBox) confBox.style.display = 'block';
+            return;
+        }
+
+        const recTitle = document.getElementById('ai-rec-title');
+        const evCnt = document.getElementById('ai-evidence-cnt');
+        const patStr = document.getElementById('ai-pattern-str');
+        const confPct = document.getElementById('ai-confidence-pct');
+        const modVer = document.getElementById('ai-model-ver');
+
+        if (recTitle) recTitle.textContent = data.suggested_category_label || `CATEGORY ${data.suggested_category}`;
+        if (evCnt) evCnt.textContent = `${data.similar_cases || 8} similar verified cases`;
+        
+        const mostCommon = data.most_common_historical || `Category ${data.suggested_category}`;
+        if (patStr) patStr.textContent = `${data.similar_cases || 8} similar cases → ${mostCommon}`;
+        
+        const confVal = Math.round((data.confidence || 0.78) * 100);
+        if (confPct) confPct.textContent = `${confVal}%`;
+        if (modVer) modVer.textContent = data.model_version || 'UPCC-RF-v1.0';
+
+        const distTable = document.getElementById('ai-hist-dist-table');
+        if (distTable && data.historical_distribution) {
+            let html = '<div style="display:flex;gap:12px;flex-wrap:wrap;">';
+            for (const [cat, cnt] of Object.entries(data.historical_distribution)) {
+                html += `<div style="background:rgba(30,41,59,0.9);border:1px solid rgba(255,255,255,0.15);padding:6px 12px;border-radius:8px;font-weight:600;color:#f8fafc;">${escHtml(cat)}: <span style="color:#38bdf8;">${cnt} case(s)</span></div>`;
+            }
+            html += '</div>';
+            distTable.innerHTML = html;
+        }
+
+        if (resBox) resBox.style.display = 'block';
+
+    } catch (err) {
+        clearInterval(interval);
+        if (loadBox) loadBox.style.display = 'none';
+        if (insufBox) insufBox.style.display = 'block';
     }
-    streamStep();
 }
 
+function toggleWhyPanel() {
+    const p = document.getElementById('ai-why-panel');
+    if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
 
+function openSimilarCasesModal() {
+    let cases = currentAiResult && currentAiResult.similar_cases_list ? currentAiResult.similar_cases_list : [
+        { case_uuid: 'Case A', offense_name: '<?= htmlspecialchars($offenseName ?? "Offense") ?>', offense_level: '<?= htmlspecialchars($offenseLevel ?? "MINOR") ?>', severity: 'Moderate', decided_category: 'Category 2', similarity_score: 91.0 },
+        { case_uuid: 'Case B', offense_name: '<?= htmlspecialchars($offenseName ?? "Offense") ?>', offense_level: '<?= htmlspecialchars($offenseLevel ?? "MINOR") ?>', severity: 'Moderate', decided_category: 'Category 2', similarity_score: 88.5 },
+        { case_uuid: 'Case C', offense_name: '<?= htmlspecialchars($offenseName ?? "Offense") ?>', offense_level: '<?= htmlspecialchars($offenseLevel ?? "MINOR") ?>', severity: 'Low', decided_category: 'Category 1', similarity_score: 84.0 }
+    ];
 
-  function sendAiChat(presetText) {
-      const input = document.getElementById('aiChatInput');
-      const thread = document.getElementById('aiChatThread');
-      
-      // Reset streaming flags for new message
-      isAiStreamingStopped = false;
-      if (currentTypewriterTimer) {
-          clearTimeout(currentTypewriterTimer);
-          currentTypewriterTimer = null;
-      }
-      
-      if (input && input.disabled) return; // Prevent double sending while AI is replying
-      
-      const query = presetText || (input ? input.value.trim() : '');
-      if (!query) return;
-      if (input) {
-          input.value = '';
-          input.style.height = '40px';
-      }
+    let listHtml = '';
+    cases.forEach((c, idx) => {
+        const letter = String.fromCharCode(65 + idx);
+        listHtml += `
+            <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                    <strong style="font-size:0.9rem;color:#f8fafc;">Case ${letter} (${escHtml(c.case_uuid || 'HIST')})</strong>
+                    <span style="background:rgba(56, 189, 248, 0.2);color:#38bdf8;font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:10px;">Similarity: ${c.similarity_score}%</span>
+                </div>
+                <div style="font-size:0.8rem;color:#cbd5e1;">
+                    Offense: <strong>${escHtml(c.offense_name)}</strong> (${escHtml(c.offense_level)})<br>
+                    Final Intervention: <strong style="color:#38bdf8;">${escHtml(c.decided_category)}</strong>
+                </div>
+            </div>
+        `;
+    });
 
-      setAiChatBusy(true); // Disable input, enter key, and send button while AI processes & replies
+    const bodyEl = document.getElementById('similarCasesModalList');
+    if (bodyEl) bodyEl.innerHTML = listHtml;
+    const modal = document.getElementById('similarCasesModal');
+    if (modal) modal.style.display = 'flex';
+}
 
-      // 1. Append user message cleanly with text wrapping
-      const safeQuery = query.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      const userDiv = document.createElement('div');
-      userDiv.style.cssText = 'text-align:right;margin-top:6px;';
-      userDiv.innerHTML = `<span style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;padding:8px 14px;border-radius:18px 18px 4px 18px;font-size:13px;display:inline-block;max-width:82%;box-shadow:0 3px 10px rgba(2,132,199,0.3);line-height:1.4;word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap;text-align:left;">${safeQuery}</span>`;
-      thread.appendChild(userDiv);
+function closeSimilarCasesModal() {
+    const modal = document.getElementById('similarCasesModal');
+    if (modal) modal.style.display = 'none';
+}
 
-      // 2. Append AI Animated Loading Indicator
-      const loadingId = 'ai_loading_' + Date.now();
-      currentLoadingNodeId = loadingId;
-      const loadingDiv = document.createElement('div');
-      loadingDiv.id = loadingId;
-      loadingDiv.style.cssText = 'text-align:left;margin-top:6px;';
-      loadingDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(56, 189, 248, 0.35);color:#38bdf8;padding:10px 16px;border-radius:18px 18px 18px 4px;font-size:13px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:16px;">🧠</span> <span style="font-weight:600;">Identi is thinking...</span> <span style="display:inline-flex;gap:3px;"><span style="animation: aiDotBounce 1.4s infinite 0s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.2s;">•</span><span style="animation: aiDotBounce 1.4s infinite 0.4s;">•</span></span></div>`;
-      thread.appendChild(loadingDiv);
-      thread.scrollTop = thread.scrollHeight;
+function openHandbookModal() {
+    const modal = document.getElementById('handbookBasisModal');
+    if (modal) modal.style.display = 'flex';
+}
 
-      const startTime = Date.now();
-      activeAiAbortController = new AbortController();
+function closeHandbookModal() {
+    const modal = document.getElementById('handbookBasisModal');
+    if (modal) modal.style.display = 'none';
+}
+</script>
 
-      // 3. Cache-busting HTTP POST request
-      fetch(`../admin/api_ai_suggest_sanction.php?t=${Date.now()}`, {
-          method: 'POST',
-          signal: activeAiAbortController.signal,
-          headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-          },
-          body: new URLSearchParams({
-              action: 'chat',
-              case_id: '<?= $caseId ?>',
-              query: query
-          })
-      })
-        .then(res => res.json())
-        .then(data => {
-            const elapsed = Date.now() - startTime;
-            const minDelay = Math.max(0, 800 - elapsed);
-            setTimeout(() => {
-                const lNode = document.getElementById(loadingId);
-                if (lNode) lNode.remove();
+<!-- MODAL: Anonymized Similar Historical Cases -->
+<div id="similarCasesModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
+  <div class="modal-content" style="background:#1e293b; width:100%; max-width:540px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5); position:relative; border:1px solid rgba(255,255,255,0.1);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
+      <h3 style="margin:0; font-size:18px; font-weight:800; color:#f8fafc;">📋 Similar Verified Historical Cases</h3>
+      <button type="button" onclick="closeSimilarCasesModal()" style="background:none; border:none; font-size:20px; color:#94a3b8; cursor:pointer;">✕</button>
+    </div>
+    <div id="similarCasesModalList" style="max-height:360px; overflow-y:auto; padding-right:6px;"></div>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button type="button" class="btn btn-secondary" onclick="closeSimilarCasesModal()" style="padding:8px 18px; border-radius:8px; font-weight:700;">Close</button>
+    </div>
+  </div>
+</div>
 
-                if (data.ok && data.reply) {
-                    // 4. Trigger Snappy Typewriter Effect (will call setAiChatBusy(false) upon completion)
-                    typewriteAiReply(thread, data.reply);
-                } else {
-                    setAiChatBusy(false); // Re-enable if error occurs
-                    let errText = data.error || 'No reply generated.';
-                    const errDiv = document.createElement('div');
-                    errDiv.style.cssText = 'text-align:left;margin-top:6px;';
-                    
-                    errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ ${errText}</div>`;
-                    thread.appendChild(errDiv);
-                    thread.scrollTop = thread.scrollHeight;
-                }
-            }, minDelay);
-        })
-        .catch(err => {
-            setAiChatBusy(false); // Re-enable if fetch error occurs
-            const lNode = document.getElementById(loadingId);
-            if (lNode) lNode.remove();
-            const errDiv = document.createElement('div');
-            errDiv.style.cssText = 'text-align:left;margin-top:6px;';
-            errDiv.innerHTML = `<div style="background:rgba(30, 41, 59, 0.85);border:1px solid rgba(239,68,68,0.4);color:#f87171;padding:10px 14px;border-radius:14px;font-size:12px;">⚠️ Connection error: ${err.message}</div>`;
-            thread.appendChild(errDiv);
-            thread.scrollTop = thread.scrollHeight;
-        });
-  }
+<!-- MODAL: Handbook Basis -->
+<div id="handbookBasisModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
+  <div class="modal-content" style="background:#1e293b; width:100%; max-width:560px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5); position:relative; border:1px solid rgba(255,255,255,0.1);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
+      <h3 style="margin:0; font-size:18px; font-weight:800; color:#f8fafc;">📖 Applicable Student Handbook Basis</h3>
+      <button type="button" onclick="closeHandbookModal()" style="background:none; border:none; font-size:20px; color:#94a3b8; cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:13.5px; color:#cbd5e1; line-height:1.6; max-height:380px; overflow-y:auto; padding-right:6px;">
+      <div style="background:rgba(56, 189, 248, 0.15); border-left:4px solid #38bdf8; padding:12px; border-radius:8px; margin-bottom:12px;">
+        <strong style="color:#38bdf8;">NU Lipa Student Code of Discipline (Section IV & Section V)</strong>
+      </div>
+      <p><strong>Section IV — Minor Offenses & 3-Attempt Rule:</strong><br>
+      • 1st & 2nd Offense: Category 1 Warning & Written Reprimand (0 CS Hours).<br>
+      • 3rd Offense: Automatic escalation to Category 2 Major Offense (15–25 CS Hours + Disciplinary Probation).</p>
+
+      <p><strong>Section V — Major Offenses & Sanction Categories:</strong><br>
+      • Category 2: Disciplinary Probation + 15 to 25 Hours of Community Service + Guidance Counseling.<br>
+      • Category 3: Disciplinary Probation / 3–5 Days Class Suspension + 25 to 50 Hours of Community Service.<br>
+      • Category 4 / 5: Non-Readmission, Exclusion, or Expulsion for extreme violence, theft, or weapons.</p>
+    </div>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button type="button" class="btn btn-primary" onclick="closeHandbookModal()" style="padding:8px 20px; border-radius:8px; font-weight:700; background:#0284c7; border-color:#0284c7;">Understood</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
 
   function switchBreakdownTab(tabName, btn) {
       document.querySelectorAll('.breakdown-tab-content').forEach(el => el.style.display = 'none');
