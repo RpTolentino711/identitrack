@@ -1,7 +1,7 @@
 <?php
 /**
- * IdentiTrack AI Database Tables Setup Script
- * Creates handbook_rule and ai_analysis_log tables if missing.
+ * IdentiTrack Full Conversational AI Database Setup Script
+ * Creates handbook_rule, ai_analysis_log, ai_conversation, ai_message, and ai_tool_call tables.
  */
 require_once __DIR__ . '/database.php';
 
@@ -24,11 +24,57 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
 
-    // 2. Create ai_analysis_log table for audit logging & human-in-the-loop tracking
+    // 2. Create ai_conversation table for multi-session chat
+    db_exec("
+        CREATE TABLE IF NOT EXISTS ai_conversation (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            conversation_uuid VARCHAR(64) NOT NULL UNIQUE,
+            user_id INT DEFAULT NULL,
+            title VARCHAR(255) NOT NULL DEFAULT 'New Conversation',
+            status ENUM('ACTIVE', 'ARCHIVED', 'DELETED') DEFAULT 'ACTIVE',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_user (user_id),
+            INDEX idx_uuid (conversation_uuid)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ");
+
+    // 3. Create ai_message table for conversation history
+    db_exec("
+        CREATE TABLE IF NOT EXISTS ai_message (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            conversation_id INT NOT NULL,
+            role ENUM('system', 'user', 'assistant', 'tool') NOT NULL,
+            content TEXT NOT NULL,
+            model VARCHAR(100) DEFAULT NULL,
+            sources_json TEXT DEFAULT NULL,
+            tool_calls_json TEXT DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_conv (conversation_id),
+            FOREIGN KEY (conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ");
+
+    // 4. Create ai_tool_call table for audit tracking of AI tool execution
+    db_exec("
+        CREATE TABLE IF NOT EXISTS ai_tool_call (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            conversation_id INT NOT NULL,
+            message_id INT DEFAULT NULL,
+            tool_name VARCHAR(100) NOT NULL,
+            request_data TEXT DEFAULT NULL,
+            response_data TEXT DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_conv_tool (conversation_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ");
+
+    // 5. Create ai_analysis_log table for offense decision-support tracking
     db_exec("
         CREATE TABLE IF NOT EXISTS ai_analysis_log (
             id INT AUTO_INCREMENT PRIMARY KEY,
             request_id VARCHAR(64) NOT NULL UNIQUE,
+            conversation_id INT DEFAULT NULL,
             offense_id INT DEFAULT NULL,
             user_id INT DEFAULT NULL,
             model VARCHAR(100) NOT NULL,
@@ -43,7 +89,7 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
 
-    // 3. Seed initial Student Handbook Rules if table is empty
+    // 6. Seed initial Student Handbook Rules if table is empty
     $ruleCount = db_one("SELECT COUNT(*) as cnt FROM handbook_rule");
     if ((int)($ruleCount['cnt'] ?? 0) === 0) {
         $seedRules = [
@@ -51,7 +97,7 @@ try {
                 'section' => 'Section IV',
                 'rule_code' => 'SEC4-UNIFORM',
                 'title' => 'Uniform & Grooming Non-Compliance',
-                'description' => 'Failure to wear the prescribed school uniform, unauthorized hair color/dye, or improper civilian attire on campus.',
+                'description' => 'Failure to wear prescribed school uniform, unauthorized hair color/dye, or improper civilian attire on campus.',
                 'offense_type' => 'Grooming / Dress Code',
                 'severity' => 'MINOR',
                 'intervention_category' => 1,
@@ -116,7 +162,7 @@ try {
         }
     }
 
-    echo "✅ AI Tables (`handbook_rule`, `ai_analysis_log`) created and seeded successfully!\n";
+    echo "✅ AI Tables (`handbook_rule`, `ai_conversation`, `ai_message`, `ai_tool_call`, `ai_analysis_log`) setup successfully!\n";
 } catch (\Throwable $e) {
     echo "❌ Error setting up AI tables: " . $e->getMessage() . "\n";
 }
