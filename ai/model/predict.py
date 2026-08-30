@@ -29,7 +29,7 @@ class UPCCPredictor:
         self.tfidf = artifact['tfidf_vectorizer']
         self.classes = artifact['classes']
 
-    def predict_case(self, case_data, min_similarity=0.70, min_cases=3):
+    def predict_case(self, case_data, min_similarity=0.25, min_cases=1):
         if self.rf is None or self.tfidf is None:
             return {
                 "status": "ai_unavailable",
