@@ -200,7 +200,7 @@ function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model
                 'stream' => false,
                 'options' => [
                     'temperature' => 0.2,
-                    'num_predict' => 2000
+                    'num_predict' => 800
                 ]
             ]);
 
