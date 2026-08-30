@@ -539,24 +539,31 @@ try {
         (
             SELECT COUNT(*) FROM community_service_session css
             WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
-        ) AS active_session_count
+        ) AS active_session_count,
+        (
+            SELECT COUNT(*) FROM community_service_session css
+            WHERE css.requirement_id = csr.requirement_id
+        ) AS total_session_count
         FROM community_service_requirement csr
         WHERE csr.student_id = :sid AND csr.status = 'ACTIVE'
         ORDER BY csr.requirement_id DESC LIMIT 1
     ", [':sid' => $targetStudentId]);
 
-    $csStatusText = "No active community service requirement on file.";
+    $csStatusText = "No active community service requirement on file (0 attendance sessions logged).";
     if ($csReq && (float)($csReq['hours_required'] ?? 0) > 0) {
         $rawReq = (float)$csReq['hours_required'];
         $rawComp = (float)($csReq['hours_completed'] ?? 0);
         $rawRem = max(0.0, $rawReq - $rawComp);
+        $totalSessions = (int)($csReq['total_session_count'] ?? 0);
         
         $hrsReqStr = $rawReq < 1.0 ? round($rawReq * 60) . " mins (" . round($rawReq, 1) . "h)" : round($rawReq, 1) . "h";
         $hrsCompStr = round($rawComp, 1) . "h";
         $hrsRemStr = $rawRem < 1.0 && $rawRem > 0 ? round($rawRem * 60) . " mins (" . round($rawRem, 1) . "h)" : round($rawRem, 1) . "h";
         
         $isClockedIn = (int)($csReq['active_session_count'] ?? 0) > 0 ? "YES (Clocked In)" : "NO";
-        $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsCompStr} / {$hrsReqStr} completed, {$hrsRemStr} remaining | Clocked In: {$isClockedIn})";
+        $sessionText = $totalSessions === 0 ? "0 attendance sessions logged" : "{$totalSessions} session(s) logged";
+        
+        $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsCompStr} / {$hrsReqStr} completed — {$sessionText} | Clocked In: {$isClockedIn})";
     }
 
     // ── Detailed Prior Cases & Categories Breakdown for AI Assistant ──────────
