@@ -575,8 +575,7 @@ try {
     }
 
     // ── Current Hearing Offenses attached to this Case ID ─────────────────────
-    $currentCaseOffenses = db_all("
-        SELECT DISTINCT ot.name AS offense_name, ot.level AS offense_level
+    $currentCaseOffenses = db_all("SELECT DISTINCT ot.name AS offense_name, ot.level AS offense_level
         FROM upcc_case_offense uco
         JOIN offense o ON o.offense_id = uco.offense_id
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -593,8 +592,7 @@ try {
     }
 
     // ── Detailed Prior Resolved Cases Breakdown for AI Assistant ──────────────
-    $priorCasesWithCat = db_all("
-        SELECT c.case_id, c.decided_category, c.status, c.created_at, ot.name AS offense_name, ot.level AS offense_level
+    $priorCasesWithCat = db_all("SELECT c.case_id, c.decided_category, c.status, c.created_at, ot.name AS offense_name, ot.level AS offense_level
         FROM upcc_case c
         LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
         LEFT JOIN offense o ON o.offense_id = uco.offense_id
@@ -605,11 +603,27 @@ try {
 
     $priorCasesBreakdownText = "No prior resolved UPCC cases on file for {$studentName}.";
     if (!empty($priorCasesWithCat)) {
-        $lines = [];
+        $groupedCases = [];
         foreach ($priorCasesWithCat as $pc) {
-            $catStr = !empty($pc['decided_category']) ? "Category {$pc['decided_category']}" : "Decided";
-            $offName = !empty($pc['offense_name']) ? $pc['offense_name'] : "Disciplinary Offense";
-            $lines[] = "  • Case #{$pc['case_id']}: {$offName} — {$catStr} [{$pc['status']}]";
+            $cId = (int)$pc['case_id'];
+            if (!isset($groupedCases[$cId])) {
+                $groupedCases[$cId] = [
+                    'case_id' => $cId,
+                    'decided_category' => $pc['decided_category'],
+                    'status' => $pc['status'],
+                    'offenses' => []
+                ];
+            }
+            if (!empty($pc['offense_name'])) {
+                $groupedCases[$cId]['offenses'][] = $pc['offense_name'];
+            }
+        }
+
+        $lines = [];
+        foreach ($groupedCases as $cId => $cInfo) {
+            $catStr = !empty($cInfo['decided_category']) ? "Category {$cInfo['decided_category']}" : "Decided";
+            $offList = !empty($cInfo['offenses']) ? implode("; ", array_unique($cInfo['offenses'])) : "Disciplinary Offense";
+            $lines[] = "  • Case #{$cId}: {$offList} — {$catStr} [{$cInfo['status']}]";
         }
         $priorCasesBreakdownText = implode("\n", $lines);
     }
@@ -747,8 +761,7 @@ try {
                     $otherStudent = db_one("SELECT s.student_id, " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student s WHERE s.student_id = :sid", [':sid' => $sId]);
                     if ($otherStudent) {
                         $otherName = trim(($otherStudent['student_fn'] ?? '') . ' ' . ($otherStudent['student_ln'] ?? ''));
-                        $otherOffenses = db_all("
-                            SELECT o.date_committed, ot.name as offense_name, ot.level as offense_level
+                        $otherOffenses = db_all("SELECT o.date_committed, ot.name as offense_name, ot.level as offense_level
                             FROM offense o
                             JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
                             WHERE o.student_id = :sid
