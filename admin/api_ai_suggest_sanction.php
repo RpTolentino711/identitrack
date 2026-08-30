@@ -506,15 +506,27 @@ try {
         [':sid' => $targetStudentId, ':otid' => $offenseTypeId]);
     $instanceCount = max(1, (int)($instanceCountRow['cnt'] ?? 1));
 
-    $totalPriorRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid", [':sid' => $targetStudentId]);
-    $totalPrior = max(0, (int)($totalPriorRow['cnt'] ?? 1) - 1);
+    // ── Detailed Prior Cases & Categories Breakdown for AI Assistant ──────────
+    $priorCasesWithCat = db_all("
+        SELECT c.case_id, c.decided_category, c.status, c.created_at, ot.name AS offense_name, ot.level AS offense_level
+        FROM upcc_case c
+        LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
+        LEFT JOIN offense o ON o.offense_id = uco.offense_id
+        LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+        WHERE c.student_id = :sid AND c.case_id != :cid AND c.status IN ('RESOLVED', 'CLOSED', 'DECIDED')
+        ORDER BY c.case_id DESC
+    ", [':sid' => $targetStudentId, ':cid' => $caseId]);
+
+    $totalPrior = count($priorCasesWithCat);
 
     $totalMajorRow = db_one("
-        SELECT COUNT(*) as cnt FROM offense o
+        SELECT COUNT(*) as cnt FROM upcc_case c
+        JOIN upcc_case_offense uco ON uco.case_id = c.case_id
+        JOIN offense o ON o.offense_id = uco.offense_id
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-        WHERE o.student_id = :sid AND ot.level = 'MAJOR'
-    ", [':sid' => $targetStudentId]);
-    $totalMajorCount = max(1, (int)($totalMajorRow['cnt'] ?? 1));
+        WHERE c.student_id = :sid AND ot.level = 'MAJOR' AND c.case_id != :cid
+    ", [':sid' => $targetStudentId, ':cid' => $caseId]);
+    $totalMajorCount = (int)($totalMajorRow['cnt'] ?? 0);
 
     // ── Community Service Lookup for AI Assistant ──────────────────────────────
     $csReq = db_one("
@@ -533,9 +545,9 @@ try {
         ORDER BY csr.requirement_id DESC LIMIT 1
     ", [':sid' => $targetStudentId]);
 
-    $csStatusText = "No active/ongoing community service requirement on file.";
-    if ($csReq) {
-        $hrsReq = round((float)($csReq['hours_required'] ?? 0), 1);
+    $csStatusText = "No active community service requirement on file.";
+    if ($csReq && (float)($csReq['hours_required'] ?? 0) >= 1.0) {
+        $hrsReq = round((float)$csReq['hours_required'], 1);
         $hrsComp = round((float)($csReq['hours_completed'] ?? 0), 1);
         $hrsRem = max(0.0, round($hrsReq - $hrsComp, 1));
         $isClockedIn = (int)($csReq['active_session_count'] ?? 0) > 0 ? "YES (Clocked In)" : "NO";
