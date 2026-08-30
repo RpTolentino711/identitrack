@@ -80,14 +80,28 @@ class UpccAiBridge
         $pythonScript = realpath(__DIR__ . '/../ai/model/predict.py');
         if (!$pythonScript) return null;
 
-        $cmd = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($tmpFile);
-        $output = @shell_exec($cmd);
-        @unlink($tmpFile);
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w']
+        ];
+        
+        $proc = @proc_open("python " . escapeshellarg($pythonScript) . " " . escapeshellarg($tmpFile), $descriptors, $pipes);
+        if (is_resource($proc)) {
+            fclose($pipes[0]);
+            stream_set_timeout($pipes[1], 1);
+            $output = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            proc_close($proc);
+            @unlink($tmpFile);
 
-        if ($output) {
-            $data = json_decode(trim($output), true);
-            if (is_array($data)) return $data;
+            if ($output) {
+                $data = json_decode(trim($output), true);
+                if (is_array($data)) return $data;
+            }
         }
+        @unlink($tmpFile);
         return null;
     }
 
