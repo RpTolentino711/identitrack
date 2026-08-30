@@ -166,6 +166,9 @@ function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model
         $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'ollama_model' LIMIT 1");
         if ($cfg && !empty($cfg['config_value'])) {
             $userModel = trim((string)$cfg['config_value']);
+            if ($userModel === 'llama3.2') {
+                $userModel = 'llama3.2:latest';
+            }
             if (!in_array($userModel, ['llama3', 'llama3:latest'], true)) {
                 array_unshift($models, $userModel);
             }
