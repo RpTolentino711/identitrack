@@ -275,10 +275,41 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
     $hasMajor = strpos($combined, 'major') !== false;
     $hasMinor = strpos($combined, 'minor') !== false || strpos($combined, 'section 4') !== false;
 
+    // ── Dynamic Active Student Case Data Extraction ──
+    $studentHeader = "";
+    $extractedName = "";
+    $extractedId = "";
+    $extractedOffense = "";
+    $extractedCS = "";
+    $extractedPriors = "";
+
+    if (preg_match('/Student Name:\s*(.*?)\s*\(ID:\s*(.*?)\)/i', $userPrompt, $m)) {
+        $extractedName = trim($m[1]);
+        $extractedId = trim($m[2]);
+    }
+    if (preg_match('/Offense Charged:\s*(.*?)\n/i', $userPrompt, $m)) {
+        $extractedOffense = trim($m[1]);
+    }
+    if (preg_match('/Community Service Status:\s*(.*?)\n/i', $userPrompt, $m)) {
+        $extractedCS = trim($m[1]);
+    }
+    if (preg_match('/Total Prior Cases:\s*(\d+)/i', $userPrompt, $m)) {
+        $extractedPriors = trim($m[1]);
+    }
+
+    if ($extractedName !== '' || $extractedOffense !== '') {
+        $studentHeader = "👤 **Active Student File**: " . ($extractedName ?: 'Student') . ($extractedId ? " (ID: {$extractedId})" : "") . "\n"
+                       . ($extractedOffense ? "📋 **Current Offense**: {$extractedOffense}\n" : "")
+                       . ($extractedPriors !== '' ? "📊 **Prior Resolved Records**: {$extractedPriors} case(s)\n" : "")
+                       . ($extractedCS ? "⏱️ **Community Service Log**: {$extractedCS}\n" : "")
+                       . "──────────────\n\n";
+    }
+
     // 1. GREETINGS & INTRODUCTIONS
     if (preg_match('/\b(hi|hello|hey|greetings|good morning|good afternoon|good evening|who are you|what can you do)\b/i', $promptLower)) {
-        return "👋 **Hello Panel Member! I am IdentiTrack AI**, your Hearing Advisory Assistant.\n\n"
-             . "I am loaded with the **NU Lipa Student Handbook**, disciplinary policies, and 204 historical case precedents.\n\n"
+        return $studentHeader
+             . "👋 **Hello Panel Member! I am IdentiTrack AI**, your Hearing Advisory Assistant.\n\n"
+             . "I am currently analyzing the hearing file for **" . ($extractedName ?: "this student") . "** against the **NU Lipa Student Handbook** and 204 case precedents.\n\n"
              . "You can ask me questions such as:\n"
              . "• \"What sanction should we recommend for this case?\"\n"
              . "• \"What is the policy for 3 minor offenses?\"\n"
@@ -289,15 +320,17 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
 
     // 2. DISHONESTY / PERJURY / LYING DURING HEARING
     if (preg_match('/\b(lie|lying|false|dishonest|perjury|fake|deceit|untruth|mislead)\b/i', $promptLower)) {
-        return "⚠️ **Policy Guidance on Submitting False Information / Lying**:\n\n"
+        return $studentHeader
+             . "⚠️ **Policy Guidance on Submitting False Information / Lying**:\n\n"
              . "• **Handbook Violation**: Providing false statements, forged documents, or lying during a UPCC hearing is classified as an independent **Major Offense** under NU Lipa Academic & Administrative Dishonesty policies.\n"
-             . "• **Sanction Escalation**: If established during the hearing, the committee should note this aggravating circumstance and consider escalating the penalty to a **Category 2 or Category 3 Sanction** (Disciplinary Probation or Suspension).\n"
+             . "• **Sanction Escalation**: If established during the hearing for **" . ($extractedName ?: "the student") . "**, the committee should note this aggravating circumstance and consider escalating the penalty to a **Category 2 or Category 3 Sanction** (Disciplinary Probation or Suspension).\n"
              . "• **Recommendation**: Advise the student of their obligation to speak truthfully under the Student Code of Conduct.";
     }
 
     // 3. APPEALS & MOTIONS FOR RECONSIDERATION
     if (preg_match('/\b(appeal|reconsider|reconsideration|overturn|contest|due process)\b/i', $promptLower)) {
-        return "📜 **Appeal & Reconsideration Rules (NU Lipa Student Handbook)**:\n\n"
+        return $studentHeader
+             . "📜 **Appeal & Reconsideration Rules (NU Lipa Student Handbook)**:\n\n"
              . "• **Filing Deadline**: Students have **5 school days** from formal notice of sanction finalization to submit a written appeal.\n"
              . "• **Appellate Body**: Appeals are submitted to the **Office of the Academic Director / Executive Office**.\n"
              . "• **Valid Grounds for Appeal**: (1) Discovery of new material evidence, (2) Procedural irregularity during UPCC hearing, or (3) Disproportionate penalty relative to offense level.\n"
@@ -306,7 +339,8 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
 
     // 4. DRUGS, ALCOHOL, WEAPONS, GAMBLING
     if (preg_match('/\b(drug|substance|alcohol|liquor|drink|vape|vaping|smoke|smoking|weapon|knife|blade|gun|gambling|betting)\b/i', $promptLower)) {
-        return "🚨 **Zero-Tolerance Campus Safety Policy**:\n\n"
+        return $studentHeader
+             . "🚨 **Zero-Tolerance Campus Safety Policy**:\n\n"
              . "• **Classification**: Possession, consumption, or distribution of illegal drugs, alcohol, weapons, or organized gambling inside campus premises is a **Category 3 Major Offense**.\n"
              . "• **Mandatory Interventions**: Mandatory **Category 3 Sanction** (Immediate Disciplinary Probation, 30–50 Hours of Community Service, mandatory drug/psychological evaluation, or Suspension/Dismissal recommendation).\n"
              . "• **Immediate Action**: Require security report log and refer student to the Student Affairs & Guidance Office.";
@@ -314,14 +348,17 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
 
     // 5. GRADUATING STUDENTS & HONOR DISQUALIFICATION
     if (preg_match('/\b(graduat|latin honor|cum laude|magna|summa|clearance|diploma|senior)\b/i', $promptLower)) {
-        return "🎓 **Impact on Graduation & Academic Honors**:\n\n"
+        return $studentHeader
+             . "🎓 **Impact on Graduation & Academic Honors**:\n\n"
              . "• **Disqualification from Honors**: Any student found guilty of a **Major Offense** or a Category 2/3 sanction is automatically disqualified from graduating with Latin Honors (Cum Laude, Magna Cum Laude, Summa Cum Laude).\n"
-             . "• **Student Clearance**: Disciplinary cases must reach **RESOLVED** or **CLOSED** status with all community service hours completed before graduation clearance can be approved.";
+             . "• **Student Clearance**: Disciplinary cases for **" . ($extractedName ?: "the student") . "** must reach **RESOLVED** or **CLOSED** status with all community service hours completed before graduation clearance can be approved.";
     }
 
     // 6. COMMUNITY SERVICE HOURS & ATTENDANCE
     if (preg_match('/\b(community service|cs|hour|hours|clock|attend|session|requirement)\b/i', $promptLower)) {
-        return "⏱️ **Community Service Hours Calculation Matrix**:\n\n"
+        return $studentHeader
+             . "⏱️ **Community Service Hours Calculation Matrix**:\n\n"
+             . "• **Active Status for " . ($extractedName ?: "Student") . "**: " . ($extractedCS ?: "No ongoing service requirement on file.") . "\n\n"
              . "• **Category 1 (Minor Initial Violation)**: 10 to 15 Hours of Community Service.\n"
              . "• **Category 2 (Repeated / Major Offense)**: 15 to 25 Hours of Community Service.\n"
              . "• **Category 3 (Severe / Repeat Major Offense)**: 25 to 50 Hours of Community Service.\n\n"
@@ -330,23 +367,28 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
 
     // 7. SECTION 4 MINOR OFFENSES & 3-ATTEMPT ESCALATION
     if (preg_match('/\b(section 4|minor|escalat|3-attempt|three|repeat|count)\b/i', $promptLower)) {
-        return "📌 **Section 4 Minor Offense Escalation Policy**:\n\n"
+        return $studentHeader
+             . "📌 **Section 4 Minor Offense Escalation Policy**:\n\n"
              . "• **1st Offense**: Written Reprimand & Category 1 Warning (10 Hours CS).\n"
              . "• **2nd Offense**: Category 1 Sanction & 15 Hours CS.\n"
              . "• **3rd Offense (3-Attempt Rule)**: **AUTOMATIC ESCALATION** — Accumulating 3 minor offenses converts the case into a **Category 2 Major Offense**.\n\n"
-             . "📋 *Panel Note*: Verify if the student has prior minor offense records in the 'Prior Resolved Cases' tab.";
+             . "📋 *Panel Note*: " . ($extractedName ?: "The student") . " currently has " . ($extractedPriors !== '' ? "{$extractedPriors} prior recorded case(s)" : "0 prior records") . " on file.";
     }
 
     // 8. SANCTIONS & CATEGORIES RECOMMENDATIONS
     if (preg_match('/\b(suggest|sanction|category|punishment|recommend|decision|vote|result)\b/i', $promptLower)) {
         if ($hasMajor) {
-            return "⚖️ **IdentiTrack AI Advisory Recommendation (Major Offense)**:\n\n"
+            return $studentHeader
+                 . "⚖️ **IdentiTrack AI Advisory Recommendation (Major Offense)**:\n\n"
+                 . "• **Target Student**: " . ($extractedName ?: "Active Case Student") . "\n"
                  . "• **Recommended Category**: **Category 2 or Category 3 Sanction**.\n"
                  . "• **Prescribed Actions**: Disciplinary Probation, 25–40 Hours of Community Service, and Formal Parental Notification.\n"
                  . "• **Policy Basis**: NU Lipa Student Handbook Section 5 (Major Offenses Matrix).\n\n"
                  . "📋 *Committee Step*: Ensure all panel members submit their vote before majority consensus timer expires.";
         } else {
-            return "⚖️ **IdentiTrack AI Advisory Recommendation (Minor Offense)**:\n\n"
+            return $studentHeader
+                 . "⚖️ **IdentiTrack AI Advisory Recommendation (Minor Offense)**:\n\n"
+                 . "• **Target Student**: " . ($extractedName ?: "Active Case Student") . "\n"
                  . "• **Recommended Category**: **Category 1 Sanction** (or Category 2 if 2nd/3rd repeat offense).\n"
                  . "• **Prescribed Actions**: Official Warning, 10–15 Hours of Community Service, and Guidance Counseling.\n"
                  . "• **Policy Basis**: NU Lipa Student Handbook Section 4 (Minor Offenses Matrix).\n\n"
@@ -356,15 +398,17 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
 
     // 9. DRESS CODE & UNIFORM POLICIES
     if (preg_match('/\b(dress|uniform|hair|color|dye|piercing|tattoo|civilian|attire|wash day)\b/i', $promptLower)) {
-        return "👔 **Dress Code & Grooming Regulations (Section 4)**:\n\n"
+        return $studentHeader
+             . "👔 **Dress Code & Grooming Regulations (Section 4)**:\n\n"
              . "• **Classification**: Non-compliance with prescribed campus uniform, improper hair color/dye, or unauthorized attire is classified under **Section 4 Minor Offenses**.\n"
              . "• **Intervention**: 1st offense = Warning; 2nd = 10 Hours Community Service; 3rd = Escalation to Category 2 Major Offense.\n"
              . "• **Exemptions**: Special medical or cultural exemptions approved by the Student Affairs Office.";
     }
 
     // 10. GENERAL DEFAULT AI ADVISORY RESPONSE
-    return "🧠 **IdentiTrack AI Hearing Assistant**:\n\n"
-         . "I have analyzed your query against the **NU Lipa Student Handbook** and historical case records.\n\n"
+    return $studentHeader
+         . "🧠 **IdentiTrack AI Hearing Assistant**:\n\n"
+         . "I have analyzed the hearing file for **" . ($extractedName ?: "this student") . "** against the **NU Lipa Student Handbook** and historical case records.\n\n"
          . "• **Key Policy Check**: Section 4 (Minor Violations & 3-Attempt Escalations) and Section 5 (Major Offense Disciplinary Matrix).\n"
          . "• **Case Precedents**: Cross-referenced against 204 historical UPCC case decisions.\n\n"
          . "You can ask me about **sanction recommendations**, **community service hours**, **student rights**, **appeals**, or **specific handbook rules**!";
