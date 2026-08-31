@@ -71,6 +71,28 @@ class UpccAiBridge
         return null;
     }
 
+    private function getPythonExecutable(): string
+    {
+        $localAppData = getenv('LOCALAPPDATA') ?: 'C:\Users\Acer\AppData\Local';
+        $candidates = [
+            $localAppData . '\Programs\Python\Python314\python.exe',
+            $localAppData . '\Programs\Python\Python313\python.exe',
+            $localAppData . '\Programs\Python\Python312\python.exe',
+            $localAppData . '\Programs\Python\Python311\python.exe',
+            'C:\Python314\python.exe',
+            'C:\Python313\python.exe',
+            'C:\Python312\python.exe',
+        ];
+
+        foreach ($candidates as $cand) {
+            if ($cand && file_exists($cand)) {
+                return escapeshellarg($cand);
+            }
+        }
+
+        return 'python';
+    }
+
     private function runPythonPredictor(array $caseData): ?array
     {
         $jsonPayload = json_encode($caseData);
@@ -83,7 +105,8 @@ class UpccAiBridge
             return null;
         }
 
-        $cmd = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($tmpFile) . " 2>&1";
+        $pythonBin = $this->getPythonExecutable();
+        $cmd = $pythonBin . " " . escapeshellarg($pythonScript) . " " . escapeshellarg($tmpFile) . " 2>&1";
         $output = @shell_exec($cmd);
         @unlink($tmpFile);
 
@@ -206,8 +229,8 @@ class UpccAiBridge
 
     private function logAudit(string $caseId, ?int $requestedBy, array $res): void
     {
-        ensure_upcc_ai_schema();
         try {
+            ensure_upcc_ai_schema();
             $distJson = isset($res['historical_distribution']) ? json_encode($res['historical_distribution']) : null;
             db_exec("INSERT INTO ai_audit_log (
                 case_id, requested_by, model_version, dataset_version, recommendation,
