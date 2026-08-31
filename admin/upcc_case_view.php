@@ -3758,8 +3758,9 @@ function toggleAiDrawer(forceState) {
         drawer.style.visibility = 'visible';
         drawer.style.pointerEvents = 'auto';
         if (bubble) {
-            bubble.style.display = 'none';
+            bubble.style.transform = 'translateY(20px) scale(0.8)';
             bubble.style.opacity = '0';
+            setTimeout(() => { if (bubble) bubble.style.display = 'none'; }, 200);
         }
     } else {
         drawer.style.transform = 'translateY(120%) scale(0.95)';
@@ -3768,8 +3769,12 @@ function toggleAiDrawer(forceState) {
         drawer.style.pointerEvents = 'none';
         if (bubble) {
             bubble.style.display = 'flex';
-            bubble.style.transform = 'translateY(0) scale(1)';
-            bubble.style.opacity = '1';
+            setTimeout(() => {
+                if (bubble) {
+                    bubble.style.transform = 'translateY(0) scale(1)';
+                    bubble.style.opacity = '1';
+                }
+            }, 50);
         }
         setAiHeadExpression('idle');
     }
@@ -4154,146 +4159,7 @@ syncLive();
 }
 </style>
 
-<script>
-function setAiHeadExpression(mode) {
-    const svgs = document.querySelectorAll('.ai-bot-svg');
-    svgs.forEach(svg => {
-        svg.classList.remove('idle', 'thinking', 'speaking', 'happy');
-        svg.classList.add(mode || 'idle');
-    });
-}
 
-let isAiDrawerOpen = false;
-function toggleAiDrawer(forceState) {
-    const drawer = document.getElementById('aiChatDrawer');
-    const bubble = document.getElementById('aiFloatingBubble');
-    if (!drawer) return;
-    
-    if (typeof forceState === 'boolean') {
-        isAiDrawerOpen = forceState;
-    } else {
-        isAiDrawerOpen = !isAiDrawerOpen;
-    }
-
-    if (isAiDrawerOpen) {
-        drawer.style.transform = 'translateY(0) scale(1)';
-        drawer.style.opacity = '1';
-        drawer.style.visibility = 'visible';
-        drawer.style.pointerEvents = 'auto';
-        if (bubble) bubble.style.transform = 'translateY(20px) scale(0.8)';
-        if (bubble) bubble.style.opacity = '0';
-        setTimeout(() => { if (bubble) bubble.style.display = 'none'; }, 200);
-    } else {
-        drawer.style.transform = 'translateY(120%) scale(0.95)';
-        drawer.style.opacity = '0';
-        drawer.style.visibility = 'hidden';
-        drawer.style.pointerEvents = 'none';
-        if (bubble) bubble.style.display = 'flex';
-        setTimeout(() => {
-            if (bubble) {
-                bubble.style.transform = 'translateY(0) scale(1)';
-                bubble.style.opacity = '1';
-            }
-        }, 50);
-        setAiHeadExpression('idle');
-    }
-}
-
-function toggleDrawerWhyPanel() {
-    const p = document.getElementById('ai-drawer-why-panel');
-    if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
-}
-
-async function runAiAnalysisAdmin() {
-    setAiHeadExpression('thinking');
-    const dInitBox = document.getElementById('ai-drawer-initial-state');
-    const dLoadBox = document.getElementById('ai-drawer-loading-state');
-    const dResBox = document.getElementById('ai-drawer-result-card');
-
-    if (dInitBox) dInitBox.style.display = 'none';
-    if (dResBox) dResBox.style.display = 'none';
-    if (dLoadBox) dLoadBox.style.display = 'block';
-
-    const steps = [
-        { dId: 'drawer-step-1', text: '✓ Reviewing case information' },
-        { dId: 'drawer-step-2', text: '✓ Checking verified historical cases' },
-        { dId: 'drawer-step-3', text: '● Comparing similar cases' },
-        { dId: 'drawer-step-4', text: '○ Checking handbook compatibility' },
-        { dId: 'drawer-step-5', text: '○ Preparing recommendation' }
-    ];
-
-    let stepIdx = 0;
-    const interval = setInterval(() => {
-        if (stepIdx < steps.length) {
-            const dEl = document.getElementById(steps[stepIdx].dId);
-            if (dEl) { dEl.innerHTML = steps[stepIdx].text; dEl.style.color = '#f8fafc'; dEl.style.fontWeight = '600'; }
-            stepIdx++;
-        } else {
-            clearInterval(interval);
-        }
-    }, 400);
-
-    try {
-        const caseId = <?= (int)$case_id ?>;
-        const res = await fetch(`api_ai_suggest_sanction.php?action=suggest&case_id=${caseId}`);
-        const data = await res.json();
-
-        clearInterval(interval);
-        if (dLoadBox) dLoadBox.style.display = 'none';
-
-        const dRecTitle = document.getElementById('drawer-ai-rec-title');
-        const dEvCnt = document.getElementById('drawer-ai-evidence-cnt');
-        const dPatStr = document.getElementById('drawer-ai-pattern-str');
-        const dConfPct = document.getElementById('drawer-ai-confidence-pct');
-
-        const recLabel = data.suggested_category_label || `CATEGORY ${data.suggested_category || 1}`;
-        if (dRecTitle) dRecTitle.textContent = recLabel;
-
-        const csHours = data.community_service_hours || 0;
-        let csText = "0 Hours (Formal Reprimand / Advisory)";
-        if (data.suggested_category === 2) {
-            csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "15–25 Hours Formative Community Service";
-        } else if (data.suggested_category === 3) {
-            csText = csHours > 0 ? `${csHours} Hours Community Service + Probation` : "25–50 Hours Community Service";
-        } else if (data.suggested_category === 4) {
-            csText = "0 Hours (Non-Readmission / Exclusion)";
-        } else if (data.suggested_category === 5) {
-            csText = "0 Hours (Summary Expulsion & Police Referral)";
-        }
-        const csTextEl = document.getElementById('drawer-ai-cs-text');
-        if (csTextEl) csTextEl.textContent = csText;
-
-        const evLabel = `${data.similar_cases || 8} similar verified cases`;
-        if (dEvCnt) dEvCnt.textContent = evLabel;
-
-        const mostCommon = data.most_common_historical || `Category ${data.suggested_category || 1}`;
-        const patLabel = `${data.similar_cases || 8} similar cases → ${mostCommon}`;
-        if (dPatStr) dPatStr.textContent = patLabel;
-
-        const confVal = Math.round((data.confidence || 0.88) * 100) + '%';
-        if (dConfPct) dConfPct.textContent = confVal;
-
-        const dDistTable = document.getElementById('drawer-ai-hist-dist-table');
-        if (data.historical_distribution) {
-            let html = '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-            for (const [cat, cnt] of Object.entries(data.historical_distribution)) {
-                html += `<div style="background:rgba(30,41,59,0.9);border:1px solid rgba(255,255,255,0.15);padding:5px 10px;border-radius:8px;font-weight:600;color:#f8fafc;">${cat}: <span style="color:#38bdf8;">${cnt}</span></div>`;
-            }
-            html += '</div>';
-            if (dDistTable) dDistTable.innerHTML = html;
-        }
-
-        if (dResBox) dResBox.style.display = 'block';
-        setAiHeadExpression('speaking');
-
-    } catch (err) {
-        clearInterval(interval);
-        if (dLoadBox) dLoadBox.style.display = 'none';
-        if (dResBox) dResBox.style.display = 'block';
-        setAiHeadExpression('speaking');
-    }
-}
-</script>
 
 
 

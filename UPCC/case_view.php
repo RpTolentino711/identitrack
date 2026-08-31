@@ -3731,8 +3731,9 @@ function toggleAiDrawer(forceState) {
         drawer.style.visibility = 'visible';
         drawer.style.pointerEvents = 'auto';
         if (bubble) {
-            bubble.style.display = 'none';
+            bubble.style.transform = 'translateY(20px) scale(0.8)';
             bubble.style.opacity = '0';
+            setTimeout(() => { if (bubble) bubble.style.display = 'none'; }, 200);
         }
     } else {
         drawer.style.transform = 'translateY(120%) scale(0.95)';
@@ -3741,8 +3742,12 @@ function toggleAiDrawer(forceState) {
         drawer.style.pointerEvents = 'none';
         if (bubble) {
             bubble.style.display = 'flex';
-            bubble.style.transform = 'translateY(0) scale(1)';
-            bubble.style.opacity = '1';
+            setTimeout(() => {
+                if (bubble) {
+                    bubble.style.transform = 'translateY(0) scale(1)';
+                    bubble.style.opacity = '1';
+                }
+            }, 50);
         }
         setAiHeadExpression('idle');
     }
