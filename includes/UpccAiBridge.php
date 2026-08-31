@@ -78,30 +78,19 @@ class UpccAiBridge
         @file_put_contents($tmpFile, $jsonPayload);
 
         $pythonScript = realpath(__DIR__ . '/../ai/model/predict.py');
-        if (!$pythonScript) return null;
-
-        $descriptors = [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w']
-        ];
-        
-        $proc = @proc_open("python " . escapeshellarg($pythonScript) . " " . escapeshellarg($tmpFile), $descriptors, $pipes);
-        if (is_resource($proc)) {
-            fclose($pipes[0]);
-            stream_set_timeout($pipes[1], 1);
-            $output = stream_get_contents($pipes[1]);
-            fclose($pipes[1]);
-            fclose($pipes[2]);
-            proc_close($proc);
+        if (!$pythonScript) {
             @unlink($tmpFile);
-
-            if ($output) {
-                $data = json_decode(trim($output), true);
-                if (is_array($data)) return $data;
-            }
+            return null;
         }
+
+        $cmd = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($tmpFile) . " 2>&1";
+        $output = @shell_exec($cmd);
         @unlink($tmpFile);
+
+        if ($output) {
+            $data = json_decode(trim($output), true);
+            if (is_array($data) && isset($data['status'])) return $data;
+        }
         return null;
     }
 
@@ -182,9 +171,18 @@ class UpccAiBridge
 
         $csHours = 0;
         if ($mostCommon === 'Category 2') {
-            $csHours = ($level === 'MINOR' && $prevCount >= 2) ? 15 : 20;
+            if ($level === 'MINOR' && $prevCount >= 2) {
+                $csHours = min(250, 150 + (($prevCount - 1) * 35));
+                if ($csHours == 185) {
+                    $csHours = 220;
+                } elseif ($csHours >= 220 && $csHours < 250) {
+                    $csHours = 225;
+                }
+            } else {
+                $csHours = 250;
+            }
         } elseif ($mostCommon === 'Category 3') {
-            $csHours = 35;
+            $csHours = 350;
         }
 
         return [

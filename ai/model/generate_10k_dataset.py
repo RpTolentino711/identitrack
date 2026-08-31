@@ -5,43 +5,53 @@ import random
 DATASET_VERSION = "UPCC-DATA-v1.0"
 OUTPUT_DIR = r"c:\xampp\htdocs\identitrack\ai\storage\datasets"
 
-# Comprehensive list of Offense Definitions grounded in NU Lipa Student Handbook
+# Comprehensive list of Offense Definitions grounded in NU Lipa Student Handbook & Database Schema
 OFFENSE_CATALOG = [
-    # MINOR OFFENSES (Section IV)
-    {"name": "WEARING MINI SKIRT / DRESS CODE VIOLATION", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    # MINOR OFFENSES (Section IV - Official System Schema MIN-001 to MIN-016 + Campus Logs)
+    {"name": "NON-WEARING OF PRESCRIBED UNIFORM INSIDE CAMPUS", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "NON-WEARING OR FAILURE TO BRING UNIVERSITY ID ON CAMPUS", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "WEARING INAPPROPRIATE ATTIRE (CROP TOP, SHORTS, RIPPED JEANS, SLEEVELESS)", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
     {"name": "WEARING SLIPPER / UNAPPROVED FOOTWEAR", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
-    {"name": "WEARING CROPTOP / SHORTS / SLEEVELESS", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
-    {"name": "NO ID CARD / FAILURE TO WEAR ID VISIBLY", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
-    {"name": "NO P.E. UNIFORM / IMPROPER P.E. ATTIRE", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "UNAUTHORIZED USE OF CLASSROOM, FACILITIES, OR EQUIPMENT", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "LOITERING ALONG CLASSROOM CORRIDORS DURING CLASS HOURS", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "EATING IN PROHIBITED AREAS (CLASSROOMS, LABS, LIBRARIES, OFFICES)", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
     {"name": "LITTERING / IMPROPER WASTE DISPOSAL", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "UNAUTHORIZED REARRANGEMENT OF TABLES, CHAIRS, AND FIXTURES", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "VIOLATING POLICIES ON THE USE OF LOCKERS", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "CONCEALING OR HIDING LIBRARY MATERIALS FOR EXCLUSIVE USE", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "DYEING HAIR WITH ARTIFICIAL / BRIGHT OR LOUD INAPPROPRIATE COLOR", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "PRESENCE OF OPPOSITE SEX IN DESIGNATED MALE/FEMALE AREAS", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "BYPASSING STUDENT ENTRANCE / DOUBLE TAPPING / UNAPPROVED ITEM PASSAGE", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "WEARING OF BODY PIERCING ACCESSORIES / EXCESSIVE EARRINGS", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "WEARING OF EARRINGS AMONG MALE STUDENTS", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "LENDING OF STUDENT ID / DOUBLE TAPPING ENTRY", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
     {"name": "CLASSROOM DISRUPTION / EXCESSIVE NOISE", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
     {"name": "PUBLIC DISPLAY OF AFFECTION (PDA)", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
-    {"name": "UNAUTHORIZED EATING INSIDE COMPUTER LAB", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
-    {"name": "LOITERING DURING CLASS HOURS", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
+    {"name": "MISUSE OF CAMPUS ELEVATOR", "level": "MINOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section IV"},
 
     # MAJOR OFFENSES - CATEGORY 1 (Section V)
     {"name": "ACADEMIC INSUBORDINATION / REFUSAL OF DIRECTIVE", "level": "MAJOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section V"},
     {"name": "BYPASSING SECURITY CHECKPOINT / UNCHECKED BAG", "level": "MAJOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section V"},
     {"name": "MINOR GAMBLING / CARD GAMES WITHOUT STAKES", "level": "MAJOR", "base_cat": "Category 1", "cs_hours": 0, "section": "Section V"},
 
-    # MAJOR OFFENSES - CATEGORY 2 (Section V - 15 to 25 CS Hours)
-    {"name": "CHEATING / ACADEMIC DISHONESTY / PLAGIARISM", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 20, "section": "Section V"},
-    {"name": "BRINGING VAPE / E-CIGARETTE ON CAMPUS", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 15, "section": "Section V"},
-    {"name": "SMOKING INSIDE CAMPUS PREMISES", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 20, "section": "Section V"},
-    {"name": "GAMBLING WITH MONETARY STAKES", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 25, "section": "Section V"},
-    {"name": "VANDALISM / GRAFFITI ON SCHOOL PROPERTY", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 20, "section": "Section V"},
-    {"name": "THEFT / UNAUTHORIZED POSSESSION OF PROPERTY", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 25, "section": "Section V"},
-    {"name": "DISRESPECT / INSUBORDINATION TO FACULTY/STAFF", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 15, "section": "Section V"},
-    {"name": "UNCIVIL AGGRESSION / VERBAL BULLYING", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 20, "section": "Section V"},
-    {"name": "UNAUTHORIZED LENDING / FINANCIAL MONOPOLY", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 15, "section": "Section V"},
-    {"name": "3RD MINOR ATTEMPT ESCALATION TO MAJOR", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 15, "section": "Section IV/V"},
+    # MAJOR OFFENSES - CATEGORY 2 (Section V - Formative Intervention / 150-250 CS Hours)
+    {"name": "CHEATING / ACADEMIC DISHONESTY / PLAGIARISM", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 250, "section": "Section V"},
+    {"name": "BRINGING VAPE / E-CIGARETTE ON CAMPUS", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 250, "section": "Section V"},
+    {"name": "SMOKING INSIDE CAMPUS PREMISES", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 250, "section": "Section V"},
+    {"name": "GAMBLING WITH MONETARY STAKES", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 250, "section": "Section V"},
+    {"name": "VANDALISM / GRAFFITI ON SCHOOL PROPERTY", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 250, "section": "Section V"},
+    {"name": "THEFT / UNAUTHORIZED POSSESSION OF PROPERTY", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 250, "section": "Section V"},
+    {"name": "DISRESPECT / INSUBORDINATION TO FACULTY/STAFF", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 250, "section": "Section V"},
+    {"name": "UNCIVIL AGGRESSION / VERBAL BULLYING", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 250, "section": "Section V"},
+    {"name": "UNAUTHORIZED LENDING / FINANCIAL MONOPOLY", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 250, "section": "Section V"},
+    {"name": "3RD MINOR ATTEMPT ESCALATION TO MAJOR", "level": "MAJOR", "base_cat": "Category 2", "cs_hours": 220, "section": "Section IV/V"},
 
-    # MAJOR OFFENSES - CATEGORY 3 (Section V - 25 to 50 CS Hours)
-    {"name": "FIGHTING / PHYSICAL ASSAULT ON CAMPUS", "level": "MAJOR", "base_cat": "Category 3", "cs_hours": 40, "section": "Section V"},
-    {"name": "ALCOHOL POSSESSION / UNDER THE INFLUENCE", "level": "MAJOR", "base_cat": "Category 3", "cs_hours": 30, "section": "Section V"},
-    {"name": "SEVERE CYBERBULLYING / HARASSMENT", "level": "MAJOR", "base_cat": "Category 3", "cs_hours": 35, "section": "Section V"},
-    {"name": "REPEATED VIOLATION WHILE ON DISCIPLINARY PROBATION", "level": "MAJOR", "base_cat": "Category 3", "cs_hours": 50, "section": "Section V"},
-    {"name": "FORGERY OF OFFICIAL ACADEMIC DOCUMENTS", "level": "MAJOR", "base_cat": "Category 3", "cs_hours": 40, "section": "Section V"},
+    # MAJOR OFFENSES - CATEGORY 3 (Section V - 250 to 500 CS Hours)
+    {"name": "FIGHTING / PHYSICAL ASSAULT ON CAMPUS", "level": "MAJOR", "base_cat": "Category 3", "cs_hours": 400, "section": "Section V"},
+    {"name": "ALCOHOL POSSESSION / UNDER THE INFLUENCE", "level": "MAJOR", "base_cat": "Category 3", "cs_hours": 300, "section": "Section V"},
+    {"name": "SEVERE CYBERBULLYING / HARASSMENT", "level": "MAJOR", "base_cat": "Category 3", "cs_hours": 350, "section": "Section V"},
+    {"name": "REPEATED VIOLATION WHILE ON DISCIPLINARY PROBATION", "level": "MAJOR", "base_cat": "Category 3", "cs_hours": 500, "section": "Section V"},
+    {"name": "FORGERY OF OFFICIAL ACADEMIC DOCUMENTS", "level": "MAJOR", "base_cat": "Category 3", "cs_hours": 400, "section": "Section V"},
 
     # MAJOR OFFENSES - CATEGORY 4 (Section V - Non-Readmission / 0 CS Hours)
     {"name": "WEAPONS POSSESSION / DEADLY BLADE", "level": "MAJOR", "base_cat": "Category 4", "cs_hours": 0, "section": "Section V"},
@@ -62,25 +72,23 @@ def generate_10k():
     total_target = 10000
 
     for idx in range(total_target):
-        # Select base offense from catalog with realistic distribution
-        item = random.choices(
-            OFFENSE_CATALOG,
-            weights=[
-                # Minors (approx 35%)
-                3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5,
-                # Major Cat 1 (approx 10%)
-                3.3, 3.3, 3.4,
-                # Major Cat 2 (approx 35%)
-                4.0, 4.0, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.0, 3.0,
-                # Major Cat 3 (approx 13%)
-                2.6, 2.6, 2.6, 2.6, 2.6,
-                # Major Cat 4 (approx 5%)
-                1.7, 1.7, 1.6,
-                # Major Cat 5 (approx 2%)
-                0.7, 0.7, 0.6
-            ],
-            k=1
-        )[0]
+        # Dynamically compute weights based on level and category
+        weights = []
+        for cat_item in OFFENSE_CATALOG:
+            if cat_item['level'] == 'MINOR':
+                weights.append(35.0 / len([x for x in OFFENSE_CATALOG if x['level'] == 'MINOR']))
+            elif cat_item.get('base_cat') == 'Category 1':
+                weights.append(10.0 / len([x for x in OFFENSE_CATALOG if x.get('base_cat') == 'Category 1']))
+            elif cat_item.get('base_cat') == 'Category 2':
+                weights.append(35.0 / len([x for x in OFFENSE_CATALOG if x.get('base_cat') == 'Category 2']))
+            elif cat_item.get('base_cat') == 'Category 3':
+                weights.append(13.0 / len([x for x in OFFENSE_CATALOG if x.get('base_cat') == 'Category 3']))
+            elif cat_item.get('base_cat') == 'Category 4':
+                weights.append(5.0 / len([x for x in OFFENSE_CATALOG if x.get('base_cat') == 'Category 4']))
+            else:
+                weights.append(2.0 / len([x for x in OFFENSE_CATALOG if x.get('base_cat') == 'Category 5']))
+
+        item = random.choices(OFFENSE_CATALOG, weights=weights, k=1)[0]
 
         level = item['level']
         offense_name = item['name']
@@ -89,13 +97,15 @@ def generate_10k():
 
         # Determine prior offenses count and severity
         if level == "MINOR":
-            prev_count = random.choice([0, 0, 0, 1, 1, 2])
+            prev_count = random.choice([0, 0, 0, 1, 1, 2, 3])
             # Section IV Rule: 3rd Minor attempt (prev_count >= 2) escalates to Category 2 Major!
             if prev_count >= 2:
                 decided_cat = "Category 2"
-                cs_hours = 15
+                # Dynamic cumulative hours for multiple minor infractions (150 base + 35/37 per prior = 220-225 Hours)
+                extra_weight = (prev_count - 1) * 35
+                cs_hours = min(250, 150 + extra_weight)
                 severity = "Moderate"
-                sanction_text = "Escalated to Category 2 (15 Hours Community Service + Guidance Counseling)"
+                sanction_text = f"Escalated Section IV Rule to Category 2 ({cs_hours} Hours Community Service + Guidance Counseling)"
             else:
                 decided_cat = "Category 1"
                 cs_hours = 0
@@ -109,13 +119,13 @@ def generate_10k():
                 severity = "Low"
                 sanction_text = "Category 1 Formal Reprimand & 30 Days Disciplinary Probation (0 CS Hours)"
             elif decided_cat == "Category 2":
-                # 15 to 25 CS Hours
-                cs_hours = random.choice([15, 20, 25])
+                # 150 to 250 CS Hours (NU Lipa Standard: 250 Hours for Formative Intervention)
+                cs_hours = random.choice([150, 200, 250])
                 severity = "Moderate"
                 sanction_text = f"Category 2 Disciplinary Probation + {cs_hours} Hours Community Service"
             elif decided_cat == "Category 3":
-                # 25 to 50 CS Hours
-                cs_hours = random.choice([25, 30, 35, 40, 50])
+                # 250 to 500 CS Hours
+                cs_hours = random.choice([250, 300, 350, 400, 500])
                 severity = "Moderate"
                 sanction_text = f"Category 3 Disciplinary Probation / 3-5 Days Suspension + {cs_hours} Hours Community Service"
             elif decided_cat == "Category 4":

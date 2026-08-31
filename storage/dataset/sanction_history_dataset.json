@@ -1,7 +1,7 @@
 {
   "dataset_version": "UPCC-DATA-v1.0",
   "summary": {
-    "total_major_cases": 6490,
+    "total_major_cases": 6199,
     "total_campus_records": 10000,
     "verified_cases": 10000
   }
