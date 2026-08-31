@@ -28,15 +28,42 @@ if (session_status() === PHP_SESSION_NONE) {
   session_start();
 }
 
-/* =========================
-   ENVIRONMENT & AUTOLOAD
-   ========================= */
-if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
-    require_once __DIR__ . '/../vendor/autoload.php';
-    if (class_exists('Dotenv\Dotenv')) {
-        $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
-        $dotenv->safeLoad();
+/**
+ * Ensure environment variables from .env are loaded into $_ENV and $_SERVER
+ */
+function load_env_vars(): void {
+    static $loaded = false;
+    if ($loaded) return;
+    $envPaths = [__DIR__ . '/../.env', __DIR__ . '/.env'];
+    foreach ($envPaths as $envPath) {
+        if (file_exists($envPath)) {
+            $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line === '' || strpos($line, '#') === 0) continue;
+                if (strpos($line, '=') !== false) {
+                    list($name, $val) = explode('=', $line, 2);
+                    $name = trim($name);
+                    $val = trim($val, " \t\n\r\0\x0B\"'");
+                    if (!isset($_ENV[$name]) || $_ENV[$name] === '') $_ENV[$name] = $val;
+                    if (!isset($_SERVER[$name]) || $_SERVER[$name] === '') $_SERVER[$name] = $val;
+                }
+            }
+        }
     }
+    $loaded = true;
+}
+
+/**
+ * Get an environment variable with a fallback default
+ */
+function get_env_var(string $key, mixed $default = ''): mixed {
+    load_env_vars();
+    if (isset($_ENV[$key]) && $_ENV[$key] !== '') return $_ENV[$key];
+    if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') return $_SERVER[$key];
+    $val = getenv($key);
+    if ($val !== false && $val !== '') return $val;
+    return $default;
 }
 
 /**
@@ -86,8 +113,6 @@ function db(): PDO
       ['host' => '127.0.0.1', 'db' => 'identitrack', 'user' => 'root', 'pass' => ''],
       ['host' => 'localhost', 'db' => 'identitrack', 'user' => 'root', 'pass' => ''],
       ['host' => $host, 'db' => $dbname, 'user' => $user, 'pass' => $pass],
-      ['host' => '127.0.0.1', 'db' => 'u321173822_track', 'user' => 'u321173822_titrack', 'pass' => 'Pogilameg@10'],
-      ['host' => 'localhost', 'db' => 'u321173822_track', 'user' => 'u321173822_titrack', 'pass' => 'Pogilameg@10'],
     ];
 
     $lastErr = null;
@@ -158,8 +183,7 @@ function db_smtp_user(): string
 
 function db_smtp_pass(): string
 {
-  $val = trim((string)($_ENV['SMTP_PASS'] ?? $_SERVER['SMTP_PASS'] ?? getenv('SMTP_PASS') ?: ''));
-  return $val !== '' ? $val : 'Pogilameg@10';
+  return trim((string)($_ENV['SMTP_PASS'] ?? $_SERVER['SMTP_PASS'] ?? getenv('SMTP_PASS') ?: ''));
 }
 
 function getConnection(): PDO

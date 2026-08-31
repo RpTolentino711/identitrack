@@ -39,9 +39,8 @@ function makeMailer(): PHPMailer {
     // PHPMailer 5.2.28 uses string 'tls' (not PHPMailer::ENCRYPTION_STARTTLS)
     $mail->SMTPSecure = 'tls';
 
-    // ✅ Your Gmail SMTP
-    $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-    $mail->Password = $_ENV['SMTP_PASS'] ?? 'Pogilameg@10';
+    $mail->Username = get_env_var('SMTP_USER', 'identitrack@identitrack.site');
+    $mail->Password = get_env_var('SMTP_PASS', '');
 
     $mail->Timeout = 30;
     return $mail;

@@ -204,7 +204,7 @@ $mail->isSMTP();
 
     // ✅ Set this to the Gmail you are using for SMTP in your project
     $mail->Username = $getEnv('SMTP_USER', 'identitrack@identitrack.site');
-    $mail->Password = $getEnv('SMTP_PASS', 'Pogilameg@10');
+    $mail->Password = $getEnv('SMTP_PASS', '');
 
 $mail->setFrom($mail->Username, 'IdentiTrack Admin');
 $mail->addAddress($guardianEmail, $guardianName);

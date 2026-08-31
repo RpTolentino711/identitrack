@@ -16,8 +16,8 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
     $mail->Timeout = 20;
 
     // ✅ SDO SMTP Credentials
-    $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-    $mail->Password = $_ENV['SMTP_PASS'] ?? 'Pogilameg@10'; 
+    $mail->Username = get_env_var('SMTP_USER', 'identitrack@identitrack.site');
+    $mail->Password = get_env_var('SMTP_PASS', '');
 
     $mail->setFrom($mail->Username, 'IdentiTrack Admin Verification');
     $mail->addAddress($toEmail, $toName);

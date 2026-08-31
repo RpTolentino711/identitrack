@@ -9,8 +9,8 @@ $mail->Host = 'smtp.hostinger.com';
 $mail->Port = 587;
 $mail->SMTPAuth = true;
 $mail->SMTPSecure = 'tls';
-$mail->Username = 'identitrack@identitrack.site';
-$mail->Password = 'Pogilameg@10';
+$mail->Username = get_env_var('SMTP_USER', 'identitrack@identitrack.site');
+$mail->Password = get_env_var('SMTP_PASS', '');
 $mail->SMTPDebug = 2; // Enable verbose debug output
 
 try {

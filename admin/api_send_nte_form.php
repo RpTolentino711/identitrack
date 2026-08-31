@@ -232,7 +232,7 @@ if (!empty($finalAttachment)) {
             $mail->SMTPAuth = true;
             $mail->SMTPSecure = 'tls';
             $mail->Username = $getEnv('SMTP_USER', 'identitrack@identitrack.site');
-            $mail->Password = $getEnv('SMTP_PASS', 'Pogilameg@10');
+            $mail->Password = $getEnv('SMTP_PASS', '');
 
             $mail->setFrom($mail->Username, 'Student Discipline Office - NU Lipa');
             $mail->addAddress($studentEmail, $studentName);
