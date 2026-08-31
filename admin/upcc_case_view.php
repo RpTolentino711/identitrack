@@ -4288,7 +4288,7 @@ syncLive();
       </div>
       <h4 style="margin: 0 0 0.5rem 0; font-size: 1.15rem; font-weight: 800; color: #f8fafc; letter-spacing:0.2px;">Ready to analyze this case</h4>
       <p style="margin: 0 auto 1.5rem auto; font-size: 0.85rem; color: #94a3b8; line-height: 1.6; max-width: 320px;">
-        The AI will analyze case details against 10,000 verified historical UPCC precedents and Student Handbook rules to recommend a sanction & Community Service hours.
+        The AI will analyze case details against 2,295 verified historical UPCC precedents and Student Handbook rules to recommend a sanction & Community Service hours.
       </p>
       <button type="button" class="btn btn-primary" onclick="runAiAnalysis()" style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; border-radius: 14px; padding: 0.85rem 2.25rem; font-size: 0.95rem; font-weight: 800; color: #fff; cursor: pointer; box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5); transition: all 0.25s;" onmouseover="this.style.transform='scale(1.04)';this.style.boxShadow='0 8px 25px rgba(2, 132, 199, 0.7)';" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 6px 20px rgba(2, 132, 199, 0.5)';">
         ✦ SUGGEST
@@ -4306,7 +4306,7 @@ syncLive();
       </div>
       <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);">
         <div id="drawer-step-1" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Reviewing case information</div>
-        <div id="drawer-step-2" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Checking 10,000 verified historical cases</div>
+        <div id="drawer-step-2" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Checking 2,295 verified historical cases</div>
         <div id="drawer-step-3" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Comparing similar cases & precedent text</div>
         <div id="drawer-step-4" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Checking handbook compatibility & CS matrix</div>
         <div id="drawer-step-5" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Preparing recommendation</div>
@@ -4339,7 +4339,7 @@ syncLive();
           </div>
           <div style="background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 12px;">
             <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Version</span>
-            <strong style="font-size: 0.8rem; color: #cbd5e1;">UPCC-RF-v1.0 (10k Dataset)</strong>
+            <strong style="font-size: 0.8rem; color: #cbd5e1;">UPCC-RF-v1.0 (2,295 Dataset)</strong>
           </div>
         </div>
 
@@ -4361,7 +4361,7 @@ syncLive();
           📊 WHY THIS WAS SUGGESTED
         </h4>
         <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 1rem;">
-          The AI identified similar verified cases in the 10,000-case dataset matching offense text, severity level, and handbook penalty matrix rules.
+          The AI identified similar verified cases in the 2,295-case dataset matching offense text, severity level, and handbook penalty matrix rules.
         </p>
 
         <!-- HISTORICAL BREAKDOWN TABLE -->
@@ -4385,7 +4385,7 @@ syncLive();
         <div style="background: rgba(0,0,0,0.35); border-radius: 12px; padding: 12px 14px; font-size: 0.75rem; color: #94a3b8; line-height: 1.6;">
           <strong style="color:#f8fafc;">MODEL DETAILS:</strong><br>
           • Model Version: UPCC-RF-v1.0 (Random Forest)<br>
-          • Training Dataset: UPCC-DATA-v1.0 (10,000 verified cases)<br>
+          • Training Dataset: UPCC-DATA-v1.0 (2,295 verified cases)<br>
           • Precedent Matcher: TF-IDF Cosine Similarity
         </div>
       </div>

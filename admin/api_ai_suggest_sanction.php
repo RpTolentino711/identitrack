@@ -682,9 +682,9 @@ try {
             'handbook_reference' => $aiRes['handbook_reference'] ?? ($offenseLevel === 'MAJOR' ? 'Section V' : 'Section IV'),
             'model_version' => $aiRes['model_version'] ?? 'UPCC-RF-v1.0',
             'dataset_version' => $aiRes['dataset_version'] ?? 'UPCC-DATA-v1.0',
-            'dataset_total_cases' => 10000,
+            'dataset_total_cases' => 2295,
             'ai_available' => true,
-            'engine' => 'On-Premise Random Forest + TF-IDF Similarity Engine (10,000 Verified Cases)',
+            'engine' => 'On-Premise Random Forest + TF-IDF Similarity Engine (2,295 Verified Cases)',
             'privacy' => '🔒 100% On-Premise Private AI (No Data Leaves Campus)'
         ]);
         exit;
