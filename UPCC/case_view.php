@@ -1952,6 +1952,9 @@ function closePauseModal() {
     if (m) {
         m.style.display = 'none';
     }
+    if (typeof showToast === 'function') {
+        showToast('⏳ Staying in Hearing', 'You will be notified automatically as soon as the admin resumes.', 'info');
+    }
 }
 </script>
 
@@ -2016,7 +2019,7 @@ function closePauseModal() {
             <p style="margin:0;font-size:12px;font-style:italic">You can stay in the hearing and wait for it to resume, or return to your dashboard.</p>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <button type="button" class="btn btn-primary" onclick="closePauseModal(); document.getElementById('waitInHearingBtn').focus();" style="padding:14px;font-size:14px;" disabled>⏳ Waiting for Admin</button>
+            <button type="button" class="btn btn-primary" onclick="closePauseModal();" style="padding:14px;font-size:14px;">⏳ Waiting for Admin</button>
             <button type="button" class="btn btn-secondary" id="exitPauseBtn" onclick="exitHearing()" style="padding:14px;font-size:14px;">← Go to Dashboard</button>
         </div>
         <div id="waitInHearingBtn" style="margin-top:16px;padding:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:12px;color:#6ee7b7">
