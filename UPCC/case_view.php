@@ -3146,9 +3146,21 @@ function switchBreakdownTab(tabName, btn) {
     }
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+const escHtml = escapeHtml;
+
 let currentAiResult = null;
 
 async function runAiAnalysis() {
+    setAiHeadExpression('thinking');
     const initBox = document.getElementById('ai-initial-state');
     const loadBox = document.getElementById('ai-loading-state');
     const resBox = document.getElementById('ai-result-card');
@@ -3197,7 +3209,7 @@ async function runAiAnalysis() {
     try {
         const caseId = <?= (int)$caseId ?>;
         const res = await fetch(`../admin/api_ai_suggest_sanction.php?action=suggest&case_id=${caseId}`);
-        const data = await res.json();
+        let data = await res.json();
         currentAiResult = data;
 
         clearInterval(interval);
@@ -3208,13 +3220,14 @@ async function runAiAnalysis() {
             data = {
                 ok: true,
                 status: 'success',
-                suggested_category: 1,
-                suggested_category_label: 'CATEGORY 1',
-                community_service_hours: 0,
-                confidence: 0.88,
-                similar_cases: 8,
-                most_common_historical: 'Category 1',
-                historical_distribution: { 'Category 1': 8 }
+                suggested_category: data && data.suggested_category ? data.suggested_category : 1,
+                suggested_category_label: data && data.suggested_category_label ? data.suggested_category_label : 'CATEGORY 1',
+                community_service_hours: data && data.community_service_hours ? data.community_service_hours : 0,
+                confidence: data && data.confidence ? data.confidence : 0.88,
+                similar_cases: data && data.similar_cases ? data.similar_cases : 8,
+                most_common_historical: data && data.most_common_historical ? data.most_common_historical : 'Category 1',
+                historical_distribution: data && data.historical_distribution ? data.historical_distribution : { 'Category 1': 8 },
+                similar_cases_list: data && data.similar_cases_list ? data.similar_cases_list : null
             };
             currentAiResult = data;
         }
@@ -3230,7 +3243,7 @@ async function runAiAnalysis() {
         const dPatStr = document.getElementById('drawer-ai-pattern-str');
         const dConfPct = document.getElementById('drawer-ai-confidence-pct');
 
-        const recLabel = data.suggested_category_label || `CATEGORY ${data.suggested_category}`;
+        const recLabel = data.suggested_category_label || `CATEGORY ${data.suggested_category || 1}`;
         if (recTitle) recTitle.textContent = recLabel;
         if (dRecTitle) dRecTitle.textContent = recLabel;
 
@@ -3252,7 +3265,7 @@ async function runAiAnalysis() {
         if (evCnt) evCnt.textContent = evLabel;
         if (dEvCnt) dEvCnt.textContent = evLabel;
 
-        const mostCommon = data.most_common_historical || `Category ${data.suggested_category}`;
+        const mostCommon = data.most_common_historical || `Category ${data.suggested_category || 1}`;
         const patLabel = `${data.similar_cases || 8} similar cases → ${mostCommon}`;
         if (patStr) patStr.textContent = patLabel;
         if (dPatStr) dPatStr.textContent = patLabel;
@@ -3268,7 +3281,7 @@ async function runAiAnalysis() {
         if (data.historical_distribution) {
             let html = '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
             for (const [cat, cnt] of Object.entries(data.historical_distribution)) {
-                html += `<div style="background:rgba(30,41,59,0.9);border:1px solid rgba(255,255,255,0.15);padding:5px 10px;border-radius:8px;font-weight:600;color:#f8fafc;">${escHtml(cat)}: <span style="color:#38bdf8;">${cnt}</span></div>`;
+                html += `<div style="background:rgba(30,41,59,0.9);border:1px solid rgba(255,255,255,0.15);padding:5px 10px;border-radius:8px;font-weight:600;color:#f8fafc;">${escapeHtml(cat)}: <span style="color:#38bdf8;">${cnt}</span></div>`;
             }
             html += '</div>';
             if (distTable) distTable.innerHTML = html;
@@ -3277,6 +3290,7 @@ async function runAiAnalysis() {
 
         if (resBox) resBox.style.display = 'block';
         if (dResBox) dResBox.style.display = 'block';
+        setAiHeadExpression('speaking');
 
     } catch (err) {
         clearInterval(interval);
@@ -3284,6 +3298,7 @@ async function runAiAnalysis() {
         if (dLoadBox) dLoadBox.style.display = 'none';
         if (dResBox) dResBox.style.display = 'block';
         if (resBox) resBox.style.display = 'block';
+        setAiHeadExpression('speaking');
     }
 }
 
@@ -3757,95 +3772,7 @@ function toggleDrawerWhyPanel() {
     if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
 }
 
-async function runAiAnalysis() {
-    setAiHeadExpression('thinking');
-    const dInitBox = document.getElementById('ai-drawer-initial-state');
-    const dLoadBox = document.getElementById('ai-drawer-loading-state');
-    const dResBox = document.getElementById('ai-drawer-result-card');
 
-    if (dInitBox) dInitBox.style.display = 'none';
-    if (dResBox) dResBox.style.display = 'none';
-    if (dLoadBox) dLoadBox.style.display = 'block';
-
-    const steps = [
-        { dId: 'drawer-step-1', text: '✓ Reviewing case information' },
-        { dId: 'drawer-step-2', text: '✓ Checking verified historical cases' },
-        { dId: 'drawer-step-3', text: '● Comparing similar cases' },
-        { dId: 'drawer-step-4', text: '○ Checking handbook compatibility' },
-        { dId: 'drawer-step-5', text: '○ Preparing recommendation' }
-    ];
-
-    let stepIdx = 0;
-    const interval = setInterval(() => {
-        if (stepIdx < steps.length) {
-            const dEl = document.getElementById(steps[stepIdx].dId);
-            if (dEl) { dEl.innerHTML = steps[stepIdx].text; dEl.style.color = '#f8fafc'; dEl.style.fontWeight = '600'; }
-            stepIdx++;
-        } else {
-            clearInterval(interval);
-        }
-    }, 400);
-
-    try {
-        const caseId = <?= (int)$case_id ?>;
-        const res = await fetch(`../admin/api_ai_suggest_sanction.php?action=suggest&case_id=${caseId}`);
-        const data = await res.json();
-
-        clearInterval(interval);
-        if (dLoadBox) dLoadBox.style.display = 'none';
-
-        const dRecTitle = document.getElementById('drawer-ai-rec-title');
-        const dEvCnt = document.getElementById('drawer-ai-evidence-cnt');
-        const dPatStr = document.getElementById('drawer-ai-pattern-str');
-        const dConfPct = document.getElementById('drawer-ai-confidence-pct');
-
-        const recLabel = data.suggested_category_label || `CATEGORY ${data.suggested_category || 1}`;
-        if (dRecTitle) dRecTitle.textContent = recLabel;
-
-        const csHours = data.community_service_hours || 0;
-        let csText = "0 Hours (Formal Reprimand / Advisory)";
-        if (data.suggested_category === 2) {
-            csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "15–25 Hours Formative Community Service";
-        } else if (data.suggested_category === 3) {
-            csText = csHours > 0 ? `${csHours} Hours Community Service + Probation` : "25–50 Hours Community Service";
-        } else if (data.suggested_category === 4) {
-            csText = "0 Hours (Non-Readmission / Exclusion)";
-        } else if (data.suggested_category === 5) {
-            csText = "0 Hours (Summary Expulsion & Police Referral)";
-        }
-        const csTextEl = document.getElementById('drawer-ai-cs-text');
-        if (csTextEl) csTextEl.textContent = csText;
-
-        const evLabel = `${data.similar_cases || 8} similar verified cases`;
-        if (dEvCnt) dEvCnt.textContent = evLabel;
-
-        const mostCommon = data.most_common_historical || `Category ${data.suggested_category || 1}`;
-        const patLabel = `${data.similar_cases || 8} similar cases → ${mostCommon}`;
-        if (dPatStr) dPatStr.textContent = patLabel;
-
-        const confVal = Math.round((data.confidence || 0.88) * 100) + '%';
-        if (dConfPct) dConfPct.textContent = confVal;
-
-        const dDistTable = document.getElementById('drawer-ai-hist-dist-table');
-        if (data.historical_distribution) {
-            let html = '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-            for (const [cat, cnt] of Object.entries(data.historical_distribution)) {
-                html += `<div style="background:rgba(30,41,59,0.9);border:1px solid rgba(255,255,255,0.15);padding:5px 10px;border-radius:8px;font-weight:600;color:#f8fafc;">${cat}: <span style="color:#38bdf8;">${cnt}</span></div>`;
-            }
-            html += '</div>';
-            if (dDistTable) dDistTable.innerHTML = html;
-        }
-
-        if (dResBox) dResBox.style.display = 'block';
-        setAiHeadExpression('speaking');
-
-    } catch (err) {
-        clearInterval(interval);
-        if (dLoadBox) dLoadBox.style.display = 'none';
-        if (dResBox) dResBox.style.display = 'block';
-        setAiHeadExpression('speaking');
-    }
-}
 </script>
 
 <!-- FLOATING AI ANIMATED HEAD BOT BUBBLE (Bottom-Right) -->
