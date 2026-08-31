@@ -61,6 +61,7 @@ class HistoricalSimilarityEngine:
                     "severity": c.get('severity'),
                     "previous_offenses_count": c.get('previous_offenses_count', 0),
                     "decided_category": cat,
+                    "community_service_hours": c.get('community_service_hours', 0),
                     "similarity_score": round(max(score, 0.72) * 100, 1)
                 })
 
@@ -83,6 +84,7 @@ class HistoricalSimilarityEngine:
                             "severity": c.get('severity'),
                             "previous_offenses_count": c.get('previous_offenses_count', 0),
                             "decided_category": cat,
+                            "community_service_hours": c.get('community_service_hours', 0),
                             "similarity_score": round(float(sim_scores[idx]) * 100, 1)
                         })
                 if len(matched_cases) >= top_k:

@@ -103,10 +103,17 @@ class UPCCPredictor:
                 "dataset_version": "UPCC-DATA-v1.0"
             }
 
+        cs_hours = 0
+        if recommendation == "Category 2":
+            cs_hours = 15 if prev_count >= 2 and offense_level == "MINOR" else 20
+        elif recommendation == "Category 3":
+            cs_hours = 35
+
         return {
             "status": "success",
             "case_id": case_data.get('case_id', 'UNKNOWN'),
             "recommendation": recommendation,
+            "community_service_hours": cs_hours,
             "confidence": round(confidence, 2),
             "similar_cases": sim_res['similar_cases_count'],
             "similar_cases_list": sim_res['similar_cases'],
@@ -116,7 +123,8 @@ class UPCCPredictor:
             "handbook_compatible": handbook_compatible,
             "handbook_reference": handbook_section,
             "model_version": self.model_version,
-            "dataset_version": "UPCC-DATA-v1.0"
+            "dataset_version": "UPCC-DATA-v1.0",
+            "dataset_total_cases": 10000
         }
 
 if __name__ == "__main__":

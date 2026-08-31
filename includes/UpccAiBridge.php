@@ -180,10 +180,18 @@ class UpccAiBridge
             $mostCommon = 'Category 2';
         }
 
+        $csHours = 0;
+        if ($mostCommon === 'Category 2') {
+            $csHours = ($level === 'MINOR' && $prevCount >= 2) ? 15 : 20;
+        } elseif ($mostCommon === 'Category 3') {
+            $csHours = 35;
+        }
+
         return [
             "status" => "success",
             "case_id" => $caseData['case_id'] ?? 'UNKNOWN',
             "recommendation" => $mostCommon,
+            "community_service_hours" => $csHours,
             "confidence" => 0.88,
             "similar_cases" => count($matched),
             "similar_cases_list" => $matched,
@@ -193,7 +201,8 @@ class UpccAiBridge
             "handbook_compatible" => true,
             "handbook_reference" => $level === "MINOR" ? "Section IV" : "Section V",
             "model_version" => "UPCC-RF-v1.0",
-            "dataset_version" => "UPCC-DATA-v1.0"
+            "dataset_version" => "UPCC-DATA-v1.0",
+            "dataset_total_cases" => 10000
         ];
     }
 

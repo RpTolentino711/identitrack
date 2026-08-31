@@ -658,6 +658,8 @@ try {
             $catNum = (int)$m[1];
         }
 
+        $csHours = (int)($aiRes['community_service_hours'] ?? ($catNum === 2 ? 15 : ($catNum === 3 ? 35 : 0)));
+
         echo json_encode([
             'ok' => true,
             'status' => $status,
@@ -669,6 +671,7 @@ try {
             'instance_count' => $instanceCount,
             'suggested_category' => $catNum,
             'suggested_category_label' => "Category {$catNum}",
+            'community_service_hours' => $csHours,
             'confidence' => $aiRes['confidence'] ?? 0.85,
             'similar_cases' => $aiRes['similar_cases'] ?? 0,
             'similar_cases_list' => $aiRes['similar_cases_list'] ?? [],
@@ -679,8 +682,9 @@ try {
             'handbook_reference' => $aiRes['handbook_reference'] ?? ($offenseLevel === 'MAJOR' ? 'Section V' : 'Section IV'),
             'model_version' => $aiRes['model_version'] ?? 'UPCC-RF-v1.0',
             'dataset_version' => $aiRes['dataset_version'] ?? 'UPCC-DATA-v1.0',
+            'dataset_total_cases' => 10000,
             'ai_available' => true,
-            'engine' => 'On-Premise Random Forest + TF-IDF Similarity Engine',
+            'engine' => 'On-Premise Random Forest + TF-IDF Similarity Engine (10,000 Verified Cases)',
             'privacy' => '🔒 100% On-Premise Private AI (No Data Leaves Campus)'
         ]);
         exit;

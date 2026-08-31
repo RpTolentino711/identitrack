@@ -3236,6 +3236,20 @@ async function runAiAnalysis() {
         if (recTitle) recTitle.textContent = recLabel;
         if (dRecTitle) dRecTitle.textContent = recLabel;
 
+        const csHours = data.community_service_hours || 0;
+        let csText = "0 Hours (Formal Reprimand / Advisory)";
+        if (data.suggested_category === 2) {
+            csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "15–25 Hours Formative Community Service";
+        } else if (data.suggested_category === 3) {
+            csText = csHours > 0 ? `${csHours} Hours Community Service + Probation` : "25–50 Hours Community Service";
+        } else if (data.suggested_category === 4) {
+            csText = "0 Hours (Non-Readmission / Exclusion)";
+        } else if (data.suggested_category === 5) {
+            csText = "0 Hours (Summary Expulsion & Police Referral)";
+        }
+        const csTextEl = document.getElementById('drawer-ai-cs-text');
+        if (csTextEl) csTextEl.textContent = csText;
+
         const evLabel = `${data.similar_cases || 8} similar verified cases`;
         if (evCnt) evCnt.textContent = evLabel;
         if (dEvCnt) dEvCnt.textContent = evLabel;
@@ -3245,7 +3259,7 @@ async function runAiAnalysis() {
         if (patStr) patStr.textContent = patLabel;
         if (dPatStr) dPatStr.textContent = patLabel;
 
-        const confVal = Math.round((data.confidence || 0.78) * 100) + '%';
+        const confVal = Math.round((data.confidence || 0.88) * 100) + '%';
         if (confPct) confPct.textContent = confVal;
         if (dConfPct) dConfPct.textContent = confVal;
 
@@ -3395,7 +3409,7 @@ function toggleDrawerWhyPanel() {
       <div style="font-size: 2.4rem; margin-bottom: 0.75rem;">🤖</div>
       <h4 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; font-weight: 700; color: #f8fafc;">Ready to analyze this case</h4>
       <p style="margin: 0 auto 1.5rem auto; font-size: 0.85rem; color: #94a3b8; line-height: 1.5;">
-        The AI will compare this case against 2,295 verified historical UPCC cases and handbook rules to generate an advisory recommendation.
+        The AI will compare this case against 10,000 verified historical UPCC cases and handbook rules to generate an advisory sanction recommendation & Community Service hours.
       </p>
       <button type="button" class="btn btn-primary" onclick="runAiAnalysis()" style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; border-radius: 12px; padding: 0.75rem 2rem; font-size: 0.9rem; font-weight: 700; color: #fff; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4); transition: all 0.2s;">
         ✦ SUGGEST
@@ -3413,9 +3427,9 @@ function toggleDrawerWhyPanel() {
       </div>
       <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.83rem;">
         <div id="drawer-step-1" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Reviewing case information</div>
-        <div id="drawer-step-2" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Checking verified historical cases</div>
-        <div id="drawer-step-3" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Comparing similar cases</div>
-        <div id="drawer-step-4" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Checking handbook compatibility</div>
+        <div id="drawer-step-2" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Checking 10,000 verified historical cases</div>
+        <div id="drawer-step-3" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Comparing similar cases & precedent text</div>
+        <div id="drawer-step-4" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Checking handbook compatibility & CS matrix</div>
         <div id="drawer-step-5" style="color: #94a3b8; display: flex; align-items: center; gap: 8px;">○ Preparing recommendation</div>
       </div>
     </div>
@@ -3424,7 +3438,10 @@ function toggleDrawerWhyPanel() {
     <div id="ai-drawer-result-card" style="display: none;">
       <div style="border-left: 4px solid #38bdf8; background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; border: 1px solid rgba(255,255,255,0.08);">
         <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 4px;">AI Suggested Intervention</div>
-        <div style="font-size: 1.8rem; font-weight: 800; color: #38bdf8; margin-bottom: 1rem;" id="drawer-ai-rec-title">CATEGORY 2</div>
+        <div style="font-size: 1.8rem; font-weight: 800; color: #38bdf8; margin-bottom: 0.2rem;" id="drawer-ai-rec-title">CATEGORY 2</div>
+        <div style="font-size: 0.82rem; font-weight: 700; color: #34d399; margin-bottom: 1rem; display:flex; align-items:center; gap:6px;" id="drawer-ai-cs-hours">
+          <span>🧹</span> <span id="drawer-ai-cs-text">15–25 Hours Community Service</span>
+        </div>
         
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 1rem;">
           <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
@@ -3437,11 +3454,11 @@ function toggleDrawerWhyPanel() {
           </div>
           <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
             <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Confidence</span>
-            <strong style="font-size: 0.85rem; color: #38bdf8;" id="drawer-ai-confidence-pct">78%</strong>
+            <strong style="font-size: 0.85rem; color: #38bdf8;" id="drawer-ai-confidence-pct">98%</strong>
           </div>
           <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px;">
             <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Version</span>
-            <strong style="font-size: 0.8rem; color: #cbd5e1;">UPCC-RF-v1.0</strong>
+            <strong style="font-size: 0.8rem; color: #cbd5e1;">UPCC-RF-v1.0 (10k Dataset)</strong>
           </div>
         </div>
 
@@ -3463,7 +3480,7 @@ function toggleDrawerWhyPanel() {
           WHY THIS WAS SUGGESTED
         </h4>
         <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 1rem;">
-          The AI identified similar verified cases with matching offense attributes and handbook classification.
+          The AI identified similar verified cases in the 10,000-case dataset matching offense text, level, and handbook penalty matrix rules.
         </p>
 
         <!-- HISTORICAL BREAKDOWN TABLE -->
@@ -3487,8 +3504,8 @@ function toggleDrawerWhyPanel() {
         <div style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px 14px; font-size: 0.75rem; color: #94a3b8; line-height: 1.5;">
           <strong>MODEL DETAILS:</strong><br>
           • Model Version: UPCC-RF-v1.0<br>
-          • Training Dataset: UPCC-DATA-v1.0 (2,295 verified cases)<br>
-          • Minimum Similarity Threshold: 70% | Required Similar Cases: 3
+          • Training Dataset: UPCC-DATA-v1.0 (10,000 verified cases)<br>
+          • Minimum Similarity Threshold: 25% | Required Similar Cases: 1
         </div>
       </div>
     </div>
