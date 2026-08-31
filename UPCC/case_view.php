@@ -3508,8 +3508,7 @@ function setAiHeadExpression(mode) {
         svg.classList.add(mode || 'idle');
     });
 }
-
-}
+</script>
 
 <!-- MODAL: Anonymized Similar Historical Cases -->
 <div id="similarCasesModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
@@ -3850,7 +3849,7 @@ async function runAiAnalysis() {
 </script>
 
 <!-- FLOATING AI ANIMATED HEAD BOT BUBBLE (Bottom-Right) -->
-<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:100005;cursor:pointer;display:flex;align-items:center;gap:14px;background:rgba(15, 23, 42, 0.94);backdrop-filter:blur(20px);color:#fff;padding:8px 22px 8px 12px;border-radius:50px;box-shadow:0 14px 45px rgba(14, 165, 233, 0.45), 0 0 25px rgba(99, 102, 241, 0.35);border:1px solid rgba(56, 189, 248, 0.6);font-family:inherit;font-weight:700;font-size:14px;letter-spacing:0.3px;transition:all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);" onmouseover="this.style.transform='translateY(-6px) scale(1.05)';this.style.borderColor='rgba(56, 189, 248, 0.95)';" onmouseout="this.style.transform='translateY(0) scale(1)';this.style.borderColor='rgba(56, 189, 248, 0.6)';">
+<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:100005;cursor:pointer;display:flex;align-items:center;gap:14px;background:rgba(15, 23, 42, 0.96);backdrop-filter:blur(20px);color:#fff;padding:8px 22px 8px 12px;border-radius:50px;box-shadow:0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.35);border:1px solid rgba(56, 189, 248, 0.6);font-family:inherit;font-weight:700;font-size:14px;letter-spacing:0.3px;transition:all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);" onmouseover="this.style.transform='translateY(-6px) scale(1.05)';this.style.borderColor='rgba(56, 189, 248, 0.95)';" onmouseout="this.style.transform='translateY(0) scale(1)';this.style.borderColor='rgba(56, 189, 248, 0.6)';">
   <div class="ai-bot-avatar-wrapper" style="width:44px;height:44px;">
     <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
       <defs>
