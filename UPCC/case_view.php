@@ -1931,6 +1931,7 @@ function _renderSugDetails(array $sd): void {
 
 <script>
 let pauseModalOpen = false;
+let isWaitingForAdminState = false;
 
 function showPauseModal(reason) {
     pauseModalOpen = true;
@@ -1939,22 +1940,41 @@ function showPauseModal(reason) {
     if (r) r.textContent = reason === 'AUTO_PAUSE_ADMIN_LEFT' ? 'The admin disconnected.' : 'The admin has paused the hearing.';
     if (m) {
         m.style.display = 'flex';
-        const exitBtn = document.getElementById('exitPauseBtn');
-        if (exitBtn) {
-            // Keep exit button working, no reason to disable it.
+        if (isWaitingForAdminState) {
+            setPauseWaitingState();
+        } else {
+            setPauseOptionsState();
         }
     }
 }
 
+function setPauseWaitingState() {
+    isWaitingForAdminState = true;
+    const optionsState = document.getElementById('pauseModalStateOptions');
+    const waitingState = document.getElementById('pauseModalStateWaiting');
+    if (optionsState) optionsState.style.display = 'none';
+    if (waitingState) waitingState.style.display = 'block';
+    if (typeof showToast === 'function') {
+        showToast('⏳ Waiting for Admin', 'You are in waiting mode. The hearing will automatically resume once the admin returns.', 'info');
+    }
+}
+
+function setPauseOptionsState() {
+    isWaitingForAdminState = false;
+    const optionsState = document.getElementById('pauseModalStateOptions');
+    const waitingState = document.getElementById('pauseModalStateWaiting');
+    if (optionsState) optionsState.style.display = 'block';
+    if (waitingState) waitingState.style.display = 'none';
+}
+
 function closePauseModal() {
     pauseModalOpen = false;
+    isWaitingForAdminState = false;
     const m = document.getElementById('hearingPausedModal');
     if (m) {
         m.style.display = 'none';
     }
-    if (typeof showToast === 'function') {
-        showToast('⏳ Staying in Hearing', 'You will be notified automatically as soon as the admin resumes.', 'info');
-    }
+    setPauseOptionsState();
 }
 </script>
 
@@ -2011,20 +2031,35 @@ function closePauseModal() {
      HEARING PAUSED MODAL — shown when hearing is paused while panel is in
 ══════════════════════════════════════════════════════════════════════ -->
 <div id="hearingPausedModal" style="position:fixed;inset:0;z-index:9200;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.96);backdrop-filter:blur(12px);padding:24px">
-    <div style="background:var(--bg-card);border:2px solid rgba(239,68,68,.4);border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:480px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(239,68,68,.2)">
+    <!-- State 1: Initial Paused Options -->
+    <div id="pauseModalStateOptions" style="background:var(--bg-card);border:2px solid rgba(239,68,68,.4);border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:480px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(239,68,68,.2)">
         <div style="font-size:48px;margin-bottom:16px">⏸️</div>
         <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#fca5a5;margin-bottom:8px">Hearing Has Been Paused</div>
         <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:24px">
             <p id="pauseReasonText" style="margin:0 0 12px">The admin has paused the hearing.</p>
             <p style="margin:0;font-size:12px;font-style:italic">You can stay in the hearing and wait for it to resume, or return to your dashboard.</p>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <button type="button" class="btn btn-primary" onclick="closePauseModal();" style="padding:14px;font-size:14px;">⏳ Waiting for Admin</button>
-            <button type="button" class="btn btn-secondary" id="exitPauseBtn" onclick="exitHearing()" style="padding:14px;font-size:14px;">← Go to Dashboard</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <button type="button" class="btn btn-primary" onclick="setPauseWaitingState();" style="padding:14px;font-size:14px;">⏳ Waiting for Admin</button>
+            <button type="button" class="btn btn-secondary" onclick="exitHearing()" style="padding:14px;font-size:14px;">← Go to Dashboard</button>
         </div>
-        <div id="waitInHearingBtn" style="margin-top:16px;padding:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:12px;color:#6ee7b7">
+        <div style="padding:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:12px;color:#6ee7b7">
             The hearing will automatically resume. Stay and keep your place in the panel.
         </div>
+    </div>
+
+    <!-- State 2: Waiting for Admin Active Screen -->
+    <div id="pauseModalStateWaiting" style="display:none;background:var(--bg-card);border:2px solid rgba(99,102,241,.4);border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:480px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(99,102,241,.2)">
+        <div style="font-size:48px;margin-bottom:16px">⏳</div>
+        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#a5b4fc;margin-bottom:8px">Waiting for Admin...</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:20px">
+            <p style="margin:0 0 10px">You are currently waiting in the live hearing session.</p>
+            <p style="margin:0;font-size:12px;color:#cbd5e1">The hearing will automatically resume as soon as the admin returns. Stay and keep your place in the panel.</p>
+        </div>
+        <div style="padding:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:12px;color:#6ee7b7;margin-bottom:20px">
+            ✓ Connected to live session. Standing by...
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="exitHearing()" style="width:100%;padding:14px;font-size:14px;">← Go to Dashboard</button>
     </div>
 </div>
 
