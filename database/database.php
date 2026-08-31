@@ -177,13 +177,12 @@ function db_encryption_key(): string
 
 function db_smtp_user(): string
 {
-  $val = trim((string)($_ENV['SMTP_USER'] ?? $_SERVER['SMTP_USER'] ?? getenv('SMTP_USER') ?: ''));
-  return $val !== '' ? $val : 'identitrack@identitrack.site';
+  return (string)get_env_var('SMTP_USER', 'identitrack@identitrack.site');
 }
 
 function db_smtp_pass(): string
 {
-  return trim((string)($_ENV['SMTP_PASS'] ?? $_SERVER['SMTP_PASS'] ?? getenv('SMTP_PASS') ?: ''));
+  return (string)get_env_var('SMTP_PASS', '');
 }
 
 function getConnection(): PDO
