@@ -11,6 +11,6 @@ admin/data/*.sql
 admin/data/*.docx
 admin/data/*.json
 admin/data/temp_*
-storage/dataset/
-
-
+# Ignore runtime generated user uploads (letters, PDFs, appeals, avatars)
+uploads/*
+!uploads/.htaccess
