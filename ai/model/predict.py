@@ -130,7 +130,7 @@ class UPCCPredictor:
             "handbook_reference": handbook_section,
             "model_version": self.model_version,
             "dataset_version": "UPCC-DATA-v1.0",
-            "dataset_total_cases": 10000
+            "dataset_total_cases": 2295
         }
 
 if __name__ == "__main__":

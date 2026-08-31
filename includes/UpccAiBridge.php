@@ -200,7 +200,7 @@ class UpccAiBridge
             "handbook_reference" => $level === "MINOR" ? "Section IV" : "Section V",
             "model_version" => "UPCC-RF-v1.0",
             "dataset_version" => "UPCC-DATA-v1.0",
-            "dataset_total_cases" => 10000
+            "dataset_total_cases" => (!empty($cases) ? count($cases) : 2295)
         ];
     }
 
