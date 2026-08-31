@@ -4007,21 +4007,20 @@ function toggleAiDrawer(forceState) {
         drawer.style.opacity = '1';
         drawer.style.visibility = 'visible';
         drawer.style.pointerEvents = 'auto';
-        if (bubble) bubble.style.transform = 'translateY(20px) scale(0.8)';
-        if (bubble) bubble.style.opacity = '0';
-        setTimeout(() => { if (bubble) bubble.style.display = 'none'; }, 200);
+        if (bubble) {
+            bubble.style.display = 'none';
+            bubble.style.opacity = '0';
+        }
     } else {
         drawer.style.transform = 'translateY(120%) scale(0.95)';
         drawer.style.opacity = '0';
         drawer.style.visibility = 'hidden';
         drawer.style.pointerEvents = 'none';
-        if (bubble) bubble.style.display = 'flex';
-        setTimeout(() => {
-            if (bubble) {
-                bubble.style.transform = 'translateY(0) scale(1)';
-                bubble.style.opacity = '1';
-            }
-        }, 50);
+        if (bubble) {
+            bubble.style.display = 'flex';
+            bubble.style.transform = 'translateY(0) scale(1)';
+            bubble.style.opacity = '1';
+        }
         setAiHeadExpression('idle');
     }
 }
