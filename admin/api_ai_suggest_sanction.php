@@ -710,50 +710,22 @@ try {
             }, $exactPrecedents));
         }
 
-        // Dynamic Cross-Student Database Lookup (if user asks about a different student ID in the database)
-        $otherStudentContext = "";
-        preg_match_all('/(?:student|id|#|\b)([0-9]{4}-[0-9]{4,6}|[0-9]{6,10})\b/i', $userQuery, $idMatches);
-        $searchedIds = array_unique($idMatches[1] ?? []);
-
-        if (!empty($searchedIds)) {
-            foreach ($searchedIds as $sId) {
-                if ($sId !== $targetStudentId) {
-                    $otherStudent = db_one("SELECT s.student_id, " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student s WHERE s.student_id = :sid", [':sid' => $sId]);
-                    if ($otherStudent) {
-                        $otherName = trim(($otherStudent['student_fn'] ?? '') . ' ' . ($otherStudent['student_ln'] ?? ''));
-                        $otherOffenses = db_all("SELECT o.date_committed, ot.name as offense_name, ot.level as offense_level
-                            FROM offense o
-                            JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-                            WHERE o.student_id = :sid
-                            ORDER BY o.date_committed DESC
-                        ", [':sid' => $sId]);
-                        
-                        $offList = array_map(fn($o) => "  - {$o['offense_name']} ({$o['offense_level']}) on {$o['date_committed']}", $otherOffenses);
-                        $otherStudentContext .= "\n\nREAL-TIME DATABASE LOOKUP FOR OTHER STUDENT REQUESTED:\n"
-                            . "• Student Name: {$otherName} (ID: {$sId})\n"
-                            . "• Total Recorded Offenses: " . count($otherOffenses) . "\n"
-                            . (!empty($offList) ? implode("\n", $offList) : "  - Clean disciplinary record (0 offenses on file).");
-                    }
-                }
-            }
-        }
-
+        // ── STRICT ANONYMIZATION & CASE ISOLATION MANDATE ──
         $sysPrompt = "You are IdentiTrack AI, an executive decision-support assistant for NU Lipa Disciplinary Panel Members.\n"
-            . "Address the user as 'Panel Member'. Refer to the student strictly in the 3rd person.\n"
-            . "SEMANTIC COMPREHENSION MANDATE: Panel members may ask questions using different phrasing, synonyms, or sentence structures. You MUST understand the underlying semantic meaning and intent of the user's question. Regardless of how the question is worded, provide consistent, accurate, and authoritative responses strictly grounded in the NU Lipa Student Handbook rules and active case data below.\n"
-            . "For privacy protection, refer to other past student offenders using Case Numbers or Programs.\n"
-            . "Format responses with clean Markdown headers, bold highlights, and bullet points.\n\n"
+            . "Address the user as 'Panel Member'. Refer to the student strictly in the 3rd person as 'the student'.\n"
+            . "STRICT BOUNDARY & DATA PRIVACY MANDATES:\n"
+            . "1. STRICT HANDBOOK FOCUS: All responses MUST strictly follow the NU Lipa Student Handbook disciplinary matrix and sanction rules.\n"
+            . "2. ZERO NAME DROPPING / NO OTHER STUDENTS: You MUST NEVER drop or reveal any real student names, emails, or personal identification under any circumstances. You MUST NOT answer questions about or reveal data of other students. If asked about another student, reply strictly: 'I am strictly scoped to the active case in this hearing and cannot discuss or disclose information regarding other students under Data Privacy (RA 10173) guidelines.'\n"
+            . "3. PRECEDENTS & SUGGESTIONS: If a similar historical precedent exists in the data, reference it anonymized (e.g., 'In past campus precedents for this offense type...'). If NO similar historical precedent exists, explicitly state 'No direct past precedent was found in the dataset for this exact offense,' and provide a direct suggestion based strictly on the Student Handbook penalty matrix.\n"
+            . "4. PROFESSIONAL FORMATTING: Format all responses professionally using clean Markdown headers, bold text highlights, bullet points, and clear structural sections.\n\n"
             . $dynamicRules;
 
-        $userPrompt = "ACTIVE HEARING CASE DATA:\n"
-            . "• Student Name: {$studentName} (ID: {$targetStudentId})\n"
+        $userPrompt = "ACTIVE HEARING CASE DATA (ANONYMIZED):\n"
             . "• Current Hearing Case (#{$caseId}) Offenses:\n{$currentOffensesText}\n"
             . "• Total Major Offenses: {$totalMajorCount}\n"
             . "• Total Prior Resolved Cases: {$totalPrior}\n"
             . "• Prior Cases & Categories Breakdown:\n{$priorCasesBreakdownText}\n"
-            . "• Community Service Status: {$csStatusText}\n"
-            . "• Precedent Record for this Offense:\n{$precedentContext}"
-            . $otherStudentContext . "\n\n"
+            . "• Precedent Record for this Offense:\n{$precedentContext}\n\n"
             . "PANEL QUESTION: {$userQuery}";
 
         $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId);

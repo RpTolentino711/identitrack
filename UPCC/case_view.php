@@ -3845,13 +3845,13 @@ function toggleDrawerWhyPanel() {
   </div>
 </div>
 
-<!-- SLIDE-UP FLOATING GLASS DRAWER WITH ANIMATED BOT HEAD -->
+<!-- SLIDE-UP FLOATING GLASS DRAWER WITH ANIMATED BOT HEAD (ChatGPT-style Conversational AI) -->
 <div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:440px;height:650px;max-height:88vh;background:rgba(9, 14, 28, 0.96);backdrop-filter:blur(28px);border:1px solid rgba(56, 189, 248, 0.4);border-radius:28px;box-shadow:0 30px 70px rgba(0,0,0,0.85), 0 0 50px rgba(14, 165, 233, 0.25);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%) scale(0.95);opacity:0;visibility:hidden;pointer-events:none;transition:transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;box-sizing:border-box;">
   
   <!-- DRAWER HEADER WITH ANIMATED AI HEAD AVATAR -->
   <div style="background:rgba(15, 23, 42, 0.95);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
     <div style="display:flex;align-items:center;gap:14px;">
-      <div class="ai-bot-avatar-wrapper" style="width:44px;height:44px;">
+      <div class="ai-bot-avatar-wrapper" style="width:40px;height:40px;">
         <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
           <circle cx="60" cy="65" r="50" class="bot-aura" />
           <ellipse cx="60" cy="100" rx="26" ry="6" class="bot-platform" />
@@ -3878,154 +3878,205 @@ function toggleDrawerWhyPanel() {
         </svg>
       </div>
       <div>
-        <div style="font-weight:800;font-size:15px;color:#f8fafc;letter-spacing:0.3px;display:flex;align-items:center;gap:6px;">
-          IdentiTrack AI <span style="font-size:9px;background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 8px;border-radius:12px;border:1px solid rgba(56,189,248,0.3);font-weight:700;">ON-PREMISE</span>
+        <div style="font-weight:800;font-size:14px;color:#f8fafc;letter-spacing:0.3px;display:flex;align-items:center;gap:6px;">
+          IdentiTrack AI <span style="font-size:9px;background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 8px;border-radius:12px;border:1px solid rgba(56,189,248,0.3);font-weight:700;">CONVERSATIONAL</span>
         </div>
-        <div style="font-size:11px;color:#38bdf8;display:flex;align-items:center;gap:6px;margin-top:2px;">
-          <span style="width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block;"></span> Hearing Advisory Assistant
+        <div style="font-size:10px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-top:2px;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block;"></span> Strictly Handbook & Precedents
         </div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:4px;">
-      <button onclick="toggleAiDrawer(false)" title="Close" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.25)';this.style.color='#ef4444';this.style.borderColor='rgba(239,68,68,0.4)';" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#94a3b8';this.style.borderColor='rgba(255,255,255,0.1)';">✕</button>
+      <button onclick="toggleAiDrawer(false)" title="Close" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.25)';this.style.color='#ef4444';this.style.borderColor='rgba(239,68,68,0.4)';" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#94a3b8';this.style.borderColor='rgba(255,255,255,0.1)';">✕</button>
     </div>
   </div>
 
-  <!-- DRAWER CONTENT -->
-  <div style="flex:1;padding:20px;overflow-y:auto;padding-bottom:40px;">
-    <!-- INITIAL STATE -->
-    <div id="ai-drawer-initial-state" style="text-align: center; padding: 2rem 1rem;">
-      <div class="ai-bot-avatar-wrapper" style="width:72px;height:72px;margin:0 auto 1.25rem auto;">
-        <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="60" cy="65" r="50" class="bot-aura" />
-          <ellipse cx="60" cy="100" rx="26" ry="6" class="bot-platform" />
-          <rect x="14" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-left" />
-          <rect x="96" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-right" />
-          <path d="M 24 55 A 40 40 0 0 1 96 55" class="bot-headband" />
-          <rect x="22" y="32" width="76" height="66" rx="26" class="bot-head-shell" />
-          <rect x="30" y="42" width="60" height="46" rx="18" class="bot-visor" />
-          <line x1="60" y1="32" x2="60" y2="18" class="bot-antenna-stem" />
-          <circle cx="60" cy="16" r="6" class="bot-antenna-bulb" />
-          <path d="M 40 49 Q 47 46 54 49" class="bot-brow bot-brow-left" />
-          <path d="M 66 49 Q 73 46 80 49" class="bot-brow bot-brow-right" />
-          <g class="bot-eyes-group">
-            <circle cx="47" cy="60" r="7" class="bot-eye bot-eye-left" />
-            <circle cx="45" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
-            <circle cx="73" cy="60" r="7" class="bot-eye bot-eye-right" />
-            <circle cx="71" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
-          </g>
-          <g class="bot-mouth-group">
-            <rect x="50" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-1" />
-            <rect x="58" y="76" width="4" height="6" rx="1.5" class="bot-mouth-bar bar-2" />
-            <rect x="66" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-3" />
-          </g>
-        </svg>
-      </div>
-      <h4 style="margin: 0 0 0.5rem 0; font-size: 1.15rem; font-weight: 800; color: #f8fafc; letter-spacing:0.2px;">Ready to analyze this case</h4>
-      <p style="margin: 0 auto 1.5rem auto; font-size: 0.85rem; color: #94a3b8; line-height: 1.6; max-width: 320px;">
-        The AI will analyze case details against 2,295 verified historical UPCC precedents and Student Handbook rules to recommend a sanction & Community Service hours.
-      </p>
-      <button type="button" class="btn btn-primary" onclick="runAiAnalysis()" style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; border-radius: 14px; padding: 0.85rem 2.25rem; font-size: 0.95rem; font-weight: 800; color: #fff; cursor: pointer; box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5); transition: all 0.25s;" onmouseover="this.style.transform='scale(1.04)';this.style.boxShadow='0 8px 25px rgba(2, 132, 199, 0.7)';" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 6px 20px rgba(2, 132, 199, 0.5)';">
-        ✦ SUGGEST
-      </button>
-      <div style="font-size: 0.73rem; color: #64748b; margin-top: 1.25rem; font-weight: 500;">
-        Advisory decision support. Final authority remains with SDO / UPCC.
-      </div>
-    </div>
-
-    <!-- LOADING STATE -->
-    <div id="ai-drawer-loading-state" style="display: none; padding: 1.5rem 0.5rem;">
-      <div style="font-weight: 800; font-size: 1rem; color: #38bdf8; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 10px;">
-        <span class="spinner-sm" style="width: 20px; height: 20px; border: 3px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite;"></span>
-        IdentiTrack AI is thinking & scanning precedents...
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);">
-        <div id="drawer-step-1" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Reviewing case information</div>
-        <div id="drawer-step-2" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Checking 2,295 verified historical cases</div>
-        <div id="drawer-step-3" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Comparing similar cases & precedent text</div>
-        <div id="drawer-step-4" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Checking handbook compatibility & CS matrix</div>
-        <div id="drawer-step-5" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Preparing recommendation</div>
-      </div>
-    </div>
-
-    <!-- RESULT SUCCESS CARD -->
-    <div id="ai-drawer-result-card" style="display: none;">
-      <div style="border-left: 4px solid #38bdf8; background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(9, 14, 28, 0.95)); border-radius: 18px; padding: 1.35rem; margin-bottom: 1.25rem; border: 1px solid rgba(56, 189, 248, 0.25); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-        <div style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 4px; display:flex; align-items:center; gap:6px;">
-          <span>✦</span> AI SUGGESTED INTERVENTION
-        </div>
-        <div style="font-size: 1.85rem; font-weight: 900; color: #38bdf8; margin-bottom: 0.2rem; letter-spacing:-0.5px;" id="drawer-ai-rec-title">CATEGORY 2</div>
-        <div style="font-size: 0.85rem; font-weight: 700; color: #34d399; margin-bottom: 1rem; display:flex; align-items:center; gap:6px;" id="drawer-ai-cs-hours">
-          <span>🧹</span> <span id="drawer-ai-cs-text">15–25 Hours Community Service</span>
-        </div>
+  <!-- CONVERSATIONAL CHAT THREAD -->
+  <div id="aiChatThread" style="flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth;">
+    <!-- Welcome message bubble -->
+    <div style="display:flex;gap:10px;align-items:flex-start;">
+      <div style="width:28px;height:28px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
+      <div style="background:rgba(30,41,59,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:16px;border-top-left-radius:4px;padding:12px 14px;font-size:12.5px;color:#f8fafc;line-height:1.5;max-width:88%;">
+        Hello Panel Member! I am strictly bound to the <strong>NU Lipa Student Handbook</strong> and anonymized historical case precedents.<br><br>
+        Ask me anything about this hearing, handbook rules, or precedent outcomes.
         
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 1rem;">
-          <div style="background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 12px;">
-            <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Historical Evidence</span>
-            <strong style="font-size: 0.85rem; color: #f8fafc;" id="drawer-ai-evidence-cnt">8 similar verified cases</strong>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 12px;">
-            <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Historical Pattern</span>
-            <strong style="font-size: 0.85rem; color: #f8fafc;" id="drawer-ai-pattern-str">8 of 8 cases → Category 2</strong>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 12px;">
-            <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Confidence</span>
-            <strong style="font-size: 0.85rem; color: #38bdf8;" id="drawer-ai-confidence-pct">98%</strong>
-          </div>
-          <div style="background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 12px;">
-            <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Version</span>
-            <strong style="font-size: 0.8rem; color: #cbd5e1;">UPCC-RF-v1.0 (2,295 Dataset)</strong>
-          </div>
-        </div>
-
-        <div style="font-size: 0.73rem; color: #94a3b8; line-height: 1.45; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 10px 12px;">
-          ℹ️ <em>Model confidence is calculated from TF-IDF pattern similarity. UPCC retains 100% final decision authority.</em>
-        </div>
-      </div>
-
-      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem;">
-        <button type="button" class="btn btn-secondary" onclick="toggleDrawerWhyPanel()" style="background: rgba(255,255,255,0.1); color: #f8fafc; border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 0.65rem 1.4rem; font-weight: 800; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(56,189,248,0.2)';this.style.borderColor='#38bdf8';" onmouseout="this.style.background='rgba(255,255,255,0.1)';this.style.borderColor='rgba(255,255,255,0.2)';">
-          [ WHY? ]
-        </button>
-        <span style="font-size: 0.73rem; color: #64748b; font-weight: 500;">Advisory decision support system.</span>
-      </div>
-
-      <!-- WHY PANEL EXPANDABLE DRAWER -->
-      <div id="ai-drawer-why-panel" style="display: none; margin-top: 1rem; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 16px; padding: 1.25rem;">
-        <h4 style="margin: 0 0 0.75rem 0; font-size: 0.9rem; font-weight: 800; color: #38bdf8; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; display:flex; align-items:center; gap:6px;">
-          📊 WHY THIS WAS SUGGESTED
-        </h4>
-        <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 1rem;">
-          The AI identified similar verified cases in the 2,295-case dataset matching offense text, severity level, and handbook penalty matrix rules.
-        </p>
-
-        <!-- HISTORICAL BREAKDOWN TABLE -->
-        <div style="margin-bottom: 1.25rem;">
-          <div style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin-bottom: 6px;">HISTORICAL EVIDENCE DISTRIBUTION</div>
-          <div id="drawer-ai-hist-dist-table" style="background: rgba(30,41,59,0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 14px; font-size: 0.82rem;">
-          </div>
-        </div>
-
-        <!-- BUTTONS FOR SIMILAR CASES & HANDBOOK BASIS -->
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1rem;">
-          <button type="button" class="btn btn-outline btn-sm" onclick="openSimilarCasesModal()" style="border: 1px solid #38bdf8; color: #38bdf8; font-weight: 700; font-size: 0.8rem; border-radius: 10px; padding: 8px 16px; background: rgba(56, 189, 248, 0.08); cursor: pointer;">
-            📋 [ VIEW SIMILAR CASES ]
+        <!-- Prompt Suggestion Pills -->
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px;">
+          <button type="button" onclick="sendQuickAiPrompt('What is the handbook sanction for this offense?')" style="text-align:left;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:6px 10px;font-size:11px;color:#38bdf8;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(56,189,248,0.2)';" onmouseout="this.style.background='rgba(56,189,248,0.1)';">
+            💡 What is the handbook sanction for this offense?
           </button>
-          <button type="button" class="btn btn-outline btn-sm" onclick="openHandbookModal()" style="border: 1px solid #94a3b8; color: #cbd5e1; font-weight: 700; font-size: 0.8rem; border-radius: 10px; padding: 8px 16px; background: rgba(255, 255, 255, 0.05); cursor: pointer;">
-            📖 [ VIEW HANDBOOK BASIS ]
+          <button type="button" onclick="sendQuickAiPrompt('Are there past precedents for this offense?')" style="text-align:left;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:6px 10px;font-size:11px;color:#38bdf8;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(56,189,248,0.2)';" onmouseout="this.style.background='rgba(56,189,248,0.1)';">
+            💡 Are there past precedents for this offense?
           </button>
-        </div>
-
-        <!-- MODEL INFORMATION -->
-        <div style="background: rgba(0,0,0,0.35); border-radius: 12px; padding: 12px 14px; font-size: 0.75rem; color: #94a3b8; line-height: 1.6;">
-          <strong style="color:#f8fafc;">MODEL DETAILS:</strong><br>
-          • Model Version: UPCC-RF-v1.0 (Random Forest)<br>
-          • Training Dataset: UPCC-DATA-v1.0 (2,295 verified cases)<br>
-          • Precedent Matcher: TF-IDF Cosine Similarity
+          <button type="button" onclick="sendQuickAiPrompt('What are the community service hour guidelines?')" style="text-align:left;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:6px 10px;font-size:11px;color:#38bdf8;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(56,189,248,0.2)';" onmouseout="this.style.background='rgba(56,189,248,0.1)';">
+            💡 What are the community service hour guidelines?
+          </button>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- STOP GENERATING BAR (Dynamically shown during typing) -->
+  <div id="aiStopGeneratingContainer" style="display:none;padding:6px;text-align:center;background:rgba(15,23,42,0.9);border-top:1px solid rgba(255,255,255,0.08);">
+    <button type="button" onclick="stopAiTyping()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.5);color:#fca5a5;padding:6px 16px;border-radius:20px;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.35)';" onmouseout="this.style.background='rgba(239,68,68,0.2)';">
+      <span>🛑</span> Stop Generating
+    </button>
+  </div>
+
+  <!-- BOTTOM INPUT BAR -->
+  <form id="aiChatForm" onsubmit="handleAiChatSubmit(event)" style="padding:12px 16px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:8px;align-items:center;">
+    <input type="text" id="aiDrawerChatInput" placeholder="Ask AI about handbook rules or precedents..." autocomplete="off" style="flex:1;background:rgba(30,41,59,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:10px 14px;font-size:12.5px;color:#f8fafc;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#38bdf8';" onblur="this.style.borderColor='rgba(255,255,255,0.15)';">
+    <button type="submit" id="aiChatSendBtn" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:10px 16px;border-radius:12px;font-weight:700;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 4px 12px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='scale(1.03)';" onmouseout="this.style.transform='scale(1)';">
+      ✦ Send
+    </button>
+  </form>
+
 </div>
+
+<script>
+let currentTypingInterval = null;
+let isAiGenerating = false;
+
+function sendQuickAiPrompt(text) {
+    const input = document.getElementById('aiDrawerChatInput');
+    if (input) {
+        input.value = text;
+        handleAiChatSubmit(new Event('submit'));
+    }
+}
+
+function stopAiTyping() {
+    if (currentTypingInterval) {
+        clearInterval(currentTypingInterval);
+        currentTypingInterval = null;
+    }
+    isAiGenerating = false;
+    if (typeof setAiHeadExpression === 'function') setAiHeadExpression('idle');
+    const stopContainer = document.getElementById('aiStopGeneratingContainer');
+    if (stopContainer) stopContainer.style.display = 'none';
+    
+    const sendBtn = document.getElementById('aiChatSendBtn');
+    if (sendBtn) sendBtn.disabled = false;
+    
+    const activeCursor = document.querySelector('.ai-typing-cursor');
+    if (activeCursor) activeCursor.remove();
+}
+
+async function handleAiChatSubmit(e) {
+    if (e) e.preventDefault();
+    const input = document.getElementById('aiDrawerChatInput');
+    if (!input) return;
+    const query = input.value.trim();
+    if (!query || isAiGenerating) return;
+
+    input.value = '';
+    
+    // Append User Message to Thread
+    const thread = document.getElementById('aiChatThread');
+    const userMsgDiv = document.createElement('div');
+    userMsgDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:4px;';
+    userMsgDiv.innerHTML = `
+        <div style="background:linear-gradient(135deg, #2563eb, #1d4ed8);border-radius:16px;border-top-right-radius:4px;padding:10px 14px;font-size:12.5px;color:#ffffff;line-height:1.5;max-width:85%;box-shadow:0 4px 12px rgba(37,99,235,0.3);">
+            ${escHtml(query)}
+        </div>
+    `;
+    thread.appendChild(userMsgDiv);
+    thread.scrollTop = thread.scrollHeight;
+
+    // Append AI Typing Placeholder Bubble
+    const aiMsgDiv = document.createElement('div');
+    aiMsgDiv.style.cssText = 'display:flex;gap:10px;align-items:flex-start;';
+    const aiBubbleId = 'ai-msg-' + Date.now();
+    aiMsgDiv.innerHTML = `
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
+        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:16px;border-top-left-radius:4px;padding:12px 14px;font-size:12.5px;color:#f8fafc;line-height:1.5;max-width:88%;">
+            <span class="spinner-sm" style="width:14px;height:14px;border:2px solid rgba(56,189,248,0.2);border-top-color:#38bdf8;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite;margin-right:6px;"></span>
+            <span style="color:#94a3b8;font-style:italic;">Thinking & checking handbook...</span>
+        </div>
+    `;
+    thread.appendChild(aiMsgDiv);
+    thread.scrollTop = thread.scrollHeight;
+
+    isAiGenerating = true;
+    if (typeof setAiHeadExpression === 'function') setAiHeadExpression('thinking');
+    document.getElementById('aiStopGeneratingContainer').style.display = 'block';
+    document.getElementById('aiChatSendBtn').disabled = true;
+
+    try {
+        const caseId = <?= (int)$caseId ?>;
+        const res = await fetch(`../admin/api_ai_suggest_sanction.php?action=chat&case_id=${caseId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `user_query=${encodeURIComponent(query)}`
+        });
+        const data = await res.json();
+        
+        const bubble = document.getElementById(aiBubbleId);
+        if (!bubble) return;
+
+        let replyText = "";
+        if (data && data.ok && data.reply) {
+            replyText = data.reply;
+        } else {
+            replyText = data && data.error ? data.error : "I am strictly scoped to the NU Lipa Student Handbook and active case data. Please try rephrasing your question.";
+        }
+
+        // Start Smooth Typing Effect
+        if (typeof setAiHeadExpression === 'function') setAiHeadExpression('speaking');
+        typeOutAiResponse(bubble, replyText, thread);
+
+    } catch (err) {
+        stopAiTyping();
+        const bubble = document.getElementById(aiBubbleId);
+        if (bubble) {
+            bubble.innerHTML = "⚠️ Network connection issue. Please try asking again.";
+        }
+    }
+}
+
+function typeOutAiResponse(containerEl, fullText, threadEl) {
+    containerEl.innerHTML = '';
+    
+    // Parse basic markdown (bolding, headers, bullet points)
+    let formattedText = fullText
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^### (.*$)/gim, '<strong style="color:#38bdf8;font-size:13px;display:block;margin:6px 0 2px;">$1</strong>')
+        .replace(/^## (.*$)/gim, '<strong style="color:#38bdf8;font-size:13.5px;display:block;margin:8px 0 4px;">$1</strong>')
+        .replace(/^# (.*$)/gim, '<strong style="color:#38bdf8;font-size:14px;display:block;margin:10px 0 4px;">$1</strong>')
+        .replace(/^\u2022 (.*$)/gim, '<div style="margin-left:8px;margin-bottom:2px;">• $1</div>')
+        .replace(/\n/g, '<br>');
+
+    let currentCharIndex = 0;
+    const speed = 12; // ms per chunk
+    const chunkSize = 3; // chars per tick for smooth streaming
+
+    // Create container for formatted text and cursor
+    const textSpan = document.createElement('span');
+    const cursorSpan = document.createElement('span');
+    cursorSpan.className = 'ai-typing-cursor';
+    cursorSpan.style.cssText = 'color:#38bdf8;font-weight:900;animation:blink 0.8s infinite;margin-left:2px;';
+    cursorSpan.textContent = '▌';
+
+    containerEl.appendChild(textSpan);
+    containerEl.appendChild(cursorSpan);
+
+    currentTypingInterval = setInterval(() => {
+        if (!isAiGenerating) {
+            clearInterval(currentTypingInterval);
+            return;
+        }
+
+        currentCharIndex += chunkSize;
+        textSpan.innerHTML = formattedText.substring(0, currentCharIndex);
+        threadEl.scrollTop = threadEl.scrollHeight;
+
+        if (currentCharIndex >= formattedText.length) {
+            textSpan.innerHTML = formattedText;
+            stopAiTyping();
+        }
+    }, speed);
+}
+</script>
 </body>
 </html>
