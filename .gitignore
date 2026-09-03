@@ -1,3 +1,6 @@
+# Security & API Credentials
+.env
+
 # Ignore composer dynamic files generated on deployment servers
 vendor/composer/installed.php
 vendor/composer/installed.json
