@@ -511,7 +511,7 @@ try {
 
     $caseId = (int)($_GET['case_id'] ?? $_POST['case_id'] ?? 0);
     $studentId = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
-    $userQuery = trim((string)($_GET['query'] ?? $_POST['query'] ?? ''));
+    $userQuery = trim((string)($_GET['query'] ?? $_POST['query'] ?? $_GET['user_query'] ?? $_POST['user_query'] ?? ''));
 
     if ($caseId <= 0 && $studentId === '' && $action !== 'global_chat') {
         echo json_encode(['ok' => false, 'error' => 'Case ID or Student ID required.']);

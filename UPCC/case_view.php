@@ -4007,7 +4007,7 @@ async function handleAiChatSubmit(e) {
         const res = await fetch(`../admin/api_ai_suggest_sanction.php?action=chat&case_id=${caseId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `user_query=${encodeURIComponent(query)}`
+            body: `query=${encodeURIComponent(query)}&user_query=${encodeURIComponent(query)}`
         });
         const data = await res.json();
         
