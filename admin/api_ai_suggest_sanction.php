@@ -48,6 +48,46 @@ function getDynamicHandbookRules(): string
 }
 
 /**
+ * Evaluates semantic concept equivalence between two offense names/descriptions.
+ * Matches synonyms, Tagalog/Taglish terms, and related disciplinary concepts.
+ * E.g., 'suntukan' <-> 'PHYSICAL ALTERCATION' <-> 'FIGHTING' <-> 'MISCONDUCT'
+ */
+function areOffensesSemanticallyEqual(string $offA, string $offB): bool
+{
+    $a = mb_strtolower(trim($offA));
+    $b = mb_strtolower(trim($offB));
+
+    if ($a === '' || $b === '') return false;
+    if ($a === $b || strpos($a, $b) !== false || strpos($b, $a) !== false) return true;
+
+    // Define semantic clusters: terms sharing identical disciplinary meaning
+    $clusters = [
+        'fight' => ['fight', 'fighting', 'suntukan', 'away', 'bugbugan', 'physical altercation', 'physical misconduct', 'assault', 'brawl', 'brawling', 'physical injury', 'injuries', 'striking', 'mauling', 'misconduct'],
+        'vape' => ['vape', 'vaping', 'e-cigarette', 'juul', 'pod', 'smoke', 'smoking', 'tobacco', 'cigarette', 'yosi', 'bringing in vape'],
+        'id' => ['lending of id', 'lending id', 'borrowing id', 'id lending', 'id misuse', 'id tampering', 'passing id', 'id swap', 'double tapping', 'tap in tap out', 'using another id', 'false id'],
+        'cheating' => ['cheating', 'academic dishonesty', 'kodigo', 'plagiarism', 'exam cheating', 'copying', 'test cheating', 'exam fraud', 'dishonesty'],
+        'theft' => ['theft', 'stealing', 'ninakaw', 'pilferage', 'shoplifting', 'taking property', 'robbery', 'pocketing', 'burglary', 'stolen'],
+        'disrespect' => ['gross act of disrespect', 'disrespect', 'pambabastos', 'bastos', 'insult', 'insulting', 'verbal assault', 'profanity', 'cursing', 'offensive language', 'insubordination'],
+        'bullying' => ['bullying', 'harassment', 'cyberbullying', 'intimidation', 'threat', 'threatening', 'pang-aasar', 'gender-based sexual harassment', 'stalking'],
+        'drugs' => ['drugs', 'substance', 'alcohol', 'liquor', 'drinking', 'intoxication', 'marijuana', 'shabu', 'weed', 'beer'],
+        'weapon' => ['weapon', 'deadly weapon', 'taser', 'knife', 'blade', 'gun', 'firearm', 'explosive']
+    ];
+
+    foreach ($clusters as $category => $terms) {
+        $aMatches = false;
+        $bMatches = false;
+
+        foreach ($terms as $t) {
+            if (strpos($a, $t) !== false) $aMatches = true;
+            if (strpos($b, $t) !== false) $bMatches = true;
+            if ($aMatches && $bMatches) return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * Formats raw JSON punishment details into clean human text
  */
 function formatPunishmentDetails(?string $details): string
@@ -632,14 +672,13 @@ try {
 
     $exactPrecedents = getExactPrecedents($offenseTypeId, $caseId);
 
-    // Look up SANCTION.xlsx official dataset cache records
+    // Look up SANCTION.xlsx official dataset cache records using Semantic Concept Equivalence Matching
     $excelPrecedents = [];
     $cacheRecords = function_exists('get_historical_dataset_records') ? get_historical_dataset_records() : [];
     if (!empty($cacheRecords)) {
-        $targetOffenseUpper = strtoupper(trim($offenseName));
         foreach ($cacheRecords as $cr) {
-            $crOffense = strtoupper(trim($cr['offense'] ?? ''));
-            if ($crOffense !== '' && (strpos($crOffense, $targetOffenseUpper) !== false || strpos($targetOffenseUpper, $crOffense) !== false || (strpos($targetOffenseUpper, 'VAPE') !== false && strpos($crOffense, 'VAPE') !== false))) {
+            $crOffense = (string)($cr['offense'] ?? '');
+            if ($crOffense !== '' && areOffensesSemanticallyEqual($crOffense, $offenseName)) {
                 $excelPrecedents[] = $cr;
             }
         }
@@ -677,12 +716,11 @@ try {
             $matchedSource = "Category {$dbP[0]['decided_category']} Sanction ({$punStr})";
         }
 
-        // Check SANCTION.xlsx Excel dataset cache
+        // Check SANCTION.xlsx Excel dataset cache using Semantic Concept Matching
         if ($matchedHours === null && !empty($cacheRecords)) {
-            $oUpper = strtoupper(trim($oName));
             foreach ($cacheRecords as $cr) {
-                $crOff = strtoupper(trim($cr['offense'] ?? ''));
-                if ($crOff !== '' && (strpos($crOff, $oUpper) !== false || strpos($oUpper, $crOff) !== false || (strpos($oUpper, 'VAPE') !== false && strpos($crOff, 'VAPE') !== false) || (strpos($oUpper, 'ID') !== false && strpos($crOff, 'ID') !== false))) {
+                $crOff = (string)($cr['offense'] ?? '');
+                if ($crOff !== '' && areOffensesSemanticallyEqual($crOff, $oName)) {
                     $sanc = (string)($cr['sanction'] ?? '');
                     if (preg_match('/(\d+)\s*Hours/i', $sanc, $pm)) {
                         $matchedHours = (int)$pm[1];
