@@ -2298,6 +2298,38 @@ function get_historical_dataset_records() {
     ['program' => 'BSN', 'offense' => 'LENDING OF ID', 'level' => 'MAJOR', 'date' => '2024-01-11 10:00:00', 'sanction' => 'FORMATIVE INTERVENTION'],
     ['program' => 'BSN', 'offense' => 'LENDING OF ID', 'level' => 'MAJOR', 'date' => '2022-01-15 10:00:00', 'sanction' => 'FORMATIVE INTERVENTION'],
   ];
+
+  // Dynamically append real finalized cases from MySQL database table upcc_case
+  try {
+      if (function_exists('db_all')) {
+          $dbDecidedCases = db_all("
+              SELECT uc.case_id, uc.decided_category, uc.punishment_details, uc.final_decision, uc.updated_at,
+                     s.program,
+                     ot.name AS offense_name, ot.level AS offense_level
+              FROM upcc_case uc
+              JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
+              JOIN offense o ON o.offense_id = uco.offense_id
+              JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+              LEFT JOIN student s ON s.student_id = uc.student_id
+              WHERE uc.decided_category IS NOT NULL AND uc.status IN ('RESOLVED', 'CLOSED', 'DECIDED', 'FINALIZED', 'AWAITING_ADMIN_FINALIZATION')
+              ORDER BY uc.updated_at DESC
+          ");
+
+          foreach ($dbDecidedCases as $dc) {
+              $catNum = (int)$dc['decided_category'];
+              $pun = function_exists('formatPunishmentDetails') ? formatPunishmentDetails($dc['punishment_details']) : "Category {$catNum}";
+              $staticRecords[] = [
+                  'program' => (string)($dc['program'] ?? 'COLLEGE'),
+                  'offense' => (string)($dc['offense_name'] ?? 'DISCIPLINARY OFFENSE'),
+                  'level' => strtoupper((string)($dc['offense_level'] ?? 'MAJOR')),
+                  'date' => (string)($dc['updated_at'] ?? date('Y-m-d H:i:s')),
+                  'sanction' => "Category {$catNum} — " . ($pun !== 'n/a' ? $pun : ($dc['final_decision'] ?? 'Decision Applied'))
+              ];
+          }
+      }
+  } catch (\Throwable $e) {}
+
+  return $staticRecords;
 }
 
 function is_shs_program($program) {

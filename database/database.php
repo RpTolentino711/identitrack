@@ -67,6 +67,104 @@ function get_env_var(string $key, mixed $default = ''): mixed {
 }
 
 /**
+ * Automatically records a finalized case decision into the AI historical dataset
+ * (sanction_history_dataset.json) so the AI can use it as a real historical precedent.
+ */
+function record_finalized_case_to_historical_dataset(int $caseId): bool
+{
+    if ($caseId <= 0) return false;
+
+    try {
+        $cRow = db_one("
+            SELECT uc.case_id, uc.student_id, uc.decided_category, uc.punishment_details, uc.final_decision, uc.updated_at,
+                   s.program,
+                   o.offense_type_id, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
+            FROM upcc_case uc
+            LEFT JOIN student s ON s.student_id = uc.student_id
+            LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
+            LEFT JOIN offense o ON o.offense_id = uco.offense_id
+            LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+            WHERE uc.case_id = :cid
+            ORDER BY o.date_committed DESC LIMIT 1
+        ", [':cid' => $caseId]);
+
+        if (!$cRow || empty($cRow['decided_category'])) {
+            return false;
+        }
+
+        $catNum = (int)$cRow['decided_category'];
+        $studentId = (string)($cRow['student_id'] ?? '');
+        $offenseTypeId = (int)($cRow['offense_type_id'] ?? 0);
+
+        $instRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND offense_type_id = :otid", [':sid' => $studentId, ':otid' => $offenseTypeId]);
+        $priorRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid", [':sid' => $studentId]);
+
+        $details = json_decode((string)($cRow['punishment_details'] ?? ''), true) ?: [];
+        $serviceHours = (int)($details['service_hours'] ?? ($details['hours'] ?? 0));
+
+        $datasetPaths = [
+            __DIR__ . '/../storage/dataset/sanction_history_dataset.json',
+            'E:\identitrack_ai_dataset\sanction_history_dataset.json'
+        ];
+
+        foreach ($datasetPaths as $datasetPath) {
+            $dataset = [];
+            if (file_exists($datasetPath)) {
+                $raw = @file_get_contents($datasetPath);
+                if ($raw) {
+                    $dataset = json_decode($raw, true) ?: [];
+                }
+            } else {
+                $dir = dirname($datasetPath);
+                if (!is_dir($dir)) @mkdir($dir, 0777, true);
+            }
+
+            // Check if case is already recorded in JSON
+            $caseSummaryKey = "UPCC Case #" . $caseId;
+            $foundIndex = -1;
+            foreach ($dataset as $idx => $record) {
+                if (isset($record['case_summary']) && strpos((string)$record['case_summary'], $caseSummaryKey) !== false) {
+                    $foundIndex = $idx;
+                    break;
+                }
+            }
+
+            $newRecord = [
+                'dataset_id' => $foundIndex >= 0 ? $dataset[$foundIndex]['dataset_id'] : (count($dataset) + 1),
+                'case_id' => $caseId,
+                'program' => (string)($cRow['program'] ?? 'COLLEGE'),
+                'offense_level' => (string)($cRow['offense_level'] ?? 'MAJOR'),
+                'major_category' => $cRow['major_category'] !== null ? (int)$cRow['major_category'] : null,
+                'offense_code' => (string)($cRow['offense_code'] ?? 'GENERAL_VIOLATION'),
+                'offense_name' => (string)($cRow['offense_name'] ?? 'Student Handbook Violation'),
+                'instance_number' => max(1, (int)($instRow['cnt'] ?? 1)),
+                'prior_total_offenses' => max(0, (int)($priorRow['cnt'] ?? 1) - 1),
+                'decided_category' => $catNum,
+                'recommended_hours' => $serviceHours,
+                'probation_days' => 90,
+                'handbook_citation' => "NU Lipa Student Handbook Section " . ($catNum === 2 ? "4.2" : ($catNum === 1 ? "3.1" : "4")),
+                'case_summary' => "UPCC Finalized Case #" . $caseId,
+                'rationale' => "Finalized Disciplinary Decision: Category " . $catNum . " (" . ($cRow['final_decision'] ?? 'Sanction applied') . ").",
+                'date_finalized' => (string)($cRow['updated_at'] ?? date('Y-m-d H:i:s'))
+            ];
+
+            if ($foundIndex >= 0) {
+                $dataset[$foundIndex] = $newRecord;
+            } else {
+                $dataset[] = $newRecord;
+            }
+
+            @file_put_contents($datasetPath, json_encode($dataset, JSON_PRETTY_PRINT));
+        }
+
+        return true;
+    } catch (\Throwable $e) {
+        return false;
+    }
+}
+
+
+/**
  * Get DB connection (PDO)
  */
 function db(): PDO

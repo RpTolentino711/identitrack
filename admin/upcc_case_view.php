@@ -344,6 +344,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     [':cat' => $category, ':dec' => $decision,
                      ':pu'  => $probationUntil, ':pd' => $jsonDetails, ':id' => $case_id]);
 
+                // Auto-record finalized case into AI Historical Dataset for future precedent learning
+                record_finalized_case_to_historical_dataset((int)$case_id);
+
                 $previousOngoingHours = null;
                 if ($category === 2 && !empty($details['service_hours'])) {
                     $activeReq = db_one(

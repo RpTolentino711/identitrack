@@ -371,6 +371,9 @@ try {
     ]
   );
 
+  // Auto-record finalized case decision into AI Historical Dataset
+  record_finalized_case_to_historical_dataset($caseId);
+
   $pdo->commit();
   echo json_encode(['success' => true, 'message' => 'Student sanction updated successfully.']);
 } catch (Exception $e) {
