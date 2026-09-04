@@ -3846,12 +3846,12 @@ function toggleDrawerWhyPanel() {
 </div>
 
 <!-- SLIDE-UP FLOATING GLASS DRAWER WITH ANIMATED BOT HEAD (ChatGPT-style Conversational AI) -->
-<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:440px;height:650px;max-height:88vh;background:rgba(9, 14, 28, 0.96);backdrop-filter:blur(28px);border:1px solid rgba(56, 189, 248, 0.4);border-radius:28px;box-shadow:0 30px 70px rgba(0,0,0,0.85), 0 0 50px rgba(14, 165, 233, 0.25);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%) scale(0.95);opacity:0;visibility:hidden;pointer-events:none;transition:transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;box-sizing:border-box;">
+<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:490px;height:700px;max-width:94vw;max-height:90vh;background:rgba(9, 14, 28, 0.97);backdrop-filter:blur(28px);border:1px solid rgba(56, 189, 248, 0.4);border-radius:28px;box-shadow:0 30px 70px rgba(0,0,0,0.85), 0 0 50px rgba(14, 165, 233, 0.25);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%) scale(0.95);opacity:0;visibility:hidden;pointer-events:none;transition:transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;box-sizing:border-box;">
   
   <!-- DRAWER HEADER WITH ANIMATED AI HEAD AVATAR -->
-  <div style="background:rgba(15, 23, 42, 0.95);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
+  <div style="background:rgba(15, 23, 42, 0.95);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
     <div style="display:flex;align-items:center;gap:14px;">
-      <div class="ai-bot-avatar-wrapper" style="width:40px;height:40px;">
+      <div class="ai-bot-avatar-wrapper" style="width:42px;height:42px;">
         <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
           <circle cx="60" cy="65" r="50" class="bot-aura" />
           <ellipse cx="60" cy="100" rx="26" ry="6" class="bot-platform" />
@@ -3878,25 +3878,25 @@ function toggleDrawerWhyPanel() {
         </svg>
       </div>
       <div>
-        <div style="font-weight:800;font-size:14px;color:#f8fafc;letter-spacing:0.3px;display:flex;align-items:center;gap:6px;">
-          IdentiTrack AI <span style="font-size:9px;background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 8px;border-radius:12px;border:1px solid rgba(56,189,248,0.3);font-weight:700;">CONVERSATIONAL</span>
+        <div style="font-weight:800;font-size:15px;color:#f8fafc;letter-spacing:0.3px;display:flex;align-items:center;gap:6px;">
+          IdentiTrack AI <span style="font-size:10px;background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 8px;border-radius:12px;border:1px solid rgba(56,189,248,0.3);font-weight:700;">CONVERSATIONAL</span>
         </div>
-        <div style="font-size:10px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-top:2px;">
+        <div style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-top:2px;">
           <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block;"></span> Strictly Handbook & Precedents
         </div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:4px;">
-      <button onclick="toggleAiDrawer(false)" title="Close" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.25)';this.style.color='#ef4444';this.style.borderColor='rgba(239,68,68,0.4)';" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#94a3b8';this.style.borderColor='rgba(255,255,255,0.1)';">✕</button>
+      <button onclick="toggleAiDrawer(false)" title="Close" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.25)';this.style.color='#ef4444';this.style.borderColor='rgba(239,68,68,0.4)';" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#94a3b8';this.style.borderColor='rgba(255,255,255,0.1)';">✕</button>
     </div>
   </div>
 
   <!-- CONVERSATIONAL CHAT THREAD -->
-  <div id="aiChatThread" style="flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth;">
+  <div id="aiChatThread" style="flex:1;padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth;">
     <!-- Welcome message bubble -->
-    <div style="display:flex;gap:10px;align-items:flex-start;">
-      <div style="width:28px;height:28px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
-      <div style="background:rgba(30,41,59,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:16px;border-top-left-radius:4px;padding:12px 14px;font-size:12.5px;color:#f8fafc;line-height:1.5;max-width:88%;">
+    <div style="display:flex;gap:12px;align-items:flex-start;">
+      <div style="width:32px;height:32px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
+      <div style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:14px 16px;font-size:14.5px;color:#f8fafc;line-height:1.6;max-width:90%;">
         Hello Panel Member! I am strictly bound to the <strong>NU Lipa Student Handbook</strong> and anonymized historical case precedents.<br><br>
         Please type any question you have regarding this hearing, handbook rules, or precedent outcomes below.
       </div>
@@ -3904,16 +3904,16 @@ function toggleDrawerWhyPanel() {
   </div>
 
   <!-- STOP GENERATING BAR (Dynamically shown during typing) -->
-  <div id="aiStopGeneratingContainer" style="display:none;padding:6px;text-align:center;background:rgba(15,23,42,0.9);border-top:1px solid rgba(255,255,255,0.08);">
-    <button type="button" onclick="stopAiTyping()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.5);color:#fca5a5;padding:6px 16px;border-radius:20px;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.35)';" onmouseout="this.style.background='rgba(239,68,68,0.2)';">
+  <div id="aiStopGeneratingContainer" style="display:none;padding:8px;text-align:center;background:rgba(15,23,42,0.95);border-top:1px solid rgba(255,255,255,0.08);">
+    <button type="button" onclick="stopAiTyping()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.5);color:#fca5a5;padding:7px 18px;border-radius:20px;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.35)';" onmouseout="this.style.background='rgba(239,68,68,0.2)';">
       <span>🛑</span> Stop Generating
     </button>
   </div>
 
   <!-- BOTTOM INPUT BAR -->
-  <form id="aiChatForm" onsubmit="handleAiChatSubmit(event)" style="padding:12px 16px;background:rgba(15, 23, 42, 0.95);border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:8px;align-items:center;">
-    <input type="text" id="aiDrawerChatInput" placeholder="Ask AI about handbook rules or precedents..." autocomplete="off" style="flex:1;background:rgba(30,41,59,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:10px 14px;font-size:12.5px;color:#f8fafc;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#38bdf8';" onblur="this.style.borderColor='rgba(255,255,255,0.15)';">
-    <button type="submit" id="aiChatSendBtn" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:10px 16px;border-radius:12px;font-weight:700;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 4px 12px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='scale(1.03)';" onmouseout="this.style.transform='scale(1)';">
+  <form id="aiChatForm" onsubmit="handleAiChatSubmit(event)" style="padding:14px 18px;background:rgba(15, 23, 42, 0.97);border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:10px;align-items:center;">
+    <input type="text" id="aiDrawerChatInput" placeholder="Ask AI about handbook rules or precedents..." autocomplete="off" style="flex:1;background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.18);border-radius:14px;padding:12px 16px;font-size:14px;color:#f8fafc;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#38bdf8';" onblur="this.style.borderColor='rgba(255,255,255,0.18)';">
+    <button type="submit" id="aiChatSendBtn" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:12px 18px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='scale(1.03)';" onmouseout="this.style.transform='scale(1)';">
       ✦ Send
     </button>
   </form>
@@ -3963,7 +3963,7 @@ async function handleAiChatSubmit(e) {
     const userMsgDiv = document.createElement('div');
     userMsgDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:4px;';
     userMsgDiv.innerHTML = `
-        <div style="background:linear-gradient(135deg, #2563eb, #1d4ed8);border-radius:16px;border-top-right-radius:4px;padding:10px 14px;font-size:12.5px;color:#ffffff;line-height:1.5;max-width:85%;box-shadow:0 4px 12px rgba(37,99,235,0.3);">
+        <div style="background:linear-gradient(135deg, #2563eb, #1d4ed8);border-radius:18px;border-top-right-radius:4px;padding:12px 16px;font-size:14.5px;color:#ffffff;line-height:1.6;max-width:88%;box-shadow:0 4px 14px rgba(37,99,235,0.35);">
             ${escHtml(query)}
         </div>
     `;
@@ -3972,13 +3972,13 @@ async function handleAiChatSubmit(e) {
 
     // Append AI Typing Placeholder Bubble
     const aiMsgDiv = document.createElement('div');
-    aiMsgDiv.style.cssText = 'display:flex;gap:10px;align-items:flex-start;';
+    aiMsgDiv.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
     const aiBubbleId = 'ai-msg-' + Date.now();
     aiMsgDiv.innerHTML = `
-        <div style="width:28px;height:28px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
-        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:16px;border-top-left-radius:4px;padding:12px 14px;font-size:12.5px;color:#f8fafc;line-height:1.5;max-width:88%;">
-            <span class="spinner-sm" style="width:14px;height:14px;border:2px solid rgba(56,189,248,0.2);border-top-color:#38bdf8;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite;margin-right:6px;"></span>
-            <span style="color:#94a3b8;font-style:italic;">Thinking & checking handbook...</span>
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
+        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:14px 16px;font-size:14.5px;color:#f8fafc;line-height:1.6;max-width:90%;">
+            <span class="spinner-sm" style="width:16px;height:16px;border:2.5px solid rgba(56,189,248,0.2);border-top-color:#38bdf8;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span>
+            <span style="color:#94a3b8;font-style:italic;font-size:14px;">Analyzing hearing file & handbook...</span>
         </div>
     `;
     thread.appendChild(aiMsgDiv);
@@ -4024,31 +4024,34 @@ async function handleAiChatSubmit(e) {
 function typeOutAiResponse(containerEl, fullText, threadEl) {
     containerEl.innerHTML = '';
     
-    // Parse markdown into clean HTML
+    // Parse markdown into clean HTML with larger typography
     let formattedText = fullText
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/^### (.*$)/gim, '<strong style="color:#38bdf8;font-size:13px;display:block;margin:8px 0 3px;">$1</strong>')
-        .replace(/^## (.*$)/gim, '<strong style="color:#38bdf8;font-size:13.5px;display:block;margin:10px 0 4px;">$1</strong>')
-        .replace(/^# (.*$)/gim, '<strong style="color:#38bdf8;font-size:14px;display:block;margin:12px 0 4px;">$1</strong>')
-        .replace(/^[\u2022\-\*] (.*$)/gim, '<div style="margin-left:8px;margin-bottom:3px;">• $1</div>')
+        .replace(/^### (.*$)/gim, '<strong style="color:#38bdf8;font-size:15px;display:block;margin:12px 0 4px;font-weight:700;">$1</strong>')
+        .replace(/^## (.*$)/gim, '<strong style="color:#38bdf8;font-size:16px;display:block;margin:14px 0 6px;font-weight:700;">$1</strong>')
+        .replace(/^# (.*$)/gim, '<strong style="color:#38bdf8;font-size:17px;display:block;margin:16px 0 8px;font-weight:700;">$1</strong>')
+        .replace(/^[\u2022\-\*] (.*$)/gim, '<div style="margin-left:8px;margin-bottom:4px;line-height:1.6;">• $1</div>')
         .replace(/\n/g, '<br>');
 
-    // Tokenize text while keeping HTML tags atomic (unsplit) to prevent layout flicker
-    const tokens = formattedText.match(/<[^>]+>|[^<>\s]+|\s+/g) || [formattedText];
+    const textSpan = document.createElement('div');
+    textSpan.style.cssText = 'font-size:14.5px;line-height:1.65;color:#f8fafc;word-break:break-word;';
 
-    const textSpan = document.createElement('span');
     const cursorSpan = document.createElement('span');
     cursorSpan.className = 'ai-typing-cursor';
-    cursorSpan.style.cssText = 'color:#38bdf8;font-weight:900;animation:blink 0.8s infinite;margin-left:2px;display:inline-block;';
+    cursorSpan.style.cssText = 'color:#38bdf8;font-weight:900;animation:blink 0.7s infinite;margin-left:3px;display:inline-block;font-size:14px;';
     cursorSpan.textContent = '▌';
 
     containerEl.appendChild(textSpan);
     containerEl.appendChild(cursorSpan);
 
+    // Tokenize text keeping HTML tags intact for flicker-free typing
+    const tokens = formattedText.match(/<[^>]+>|[^<>\s]+|\s+/g) || [formattedText];
+
     let tokenIdx = 0;
     let accumulatedHtml = '';
+    let lastScrollTime = 0;
 
     function step() {
         if (!isAiGenerating) {
@@ -4057,13 +4060,27 @@ function typeOutAiResponse(containerEl, fullText, threadEl) {
         }
 
         if (tokenIdx < tokens.length) {
+            // Append token chunks smoothly
             accumulatedHtml += tokens[tokenIdx];
-            textSpan.innerHTML = accumulatedHtml;
-            threadEl.scrollTop = threadEl.scrollHeight;
             tokenIdx++;
-            currentTypingInterval = setTimeout(step, 18);
+
+            if (tokenIdx < tokens.length && !tokens[tokenIdx].startsWith('<')) {
+                accumulatedHtml += tokens[tokenIdx];
+                tokenIdx++;
+            }
+
+            textSpan.innerHTML = accumulatedHtml;
+
+            const now = Date.now();
+            if (now - lastScrollTime > 50) {
+                threadEl.scrollTop = threadEl.scrollHeight;
+                lastScrollTime = now;
+            }
+
+            currentTypingInterval = setTimeout(step, 14);
         } else {
             textSpan.innerHTML = formattedText;
+            threadEl.scrollTop = threadEl.scrollHeight;
             stopAiTyping();
         }
     }
