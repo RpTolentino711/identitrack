@@ -507,6 +507,20 @@ try {
     }
 
     $exactPrecedents = getExactPrecedents($offenseTypeId, $caseId);
+
+    // Look up SANCTION.xlsx official dataset cache records
+    $excelPrecedents = [];
+    if (function_exists('get_historical_dataset_records')) {
+        $cacheRecords = get_historical_dataset_records();
+        $targetOffenseUpper = strtoupper(trim($offenseName));
+        foreach ($cacheRecords as $cr) {
+            $crOffense = strtoupper(trim($cr['offense'] ?? ''));
+            if ($crOffense !== '' && (strpos($crOffense, $targetOffenseUpper) !== false || strpos($targetOffenseUpper, $crOffense) !== false || (strpos($targetOffenseUpper, 'VAPE') !== false && strpos($crOffense, 'VAPE') !== false))) {
+                $excelPrecedents[] = $cr;
+            }
+        }
+    }
+
     $categoryPrecedents = empty($exactPrecedents)
         ? getCategoryPrecedents($majorCategory, $offenseTypeId, $caseId)
         : [];
@@ -527,6 +541,7 @@ try {
         'pending_cases_text' => $pendingCasesText,
         'cs_text' => $csStatusText,
         'exact_precedents' => $exactPrecedents,
+        'excel_precedents' => $excelPrecedents,
         'category_precedents' => $categoryPrecedents
     ];
 
@@ -560,6 +575,41 @@ try {
                 'suggested_category' => $suggestedCategory,
                 'suggested_punishment' => $punishmentText,
                 'precedent_cases' => $exactPrecedents,
+                'ai_explanation' => $aiText,
+                'ai_available' => true,
+                'engine' => $aiEngineRes['engine'],
+                'privacy' => $aiEngineRes['privacy']
+            ]);
+            exit;
+        }
+
+        // If SANCTION.xlsx dataset contains matching precedents for this offense
+        if (!empty($excelPrecedents)) {
+            $firstExcelMatch = $excelPrecedents[0];
+            $sancStr = $firstExcelMatch['sanction'] ?? 'FORMATIVE INTERVENTION';
+            $sCat = (strpos(strtoupper($sancStr), 'NON-READMISSION') !== false || strpos(strtoupper($sancStr), 'DROPPED') !== false) ? 4
+                  : ((strpos(strtoupper($sancStr), 'SUSPENSION') !== false) ? 3
+                  : ((strpos(strtoupper($sancStr), 'REPRIMAND') !== false || strpos(strtoupper($sancStr), 'DISMISS') !== false) ? 1 : 2));
+
+            $excelSummary = array_map(fn($ep) => sprintf("• Offense: %s | Level: %s | Sanction: %s", $ep['offense'], $ep['level'], $ep['sanction']), array_slice($excelPrecedents, 0, 5));
+
+            $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. Official historical campus dataset (SANCTION.xlsx) contains " . count($excelPrecedents) . " recorded precedent(s) for this offense. Explain in 2-3 concise sentences the suggested sanction based on this historical dataset.\n\n" . $dynamicRules;
+            $userPrompt = "Student: {$studentName}\nOffense: {$offenseName} ({$offenseLevel})\nHistorical Dataset Precedents (SANCTION.xlsx):\n" . implode("\n", $excelSummary);
+
+            $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId, $caseMeta);
+            $aiText = $aiEngineRes['text'];
+
+            echo json_encode([
+                'ok' => true,
+                'source' => 'excel_sanction_dataset',
+                'is_new_offense_type' => false,
+                'student_id' => $targetStudentId,
+                'student_name' => $studentName,
+                'offense_name' => $offenseName,
+                'instance_count' => $instanceCount,
+                'suggested_category' => $sCat,
+                'suggested_punishment' => $sancStr,
+                'dataset_precedents_count' => count($excelPrecedents),
                 'ai_explanation' => $aiText,
                 'ai_available' => true,
                 'engine' => $aiEngineRes['engine'],

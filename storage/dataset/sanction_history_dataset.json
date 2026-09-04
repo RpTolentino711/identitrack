@@ -1,8 +1,2046 @@
 {
-  "dataset_version": "UPCC-DATA-v1.0",
-  "summary": {
-    "total_major_cases": 6199,
-    "total_campus_records": 10000,
-    "verified_cases": 10000
-  }
+  "source_file": "SANCTION.xlsx",
+  "total_records": 204,
+  "records": [
+    {
+      "case_no": "",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "Remarks: DISMISSED CASE",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "DISMISSED CASE"
+    },
+    {
+      "case_no": "1",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "CS - 250 Hours CS - Office: LRC",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LRC",
+      "remarks": ""
+    },
+    {
+      "case_no": "2",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 HOURS - Office: FACULTY ROOM - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250 HOURS",
+      "office": "FACULTY ROOM",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "3",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 HOURS - Office: ITSO - Remarks: To return for CS on 11/21/2025",
+      "category": 2,
+      "hours_raw": "250 HOURS",
+      "office": "ITSO",
+      "remarks": "To return for CS on 11/21/2025"
+    },
+    {
+      "case_no": "4",
+      "offense": "GROSS ACT OF DISRESPECT",
+      "level": "MAJOR",
+      "sanction": "NON-READMISSION - Remarks: EFFECTIVE AY 24-25 2ND TERM",
+      "category": 4,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "EFFECTIVE AY 24-25 2ND TERM"
+    },
+    {
+      "case_no": "5",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 HOURS - Office: SDO - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250 HOURS",
+      "office": "SDO",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "6",
+      "offense": "GENDER-BASED SEXUAL HARASSMENT",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 300HOURS - Office: SDO - Remarks: ONGOING",
+      "category": 2,
+      "hours_raw": "300HOURS",
+      "office": "SDO",
+      "remarks": "ONGOING"
+    },
+    {
+      "case_no": "7",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "Under Review",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "8",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: PFO - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "PFO",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "9",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: clearance on-hold",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "clearance on-hold"
+    },
+    {
+      "case_no": "10",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "Under Review",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "11",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ASSET - Remarks: clearance on-hold",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ASSET",
+      "remarks": "clearance on-hold"
+    },
+    {
+      "case_no": "12",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ASSET - Remarks: SUBMITTED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ASSET",
+      "remarks": "SUBMITTED"
+    },
+    {
+      "case_no": "13",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": ""
+    },
+    {
+      "case_no": "14",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: LAB TECH - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LAB TECH",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "15",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "16",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ITSO - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ITSO",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "17",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "18",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: PFO - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "PFO",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "19",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: LRC - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LRC",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "20",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "OFFICIALLY DROPPED - 250 Hours CS - Remarks: pending not enrolled",
+      "category": 4,
+      "hours_raw": "250",
+      "office": "",
+      "remarks": "pending not enrolled"
+    },
+    {
+      "case_no": "21",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: CLINIC - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "CLINIC",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "22",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: CLINIC - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "CLINIC",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "23",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "24",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: CS, SMS - Remarks: clearance on-hold",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "CS, SMS",
+      "remarks": "clearance on-hold"
+    },
+    {
+      "case_no": "25",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - Remarks: RETURN SIGNED COPY OF NFI",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "RETURN SIGNED COPY OF NFI"
+    },
+    {
+      "case_no": "26",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250, CS LABTECH Hours CS - Office: SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250, CS LABTECH",
+      "office": "SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "27",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: CS, CLINIC - Remarks: clearance on-hold",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "CS, CLINIC",
+      "remarks": "clearance on-hold"
+    },
+    {
+      "case_no": "28",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: FINISHED 03/14/2026",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "FINISHED 03/14/2026"
+    },
+    {
+      "case_no": "29",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS, ADMISSION - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS, ADMISSION",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "30",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "31",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - Office: SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "",
+      "office": "SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "32",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "TO RECEIVE NFI - 250 Hours CS - Office: SMS - Remarks: To submit the CS Certificate",
+      "category": 4,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "To submit the CS Certificate"
+    },
+    {
+      "case_no": "33",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "34",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "ONGOING",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "35",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "36",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "37",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "38",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SDO - Remarks: 46099",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SDO",
+      "remarks": "46099"
+    },
+    {
+      "case_no": "39",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ADMISSION - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ADMISSION",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "40",
+      "offense": "NEGATIVELY AFFECT THE GOOD NAME",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "41",
+      "offense": "NEGATIVELY AFFECT THE GOOD NAME",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "42",
+      "offense": "NEGATIVELY AFFECT THE GOOD NAME",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "43",
+      "offense": "NEGATIVELY AFFECT THE GOOD NAME",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "44",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FOR CS - 250 Hours CS - Office: PFO - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "PFO",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "45",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "FOR CS - 250 Hours CS - Office: LRC - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LRC",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "46",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "FOR CS - 250 Hours CS - Office: ADMISSION - Remarks: fiNISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ADMISSION",
+      "remarks": "fiNISHED"
+    },
+    {
+      "case_no": "47",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "48",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "Under Review",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "49",
+      "offense": "MISCONDUCT",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: GSO/SDO - Remarks: To Render CS by Term 3 (11/14/2025)",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "GSO/SDO",
+      "remarks": "To Render CS by Term 3 (11/14/2025)"
+    },
+    {
+      "case_no": "50",
+      "offense": "MISCONDUCT",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 300 Hours CS - Office: HSO - Remarks: To Render CS by Term 3 (11/12/2025)",
+      "category": 2,
+      "hours_raw": "300",
+      "office": "HSO",
+      "remarks": "To Render CS by Term 3 (11/12/2025)"
+    },
+    {
+      "case_no": "51",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - Office: SDO - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "",
+      "office": "SDO",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "52",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: HSO - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "HSO",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "53",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ADMISSION - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ADMISSION",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "54",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 400 Hours CS - Office: CE LAB/SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "400",
+      "office": "CE LAB/SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "55",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: LRC - Remarks: clearance on-hold",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LRC",
+      "remarks": "clearance on-hold"
+    },
+    {
+      "case_no": "56",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "PROBATION AND FI - 150 Hours CS - Office: CE DEAN - Remarks: To submit Certificate of Accomplishment",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "CE DEAN",
+      "remarks": "To submit Certificate of Accomplishment"
+    },
+    {
+      "case_no": "57",
+      "offense": "INSUBORDINATION",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: LIBRARY - Remarks: Endorsed: 12/03",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LIBRARY",
+      "remarks": "Endorsed: 12/03"
+    },
+    {
+      "case_no": "58",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: HSO, LAB TECH - Remarks: returned 11/17",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "HSO, LAB TECH",
+      "remarks": "returned 11/17"
+    },
+    {
+      "case_no": "59",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: LAB, CLINIC - Remarks: clearance on-hold",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LAB, CLINIC",
+      "remarks": "clearance on-hold"
+    },
+    {
+      "case_no": "60",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "Under Review",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "61",
+      "offense": "HABITUAL",
+      "level": "MAJOR",
+      "sanction": "Under Review",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "62",
+      "offense": "HABITUAL",
+      "level": "MAJOR",
+      "sanction": "Under Review",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "63",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ADMISSION - Remarks: Start November 15",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ADMISSION",
+      "remarks": "Start November 15"
+    },
+    {
+      "case_no": "64",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: HSO - Remarks: Endorsed:10/27/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "HSO",
+      "remarks": "Endorsed:10/27/2025"
+    },
+    {
+      "case_no": "65",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 400 Hours CS - Office: HSO",
+      "category": 2,
+      "hours_raw": "400",
+      "office": "HSO",
+      "remarks": ""
+    },
+    {
+      "case_no": "66",
+      "offense": "POSSESSION OF PORNOGRAPHIC MATERIAL",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: HSO - Remarks: Endorsed:11/6/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "HSO",
+      "remarks": "Endorsed:11/6/2025"
+    },
+    {
+      "case_no": "67",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: Endorsed:11/6/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "Endorsed:11/6/2025"
+    },
+    {
+      "case_no": "68",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: Endorsed:11/6/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "Endorsed:11/6/2025"
+    },
+    {
+      "case_no": "69",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: Endorsed:11/6/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "Endorsed:11/6/2025"
+    },
+    {
+      "case_no": "70",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: Endorsed:11/6/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "Endorsed:11/6/2025"
+    },
+    {
+      "case_no": "71",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "Remarks: Case pending due to lack or insufficient evidence of evidence",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "Case pending due to lack or insufficient evidence of evidence"
+    },
+    {
+      "case_no": "72",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: CE LAB - Remarks: Endorsed:11/14/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "CE LAB",
+      "remarks": "Endorsed:11/14/2025"
+    },
+    {
+      "case_no": "73",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: HSO - Remarks: Endorsed:11/6/2025",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "HSO",
+      "remarks": "Endorsed:11/6/2025"
+    },
+    {
+      "case_no": "74",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: CHEM LAB - Remarks: Endorsed:11/6/2025",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "CHEM LAB",
+      "remarks": "Endorsed:11/6/2025"
+    },
+    {
+      "case_no": "75",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "76",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "77",
+      "offense": "GENDER-BASED SEXUAL HARASSMENT",
+      "level": "MAJOR",
+      "sanction": "NTE SENT/ WITHDRAWN - Remarks: Withdrawn",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "Withdrawn"
+    },
+    {
+      "case_no": "78",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: CE LAB - Remarks: 11/14 TUE & SAT (8am - 3pm)",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "CE LAB",
+      "remarks": "11/14 TUE & SAT (8am - 3pm)"
+    },
+    {
+      "case_no": "79",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: SKILLS LAB - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "SKILLS LAB",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "80",
+      "offense": "SPREADING OF RUMORS",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "81",
+      "offense": "PROVOCATION",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "82",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: Endorsed:10/29/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "Endorsed:10/29/2025"
+    },
+    {
+      "case_no": "83",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: Endorsed:11/12/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "Endorsed:11/12/2025"
+    },
+    {
+      "case_no": "84",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: HSO - Remarks: Endorsed:11/7/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "HSO",
+      "remarks": "Endorsed:11/7/2025"
+    },
+    {
+      "case_no": "85",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 375 Hours CS - Office: SMS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "375",
+      "office": "SMS",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "86",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 375 Hours CS - Office: ASSET - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "375",
+      "office": "ASSET",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "87",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: HSO - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "HSO",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "88",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: ADMISSION - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "ADMISSION",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "89",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ADMISSION - Remarks: Endorsed: 11/25/2025",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ADMISSION",
+      "remarks": "Endorsed: 11/25/2025"
+    },
+    {
+      "case_no": "90",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS/ADMISSION - Remarks: Endorsed: 01/22/2026",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS/ADMISSION",
+      "remarks": "Endorsed: 01/22/2026"
+    },
+    {
+      "case_no": "91",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: HSO - Remarks: Endorsed: 12/5",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "HSO",
+      "remarks": "Endorsed: 12/5"
+    },
+    {
+      "case_no": "92",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: CE LAB - Remarks: Endorsed: 12/15",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "CE LAB",
+      "remarks": "Endorsed: 12/15"
+    },
+    {
+      "case_no": "93",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "94",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ADMISSION - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ADMISSION",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "95",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: CE LAB - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "CE LAB",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "96",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ADMISSION - Remarks: Endorsed: 12/1",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ADMISSION",
+      "remarks": "Endorsed: 12/1"
+    },
+    {
+      "case_no": "97",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "98",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "99",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "100",
+      "offense": "BRINGING IN DEADLY WEAPON / TASER",
+      "level": "MAJOR",
+      "sanction": "Suspension - Remarks: mar 18-28, apr 7-8",
+      "category": 3,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "mar 18-28, apr 7-8"
+    },
+    {
+      "case_no": "101",
+      "offense": "BRINGING IN DEADLY WEAPON / TASER",
+      "level": "MAJOR",
+      "sanction": "Suspension - Remarks: 2 weeks suspension",
+      "category": 3,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "2 weeks suspension"
+    },
+    {
+      "case_no": "102",
+      "offense": "ASSAULT",
+      "level": "MAJOR",
+      "sanction": "PROBATION & FI - 250 Hours CS - Office: LRC - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LRC",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "103",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "PROBATION - Remarks: received 1/27/2026",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "received 1/27/2026"
+    },
+    {
+      "case_no": "104",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "105",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: CE LAB - Remarks: Endorsed: 01/27/2026",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "CE LAB",
+      "remarks": "Endorsed: 01/27/2026"
+    },
+    {
+      "case_no": "106",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: HSO - Remarks: Endorsed: 01/27/2026",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "HSO",
+      "remarks": "Endorsed: 01/27/2026"
+    },
+    {
+      "case_no": "107",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ADMISSION - Remarks: Endorsed: 01/27/2026",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ADMISSION",
+      "remarks": "Endorsed: 01/27/2026"
+    },
+    {
+      "case_no": "108",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: LRC - Remarks: Endorsed: 02/24/2026",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LRC",
+      "remarks": "Endorsed: 02/24/2026"
+    },
+    {
+      "case_no": "109",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: CE LAB - Remarks: Endorsed: 01/27/2026",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "CE LAB",
+      "remarks": "Endorsed: 01/27/2026"
+    },
+    {
+      "case_no": "110",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "Written reprimand - Remarks: Received02/12/2026",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "Received02/12/2026"
+    },
+    {
+      "case_no": "111",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "Written reprimand",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "112",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: 46087",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "46087"
+    },
+    {
+      "case_no": "113",
+      "offense": "GROSS ACT OF DISRESPECT",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 400 Hours CS - Office: GSO - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "400",
+      "office": "GSO",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "114",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 500 Hours CS - Office: HSO - Remarks: Endorsed: 02/24/2026",
+      "category": 2,
+      "hours_raw": "500",
+      "office": "HSO",
+      "remarks": "Endorsed: 02/24/2026"
+    },
+    {
+      "case_no": "115",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 500 Hours CS - Office: LAB - Remarks: Endorsed: 02/24/2026",
+      "category": 2,
+      "hours_raw": "500",
+      "office": "LAB",
+      "remarks": "Endorsed: 02/24/2026"
+    },
+    {
+      "case_no": "116",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 125 Hours CS - Office: SMS - Remarks: 46097",
+      "category": 2,
+      "hours_raw": "125",
+      "office": "SMS",
+      "remarks": "46097"
+    },
+    {
+      "case_no": "117",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 125 Hours CS - Office: SMS - Remarks: 46098",
+      "category": 2,
+      "hours_raw": "125",
+      "office": "SMS",
+      "remarks": "46098"
+    },
+    {
+      "case_no": "118",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 125 Hours CS - Office: SMS - Remarks: 46093",
+      "category": 2,
+      "hours_raw": "125",
+      "office": "SMS",
+      "remarks": "46093"
+    },
+    {
+      "case_no": "119",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 125 Hours CS - Office: SKILLS LAB - Remarks: 46097",
+      "category": 2,
+      "hours_raw": "125",
+      "office": "SKILLS LAB",
+      "remarks": "46097"
+    },
+    {
+      "case_no": "120",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: LAB - Remarks: 46078",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LAB",
+      "remarks": "46078"
+    },
+    {
+      "case_no": "121",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: LAB - Remarks: 46078",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LAB",
+      "remarks": "46078"
+    },
+    {
+      "case_no": "122",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - Office: HSO - Remarks: 46085",
+      "category": 2,
+      "hours_raw": "",
+      "office": "HSO",
+      "remarks": "46085"
+    },
+    {
+      "case_no": "123",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 80 Hours CS - Office: SMS - Remarks: 46099",
+      "category": 2,
+      "hours_raw": "80",
+      "office": "SMS",
+      "remarks": "46099"
+    },
+    {
+      "case_no": "124",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 100 Hours CS - Office: SMS - Remarks: 46099",
+      "category": 2,
+      "hours_raw": "100",
+      "office": "SMS",
+      "remarks": "46099"
+    },
+    {
+      "case_no": "125",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "Written reprimand - Remarks: 46099",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "46099"
+    },
+    {
+      "case_no": "126",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "Written reprimand - Remarks: 46154",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "46154"
+    },
+    {
+      "case_no": "127",
+      "offense": "THEFT",
+      "level": "MAJOR",
+      "sanction": "suspension/CS - 500 Hours CS - Office: SMS - Remarks: 46190",
+      "category": 3,
+      "hours_raw": "500",
+      "office": "SMS",
+      "remarks": "46190"
+    },
+    {
+      "case_no": "128",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "suspension/CS - 500 Hours CS - Office: ADMISSION - Remarks: 46190",
+      "category": 3,
+      "hours_raw": "500",
+      "office": "ADMISSION",
+      "remarks": "46190"
+    },
+    {
+      "case_no": "129",
+      "offense": "DOUBLE TAPPING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: CE LAB - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "CE LAB",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "130",
+      "offense": "DOUBLE TAPPING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: ADMISSION - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "ADMISSION",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "131",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: 46098",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "46098"
+    },
+    {
+      "case_no": "132",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: LAB - Remarks: 46111",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "LAB",
+      "remarks": "46111"
+    },
+    {
+      "case_no": "133",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SKILLS LAB - Remarks: 46098",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SKILLS LAB",
+      "remarks": "46098"
+    },
+    {
+      "case_no": "134",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Remarks: to receive NFI/ NOT ENROLED TERM 3 AY 25-26",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "",
+      "remarks": "to receive NFI/ NOT ENROLED TERM 3 AY 25-26"
+    },
+    {
+      "case_no": "135",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: 46078",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "46078"
+    },
+    {
+      "case_no": "136",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: CE LAB - Remarks: 46071",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "CE LAB",
+      "remarks": "46071"
+    },
+    {
+      "case_no": "137",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: CE LAB - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "CE LAB",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "138",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 125 Hours CS - Office: LAB - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "125",
+      "office": "LAB",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "139",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: FINISHED",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "FINISHED"
+    },
+    {
+      "case_no": "140",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "Written reprimand",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "141",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: GSO/SDO",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "GSO/SDO",
+      "remarks": ""
+    },
+    {
+      "case_no": "142",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 520 Hours CS - Office: HSO",
+      "category": 2,
+      "hours_raw": "520",
+      "office": "HSO",
+      "remarks": ""
+    },
+    {
+      "case_no": "143",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "144",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "PROBATION",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "145",
+      "offense": "GROSS ACT OF DISRESPECT",
+      "level": "MAJOR",
+      "sanction": "Written reprimand",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "146",
+      "offense": "GROSS ACT OF DISRESPECT",
+      "level": "MAJOR",
+      "sanction": "Written reprimand",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "147",
+      "offense": "GROSS ACT OF DISRESPECT",
+      "level": "MAJOR",
+      "sanction": "Written reprimand",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "148",
+      "offense": "GROSS ACT OF DISRESPECT",
+      "level": "MAJOR",
+      "sanction": "Written reprimand",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "149",
+      "offense": "GROSS ACT OF DISRESPECT",
+      "level": "MAJOR",
+      "sanction": "Written reprimand",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "150",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: 46107",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "46107"
+    },
+    {
+      "case_no": "151",
+      "offense": "GROSS ACT OF DISRESPECT",
+      "level": "MAJOR",
+      "sanction": "Written reprimand",
+      "category": 1,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "152",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 450 Hours CS - Office: GSO - Remarks: 46105",
+      "category": 2,
+      "hours_raw": "450",
+      "office": "GSO",
+      "remarks": "46105"
+    },
+    {
+      "case_no": "153",
+      "offense": "THEFT",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 500 Hours CS - Office: HSO - Remarks: 46122",
+      "category": 2,
+      "hours_raw": "500",
+      "office": "HSO",
+      "remarks": "46122"
+    },
+    {
+      "case_no": "154",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: ADMISSION - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "ADMISSION",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "155",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "156",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "157",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: ADMISSION - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "ADMISSION",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "158",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "159",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: SMS - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "SMS",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "160",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: LAB - Remarks: 46133",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "LAB",
+      "remarks": "46133"
+    },
+    {
+      "case_no": "161",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "150 Hours CS",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "162",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: LAB - Remarks: 46156",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "LAB",
+      "remarks": "46156"
+    },
+    {
+      "case_no": "163",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "150 Hours CS - Office: HSO - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "HSO",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "164",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: ADMISSION - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "ADMISSION",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "165",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: SMS - Remarks: 46167",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "SMS",
+      "remarks": "46167"
+    },
+    {
+      "case_no": "166",
+      "offense": "THEFT",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: HSO - Remarks: 46129",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "HSO",
+      "remarks": "46129"
+    },
+    {
+      "case_no": "167",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: HSO - Remarks: 46132",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "HSO",
+      "remarks": "46132"
+    },
+    {
+      "case_no": "168",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: HSO - Remarks: 46132",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "HSO",
+      "remarks": "46132"
+    },
+    {
+      "case_no": "169",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "170",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: ADMISSION - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "ADMISSION",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "171",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Remarks: TO RECEIVE NFI / NOT ENROLLED -TERM 3",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "",
+      "remarks": "TO RECEIVE NFI / NOT ENROLLED -TERM 3"
+    },
+    {
+      "case_no": "172",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: LRC - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "LRC",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "173",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: LRC",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "LRC",
+      "remarks": ""
+    },
+    {
+      "case_no": "174",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "175",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: 46144",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "46144"
+    },
+    {
+      "case_no": "176",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMARIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: 46146",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "46146"
+    },
+    {
+      "case_no": "177",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMARIVE INTERVENTION - 250 Hours CS - Office: SMS - Remarks: 46146",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": "46146"
+    },
+    {
+      "case_no": "178",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMARIVE INTERVENTION - 250 Hours CS - Office: SMS",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "SMS",
+      "remarks": ""
+    },
+    {
+      "case_no": "179",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "WRITTEN REPRIMEND - Remarks: FOR NFI",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "FOR NFI"
+    },
+    {
+      "case_no": "180",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "Under Review",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "181",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "Under Review",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "182",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "Under Review",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "184",
+      "offense": "BULLYING",
+      "level": "MAJOR",
+      "sanction": "Under Review",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "185",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: ADMISSION - Remarks: 46156",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "ADMISSION",
+      "remarks": "46156"
+    },
+    {
+      "case_no": "186",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "150 Hours CS",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "186",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: GSO - Remarks: 46182",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "GSO",
+      "remarks": "46182"
+    },
+    {
+      "case_no": "186",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 250 Hours CS - Office: HSO - Remarks: 46181",
+      "category": 2,
+      "hours_raw": "250",
+      "office": "HSO",
+      "remarks": "46181"
+    },
+    {
+      "case_no": "186",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Office: ADMISSION - Remarks: DEP SEMINAR",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "ADMISSION",
+      "remarks": "DEP SEMINAR"
+    },
+    {
+      "case_no": "186",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": ""
+    },
+    {
+      "case_no": "187",
+      "offense": "BRINGING IN VAPE",
+      "level": "MAJOR",
+      "sanction": "CS/Suspension - 500 Hours CS - Office: SMS - Remarks: Sept 7-11,14-15",
+      "category": 3,
+      "hours_raw": "500",
+      "office": "SMS",
+      "remarks": "Sept 7-11,14-15"
+    },
+    {
+      "case_no": "188",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: NFI",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "NFI"
+    },
+    {
+      "case_no": "189",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: NFI",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "NFI"
+    },
+    {
+      "case_no": "190",
+      "offense": "HABITUAL",
+      "level": "MAJOR",
+      "sanction": "Remarks: Resolution",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "Resolution"
+    },
+    {
+      "case_no": "191",
+      "offense": "CHEATING",
+      "level": "MAJOR",
+      "sanction": "Remarks: Resolution",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "Resolution"
+    },
+    {
+      "case_no": "192",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "Remarks: Resolution",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "Resolution"
+    },
+    {
+      "case_no": "193",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "Remarks: Resolution",
+      "category": 2,
+      "hours_raw": "",
+      "office": "",
+      "remarks": "Resolution"
+    },
+    {
+      "case_no": "194",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: NFI",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "NFI"
+    },
+    {
+      "case_no": "195",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: NFI",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "NFI"
+    },
+    {
+      "case_no": "196",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: NFI",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "NFI"
+    },
+    {
+      "case_no": "197",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: NFI",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "NFI"
+    },
+    {
+      "case_no": "198",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: NFI",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "NFI"
+    },
+    {
+      "case_no": "",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: NFI",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "NFI"
+    },
+    {
+      "case_no": "",
+      "offense": "LENDING OF ID",
+      "level": "MAJOR",
+      "sanction": "FORMATIVE INTERVENTION - 150 Hours CS - Remarks: NFI",
+      "category": 2,
+      "hours_raw": "150",
+      "office": "",
+      "remarks": "NFI"
+    }
+  ]
 }
