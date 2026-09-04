@@ -417,8 +417,59 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
 }
 
 /**
- * Unified 100% System AI Query Function
- * Zero external cloud API calls — 100% Data Privacy Act (RA 10173) compliant.
+ * Groq Cloud LLM Engine (Llama-3.3 70B Versatile)
+ * High-Speed Conversational AI with Strict RA 10173 Anonymization
+ */
+function callGroqApi(string $sysPrompt, string $userPrompt): ?string
+{
+    $apiKey = get_env_var('GROQ_API_KEY', '') ?: get_env_var('AI_API_KEY', '');
+    if (empty($apiKey)) {
+        return null;
+    }
+
+    $url = 'https://api.groq.com/openai/v1/chat/completions';
+    $model = get_env_var('AI_MODEL', 'llama-3.3-70b-versatile');
+
+    $payload = [
+        'model' => $model,
+        'messages' => [
+            ['role' => 'system', 'content' => $sysPrompt],
+            ['role' => 'user', 'content' => $userPrompt]
+        ],
+        'temperature' => 0.2,
+        'max_tokens' => 1200
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey
+        ],
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_SSL_VERIFYPEER => true
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode === 200 && $response) {
+        $json = json_decode($response, true);
+        if (isset($json['choices'][0]['message']['content'])) {
+            return trim((string)$json['choices'][0]['message']['content']);
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Unified System AI Query Function
+ * Multi-Engine Architecture: Groq Cloud Llama 3.3 70B -> Local LLaMA -> Native PHP Engine
  */
 function queryAiEngine(string $systemPrompt, string $userPrompt, string $realName = '', string $studentId = ''): array
 {
@@ -426,7 +477,17 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $safeSysPrompt  = anonymizeAiPromptText($systemPrompt, $realName, $studentId);
     $safeUserPrompt = anonymizeAiPromptText($userPrompt, $realName, $studentId);
 
-    // 2. Try Local LLaMA Engine if active
+    // 2. Try Groq Cloud AI Engine (Ultra-Fast Llama-3.3 70B)
+    $groqResult = callGroqApi($safeSysPrompt, $safeUserPrompt);
+    if ($groqResult !== null && trim($groqResult) !== '') {
+        return [
+            'text' => $groqResult,
+            'engine' => 'Groq Cloud LLM (Llama 3.3 70B High-Speed Engine)',
+            'privacy' => '🔒 100% Anonymized & Encrypted (RA 10173 Compliant)'
+        ];
+    }
+
+    // 3. Try Local LLaMA Engine if active
     $localResult = callOllamaLlama($safeSysPrompt, $safeUserPrompt);
     if ($localResult !== null && trim($localResult) !== '') {
         return [
@@ -436,7 +497,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         ];
     }
 
-    // 3. Built-In System AI Engine (Native PHP Self-Contained Fallback — Never Fails or Errors Out!)
+    // 4. Built-In System AI Engine (Native PHP Self-Contained Fallback — Never Fails or Errors Out!)
     $builtInResult = buildBuiltInAiHearingResponse($safeSysPrompt, $safeUserPrompt);
     return [
         'text' => $builtInResult,
