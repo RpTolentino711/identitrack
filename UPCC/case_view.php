@@ -3898,20 +3898,7 @@ function toggleDrawerWhyPanel() {
       <div style="width:28px;height:28px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
       <div style="background:rgba(30,41,59,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:16px;border-top-left-radius:4px;padding:12px 14px;font-size:12.5px;color:#f8fafc;line-height:1.5;max-width:88%;">
         Hello Panel Member! I am strictly bound to the <strong>NU Lipa Student Handbook</strong> and anonymized historical case precedents.<br><br>
-        Ask me anything about this hearing, handbook rules, or precedent outcomes.
-        
-        <!-- Prompt Suggestion Pills -->
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px;">
-          <button type="button" onclick="sendQuickAiPrompt('What is the handbook sanction for this offense?')" style="text-align:left;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:6px 10px;font-size:11px;color:#38bdf8;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(56,189,248,0.2)';" onmouseout="this.style.background='rgba(56,189,248,0.1)';">
-            💡 What is the handbook sanction for this offense?
-          </button>
-          <button type="button" onclick="sendQuickAiPrompt('Are there past precedents for this offense?')" style="text-align:left;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:6px 10px;font-size:11px;color:#38bdf8;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(56,189,248,0.2)';" onmouseout="this.style.background='rgba(56,189,248,0.1)';">
-            💡 Are there past precedents for this offense?
-          </button>
-          <button type="button" onclick="sendQuickAiPrompt('What are the community service hour guidelines?')" style="text-align:left;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:6px 10px;font-size:11px;color:#38bdf8;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(56,189,248,0.2)';" onmouseout="this.style.background='rgba(56,189,248,0.1)';">
-            💡 What are the community service hour guidelines?
-          </button>
-        </div>
+        Please type any question you have regarding this hearing, handbook rules, or precedent outcomes below.
       </div>
     </div>
   </div>
