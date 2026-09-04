@@ -271,29 +271,32 @@ class AIClient
         }
 
         if (preg_match('/\b(hi|hello|hey|greetings|who are you)\b/i', $pLower)) {
-            $reply = "👋 **Hello! I am IdentiTrack AI**, your conversational decision-support assistant for NU Lipa.\n\n"
-                   . "I can help you search the **Student Handbook**, analyze offense descriptions, calculate community service hours, and review historical precedents!\n\n"
+            $reply = "👋 **Hello Administrator! I am IdentiTrack AI**, your friendly conversational assistant for NU Lipa.\n\n"
+                   . "I can help you review the **Student Handbook**, analyze offense descriptions, calculate community service hours, and review historical precedents (`SANCTION.xlsx`)!\n\n"
                    . "How can I assist your case review today?";
         } elseif (preg_match('/\b(3|three)\s*(minor|attempt)\b/i', $pLower) || (strpos($pLower, 'minor') !== false && strpos($pLower, 'escalat') !== false)) {
-            $reply = "📌 **Section 4 Minor Offense 3-Attempt Escalation Rule**:\n\n"
+            $reply = "👋 **Hello Administrator!** Here is the policy breakdown for minor offense escalation:\n\n"
+                   . "📌 **Section 4 Minor Offense 3-Attempt Escalation Rule**:\n\n"
                    . "Under the **NU Lipa Student Handbook**, accumulating **3 minor offenses** automatically triggers escalation to a **Category 2 Major Offense**.\n\n"
                    . "• **1st Offense**: Written Reprimand & Warning (10 Hours CS).\n"
-                   . "• **2nd Offense**: Category 1 Sanction (15 Hours CS).\n"
+                   . "• **2nd Offense**: Category 1 Warning (15 Hours CS).\n"
                    . "• **3rd Offense**: **AUTOMATIC MAJOR ESCALATION**.\n\n"
-                   . "Would you like me to look up a student's prior offense history?";
+                   . "Would you like me to look up a student's prior offense history for you?";
         } elseif (preg_match('/\b(cheat|exam|test|quiz|phone)\b/i', $pLower)) {
-            $reply = "⚠️ **Academic Integrity Policy Analysis**:\n\n"
+            $reply = "👋 **Hello Administrator!** Here is the Academic Integrity policy analysis:\n\n"
+                   . "⚠️ **Academic Integrity Policy Analysis**:\n\n"
                    . "Using unauthorized devices or cheat sheets during examinations is classified under **Section V (Major Offenses)**.\n\n"
                    . "• **Prescribed Penalty**: Category 2 Sanction (Disciplinary Probation & 25–40 Hours of Community Service).\n"
-                   . "• **Honors Disqualification**: Automatically disqualifies the student from graduating with Latin Honors.";
+                   . "• **Honors Disqualification**: Automatically disqualifies the student from graduating with Latin Honors.\n\n"
+                   . "Let me know if you would like me to check historical precedents for cheating cases!";
         } else {
-            $reply = "🧠 **IdentiTrack AI Assistant**:\n\n"
-                   . "I have processed your query against the **NU Lipa Student Handbook**.\n\n";
+            $reply = "👋 **Hello Administrator!**\n\n"
+                   . "I have processed your query against the **NU Lipa Student Handbook** and our historical precedent dataset.\n\n";
             if (!empty($sources)) {
                 $reply .= "• **Matched Policy**: " . $sources[0]['title'] . " (" . $sources[0]['section'] . ")\n"
                        . "• **Guideline**: " . $sources[0]['description'] . "\n\n";
             }
-            $reply .= "Feel free to ask follow-up questions or ask me to analyze a specific case!";
+            $reply .= "Feel free to ask follow-up questions or ask me to analyze a specific student case!";
         }
 
         return ['reply' => $reply, 'sources' => $sources];
