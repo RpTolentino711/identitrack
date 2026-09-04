@@ -4024,6 +4024,14 @@ async function handleAiChatSubmit(e) {
 function typeOutAiResponse(containerEl, fullText, threadEl) {
     containerEl.innerHTML = '';
     
+    // Clean any lingering 'RAG' phrases from text to keep advisory labels clean
+    fullText = (fullText || '')
+        .replace(/Handbook RAG Sanction Recommendation/gi, 'Suggested Punishment & Advisory Recommendation')
+        .replace(/\(Handbook RAG\)/gi, '')
+        .replace(/Handbook RAG Basis/gi, 'Policy Basis')
+        .replace(/Handbook RAG/gi, 'Student Handbook Policy')
+        .replace(/\bRAG\b/g, 'Policy');
+
     // Parse markdown into clean HTML with larger typography
     let formattedText = fullText
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -4046,7 +4054,7 @@ function typeOutAiResponse(containerEl, fullText, threadEl) {
     containerEl.appendChild(textSpan);
     containerEl.appendChild(cursorSpan);
 
-    // Tokenize text keeping HTML tags intact for flicker-free typing
+    // Tokenize text keeping HTML tags intact for smooth typing
     const tokens = formattedText.match(/<[^>]+>|[^<>\s]+|\s+/g) || [formattedText];
 
     let tokenIdx = 0;
@@ -4060,24 +4068,18 @@ function typeOutAiResponse(containerEl, fullText, threadEl) {
         }
 
         if (tokenIdx < tokens.length) {
-            // Append token chunks smoothly
             accumulatedHtml += tokens[tokenIdx];
             tokenIdx++;
-
-            if (tokenIdx < tokens.length && !tokens[tokenIdx].startsWith('<')) {
-                accumulatedHtml += tokens[tokenIdx];
-                tokenIdx++;
-            }
 
             textSpan.innerHTML = accumulatedHtml;
 
             const now = Date.now();
-            if (now - lastScrollTime > 50) {
+            if (now - lastScrollTime > 40) {
                 threadEl.scrollTop = threadEl.scrollHeight;
                 lastScrollTime = now;
             }
 
-            currentTypingInterval = setTimeout(step, 14);
+            currentTypingInterval = setTimeout(step, 18);
         } else {
             textSpan.innerHTML = formattedText;
             threadEl.scrollTop = threadEl.scrollHeight;

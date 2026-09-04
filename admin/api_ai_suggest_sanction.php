@@ -240,11 +240,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
             $hoursText = $suggestedCat === 2 ? "15 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
             
-            return "⚖️ **Handbook RAG Sanction Recommendation (New Offense - Handbook Analysis)**:\n\n"
+            return "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                  . "• **Historical Campus Precedent**: No direct historical precedent on file for this specific offense.\n"
-                 . "• **Advisory Recommendation (Handbook RAG)**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
-                 . "• **Handbook RAG Basis**: Evaluated against NU Lipa Student Handbook Section IV (Minor Violations) and Section V (Major Offense Penalty Matrix).";
+                 . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
+                 . "• **Policy Basis**: Evaluated against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix).";
         }
     }
 
@@ -638,15 +638,15 @@ try {
             }, $exactPrecedents));
         }
 
-        // STRICT CONVERSATIONAL, PRECEDENT & HANDBOOK RAG MANDATE
+        // STRICT CONVERSATIONAL, PRECEDENT & HANDBOOK POLICY MANDATE
         $sysPrompt = "You are IdentiTrack AI, an executive decision-support assistant for NU Lipa Disciplinary Panel Members.\n"
             . "Address the user as 'Panel Member'. Refer to the student strictly in the 3rd person as 'the student'.\n"
-            . "STRICT BOUNDARY, PRECEDENT & RAG SANCTION MANDATES:\n"
+            . "STRICT BOUNDARY, PRECEDENT & SANCTION MANDATES:\n"
             . "1. SANCTION RECOMMENDATIONS & PRECEDENT ANALYSIS:\n"
             . "   When the panel member asks to suggest a punishment, recommend a sanction, or provide a decision (e.g. 'suggest punishment', 'what sanction should we give?'):\n"
             . "   a) Check the 'Precedent Record for this Offense' provided in the data.\n"
             . "   b) IF DIRECT PRECEDENT EXISTS: State clearly that historical campus precedent exists for this offense. Citing the precedent outcome (e.g., 'Category X Sanction'), recommend following the precedent to ensure equal treatment, predictability, and procedural fairness.\n"
-            . "   c) IF NO DIRECT PRECEDENT EXISTS: State clearly that this is a new offense without direct historical precedent, and perform Handbook RAG analysis to suggest a fair sanction category (Category 1 to 5), community service hours, and probation terms grounded strictly in the NU Lipa Student Handbook matrix rules provided.\n"
+            . "   c) IF NO DIRECT PRECEDENT EXISTS: State clearly that this is a new offense without direct historical precedent, and perform Handbook Policy analysis to suggest a fair sanction category (Category 1 to 5), community service hours, and probation terms grounded strictly in the NU Lipa Student Handbook matrix rules provided.\n"
             . "2. ANSWER ONLY WHAT IS ASKED: Answer the panel member's specific question directly, concisely, and naturally. DO NOT prepend or append active student file summaries, background context headers, handbook matrix blocks, or community service logs to your answer unless explicitly asked.\n"
             . "3. STRICT CONFIDENTIALITY FOR PRIOR & PENDING CASES:\n"
             . "   - Panel members may NOT be assigned to other cases of the student. You MUST NEVER disclose or describe the specific underlying actions, titles, or descriptions of what the student did in other prior or pending cases!\n"
