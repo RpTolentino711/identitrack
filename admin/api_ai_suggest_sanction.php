@@ -217,14 +217,16 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
     $exactPrecedents = $caseMeta['exact_precedents'] ?? [];
     $excelPrecedents = $caseMeta['excel_precedents'] ?? [];
 
-    // 1. GREETINGS & INTRODUCTIONS
-    if (preg_match('/\b(hi|hello|hey|greetings|good morning|good afternoon|good evening|who are you|what can you do)\b/i', $promptLower)) {
-        return "👋 **Hello Administrator / Panel Member!** I'm **IdentiTrack AI**, your friendly executive hearing assistant.\n\n"
-             . "I'm right here to support you with hearing file analysis, NU Lipa Student Handbook policies, community service tracking, and our official 204 campus precedent records.\n\n"
-             . "Feel free to ask me anything about this case or our handbook rules—I'd be glad to help!";
+    $studentName = $caseMeta['student_name'] ?? 'the student';
+
+    // 1. GREETINGS & INTRODUCTIONS (Catches casual inputs like "sup", "hi", "hello", "hey")
+    if (preg_match('/\b(hi|hello|hey|sup|yo|greetings|good morning|good afternoon|good evening|who are you|what can you do)\b/i', $promptLower)) {
+        return "👋 **Hello Administrator / Panel Member! I am IdentiTrack AI.**\n\n"
+             . "Let me analyze **{$studentName}**'s case file for this current hearing. I am right here to support you with hearing file analysis, NU Lipa Student Handbook policies, community service tracking, and our official campus precedent records.\n\n"
+             . "Feel free to ask me anything about **{$studentName}**'s hearing or our handbook rules—I'd be glad to help!";
     }
 
-    // 2. SIMILAR CASES & PRECEDENT SEARCH INQUIRY (Checked BEFORE general sanction recommendations)
+    // 2. SIMILAR CASES & PRECEDENT SEARCH INQUIRY
     if (preg_match('/\b(similar|precedent|precedents|same case|matching case|like this|like student|similar cases?)\b/i', $promptLower)) {
         $lines = [];
         if (!empty($exactPrecedents)) {
@@ -242,29 +244,31 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         }
 
         if (!empty($lines)) {
-            return "👋 **Hello Panel Member!** Yes, I searched our database and official campus precedent records for similar cases matching **{$offName}**:\n\n"
+            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                 . "Based on our campus records, **to avoid bias**, a previous record shows this punishment for this kind of offense:\n\n"
                  . implode("\n", $lines) . "\n\n"
-                 . "💡 *Precedent Guidance*: Aligning decisions with prior decided cases maintains equal treatment, consistency, and procedural fairness under NU Lipa Disciplinary Policies.";
+                 . "💡 **Why? (Reason)**: Following prior decided records avoids bias, maintains equal treatment, and guarantees procedural fairness under NU Lipa Disciplinary Policies.";
         } else {
-            return "👋 **Hello Panel Member!** I checked our live case database and official 204-case campus precedent records.\n\n"
-                 . "There are **no direct historical precedent cases** on file for this specific offense (**{$offName}**). This is a new or rare infraction on record, so recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.\n\n"
-                 . "Would you like me to analyze the handbook penalty options for this case?";
+            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                 . "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**). This is a new or rare infraction on record, so recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.\n\n"
+                 . "Would you like me to analyze the handbook penalty options for {$studentName}?";
         }
     }
 
-    // 3. SANCTIONS & CATEGORIES RECOMMENDATIONS (Highest priority for "suggest punishment")
+    // 3. SANCTIONS & CATEGORIES RECOMMENDATIONS (Suggest punishment)
     if (preg_match('/\b(suggest|sanction|category|punishment|recommend|decision|vote|penalty|result|why)\b/i', $promptLower)) {
         if (!empty($exactPrecedents)) {
             $mostRecent = $exactPrecedents[0];
             $catNum = (int)($mostRecent['decided_category'] ?? 2);
             $punishmentText = formatPunishmentDetails((string)($mostRecent['punishment_details'] ?? ''));
             
-            return "👋 **Hello Panel Member!** Here is my precedent-based sanction recommendation for this case:\n\n"
+            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                 . "Based on our campus records, **to avoid bias**, a previous record shows this punishment for this kind of offense:\n\n"
                  . "⚖️ **Suggested Punishment**: **Category {$catNum} Sanction** ({$punishmentText})\n\n"
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
-                 . "• **Historical Campus Precedent**: Yes! Previous decided cases for this exact offense were assigned a **Category {$catNum} Sanction** ({$punishmentText}).\n"
-                 . "• **Why? (Reason)**: Historical campus precedent in our database for this exact offense is Category {$catNum} ({$punishmentText}). Following prior decided cases ensures equal treatment, consistency, and procedural fairness under NU Lipa Disciplinary Policies.\n\n"
-                 . "Would you like me to check any other handbook details or prior case records for this student?";
+                 . "• **Historical Campus Precedent**: Previous decided case(s) for this exact offense were assigned **Category {$catNum} Sanction**.\n"
+                 . "• **Why? (Reason)**: Historical campus precedent for this exact offense is Category {$catNum} ({$punishmentText}). Recommending this same punishment avoids bias, ensures consistency, and guarantees equal treatment under NU Lipa Disciplinary Policies.\n\n"
+                 . "Would you like me to check any other handbook details or prior case records for {$studentName}?";
         } elseif (!empty($excelPrecedents)) {
             $firstExcelMatch = $excelPrecedents[0];
             $sancStr = $firstExcelMatch['sanction'] ?? 'FORMATIVE INTERVENTION';
@@ -273,30 +277,32 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                   : ((strpos(strtoupper($sancStr), 'REPRIMAND') !== false || strpos(strtoupper($sancStr), 'DISMISS') !== false) ? 1 : 2));
             
             $excelCount = count($excelPrecedents);
-            return "👋 **Hello Panel Member!** Based on our official historical campus precedent records, here is my recommendation:\n\n"
+            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                 . "Based on our campus records, **to avoid bias**, a previous record shows this punishment for this kind of offense:\n\n"
                  . "⚖️ **Suggested Punishment**: **Category {$sCat} Sanction** ({$sancStr})\n\n"
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
-                 . "• **Historical Campus Dataset Match**: Found {$excelCount} matching historical precedent record(s).\n"
-                 . "• **Why? (Reason)**: Historical campus discipline records for offenses matching '{$offName}' show that students were assigned a **Category {$sCat} Sanction** ({$sancStr}). Aligning with our campus dataset promotes fair and standardized disciplinary enforcement.\n\n"
-                 . "Let me know if you want me to review additional handbook clauses or student records for you!";
+                 . "• **Historical Campus Precedents Found**: {$excelCount} matching historical precedent record(s).\n"
+                 . "• **Why? (Reason)**: Historical campus discipline records for offenses matching '{$offName}' show that students were assigned **Category {$sCat} Sanction** ({$sancStr}). Aligning with past records avoids bias and promotes standardized, impartial enforcement.\n\n"
+                 . "Let me know if you want me to review additional handbook clauses for {$studentName}!";
         } else {
             // Check student's prior record for repeat offender escalation
             if ($totalPrior > 0) {
                 $suggestedCat = 3;
                 $hoursText = "25–50 Hours Community Service / 1 Term Non-Readmission";
-                $whyReason = "The student has {$totalPrior} prior resolved case(s) on file (including prior Category 3 / major violations). Under NU Lipa Handbook Section 5, repeat offenses after a prior major sanction escalate to Category 3 or Category 4 (Non-Readmission / Suspension).";
+                $whyReason = "The student has {$totalPrior} prior resolved case(s) on file (including prior major violations). Under NU Lipa Handbook Section 5, repeat offenses after a prior major sanction escalate to Category 3 or Category 4 (Non-Readmission / Suspension).";
             } else {
                 $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
                 $hoursText = $suggestedCat === 2 ? "15 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
-                $whyReason = "Evaluated against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix).";
+                $whyReason = "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix) for a 1st offense.";
             }
             
-            return "👋 **Hello Panel Member!** Based on my analysis of handbook rules and the student's file, here is my suggestion:\n\n"
+            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                 . "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**). Based on the NU Lipa Student Handbook Penalty Matrix, I suggest:\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
-                 . "Please let me know if you would like more details about this recommendation!";
+                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
         }
     }
 
