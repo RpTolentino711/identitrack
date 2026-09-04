@@ -272,7 +272,7 @@ class AIClient
 
         if (preg_match('/\b(hi|hello|hey|greetings|who are you)\b/i', $pLower)) {
             $reply = "👋 **Hello Administrator! I am IdentiTrack AI**, your friendly conversational assistant for NU Lipa.\n\n"
-                   . "I can help you review the **Student Handbook**, analyze offense descriptions, calculate community service hours, and review historical precedents (`SANCTION.xlsx`)!\n\n"
+                   . "I can help you review the **Student Handbook**, analyze offense descriptions, calculate community service hours, and review historical campus precedents!\n\n"
                    . "How can I assist your case review today?";
         } elseif (preg_match('/\b(3|three)\s*(minor|attempt)\b/i', $pLower) || (strpos($pLower, 'minor') !== false && strpos($pLower, 'escalat') !== false)) {
             $reply = "👋 **Hello Administrator!** Here is the policy breakdown for minor offense escalation:\n\n"

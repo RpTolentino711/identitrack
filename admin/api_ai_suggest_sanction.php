@@ -220,7 +220,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
     // 1. GREETINGS & INTRODUCTIONS
     if (preg_match('/\b(hi|hello|hey|greetings|good morning|good afternoon|good evening|who are you|what can you do)\b/i', $promptLower)) {
         return "👋 **Hello Administrator / Panel Member!** I'm **IdentiTrack AI**, your friendly executive hearing assistant.\n\n"
-             . "I'm right here to support you with hearing file analysis, NU Lipa Student Handbook policies, community service tracking, and our official 204 campus precedent records (`SANCTION.xlsx`).\n\n"
+             . "I'm right here to support you with hearing file analysis, NU Lipa Student Handbook policies, community service tracking, and our official 204 campus precedent records.\n\n"
              . "Feel free to ask me anything about this case or our handbook rules—I'd be glad to help!";
     }
 
@@ -235,18 +235,18 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             }
         }
         if (!empty($excelPrecedents)) {
-            $lines[] = "📊 **Historical Campus Dataset (`SANCTION.xlsx`) Matches**:";
+            $lines[] = "📊 **Historical Campus Precedent Matches**:";
             foreach (array_slice($excelPrecedents, 0, 5) as $ex) {
                 $lines[] = "  • Offense: **{$ex['offense']}** ({$ex['level']}) — Decided Sanction: **{$ex['sanction']}**";
             }
         }
 
         if (!empty($lines)) {
-            return "👋 **Hello Panel Member!** Yes, I searched our database and official campus dataset (`SANCTION.xlsx`) for similar cases matching **{$offName}**:\n\n"
+            return "👋 **Hello Panel Member!** Yes, I searched our database and official campus precedent records for similar cases matching **{$offName}**:\n\n"
                  . implode("\n", $lines) . "\n\n"
                  . "💡 *Precedent Guidance*: Aligning decisions with prior decided cases maintains equal treatment, consistency, and procedural fairness under NU Lipa Disciplinary Policies.";
         } else {
-            return "👋 **Hello Panel Member!** I checked our live case database and official 204-case dataset (`SANCTION.xlsx`).\n\n"
+            return "👋 **Hello Panel Member!** I checked our live case database and official 204-case campus precedent records.\n\n"
                  . "There are **no direct historical precedent cases** on file for this specific offense (**{$offName}**). This is a new or rare infraction on record, so recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.\n\n"
                  . "Would you like me to analyze the handbook penalty options for this case?";
         }
@@ -273,10 +273,10 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                   : ((strpos(strtoupper($sancStr), 'REPRIMAND') !== false || strpos(strtoupper($sancStr), 'DISMISS') !== false) ? 1 : 2));
             
             $excelCount = count($excelPrecedents);
-            return "👋 **Hello Panel Member!** Based on our official historical dataset (`SANCTION.xlsx`), here is my recommendation:\n\n"
+            return "👋 **Hello Panel Member!** Based on our official historical campus precedent records, here is my recommendation:\n\n"
                  . "⚖️ **Suggested Punishment**: **Category {$sCat} Sanction** ({$sancStr})\n\n"
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
-                 . "• **Historical Campus Dataset Match**: Found {$excelCount} matching record(s) in `SANCTION.xlsx`.\n"
+                 . "• **Historical Campus Dataset Match**: Found {$excelCount} matching historical precedent record(s).\n"
                  . "• **Why? (Reason)**: Historical campus discipline records for offenses matching '{$offName}' show that students were assigned a **Category {$sCat} Sanction** ({$sancStr}). Aligning with our campus dataset promotes fair and standardized disciplinary enforcement.\n\n"
                  . "Let me know if you want me to review additional handbook clauses or student records for you!";
         } else {
@@ -661,8 +661,8 @@ try {
             $excelSummary = array_map(fn($ep) => sprintf("• Offense: %s | Level: %s | Sanction: %s", $ep['offense'], $ep['level'], $ep['sanction']), array_slice($excelPrecedents, 0, 5));
 
             $sysPrompt = "You are IdentiTrack AI, a warm, friendly executive decision-support assistant for NU Lipa Disciplinary Panel Members & Administrators.\n"
-                . "TONE & STYLE MANDATE: Be very conversational, friendly, approachable, and helpful when talking to the admin or panel member. Greet them warmly (e.g. 'Hello Panel Member!', 'Hi Administrator!'), explain the suggested sanction based on the official historical campus dataset (SANCTION.xlsx) containing " . count($excelPrecedents) . " matching precedent record(s), and state a clear 'Why? (Reason)' explanation. DATA PRIVACY MANDATE: NEVER mention full names of past student offenders. Do NOT output lists of sample questions.\n\n" . $dynamicRules;
-            $userPrompt = "Student: {$studentName}\nOffense: {$offenseName} ({$offenseLevel})\nHistorical Dataset Precedents (SANCTION.xlsx):\n" . implode("\n", $excelSummary);
+                . "TONE & STYLE MANDATE: Be very conversational, friendly, approachable, and helpful when talking to the admin or panel member. Greet them warmly (e.g. 'Hello Panel Member!', 'Hi Administrator!'), explain the suggested sanction based on the official historical campus precedent records containing " . count($excelPrecedents) . " matching precedent record(s), and state a clear 'Why? (Reason)' explanation. DATA PRIVACY MANDATE: NEVER mention full names of past student offenders. Do NOT output lists of sample questions.\n\n" . $dynamicRules;
+            $userPrompt = "Student: {$studentName}\nOffense: {$offenseName} ({$offenseLevel})\nHistorical Dataset Precedents:\n" . implode("\n", $excelSummary);
 
             $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId, $caseMeta);
             $aiText = $aiEngineRes['text'];
@@ -758,7 +758,7 @@ try {
         if (!empty($excelPrecedents)) {
             foreach (array_slice($excelPrecedents, 0, 5) as $ep) {
                 $precedentLines[] = sprintf(
-                    "• Historical Campus Dataset (SANCTION.xlsx) Match: Offense '%s' (%s) → Decided Sanction: %s",
+                    "• Historical Campus Precedent Match: Offense '%s' (%s) → Decided Sanction: %s",
                     $ep['offense'], $ep['level'], $ep['sanction']
                 );
             }
@@ -774,7 +774,7 @@ try {
             . "2. SIMILAR CASE / PRECEDENT INQUIRIES:\n"
             . "   When the user asks if there are similar cases or precedents (e.g. 'is there a similar case of this student?', 'any similar cases?', 'are there precedents?'):\n"
             . "   a) Explicitly answer 'Yes, I found similar precedent case(s)...' OR 'No direct historical precedents exist for this specific offense...'\n"
-            . "   b) List the matched precedent cases from the data provided (including live database cases and SANCTION.xlsx records) showing the offense, level, and decided sanction.\n"
+            . "   b) List the matched precedent cases from the data provided (including live database cases and historical precedent records) showing the offense, level, and decided sanction.\n"
             . "3. SANCTION RECOMMENDATIONS & PRECEDENT ANALYSIS:\n"
             . "   When asked to suggest a punishment or sanction (e.g. 'suggest punishment', 'what sanction should we give?'):\n"
             . "   a) Check the 'Precedent Record for this Offense' provided in the data.\n"
@@ -788,7 +788,8 @@ try {
             . "   - For resolved cases: State ONLY the Case Number and decided sanction/punishment (e.g. 'Case #68: Category 2 Sanction'). Do NOT show what the student did.\n"
             . "6. STRICT HANDBOOK FOCUS: Follow the NU Lipa Student Handbook rules.\n"
             . "7. ZERO NAME DROPPING / NO OTHER STUDENTS: Never reveal real names or discuss other students under Data Privacy (RA 10173).\n"
-            . "8. CLEAN MARKDOWN FORMATTING: Use clear, readable Markdown with bold text and bullet points.\n\n"
+            . "8. CLEAN MARKDOWN FORMATTING: Use clear, readable Markdown with bold text and bullet points.\n"
+            . "9. DO NOT MENTION FILE NAMES: Never mention specific data file names (such as SANCTION.xlsx or cache filenames) to the user; refer to them strictly as 'our official campus precedent records' or 'historical campus precedent dataset'.\n\n"
             . $dynamicRules;
 
         $userPrompt = "ACTIVE HEARING CASE DATA (BACKGROUND CONTEXT FOR INFERENCE ONLY):\n"
@@ -847,9 +848,9 @@ try {
 
         $sysPrompt = "You are IdentiTrack AI, a warm, friendly executive decision-support assistant for NU Lipa Disciplinary Administrators & Board Members.\n"
             . "TONE & STYLE MANDATE: Be very conversational, friendly, approachable, and engaging. Greet the admin warmly (e.g. 'Hello Administrator!'), answer their specific question directly and conversationally, and explain handbook policies and precedent analytics with clarity and warmth. Do NOT output lists of sample questions or headers.\n"
-            . "DATA PRIVACY MANDATE (RA 10173): For student privacy protection, NEVER mention or reveal full names of past student offenders.\n\n"
+            . "DATA PRIVACY MANDATE (RA 10173): For student privacy protection, NEVER mention or reveal full names of past student offenders. Do NOT mention specific file names like SANCTION.xlsx in your replies; refer to them as 'our official campus precedent records'.\n\n"
             . $datasetSummary
-            . "Answer questions strictly grounded in the NU Lipa Student Handbook rules below and campus precedent data (`SANCTION.xlsx`).\n\n"
+            . "Answer questions strictly grounded in the NU Lipa Student Handbook rules below and campus precedent data.\n\n"
             . $dynamicRules;
 
         $userPrompt = "ADMIN/PANEL GLOBAL QUESTION: {$userQuery}";
