@@ -233,18 +233,24 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             return "⚖️ **Precedent-Based Sanction Recommendation**:\n\n"
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                  . "• **Historical Campus Precedent Found**: Yes. Previous decided cases for this exact offense were assigned **Category {$catNum} Sanction** ({$punishmentText}).\n"
-                 . "• **Advisory Recommendation**: **Category {$catNum} Sanction**\n"
-                 . "• **Rationale**: Maintaining consistency with historical campus precedent ensures equal treatment, predictability, and procedural fairness under NU Lipa Disciplinary Policies.";
+                 . "• **Suggested Punishment**: **Category {$catNum} Sanction**\n"
+                 . "• **Why? (Reason)**: Historical campus precedent in the database for this exact offense is Category {$catNum} ({$punishmentText}). Maintaining consistency with prior decided cases ensures equal treatment and procedural fairness under NU Lipa Disciplinary Policies.";
         } else {
-            // No direct historical precedent -> Handbook RAG Analysis
-            $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
-            $hoursText = $suggestedCat === 2 ? "15 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+            // Check student's prior record for repeat offender escalation
+            if ($totalPrior > 0) {
+                $suggestedCat = 3;
+                $hoursText = "25–50 Hours Community Service / 1 Term Non-Readmission";
+                $whyReason = "The student has {$totalPrior} prior resolved case(s) on file (including prior Category 3 / major violations). Under NU Lipa Handbook Section 5, repeat offenses after a prior major sanction escalate to Category 3 or Category 4 (Non-Readmission / Suspension).";
+            } else {
+                $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
+                $hoursText = $suggestedCat === 2 ? "15 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+                $whyReason = "Evaluated against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix).";
+            }
             
             return "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
-                 . "• **Historical Campus Precedent**: No direct historical precedent on file for this specific offense.\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
-                 . "• **Policy Basis**: Evaluated against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix).";
+                 . "• **Why? (Reason)**: {$whyReason}";
         }
     }
 
