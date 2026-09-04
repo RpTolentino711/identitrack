@@ -47,8 +47,6 @@ function getDynamicHandbookRules(): string
     return $rules;
 }
 
-
-
 /**
  * Formats raw JSON punishment details into clean human text
  */
@@ -118,29 +116,24 @@ function getCategoryPrecedents(?int $majorCategory, int $offenseTypeId, int $exc
  */
 function anonymizeAiPromptText(string $text, string $realName = '', string $studentId = ''): string
 {
-    // 1. Mask specific real name if provided
+    // Mask specific real name if provided
     if ($realName !== '') {
-        $nameParts = preg_split('/\s+/', trim($realName));
-        $initials = '';
-        foreach ($nameParts as $np) {
-            if ($np !== '') $initials .= strtoupper(mb_substr($np, 0, 1)) . '.';
-        }
-        $anonLabel = trim($realName); // Keep clean student name for panel member UI display
+        $anonLabel = 'Student (Active Hearing)';
         $text = str_replace($realName, $anonLabel, $text);
     }
 
-    // 2. Mask student IDs (e.g. 2023-183482 or 202210394)
+    // Mask student IDs
     if ($studentId !== '') {
         $parts = explode('-', $studentId);
         $lastDigits = end($parts);
-        $maskedId = (count($parts) > 1 ? $parts[0] . '-' . mb_substr($lastDigits, -2) : $studentId);
+        $maskedId = (count($parts) > 1 ? $parts[0] . '-XX' : 'STU-XXXX');
         $text = str_replace($studentId, $maskedId, $text);
     }
 
-    // 3. Mask Email addresses
+    // Mask Email addresses
     $text = preg_replace('/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/', '[ANONYMIZED_EMAIL]', $text);
 
-    // 4. Mask Phone numbers
+    // Mask Phone numbers
     $text = preg_replace('/(?:\+63|0)9[0-9]{9}\b/', '[ANONYMIZED_PHONE]', $text);
     $text = preg_replace('/\b[0-9]{11}\b/', '[ANONYMIZED_PHONE]', $text);
 
@@ -148,117 +141,64 @@ function anonymizeAiPromptText(string $text, string $realName = '', string $stud
 }
 
 /**
- * Executes prompt against Local Ollama LLaMA model (100% Offline / Local AI Engine)
- * Runs locally on http://localhost:11434/api/generate or http://127.0.0.1:11434
+ * Groq Cloud LLM Engine (Llama 3.3 70B Compound)
+ * High-Speed Conversational AI with Strict RA 10173 Anonymization
  */
-function callOllamaLlama(string $systemPrompt, string $userPrompt, string $model = 'llama3.2'): ?string
+function callGroqApi(string $sysPrompt, string $userPrompt): ?string
 {
-    $models = ['llama3.2:latest', 'llama3.2'];
+    load_env_vars();
+    $apiKey = get_env_var('GROQ_API_KEY', '') ?: get_env_var('AI_API_KEY', '');
+    if (empty($apiKey)) {
+        return null;
+    }
 
-    try {
-        $cfg = db_one("SELECT config_value FROM system_config WHERE config_key = 'ollama_model' LIMIT 1");
-        if ($cfg && !empty($cfg['config_value'])) {
-            $userModel = trim((string)$cfg['config_value']);
-            if ($userModel === 'llama3.2') {
-                $userModel = 'llama3.2:latest';
-            }
-            if (!in_array($userModel, ['llama3', 'llama3:latest'], true)) {
-                array_unshift($models, $userModel);
-            }
-            $models = array_values(array_unique($models));
-        }
-    } catch (\Throwable $e) {}
+    $url = 'https://api.groq.com/openai/v1/chat/completions';
+    $model = get_env_var('AI_MODEL', 'groq/compound');
+    if ($model === 'llama-3.3-70b-versatile' || $model === 'gemini-1.5-flash') {
+        $model = 'groq/compound';
+    }
 
-    $endpoints = [];
-    $customEp = trim((string)($_ENV['OLLAMA_ENDPOINT'] ?? getenv('OLLAMA_ENDPOINT') ?: ''));
-    if ($customEp !== '') $endpoints[] = $customEp;
+    $payload = [
+        'model' => $model,
+        'messages' => [
+            ['role' => 'system', 'content' => $sysPrompt],
+            ['role' => 'user', 'content' => $userPrompt]
+        ],
+        'temperature' => 0.2,
+        'max_tokens' => 1500
+    ];
 
-    try {
-        $cfgEp = db_one("SELECT config_value FROM system_config WHERE config_key = 'ollama_endpoint' LIMIT 1");
-        if ($cfgEp && !empty($cfgEp['config_value'])) {
-            $endpoints[] = trim((string)$cfgEp['config_value']);
-        }
-    } catch (\Throwable $e) {}
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey
+        ],
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false
+    ]);
 
-    $endpoints[] = 'http://127.0.0.1:11434/api/generate';
-    $endpoints = array_values(array_unique(array_filter($endpoints)));
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
 
-    $lastErr = '';
-
-    foreach ($endpoints as $endpoint) {
-        foreach ($models as $mod) {
-            $payload = json_encode([
-                'model' => $mod,
-                'prompt' => $systemPrompt . "\n\n" . $userPrompt,
-                'stream' => false,
-                'options' => [
-                    'temperature' => 0.2,
-                    'num_predict' => 800
-                ]
-            ]);
-
-            // Method 1: cURL
-            $ch = curl_init($endpoint);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-            curl_setopt($ch, CURLOPT_PROXY, '');
-            curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-
-            $res = curl_exec($ch);
-            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlErr = curl_error($ch);
-            curl_close($ch);
-
-            if ($httpCode === 200 && $res) {
-                $data = json_decode($res, true);
-                if (!empty($data['response'])) {
-                    return trim((string)$data['response']);
-                }
-            }
-
-            if ($httpCode === 404) {
-                // Model tag not pulled; move silently to next candidate
-                continue;
-            }
-
-            if ($curlErr !== '') {
-                $lastErr = "cURL ({$mod}): " . $curlErr;
-            } elseif ($httpCode > 0) {
-                $lastErr = "HTTP {$httpCode} ({$mod})";
-            }
-
-            // Method 2: PHP Stream Context fallback if cURL extension has socket constraints in XAMPP
-            $ctx = stream_context_create([
-                'http' => [
-                    'method'  => 'POST',
-                    'header'  => "Content-Type: application/json\r\n",
-                    'content' => $payload,
-                    'timeout' => 60
-                ]
-            ]);
-            $streamRes = @file_get_contents($endpoint, false, $ctx);
-            if ($streamRes) {
-                $data = json_decode($streamRes, true);
-                if (!empty($data['response'])) {
-                    return trim((string)$data['response']);
-                }
-            }
+    if ($httpCode === 200 && $response) {
+        $json = json_decode($response, true);
+        if (isset($json['choices'][0]['message']['content'])) {
+            return trim((string)$json['choices'][0]['message']['content']);
         }
     }
 
-    $GLOBALS['LAST_OLLAMA_ERROR'] = "Ollama Local Engine standby on http://127.0.0.1:11434 (" . ($lastErr ?: "Connection reset") . ")";
     return null;
 }
 
 /**
- * Built-In System AI Hearing Advisory Engine (Conversational Knowledge Base)
- * Responds intelligently to ANY handbook, procedure, policy, or general query.
+ * Built-In System AI Hearing Advisory Engine (Conversational Knowledge Base Fallback)
  */
 function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt): string
 {
@@ -266,17 +206,16 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
     $combined = mb_strtolower($systemPrompt . "\n" . $userPrompt);
 
     $hasMajor = strpos($combined, 'major') !== false;
-    $hasMinor = strpos($combined, 'minor') !== false || strpos($combined, 'section 4') !== false;
 
-    // ── Dynamic Active Student Case Data Extraction ──
+    // Dynamic Active Student Case Data Extraction
     $studentHeader = "";
     $extractedName = "";
     $extractedId = "";
     $extractedOffense = "";
     $extractedCS = "";
     $extractedPriors = "";
-
     $extractedBreakdown = "";
+
     if (preg_match('/Student Name:\s*(.*?)\s*\(ID:\s*(.*?)\)/i', $userPrompt, $m)) {
         $extractedName = trim($m[1]);
         $rawId = trim($m[2]);
@@ -307,17 +246,12 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
                        . "──────────────\n\n";
     }
 
-    // 1. GREETINGS & INTRODUCTIONS
+    // 1. GREETINGS & INTRODUCTIONS - Direct & Clean greeting without sample question dumps
     if (preg_match('/\b(hi|hello|hey|greetings|good morning|good afternoon|good evening|who are you|what can you do)\b/i', $promptLower)) {
         return $studentHeader
              . "👋 **Hello Panel Member! I am IdentiTrack AI**, your Hearing Advisory Assistant.\n\n"
-             . "I am currently analyzing the hearing file for **" . ($extractedName ?: "this student") . "** against the **NU Lipa Student Handbook** and 204 case precedents.\n\n"
-             . "You can ask me questions such as:\n"
-             . "• \"What sanction should we recommend for this case?\"\n"
-             . "• \"What is the policy for 3 minor offenses?\"\n"
-             . "• \"How many community service hours should be assigned?\"\n"
-             . "• \"Can the student appeal the decision?\"\n"
-             . "• \"What happens if a student lies during the hearing?\"";
+             . "I am ready to assist you with the hearing file for **" . ($extractedName ?: "this student") . "** against the **NU Lipa Student Handbook** and case precedents.\n\n"
+             . "Please write what you would like to ask regarding this case, handbook rules, or precedent statistics.";
     }
 
     // 2. DISHONESTY / PERJURY / LYING DURING HEARING
@@ -385,16 +319,14 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
                  . "• **Target Student**: " . ($extractedName ?: "Active Case Student") . "\n"
                  . "• **Recommended Category**: **Category 2 or Category 3 Sanction**.\n"
                  . "• **Prescribed Actions**: Disciplinary Probation, 15–35 Hours of University Service, and Formal Parental Notification.\n"
-                 . "• **Policy Basis**: NU Lipa Student Handbook Section 5 (Major Offenses Matrix).\n\n"
-                 . "📋 *Committee Step*: Ensure all panel members submit their vote before majority consensus timer expires.";
+                 . "• **Policy Basis**: NU Lipa Student Handbook Section 5 (Major Offenses Matrix).";
         } else {
             return $studentHeader
                  . "⚖️ **IdentiTrack AI Advisory Recommendation (Minor Offense)**:\n\n"
                  . "• **Target Student**: " . ($extractedName ?: "Active Case Student") . "\n"
                  . "• **Recommended Category**: **Category 1 Warning (0 Hours CS)** — Escalates to **Category 2 (15–25 Hours CS)** on 3rd accumulated offense.\n"
                  . "• **Prescribed Actions**: Official Reprimand, Guidance Counseling, and Handbook Compliance Orientation.\n"
-                 . "• **Policy Basis**: NU Lipa Student Handbook Section 4 (Minor Offenses Matrix).\n\n"
-                 . "📋 *Committee Step*: Check the 'Prior Resolved Cases' tab to verify prior offense frequency.";
+                 . "• **Policy Basis**: NU Lipa Student Handbook Section 4 (Minor Offenses Matrix).";
         }
     }
 
@@ -412,69 +344,12 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt)
          . "🧠 **IdentiTrack AI Hearing Assistant**:\n\n"
          . "I have analyzed the hearing file for **" . ($extractedName ?: "this student") . "** against the **NU Lipa Student Handbook** and historical case records.\n\n"
          . "• **Key Policy Check**: Section 4 (Minor Violations & 3-Attempt Escalations) and Section 5 (Major Offense Disciplinary Matrix).\n"
-         . "• **Case Precedents**: Cross-referenced against 204 historical UPCC case decisions.\n\n"
-         . "You can ask me about **sanction recommendations**, **community service hours**, **student rights**, **appeals**, or **specific handbook rules**!";
+         . "• **Case Precedents**: Cross-referenced against case precedent records.\n\n"
+         . "Please type what you would like to inquire about regarding handbook rules, sanctions, community service hours, or case precedents.";
 }
 
 /**
- * Groq Cloud LLM Engine (Llama-3.3 70B Versatile)
- * High-Speed Conversational AI with Strict RA 10173 Anonymization
- */
-function callGroqApi(string $sysPrompt, string $userPrompt): ?string
-{
-    $apiKey = get_env_var('GROQ_API_KEY', '') ?: get_env_var('AI_API_KEY', '');
-    if (empty($apiKey)) {
-        return null;
-    }
-
-    $url = 'https://api.groq.com/openai/v1/chat/completions';
-    $model = get_env_var('AI_MODEL', 'groq/compound');
-    if ($model === 'llama-3.3-70b-versatile' || $model === 'gemini-1.5-flash') {
-        $model = 'groq/compound';
-    }
-
-    $payload = [
-        'model' => $model,
-        'messages' => [
-            ['role' => 'system', 'content' => $sysPrompt],
-            ['role' => 'user', 'content' => $userPrompt]
-        ],
-        'temperature' => 0.2,
-        'max_tokens' => 1200
-    ];
-
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($payload),
-        CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $apiKey
-        ],
-        CURLOPT_TIMEOUT => 15,
-        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => false
-    ]);
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode === 200 && $response) {
-        $json = json_decode($response, true);
-        if (isset($json['choices'][0]['message']['content'])) {
-            return trim((string)$json['choices'][0]['message']['content']);
-        }
-    }
-
-    return null;
-}
-
-/**
- * Unified System AI Query Function
- * Multi-Engine Architecture: Groq Cloud Llama 3.3 70B -> Local LLaMA -> Native PHP Engine
+ * Unified System AI Query Function using Groq Cloud LLM
  */
 function queryAiEngine(string $systemPrompt, string $userPrompt, string $realName = '', string $studentId = ''): array
 {
@@ -482,27 +357,17 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $safeSysPrompt  = anonymizeAiPromptText($systemPrompt, $realName, $studentId);
     $safeUserPrompt = anonymizeAiPromptText($userPrompt, $realName, $studentId);
 
-    // 2. Try Groq Cloud AI Engine (Ultra-Fast Llama-3.3 70B)
+    // 2. Try Groq Cloud AI Engine (Llama 3.3 70B High-Speed)
     $groqResult = callGroqApi($safeSysPrompt, $safeUserPrompt);
     if ($groqResult !== null && trim($groqResult) !== '') {
         return [
             'text' => $groqResult,
             'engine' => 'Groq Cloud LLM (Llama 3.3 70B High-Speed Engine)',
-            'privacy' => '🔒 100% Anonymized & Encrypted (RA 10173 Compliant)'
+            'privacy' => '🔒 100% Anonymized (RA 10173 Compliant)'
         ];
     }
 
-    // 3. Try Local LLaMA Engine if active
-    $localResult = callOllamaLlama($safeSysPrompt, $safeUserPrompt);
-    if ($localResult !== null && trim($localResult) !== '') {
-        return [
-            'text' => $localResult,
-            'engine' => 'Local LLaMA (Offline AI Engine)',
-            'privacy' => '🔒 100% Local & Anonymized (RA 10173 Compliant)'
-        ];
-    }
-
-    // 4. Built-In System AI Engine (Native PHP Self-Contained Fallback — Never Fails or Errors Out!)
+    // 3. Built-In System AI Engine Fallback
     $builtInResult = buildBuiltInAiHearingResponse($safeSysPrompt, $safeUserPrompt);
     return [
         'text' => $builtInResult,
@@ -561,27 +426,27 @@ try {
         ", [':sid' => $studentId]);
     }
 
-    if (!$case) {
+    if (!$case && $action !== 'global_chat') {
         echo json_encode(['ok' => false, 'error' => 'Student record not found for hearing.']);
         exit;
     }
 
-    $targetStudentId = (string)$case['student_id'];
+    $targetStudentId = (string)($case['student_id'] ?? '');
     $offenseLevel = strtoupper((string)($case['offense_level'] ?? 'MAJOR'));
-    $majorCategory = $case['major_category'] !== null ? (int)$case['major_category'] : null;
+    $majorCategory = isset($case['major_category']) && $case['major_category'] !== null ? (int)$case['major_category'] : null;
     $offenseTypeId = (int)($case['offense_type_id'] ?? 0);
     $offenseCode = (string)($case['offense_code'] ?? 'GENERAL_VIOLATION');
     $offenseName = (string)($case['offense_name'] ?? 'Student Handbook Violation');
 
-    $studentInfo = db_one("SELECT " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student WHERE student_id = :sid", [':sid' => $targetStudentId]);
+    $studentInfo = $targetStudentId !== '' ? db_one("SELECT " . db_decrypt_cols(['student_fn', 'student_ln']) . " FROM student WHERE student_id = :sid", [':sid' => $targetStudentId]) : null;
     $studentName = $studentInfo ? trim(($studentInfo['student_fn'] ?? '') . ' ' . ($studentInfo['student_ln'] ?? '')) : 'Student ' . $targetStudentId;
 
-    $instanceCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND offense_type_id = :otid",
-        [':sid' => $targetStudentId, ':otid' => $offenseTypeId]);
+    $instanceCountRow = $targetStudentId !== '' ? db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND offense_type_id = :otid",
+        [':sid' => $targetStudentId, ':otid' => $offenseTypeId]) : ['cnt' => 1];
     $instanceCount = max(1, (int)($instanceCountRow['cnt'] ?? 1));
 
-    // ── Detailed Prior Cases & Categories Breakdown for AI Assistant ──────────
-    $priorCasesWithCat = db_all("
+    // ── Detailed Prior Cases & Categories Breakdown ──────────────────────────
+    $priorCasesWithCat = $targetStudentId !== '' ? db_all("
         SELECT c.case_id, c.decided_category, c.status, c.created_at, ot.name AS offense_name, ot.level AS offense_level
         FROM upcc_case c
         LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
@@ -589,21 +454,21 @@ try {
         LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
         WHERE c.student_id = :sid AND c.case_id != :cid AND c.status IN ('RESOLVED', 'CLOSED', 'DECIDED')
         ORDER BY c.case_id DESC
-    ", [':sid' => $targetStudentId, ':cid' => $caseId]);
+    ", [':sid' => $targetStudentId, ':cid' => $caseId]) : [];
 
     $totalPrior = count($priorCasesWithCat);
 
-    $totalMajorRow = db_one("
+    $totalMajorRow = $targetStudentId !== '' ? db_one("
         SELECT COUNT(*) as cnt FROM upcc_case c
         JOIN upcc_case_offense uco ON uco.case_id = c.case_id
         JOIN offense o ON o.offense_id = uco.offense_id
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
         WHERE c.student_id = :sid AND ot.level = 'MAJOR' AND c.case_id != :cid
-    ", [':sid' => $targetStudentId, ':cid' => $caseId]);
+    ", [':sid' => $targetStudentId, ':cid' => $caseId]) : ['cnt' => 0];
     $totalMajorCount = (int)($totalMajorRow['cnt'] ?? 0);
 
-    // ── Community Service Lookup for AI Assistant ──────────────────────────────
-    $csReq = db_one("
+    // ── Community Service Lookup ──────────────────────────────────────────────
+    $csReq = $targetStudentId !== '' ? db_one("
         SELECT csr.task_name, csr.hours_required, csr.status,
         (
             SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, time_out)/3600.0), 0.0)
@@ -621,7 +486,7 @@ try {
         FROM community_service_requirement csr
         WHERE csr.student_id = :sid AND csr.status = 'ACTIVE'
         ORDER BY csr.requirement_id DESC LIMIT 1
-    ", [':sid' => $targetStudentId]);
+    ", [':sid' => $targetStudentId]) : null;
 
     $csStatusText = "No active community service requirement on file (0 attendance sessions logged).";
     if ($csReq && (float)($csReq['hours_required'] ?? 0) > 0) {
@@ -640,13 +505,13 @@ try {
         $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsCompStr} / {$hrsReqStr} completed — {$sessionText} | Clocked In: {$isClockedIn})";
     }
 
-    // ── Current Hearing Offenses attached to this Case ID ─────────────────────
-    $currentCaseOffenses = db_all("SELECT DISTINCT ot.name AS offense_name, ot.level AS offense_level
+    // ── Current Hearing Offenses ──────────────────────────────────────────────
+    $currentCaseOffenses = $caseId > 0 ? db_all("SELECT DISTINCT ot.name AS offense_name, ot.level AS offense_level
         FROM upcc_case_offense uco
         JOIN offense o ON o.offense_id = uco.offense_id
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
         WHERE uco.case_id = :cid
-    ", [':cid' => $caseId]);
+    ", [':cid' => $caseId]) : [];
 
     $currentOffensesText = $offenseName;
     if (!empty($currentCaseOffenses)) {
@@ -657,16 +522,7 @@ try {
         $currentOffensesText = implode("\n", $cLines);
     }
 
-    // ── Detailed Prior Resolved Cases Breakdown for AI Assistant ──────────────
-    $priorCasesWithCat = db_all("SELECT c.case_id, c.decided_category, c.status, c.created_at, ot.name AS offense_name, ot.level AS offense_level
-        FROM upcc_case c
-        LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
-        LEFT JOIN offense o ON o.offense_id = uco.offense_id
-        LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-        WHERE c.student_id = :sid AND c.case_id != :cid AND c.status IN ('RESOLVED', 'CLOSED', 'DECIDED')
-        ORDER BY c.case_id DESC
-    ", [':sid' => $targetStudentId, ':cid' => $caseId]);
-
+    // ── Detailed Prior Resolved Cases Breakdown ──────────────────────────────
     $priorCasesBreakdownText = "No prior resolved UPCC cases on file for {$studentName}.";
     if (!empty($priorCasesWithCat)) {
         $groupedCases = [];
@@ -701,62 +557,97 @@ try {
 
     $dynamicRules = getDynamicHandbookRules();
 
-    // ── ACTION: suggest — AI Sanction Recommendation (Random Forest + Similarity Engine) ──
+    // ── ACTION: suggest — AI Sanction Recommendation ──
     if ($action === 'suggest') {
-        require_once __DIR__ . '/../includes/UpccAiBridge.php';
-        $bridge = new UpccAiBridge();
+        if (!empty($exactPrecedents)) {
+            $mostRecent = $exactPrecedents[0];
+            $suggestedCategory = (int)$mostRecent['decided_category'];
+            $punishmentText = formatPunishmentDetails((string)($mostRecent['punishment_details'] ?? ''));
 
-        $aiPayload = [
-            'case_id' => "UPCC-{$caseId}",
-            'offense_name' => $offenseName,
-            'offense_level' => $offenseLevel,
-            'severity' => $offenseLevel === 'MAJOR' ? 'Moderate' : 'Low',
-            'previous_offenses_count' => $totalPrior,
-            'previous_related_count' => count($exactPrecedents)
-        ];
+            $precedentSummary = array_map(fn($p) => sprintf(
+                "Case #%s: Category %s (%s)",
+                $p['case_id'], $p['decided_category'],
+                formatPunishmentDetails($p['punishment_details'] ?? '')
+            ), $exactPrecedents);
 
-        $aiRes = $bridge->suggestSanction($aiPayload);
+            $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. Precedent already exists in the database for this exact offense. Explain in 2-3 concise sentences why consistency with prior decisions is important for fairness. DATA PRIVACY MANDATE: For student privacy protection, NEVER mention or reveal full names of past student offenders. Always refer to past cases using Case Numbers (e.g. Case #DO-24-25-001 or Case #101) or Academic Programs. Do NOT output lists of suggested questions or sample question dumps.\n\n" . $dynamicRules;
+            $userPrompt = "Student: {$studentName}\nOffense: {$offenseName}\nExact Precedents:\n" . implode("\n", $precedentSummary);
+            
+            $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId);
+            $aiText = $aiEngineRes['text'];
 
-        $status = $aiRes['status'] ?? 'success';
-        $recommendationStr = $aiRes['recommendation'] ?? 'Category 1';
-        $catNum = 1;
-        if (preg_match('/Category\s*(\d)/i', (string)$recommendationStr, $m)) {
-            $catNum = (int)$m[1];
+            echo json_encode([
+                'ok' => true,
+                'source' => 'live_precedent',
+                'is_new_offense_type' => false,
+                'student_id' => $targetStudentId,
+                'student_name' => $studentName,
+                'offense_name' => $offenseName,
+                'instance_count' => $instanceCount,
+                'suggested_category' => $suggestedCategory,
+                'suggested_punishment' => $punishmentText,
+                'precedent_cases' => $exactPrecedents,
+                'ai_explanation' => $aiText,
+                'ai_available' => true,
+                'engine' => $aiEngineRes['engine'],
+                'privacy' => $aiEngineRes['privacy']
+            ]);
+            exit;
         }
 
-        $csHours = (int)($aiRes['community_service_hours'] ?? ($catNum === 2 ? 15 : ($catNum === 3 ? 35 : 0)));
+        $categorySummary = empty($categoryPrecedents) ? "None available."
+            : implode("\n", array_map(fn($p) => sprintf(
+                "%s → Category %s (%s)", $p['offense_name'], $p['decided_category'],
+                formatPunishmentDetails($p['punishment_details'] ?? '')
+              ), $categoryPrecedents));
+
+        $sysPrompt = "You are the IdentiTrack AI Hearing Assistant for NU Lipa. This is a new offense type without direct precedent. "
+            . "Base your suggestion strictly on the handbook rules provided. "
+            . "Respond ONLY with valid JSON: {\"suggested_category\": <1-5 or null>, \"suggested_hours\": <int or null>, \"rationale\": \"<2-4 sentences>\"}.\n\n"
+            . $dynamicRules;
+
+        $userPrompt = "Student: {$studentName}\nOffense: {$offenseName} (Level: {$offenseLevel})\n"
+            . "Prior offenses by this student: {$totalPrior} (Major: {$totalMajorCount})\n"
+            . "Closest related cases in category:\n{$categorySummary}\n\n"
+            . "Suggest a punishment grounded in handbook rules.";
+
+        $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId);
+        $aiText = $aiEngineRes['text'];
+
+        $suggestedCategory = null;
+        $suggestedHours = null;
+        $rationale = null;
+
+        if ($aiText !== null) {
+            $parsed = json_decode($aiText, true);
+            if (is_array($parsed)) {
+                $suggestedCategory = isset($parsed['suggested_category']) ? (int)$parsed['suggested_category'] : null;
+                $suggestedHours = isset($parsed['suggested_hours']) ? (int)$parsed['suggested_hours'] : null;
+                $rationale = $parsed['rationale'] ?? null;
+            } else {
+                $rationale = $aiText;
+            }
+        }
 
         echo json_encode([
             'ok' => true,
-            'status' => $status,
-            'source' => 'rf_similarity_engine',
-            'is_new_offense_type' => empty($exactPrecedents),
+            'source' => 'ai_new_offense_suggestion',
+            'is_new_offense_type' => true,
             'student_id' => $targetStudentId,
             'student_name' => $studentName,
             'offense_name' => $offenseName,
             'instance_count' => $instanceCount,
-            'suggested_category' => $catNum,
-            'suggested_category_label' => "Category {$catNum}",
-            'community_service_hours' => $csHours,
-            'confidence' => $aiRes['confidence'] ?? 0.85,
-            'similar_cases' => $aiRes['similar_cases'] ?? 0,
-            'similar_cases_list' => $aiRes['similar_cases_list'] ?? [],
-            'best_similarity' => $aiRes['best_similarity'] ?? 0.0,
-            'historical_distribution' => $aiRes['historical_distribution'] ?? [],
-            'most_common_historical' => $aiRes['most_common_historical'] ?? "Category {$catNum}",
-            'handbook_compatible' => $aiRes['handbook_compatible'] ?? true,
-            'handbook_reference' => $aiRes['handbook_reference'] ?? ($offenseLevel === 'MAJOR' ? 'Section V' : 'Section IV'),
-            'model_version' => $aiRes['model_version'] ?? 'UPCC-RF-v1.0',
-            'dataset_version' => $aiRes['dataset_version'] ?? 'UPCC-DATA-v1.0',
-            'dataset_total_cases' => 2295,
+            'suggested_category' => $suggestedCategory,
+            'suggested_hours' => $suggestedHours,
+            'ai_rationale' => $rationale,
             'ai_available' => true,
-            'engine' => 'On-Premise Random Forest + TF-IDF Similarity Engine (2,295 Verified Cases)',
-            'privacy' => '🔒 100% On-Premise Private AI (No Data Leaves Campus)'
+            'engine' => $aiEngineRes['engine'],
+            'privacy' => $aiEngineRes['privacy']
         ]);
         exit;
     }
 
-    // ── ACTION: chat — Live Conversational RAG with Local LLaMA & PII Anonymization ──
+    // ── ACTION: chat — Live Conversational Groq Cloud LLM ──
     if ($action === 'chat') {
         if ($userQuery === '') {
             echo json_encode(['ok' => false, 'error' => 'Please type a question for the AI Assistant.']);
@@ -776,22 +667,25 @@ try {
             }, $exactPrecedents));
         }
 
-        // ── STRICT ANONYMIZATION & CONVERSATIONAL RESPONSES MANDATE ──
+        // STRICT ANONYMIZATION & CONVERSATIONAL RESPONSES MANDATE
         $sysPrompt = "You are IdentiTrack AI, an executive decision-support assistant for NU Lipa Disciplinary Panel Members.\n"
             . "Address the user as 'Panel Member'. Refer to the student strictly in the 3rd person as 'the student'.\n"
             . "STRICT BOUNDARY & CONVERSATIONAL MANDATES:\n"
             . "1. STRICT HANDBOOK FOCUS: All responses MUST strictly follow the NU Lipa Student Handbook disciplinary matrix and sanction rules.\n"
-            . "2. DIRECT CONVERSATIONAL RESPONSES: Answer the panel member's specific question directly, concisely, and naturally. Do NOT generate lists of sample questions or tell the user what to ask. If greeted (e.g., 'hi', 'hello', 'hey'), respond warmly: 'Hello Panel Member. How can I assist you with this hearing today?'\n"
+            . "2. DIRECT CONVERSATIONAL RESPONSES: Answer the panel member's specific question directly, concisely, and naturally. Do NOT generate lists of sample questions or tell the user what to ask. Do NOT output lists starting with 'You can ask me questions such as:'. If greeted (e.g., 'hi', 'hello', 'hey'), respond warmly: 'Hello Panel Member. How can I assist you with this hearing case today?'\n"
             . "3. ZERO NAME DROPPING / NO OTHER STUDENTS: You MUST NEVER drop or reveal any real student names, emails, or personal identification under any circumstances. You MUST NOT answer questions about or reveal data of other students. If asked about another student, reply strictly: 'I am strictly scoped to the active case in this hearing and cannot discuss or disclose information regarding other students under Data Privacy (RA 10173) guidelines.'\n"
-            . "4. PRECEDENTS & RECOMMENDATIONS: When asked for a sanction, recommendation, or precedent analysis, analyze the active case offenses against handbook rules and anonymized precedents, and provide a direct, authoritative recommendation.\n"
+            . "4. PRECEDENTS & RECOMMENDATIONS: Analyze the active case offenses against handbook rules and anonymized precedents, and provide direct, authoritative answers.\n"
             . "5. PROFESSIONAL FORMATTING: Format all responses professionally using clean Markdown headers, bold text highlights, bullet points, and clear structural sections.\n\n"
             . $dynamicRules;
 
-        $userPrompt = "ACTIVE HEARING CASE DATA (ANONYMIZED):\n"
+        $userPrompt = "ACTIVE HEARING CASE DATA:\n"
+            . "• Student Name: {$studentName} (ID: {$targetStudentId})\n"
+            . "• Offense Charged: {$offenseName} (Level: {$offenseLevel}, Instance #{$instanceCount})\n"
             . "• Current Hearing Case (#{$caseId}) Offenses:\n{$currentOffensesText}\n"
             . "• Total Major Offenses: {$totalMajorCount}\n"
             . "• Total Prior Resolved Cases: {$totalPrior}\n"
             . "• Prior Cases & Categories Breakdown:\n{$priorCasesBreakdownText}\n"
+            . "• Community Service Status: {$csStatusText}\n"
             . "• Precedent Record for this Offense:\n{$precedentContext}\n\n"
             . "PANEL QUESTION: {$userQuery}";
 
@@ -813,7 +707,7 @@ try {
             echo json_encode([
                 'ok' => false,
                 'ai_available' => false,
-                'error' => $aiEngineRes['error'] ?? '⚠️ Request to AI Engine failed or returned an empty response.'
+                'error' => '⚠️ Request to AI Engine failed or returned an empty response.'
             ]);
         }
         exit;
@@ -843,7 +737,8 @@ try {
         $sysPrompt = "IMPORTANT ROLE PERSPECTIVE & DATA PRIVACY:\n"
             . "You are the Standalone Executive AI Precedent & Analytics Hub Assistant for NU Lipa Disciplinary Administrators & Board Members.\n"
             . "You assist admins with general precedent queries, handbook rules, campus disciplinary statistics, and cross-student lookup.\n"
-            . "DATA PRIVACY MANDATE (RA 10173): For student privacy protection, NEVER mention or reveal full names of past student offenders. Always refer to past cases using Case Numbers (e.g. Case #DO-24-25-001 or Case #101) or Academic Programs (e.g. BSIT Student).\n\n"
+            . "DATA PRIVACY MANDATE (RA 10173): For student privacy protection, NEVER mention or reveal full names of past student offenders. Always refer to past cases using Case Numbers (e.g. Case #DO-24-25-001 or Case #101) or Academic Programs.\n"
+            . "Do NOT output lists of sample questions or tell the user what to ask.\n\n"
             . $datasetSummary
             . "Answer questions strictly grounded in the NU Lipa Student Handbook rules below and campus precedent data. "
             . "Format your responses with clean Markdown headers, bold highlights, and bullet points. Never make up facts outside the handbook or case file.\n\n"
@@ -869,7 +764,7 @@ try {
             echo json_encode([
                 'ok' => false,
                 'ai_available' => false,
-                'error' => $aiEngineRes['error'] ?? '⚠️ Request to AI Engine failed or returned an empty response.'
+                'error' => '⚠️ Request to AI Engine failed or returned an empty response.'
             ]);
         }
         exit;
