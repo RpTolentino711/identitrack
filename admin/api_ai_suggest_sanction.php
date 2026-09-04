@@ -212,6 +212,9 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
     $pendingCasesCount = $caseMeta['pending_cases_count'] ?? 0;
     $pendingCasesText = $caseMeta['pending_cases_text'] ?? 'No other pending cases.';
     $extractedCS = $caseMeta['cs_text'] ?? 'No active community service requirement on file.';
+    $offName = $caseMeta['offense_name'] ?? 'Handbook Infraction';
+    $offLvl = $caseMeta['offense_level'] ?? 'MAJOR';
+    $exactPrecedents = $caseMeta['exact_precedents'] ?? [];
 
     // 1. GREETINGS & INTRODUCTIONS
     if (preg_match('/\b(hi|hello|hey|greetings|good morning|good afternoon|good evening|who are you|what can you do)\b/i', $promptLower)) {
@@ -220,8 +223,33 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "Please type what you would like to ask regarding this hearing case.";
     }
 
-    // 2. PRIOR / PENDING CASES INQUIRY
-    if (preg_match('/\b(case|cases|prior|pending|history|record|offense|offenses)\b/i', $promptLower)) {
+    // 2. SANCTIONS & CATEGORIES RECOMMENDATIONS (Highest priority for "suggest punishment")
+    if (preg_match('/\b(suggest|sanction|category|punishment|recommend|decision|vote|penalty|result)\b/i', $promptLower)) {
+        if (!empty($exactPrecedents)) {
+            $mostRecent = $exactPrecedents[0];
+            $catNum = (int)($mostRecent['decided_category'] ?? 2);
+            $punishmentText = formatPunishmentDetails((string)($mostRecent['punishment_details'] ?? ''));
+            
+            return "⚖️ **Precedent-Based Sanction Recommendation**:\n\n"
+                 . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+                 . "• **Historical Campus Precedent Found**: Yes. Previous decided cases for this exact offense were assigned **Category {$catNum} Sanction** ({$punishmentText}).\n"
+                 . "• **Advisory Recommendation**: **Category {$catNum} Sanction**\n"
+                 . "• **Rationale**: Maintaining consistency with historical campus precedent ensures equal treatment, predictability, and procedural fairness under NU Lipa Disciplinary Policies.";
+        } else {
+            // No direct historical precedent -> Handbook RAG Analysis
+            $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
+            $hoursText = $suggestedCat === 2 ? "15 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+            
+            return "⚖️ **Handbook RAG Sanction Recommendation (New Offense - Handbook Analysis)**:\n\n"
+                 . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+                 . "• **Historical Campus Precedent**: No direct historical precedent on file for this specific offense.\n"
+                 . "• **Advisory Recommendation (Handbook RAG)**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
+                 . "• **Handbook RAG Basis**: Evaluated against NU Lipa Student Handbook Section IV (Minor Violations) and Section V (Major Offense Penalty Matrix).";
+        }
+    }
+
+    // 3. PRIOR / PENDING CASES INQUIRY
+    if (preg_match('/\b(pending cases?|prior cases?|case history|disciplinary record|other cases|how many cases|cases before)\b/i', $promptLower)) {
         $resolvedBlock = $totalPrior > 0 
             ? "The student has **{$totalPrior} prior resolved case(s)** on file:\n{$priorCasesText}" 
             : "The student has **0 prior resolved cases** on file.";
@@ -237,7 +265,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "*Note: Specific offense descriptions for other cases are withheld to maintain panel hearing confidentiality.*";
     }
 
-    // 3. DISHONESTY / PERJURY / LYING DURING HEARING
+    // 4. DISHONESTY / PERJURY / LYING DURING HEARING
     if (preg_match('/\b(lie|lying|false|dishonest|perjury|fake|deceit|untruth|mislead)\b/i', $promptLower)) {
         return "⚠️ **Policy Guidance on Submitting False Information / Lying**:\n\n"
              . "• **Handbook Violation**: Providing false statements, forged documents, or lying during a UPCC hearing is classified as an independent **Major Offense** under NU Lipa Academic & Administrative Dishonesty policies.\n"
@@ -245,7 +273,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "• **Recommendation**: Advise the student of their obligation to speak truthfully under the Student Code of Conduct.";
     }
 
-    // 4. APPEALS & MOTIONS FOR RECONSIDERATION
+    // 5. APPEALS & MOTIONS FOR RECONSIDERATION
     if (preg_match('/\b(appeal|reconsider|reconsideration|overturn|contest|due process)\b/i', $promptLower)) {
         return "📜 **Appeal & Reconsideration Rules (NU Lipa Student Handbook)**:\n\n"
              . "• **Filing Deadline**: Students have **5 school days** from formal notice of sanction finalization to submit a written appeal.\n"
@@ -254,7 +282,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "• **Status**: Filing an appeal suspends execution of suspension penalties pending final executive review.";
     }
 
-    // 5. DRUGS, ALCOHOL, WEAPONS, GAMBLING
+    // 6. DRUGS, ALCOHOL, WEAPONS, GAMBLING
     if (preg_match('/\b(drug|substance|alcohol|liquor|drink|vape|vaping|smoke|smoking|weapon|knife|blade|gun|gambling|betting)\b/i', $promptLower)) {
         return "🚨 **Zero-Tolerance Campus Safety Policy**:\n\n"
              . "• **Classification**: Possession, consumption, or distribution of illegal drugs, alcohol, weapons, or organized gambling inside campus premises is a **Category 3 Major Offense**.\n"
@@ -262,14 +290,14 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "• **Immediate Action**: Require security report log and refer student to the Student Affairs & Guidance Office.";
     }
 
-    // 6. GRADUATING STUDENTS & HONOR DISQUALIFICATION
+    // 7. GRADUATING STUDENTS & HONOR DISQUALIFICATION
     if (preg_match('/\b(graduat|latin honor|cum laude|magna|summa|clearance|diploma|senior)\b/i', $promptLower)) {
         return "🎓 **Impact on Graduation & Academic Honors**:\n\n"
              . "• **Disqualification from Honors**: Any student found guilty of a **Major Offense** or a Category 2/3 sanction is automatically disqualified from graduating with Latin Honors (Cum Laude, Magna Cum Laude, Summa Cum Laude).\n"
              . "• **Student Clearance**: Disciplinary cases for the student must reach **RESOLVED** or **CLOSED** status with all community service hours completed before graduation clearance can be approved.";
     }
 
-    // 7. COMMUNITY SERVICE HOURS & ATTENDANCE
+    // 8. COMMUNITY SERVICE HOURS & ATTENDANCE
     if (preg_match('/\b(community service|cs|hour|hours|clock|attend|session|requirement)\b/i', $promptLower)) {
         return "⏱️ **Community Service Status & Calculation Matrix**:\n\n"
              . "• **Active Status**: {$extractedCS}\n\n"
@@ -279,28 +307,13 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "💡 *IdentiTrack Tracking*: All service sessions are verified via photo check-in/check-out logs in the guard module.";
     }
 
-    // 8. SECTION 4 MINOR OFFENSES & 3-ATTEMPT ESCALATION
+    // 9. SECTION 4 MINOR OFFENSES & 3-ATTEMPT ESCALATION
     if (preg_match('/\b(section 4|minor|escalat|3-attempt|three|repeat|count)\b/i', $promptLower)) {
         return "📌 **Section 4 Minor Offense Escalation Policy**:\n\n"
              . "• **1st Offense**: Written Reprimand & Category 1 Warning (**0 Hours CS**).\n"
              . "• **2nd Offense**: Category 1 Warning (**0 Hours CS**).\n"
              . "• **3rd Offense (3-Attempt Rule)**: **AUTOMATIC ESCALATION** — Accumulating 3 minor offenses converts the case into a **Category 2 Major Offense** (**15–25 Hours CS**).\n\n"
              . "📋 *Panel Note*: The student currently has " . ($totalPrior > 0 ? "{$totalPrior} prior recorded case(s)" : "0 prior records") . " on file.";
-    }
-
-    // 9. SANCTIONS & CATEGORIES RECOMMENDATIONS
-    if (preg_match('/\b(suggest|sanction|category|punishment|recommend|decision|vote|result)\b/i', $promptLower)) {
-        if (strpos($combined, 'major') !== false) {
-            return "⚖️ **IdentiTrack AI Advisory Recommendation (Major Offense)**:\n\n"
-                 . "• **Recommended Category**: **Category 2 or Category 3 Sanction**.\n"
-                 . "• **Prescribed Actions**: Disciplinary Probation, 15–35 Hours of University Service, and Formal Parental Notification.\n"
-                 . "• **Policy Basis**: NU Lipa Student Handbook Section 5 (Major Offenses Matrix).";
-        } else {
-            return "⚖️ **IdentiTrack AI Advisory Recommendation (Minor Offense)**:\n\n"
-                 . "• **Recommended Category**: **Category 1 Warning (0 Hours CS)** — Escalates to **Category 2 (15–25 Hours CS)** on 3rd accumulated offense.\n"
-                 . "• **Prescribed Actions**: Official Reprimand, Guidance Counseling, and Handbook Compliance Orientation.\n"
-                 . "• **Policy Basis**: NU Lipa Student Handbook Section 4 (Minor Offenses Matrix).";
-        }
     }
 
     // 10. GENERAL DEFAULT AI ADVISORY RESPONSE
@@ -502,11 +515,19 @@ try {
 
     $caseMeta = [
         'case_id' => $caseId,
+        'student_id' => $targetStudentId,
+        'student_name' => $studentName,
+        'offense_name' => $offenseName,
+        'offense_level' => $offenseLevel,
+        'major_category' => $majorCategory,
+        'offense_type_id' => $offenseTypeId,
         'total_prior' => $totalPrior,
         'prior_cases_text' => $priorCasesBreakdownText,
         'pending_cases_count' => count($pendingCasesRows),
         'pending_cases_text' => $pendingCasesText,
-        'cs_text' => $csStatusText
+        'cs_text' => $csStatusText,
+        'exact_precedents' => $exactPrecedents,
+        'category_precedents' => $categoryPrecedents
     ];
 
     // ── ACTION: suggest — AI Sanction Recommendation ──
@@ -617,18 +638,23 @@ try {
             }, $exactPrecedents));
         }
 
-        // STRICT CONVERSATIONAL, CONFIDENTIALITY & DIRECT ANSWER MANDATE
+        // STRICT CONVERSATIONAL, PRECEDENT & HANDBOOK RAG MANDATE
         $sysPrompt = "You are IdentiTrack AI, an executive decision-support assistant for NU Lipa Disciplinary Panel Members.\n"
             . "Address the user as 'Panel Member'. Refer to the student strictly in the 3rd person as 'the student'.\n"
-            . "STRICT BOUNDARY & CONFIDENTIALITY MANDATES:\n"
-            . "1. ANSWER ONLY WHAT IS ASKED: Answer the panel member's specific question directly, concisely, and naturally. DO NOT prepend or append active student file summaries, background context headers, handbook matrix blocks, or community service logs to your answer unless explicitly asked.\n"
-            . "2. STRICT CONFIDENTIALITY FOR PRIOR & PENDING CASES:\n"
+            . "STRICT BOUNDARY, PRECEDENT & RAG SANCTION MANDATES:\n"
+            . "1. SANCTION RECOMMENDATIONS & PRECEDENT ANALYSIS:\n"
+            . "   When the panel member asks to suggest a punishment, recommend a sanction, or provide a decision (e.g. 'suggest punishment', 'what sanction should we give?'):\n"
+            . "   a) Check the 'Precedent Record for this Offense' provided in the data.\n"
+            . "   b) IF DIRECT PRECEDENT EXISTS: State clearly that historical campus precedent exists for this offense. Citing the precedent outcome (e.g., 'Category X Sanction'), recommend following the precedent to ensure equal treatment, predictability, and procedural fairness.\n"
+            . "   c) IF NO DIRECT PRECEDENT EXISTS: State clearly that this is a new offense without direct historical precedent, and perform Handbook RAG analysis to suggest a fair sanction category (Category 1 to 5), community service hours, and probation terms grounded strictly in the NU Lipa Student Handbook matrix rules provided.\n"
+            . "2. ANSWER ONLY WHAT IS ASKED: Answer the panel member's specific question directly, concisely, and naturally. DO NOT prepend or append active student file summaries, background context headers, handbook matrix blocks, or community service logs to your answer unless explicitly asked.\n"
+            . "3. STRICT CONFIDENTIALITY FOR PRIOR & PENDING CASES:\n"
             . "   - Panel members may NOT be assigned to other cases of the student. You MUST NEVER disclose or describe the specific underlying actions, titles, or descriptions of what the student did in other prior or pending cases!\n"
             . "   - For pending cases: State ONLY that a pending case exists (e.g. 'Case #72: Pending Hearing'). Do NOT show what the student did.\n"
             . "   - For resolved cases: State ONLY the Case Number and decided sanction/punishment (e.g. 'Case #68: Category 2 Sanction'). Do NOT show what the student did.\n"
-            . "3. STRICT HANDBOOK FOCUS: Follow the NU Lipa Student Handbook rules.\n"
-            . "4. ZERO NAME DROPPING / NO OTHER STUDENTS: Never reveal real names or discuss other students under Data Privacy (RA 10173).\n"
-            . "5. CLEAN MARKDOWN FORMATTING: Use clear, readable Markdown with bold text and bullet points.\n\n"
+            . "4. STRICT HANDBOOK FOCUS: Follow the NU Lipa Student Handbook rules.\n"
+            . "5. ZERO NAME DROPPING / NO OTHER STUDENTS: Never reveal real names or discuss other students under Data Privacy (RA 10173).\n"
+            . "6. CLEAN MARKDOWN FORMATTING: Use clear, readable Markdown with bold text and bullet points.\n\n"
             . $dynamicRules;
 
         $userPrompt = "ACTIVE HEARING CASE DATA (BACKGROUND CONTEXT FOR INFERENCE ONLY):\n"
