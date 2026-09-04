@@ -4037,45 +4037,51 @@ async function handleAiChatSubmit(e) {
 function typeOutAiResponse(containerEl, fullText, threadEl) {
     containerEl.innerHTML = '';
     
-    // Parse basic markdown (bolding, headers, bullet points)
+    // Parse markdown into clean HTML
     let formattedText = fullText
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/^### (.*$)/gim, '<strong style="color:#38bdf8;font-size:13px;display:block;margin:6px 0 2px;">$1</strong>')
-        .replace(/^## (.*$)/gim, '<strong style="color:#38bdf8;font-size:13.5px;display:block;margin:8px 0 4px;">$1</strong>')
-        .replace(/^# (.*$)/gim, '<strong style="color:#38bdf8;font-size:14px;display:block;margin:10px 0 4px;">$1</strong>')
-        .replace(/^\u2022 (.*$)/gim, '<div style="margin-left:8px;margin-bottom:2px;">• $1</div>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/^### (.*$)/gim, '<strong style="color:#38bdf8;font-size:13px;display:block;margin:8px 0 3px;">$1</strong>')
+        .replace(/^## (.*$)/gim, '<strong style="color:#38bdf8;font-size:13.5px;display:block;margin:10px 0 4px;">$1</strong>')
+        .replace(/^# (.*$)/gim, '<strong style="color:#38bdf8;font-size:14px;display:block;margin:12px 0 4px;">$1</strong>')
+        .replace(/^[\u2022\-\*] (.*$)/gim, '<div style="margin-left:8px;margin-bottom:3px;">• $1</div>')
         .replace(/\n/g, '<br>');
 
-    let currentCharIndex = 0;
-    const speed = 12; // ms per chunk
-    const chunkSize = 3; // chars per tick for smooth streaming
+    // Tokenize text while keeping HTML tags atomic (unsplit) to prevent layout flicker
+    const tokens = formattedText.match(/<[^>]+>|[^<>\s]+|\s+/g) || [formattedText];
 
-    // Create container for formatted text and cursor
     const textSpan = document.createElement('span');
     const cursorSpan = document.createElement('span');
     cursorSpan.className = 'ai-typing-cursor';
-    cursorSpan.style.cssText = 'color:#38bdf8;font-weight:900;animation:blink 0.8s infinite;margin-left:2px;';
+    cursorSpan.style.cssText = 'color:#38bdf8;font-weight:900;animation:blink 0.8s infinite;margin-left:2px;display:inline-block;';
     cursorSpan.textContent = '▌';
 
     containerEl.appendChild(textSpan);
     containerEl.appendChild(cursorSpan);
 
-    currentTypingInterval = setInterval(() => {
+    let tokenIdx = 0;
+    let accumulatedHtml = '';
+
+    function step() {
         if (!isAiGenerating) {
-            clearInterval(currentTypingInterval);
+            cursorSpan.remove();
             return;
         }
 
-        currentCharIndex += chunkSize;
-        textSpan.innerHTML = formattedText.substring(0, currentCharIndex);
-        threadEl.scrollTop = threadEl.scrollHeight;
-
-        if (currentCharIndex >= formattedText.length) {
+        if (tokenIdx < tokens.length) {
+            accumulatedHtml += tokens[tokenIdx];
+            textSpan.innerHTML = accumulatedHtml;
+            threadEl.scrollTop = threadEl.scrollHeight;
+            tokenIdx++;
+            currentTypingInterval = setTimeout(step, 18);
+        } else {
             textSpan.innerHTML = formattedText;
             stopAiTyping();
         }
-    }, speed);
+    }
+
+    step();
 }
 </script>
 </body>

@@ -428,7 +428,10 @@ function callGroqApi(string $sysPrompt, string $userPrompt): ?string
     }
 
     $url = 'https://api.groq.com/openai/v1/chat/completions';
-    $model = get_env_var('AI_MODEL', 'llama-3.3-70b-versatile');
+    $model = get_env_var('AI_MODEL', 'groq/compound');
+    if ($model === 'llama-3.3-70b-versatile' || $model === 'gemini-1.5-flash') {
+        $model = 'groq/compound';
+    }
 
     $payload = [
         'model' => $model,
@@ -450,7 +453,9 @@ function callGroqApi(string $sysPrompt, string $userPrompt): ?string
             'Authorization: Bearer ' . $apiKey
         ],
         CURLOPT_TIMEOUT => 15,
-        CURLOPT_SSL_VERIFYPEER => true
+        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false
     ]);
 
     $response = curl_exec($ch);
