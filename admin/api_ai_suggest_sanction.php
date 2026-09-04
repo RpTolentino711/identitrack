@@ -224,7 +224,35 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "Feel free to ask me anything about this case or our handbook rules—I'd be glad to help!";
     }
 
-    // 2. SANCTIONS & CATEGORIES RECOMMENDATIONS (Highest priority for "suggest punishment")
+    // 2. SIMILAR CASES & PRECEDENT SEARCH INQUIRY (Checked BEFORE general sanction recommendations)
+    if (preg_match('/\b(similar|precedent|precedents|same case|matching case|like this|like student|similar cases?)\b/i', $promptLower)) {
+        $lines = [];
+        if (!empty($exactPrecedents)) {
+            $lines[] = "📌 **Live Database Precedents**:";
+            foreach (array_slice($exactPrecedents, 0, 5) as $ep) {
+                $pun = formatPunishmentDetails((string)($ep['punishment_details'] ?? ''));
+                $lines[] = "  • Case #{$ep['case_id']}: **Category {$ep['decided_category']} Sanction** ({$pun})";
+            }
+        }
+        if (!empty($excelPrecedents)) {
+            $lines[] = "📊 **Historical Campus Dataset (`SANCTION.xlsx`) Matches**:";
+            foreach (array_slice($excelPrecedents, 0, 5) as $ex) {
+                $lines[] = "  • Offense: **{$ex['offense']}** ({$ex['level']}) — Decided Sanction: **{$ex['sanction']}**";
+            }
+        }
+
+        if (!empty($lines)) {
+            return "👋 **Hello Panel Member!** Yes, I searched our database and official campus dataset (`SANCTION.xlsx`) for similar cases matching **{$offName}**:\n\n"
+                 . implode("\n", $lines) . "\n\n"
+                 . "💡 *Precedent Guidance*: Aligning decisions with prior decided cases maintains equal treatment, consistency, and procedural fairness under NU Lipa Disciplinary Policies.";
+        } else {
+            return "👋 **Hello Panel Member!** I checked our live case database and official 204-case dataset (`SANCTION.xlsx`).\n\n"
+                 . "There are **no direct historical precedent cases** on file for this specific offense (**{$offName}**). This is a new or rare infraction on record, so recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.\n\n"
+                 . "Would you like me to analyze the handbook penalty options for this case?";
+        }
+    }
+
+    // 3. SANCTIONS & CATEGORIES RECOMMENDATIONS (Highest priority for "suggest punishment")
     if (preg_match('/\b(suggest|sanction|category|punishment|recommend|decision|vote|penalty|result|why)\b/i', $promptLower)) {
         if (!empty($exactPrecedents)) {
             $mostRecent = $exactPrecedents[0];
@@ -717,35 +745,50 @@ try {
             exit;
         }
 
-        $precedentContext = "No prior campus-wide precedent cases on file for this specific offense type.";
+        $precedentLines = [];
         if (!empty($exactPrecedents)) {
-            $precedentContext = implode("\n", array_map(function($p) {
-                return sprintf(
-                    "• Case #%s: Decided Sanction — Category %s (%s)",
+            foreach ($exactPrecedents as $p) {
+                $precedentLines[] = sprintf(
+                    "• Live Database Case #%s: Decided Category %s Sanction (%s)",
                     $p['case_id'], $p['decided_category'],
                     formatPunishmentDetails($p['punishment_details'] ?? '')
                 );
-            }, $exactPrecedents));
+            }
         }
+        if (!empty($excelPrecedents)) {
+            foreach (array_slice($excelPrecedents, 0, 5) as $ep) {
+                $precedentLines[] = sprintf(
+                    "• Historical Campus Dataset (SANCTION.xlsx) Match: Offense '%s' (%s) → Decided Sanction: %s",
+                    $ep['offense'], $ep['level'], $ep['sanction']
+                );
+            }
+        }
+        $precedentContext = !empty($precedentLines)
+            ? implode("\n", $precedentLines)
+            : "No direct prior campus-wide precedent cases on file for this specific offense type.";
 
         // STRICT CONVERSATIONAL, PRECEDENT & HANDBOOK POLICY MANDATE
         $sysPrompt = "You are IdentiTrack AI, a warm, friendly, executive decision-support assistant for NU Lipa Disciplinary Administrators & Panel Members.\n"
             . "TONE & STYLE MANDATE:\n"
             . "1. BE VERY CONVERSATIONAL & FRIENDLY: Address the user warmly as 'Panel Member' or 'Administrator'. Speak in a natural, helpful, engaging voice like a trusted executive colleague. Start with a warm greeting (e.g. 'Hello Administrator!', 'Hi Panel Member!') and close with a helpful invitation for follow-up questions.\n"
-            . "2. SANCTION RECOMMENDATIONS & PRECEDENT ANALYSIS:\n"
+            . "2. SIMILAR CASE / PRECEDENT INQUIRIES:\n"
+            . "   When the user asks if there are similar cases or precedents (e.g. 'is there a similar case of this student?', 'any similar cases?', 'are there precedents?'):\n"
+            . "   a) Explicitly answer 'Yes, I found similar precedent case(s)...' OR 'No direct historical precedents exist for this specific offense...'\n"
+            . "   b) List the matched precedent cases from the data provided (including live database cases and SANCTION.xlsx records) showing the offense, level, and decided sanction.\n"
+            . "3. SANCTION RECOMMENDATIONS & PRECEDENT ANALYSIS:\n"
             . "   When asked to suggest a punishment or sanction (e.g. 'suggest punishment', 'what sanction should we give?'):\n"
             . "   a) Check the 'Precedent Record for this Offense' provided in the data.\n"
             . "   b) IF DIRECT PRECEDENT EXISTS: State clearly that historical campus precedent exists for this offense. Citing the precedent outcome (e.g., 'Category X Sanction'), recommend following the precedent to ensure equal treatment, predictability, and procedural fairness.\n"
             . "   c) IF NO DIRECT PRECEDENT EXISTS: State clearly that this is a new offense without direct historical precedent, and perform Handbook Policy analysis to suggest a fair sanction category (Category 1 to 5), community service hours, and probation terms grounded strictly in the NU Lipa Student Handbook matrix rules provided.\n"
             . "   d) ALWAYS INCLUDE A CLEAR 'Why? (Reason)' EXPLANATION: Clearly explain the exact reasons (e.g., student's prior major/minor records, Section 4 escalation rule, Section 5 penalty matrix, or campus dataset match).\n"
-            . "3. ANSWER ONLY WHAT IS ASKED: Answer the panel member's specific question directly, conversationally, and naturally. DO NOT prepend or append active student file summaries, background context headers, handbook matrix blocks, or community service logs to your answer unless explicitly asked.\n"
-            . "4. STRICT CONFIDENTIALITY FOR PRIOR & PENDING CASES:\n"
+            . "4. ANSWER ONLY WHAT IS ASKED: Answer the panel member's specific question directly, conversationally, and naturally. DO NOT prepend or append active student file summaries, background context headers, handbook matrix blocks, or community service logs to your answer unless explicitly asked.\n"
+            . "5. STRICT CONFIDENTIALITY FOR PRIOR & PENDING CASES:\n"
             . "   - Panel members may NOT be assigned to other cases of the student. You MUST NEVER disclose or describe the specific underlying actions, titles, or descriptions of what the student did in other prior or pending cases!\n"
             . "   - For pending cases: State ONLY that a pending case exists (e.g. 'Case #72: Pending Hearing'). Do NOT show what the student did.\n"
             . "   - For resolved cases: State ONLY the Case Number and decided sanction/punishment (e.g. 'Case #68: Category 2 Sanction'). Do NOT show what the student did.\n"
-            . "5. STRICT HANDBOOK FOCUS: Follow the NU Lipa Student Handbook rules.\n"
-            . "6. ZERO NAME DROPPING / NO OTHER STUDENTS: Never reveal real names or discuss other students under Data Privacy (RA 10173).\n"
-            . "7. CLEAN MARKDOWN FORMATTING: Use clear, readable Markdown with bold text and bullet points.\n\n"
+            . "6. STRICT HANDBOOK FOCUS: Follow the NU Lipa Student Handbook rules.\n"
+            . "7. ZERO NAME DROPPING / NO OTHER STUDENTS: Never reveal real names or discuss other students under Data Privacy (RA 10173).\n"
+            . "8. CLEAN MARKDOWN FORMATTING: Use clear, readable Markdown with bold text and bullet points.\n\n"
             . $dynamicRules;
 
         $userPrompt = "ACTIVE HEARING CASE DATA (BACKGROUND CONTEXT FOR INFERENCE ONLY):\n"

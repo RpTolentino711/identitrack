@@ -4042,12 +4042,8 @@ function typeOutAiResponse(containerEl, fullText, threadEl) {
         .replace(/^# (.*$)/gim, '<strong style="color:#38bdf8;font-size:17px;display:block;margin:16px 0 8px;font-weight:700;">$1</strong>')
         .replace(/^[\u2022\-\*] (.*$)/gim, '<div style="margin-left:8px;margin-bottom:4px;line-height:1.6;">• $1</div>')
         .replace(/\n/g, '<br>')
-        // Category color coding: Cat 1 (white bold), Cat 2 (blue), Cat 3 (yellow), Cat 4 (orange), Cat 5 (red)
-        .replace(/\bCategory 1\b/gi, '<span style="color:#ffffff;font-weight:800;background:rgba(255,255,255,0.18);padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);">Category 1</span>')
-        .replace(/\bCategory 2\b/gi, '<span style="color:#38bdf8;font-weight:800;background:rgba(56,189,248,0.18);padding:2px 8px;border-radius:6px;border:1px solid rgba(56,189,248,0.35);">Category 2</span>')
-        .replace(/\bCategory 3\b/gi, '<span style="color:#facc15;font-weight:800;background:rgba(250,204,21,0.18);padding:2px 8px;border-radius:6px;border:1px solid rgba(250,204,21,0.35);">Category 3</span>')
-        .replace(/\bCategory 4\b/gi, '<span style="color:#fb923c;font-weight:800;background:rgba(251,146,60,0.18);padding:2px 8px;border-radius:6px;border:1px solid rgba(251,146,60,0.35);">Category 4</span>')
-        .replace(/\bCategory 5\b/gi, '<span style="color:#ef4444;font-weight:800;background:rgba(239,68,68,0.18);padding:2px 8px;border-radius:6px;border:1px solid rgba(239,68,68,0.35);">Category 5</span>');
+        // Category styling: Bold white text, slightly larger, no pill background colors
+        .replace(/\bCategory ([1-5])\b/gi, '<strong style="color:#ffffff;font-weight:800;font-size:16px;">Category $1</strong>');
 
     const textSpan = document.createElement('div');
     textSpan.style.cssText = 'font-size:14.5px;line-height:1.65;color:#f8fafc;word-break:break-word;';
