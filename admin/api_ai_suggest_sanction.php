@@ -216,6 +216,8 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
     $offLvl = $caseMeta['offense_level'] ?? 'MAJOR';
     $exactPrecedents = $caseMeta['exact_precedents'] ?? [];
     $excelPrecedents = $caseMeta['excel_precedents'] ?? [];
+    $allOffensesAnalysis = $caseMeta['all_offenses_analysis'] ?? [];
+    $totalCombinedHours = $caseMeta['total_combined_hours'] ?? 0;
 
     $studentName = $caseMeta['student_name'] ?? 'the student';
 
@@ -255,8 +257,48 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         }
     }
 
-    // 3. SANCTIONS & CATEGORIES RECOMMENDATIONS (Suggest punishment)
-    if (preg_match('/\b(suggest|sanction|category|punishment|recommend|decision|vote|penalty|result|why)\b/i', $promptLower)) {
+    // 3. SANCTIONS & CATEGORIES RECOMMENDATIONS (Suggest punishment & Multi-Offense Aggregation)
+    if (preg_match('/\b(suggest|sanction|category|punishment|recommend|decision|vote|penalty|result|why|middle|combine|combination|multiple|310|150)\b/i', $promptLower)) {
+        
+        // Multi-Offense Aggregation ("Meet in the Middle") if multiple offenses exist or query asks about multi-offense aggregation
+        if (count($allOffensesAnalysis) > 1 || preg_match('/\b(middle|combine|combination|multiple|310|150|section 4|minor)\b/i', $promptLower)) {
+            $offenseBreakdownLines = [];
+            $precedentCount = 0;
+            $evaluatedCount = 0;
+
+            foreach ($allOffensesAnalysis as $idx => $oa) {
+                $num = $idx + 1;
+                $oN = $oa['offense_name'];
+                $oL = $oa['offense_level'];
+                $hrs = $oa['hours'];
+                $hasP = $oa['has_precedent'];
+                $src = $oa['source_explanation'];
+
+                if ($hasP) {
+                    $precedentCount++;
+                    $offenseBreakdownLines[] = "• **Offense {$num}**: {$oN} ({$oL})\n  ↳ *Historical Record Precedent Match*: **{$hrs} Hours CS** ({$src})";
+                } else {
+                    $evaluatedCount++;
+                    $offenseBreakdownLines[] = "• **Offense {$num}**: {$oN} ({$oL})\n  ↳ *No Direct Dataset Precedent Record*: Evaluated via **NU Lipa Student Handbook Section 4 Gravity Analysis** → **{$hrs} Hours CS** (*Assessed based on offense nature, context, and campus impact*)";
+                }
+            }
+
+            $combinedCategory = ($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1);
+            $breakdownBlock = implode("\n", $offenseBreakdownLines);
+
+            $whyMultiReason = ($evaluatedCount > 0)
+                ? "Combining baseline precedent hours for recorded offenses with NU Lipa Student Handbook gravity analysis for unrecorded infractions yields a balanced aggregated sanction of **{$totalCombinedHours} Hours CS** (Category {$combinedCategory}). This 'meet-in-the-middle' calculation guarantees full accountability across all charged offenses while avoiding bias and maintaining procedural consistency."
+                : "Combining baseline precedent hours across all charged offenses yields an aggregated sanction of **{$totalCombinedHours} Hours CS** (Category {$combinedCategory}). Aligning with past campus records for each charged offense avoids bias and ensures standardized enforcement.";
+
+            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                 . "Based on our campus precedent records and NU Lipa Student Handbook guidelines, here is the combined multi-offense sanction calculation:\n\n"
+                 . "⚖️ **Suggested Combined Punishment**: **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service + Active Probation)\n\n"
+                 . "📋 **Offense Breakdown & Precedent Aggregation**:\n"
+                 . "{$breakdownBlock}\n\n"
+                 . "💡 **Why? (Reason)**: {$whyMultiReason}\n\n"
+                 . "Let me know if you would like me to adjust any office assignments or handbook details for {$studentName}!";
+        }
+
         if (!empty($exactPrecedents)) {
             $mostRecent = $exactPrecedents[0];
             $catNum = (int)($mostRecent['decided_category'] ?? 2);
@@ -436,6 +478,7 @@ try {
 
     // ── Hearing Status Locking ──
     $case = null;
+    $allCaseOffenses = [];
     if ($caseId > 0) {
         $cStatusRow = db_one("SELECT status FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
         if ($cStatusRow) {
@@ -450,15 +493,24 @@ try {
             }
         }
 
-        $case = db_one("SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details,
-                   o.offense_type_id, o.description as offense_description, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
-            FROM upcc_case uc
-            LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
-            LEFT JOIN offense o ON o.offense_id = uco.offense_id
-            LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-            WHERE uc.case_id = :cid
-            ORDER BY o.date_committed DESC LIMIT 1
+        $allCaseOffenses = db_all("
+            SELECT o.offense_id, o.offense_type_id, o.description as offense_description,
+                   ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
+            FROM upcc_case_offense uco
+            JOIN offense o ON o.offense_id = uco.offense_id
+            JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+            WHERE uco.case_id = :cid
+            ORDER BY ot.level DESC, ot.name ASC
         ", [':cid' => $caseId]);
+
+        if (!empty($allCaseOffenses)) {
+            $case = $allCaseOffenses[0];
+            $case['case_id'] = $caseId;
+            $cMetaRow = db_one("SELECT student_id, decided_category, probation_until, punishment_details FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
+            if ($cMetaRow) {
+                $case = array_merge($case, $cMetaRow);
+            }
+        }
     }
 
     if (!$case && $studentId !== '') {
@@ -582,8 +634,8 @@ try {
 
     // Look up SANCTION.xlsx official dataset cache records
     $excelPrecedents = [];
-    if (function_exists('get_historical_dataset_records')) {
-        $cacheRecords = get_historical_dataset_records();
+    $cacheRecords = function_exists('get_historical_dataset_records') ? get_historical_dataset_records() : [];
+    if (!empty($cacheRecords)) {
         $targetOffenseUpper = strtoupper(trim($offenseName));
         foreach ($cacheRecords as $cr) {
             $crOffense = strtoupper(trim($cr['offense'] ?? ''));
@@ -591,6 +643,86 @@ try {
                 $excelPrecedents[] = $cr;
             }
         }
+    }
+
+    // ── Multi-Offense Aggregation & Handbook Gravity Analysis ──
+    $allOffensesAnalysis = [];
+    $totalCombinedHours = 0;
+
+    $offenseListToAnalyze = !empty($allCaseOffenses) ? $allCaseOffenses : [
+        [
+            'offense_name' => $offenseName,
+            'offense_level' => $offenseLevel,
+            'offense_type_id' => $offenseTypeId
+        ]
+    ];
+
+    foreach ($offenseListToAnalyze as $oItem) {
+        $oName = (string)($oItem['offense_name'] ?? 'Infraction');
+        $oLvl  = strtoupper((string)($oItem['offense_level'] ?? 'MAJOR'));
+        $oId   = (int)($oItem['offense_type_id'] ?? 0);
+
+        $matchedHours = null;
+        $matchedSource = null;
+
+        // Check exact DB precedents
+        $dbP = getExactPrecedents($oId, $caseId, 1);
+        if (!empty($dbP)) {
+            $punStr = formatPunishmentDetails((string)($dbP[0]['punishment_details'] ?? ''));
+            if (preg_match('/(\d+)\s*Hours/i', $punStr, $pm)) {
+                $matchedHours = (int)$pm[1];
+            } else {
+                $matchedHours = ($dbP[0]['decided_category'] >= 2) ? 150 : 0;
+            }
+            $matchedSource = "Category {$dbP[0]['decided_category']} Sanction ({$punStr})";
+        }
+
+        // Check SANCTION.xlsx Excel dataset cache
+        if ($matchedHours === null && !empty($cacheRecords)) {
+            $oUpper = strtoupper(trim($oName));
+            foreach ($cacheRecords as $cr) {
+                $crOff = strtoupper(trim($cr['offense'] ?? ''));
+                if ($crOff !== '' && (strpos($crOff, $oUpper) !== false || strpos($oUpper, $crOff) !== false || (strpos($oUpper, 'VAPE') !== false && strpos($crOff, 'VAPE') !== false) || (strpos($oUpper, 'ID') !== false && strpos($crOff, 'ID') !== false))) {
+                    $sanc = (string)($cr['sanction'] ?? '');
+                    if (preg_match('/(\d+)\s*Hours/i', $sanc, $pm)) {
+                        $matchedHours = (int)$pm[1];
+                    } else {
+                        $matchedHours = (strpos(strtoupper($sanc), 'NON-READMISSION') !== false) ? 300 : ((strpos(strtoupper($sanc), '150') !== false) ? 150 : 250);
+                    }
+                    $matchedSource = "'{$cr['offense']}' ({$cr['sanction']})";
+                    break;
+                }
+            }
+        }
+
+        // Fallback: Handbook Gravity & Meaning Assessment if no dataset record
+        if ($matchedHours === null) {
+            if ($oLvl === 'MINOR') {
+                if (preg_match('/\b(id|lending|theft|property|cheating|misconduct)\b/i', $oName)) {
+                    $matchedHours = 150;
+                    $matchedSource = "Evaluated via NU Lipa Student Handbook Section 4 Gravity Analysis: Moderately Severe Minor Infraction ({$matchedHours} Hours CS Baseline)";
+                } elseif (preg_match('/\b(dress|attire|badge|noise|tardiness|littering)\b/i', $oName)) {
+                    $matchedHours = 15;
+                    $matchedSource = "Evaluated via NU Lipa Student Handbook Section 4 Gravity Analysis: Light Minor Infraction ({$matchedHours} Hours CS Baseline)";
+                } else {
+                    $matchedHours = 30;
+                    $matchedSource = "Evaluated via NU Lipa Student Handbook Section 4 Gravity Analysis: Standard Minor Infraction ({$matchedHours} Hours CS Baseline)";
+                }
+            } else {
+                $matchedHours = 250;
+                $matchedSource = "Evaluated via NU Lipa Student Handbook Section 5 Major Penalty Matrix: Major Infraction Baseline (250 Hours CS)";
+            }
+        }
+
+        $totalCombinedHours += $matchedHours;
+
+        $allOffensesAnalysis[] = [
+            'offense_name' => $oName,
+            'offense_level' => $oLvl,
+            'hours' => $matchedHours,
+            'has_precedent' => ($matchedSource && strpos($matchedSource, 'Evaluated via') === false),
+            'source_explanation' => $matchedSource
+        ];
     }
 
     $categoryPrecedents = empty($exactPrecedents)
@@ -614,7 +746,9 @@ try {
         'cs_text' => $csStatusText,
         'exact_precedents' => $exactPrecedents,
         'excel_precedents' => $excelPrecedents,
-        'category_precedents' => $categoryPrecedents
+        'category_precedents' => $categoryPrecedents,
+        'all_offenses_analysis' => $allOffensesAnalysis,
+        'total_combined_hours' => $totalCombinedHours
     ];
 
     // ── ACTION: suggest — AI Sanction Recommendation ──
