@@ -291,18 +291,46 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . implode("\n", $lines) . "\n\n"
                  . "💡 **Why? (Reason)**: Following prior decided records avoids bias, maintains equal treatment, and guarantees procedural fairness under NU Lipa Disciplinary Policies.";
         } else {
+            $excelCount = count($excelPrecedents);
+            $recCountText = ($excelCount > 0)
+                ? "I checked our official campus precedent records and **found {$excelCount} matching precedent record(s)** for this offense (**{$offName}**)."
+                : "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**).";
+
+            if ($offLvl === 'MINOR') {
+                $instanceCount = $caseMeta['instance_count'] ?? 1;
+                $attemptStr = ($instanceCount === 1) ? "1st Attempt" : (($instanceCount === 2) ? "2nd Attempt" : "3rd Attempt (Escalation)");
+                $suggestedCat = ($instanceCount >= 3) ? 2 : 1;
+                $hoursText = ($suggestedCat === 2) ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+                $whyReason = ($instanceCount >= 3)
+                    ? "Under NU Lipa Student Handbook Section 4 (3-Attempt Escalation Rule), accumulating 3 minor offenses automatically escalates the sanction to a **Category 2 Major Offense** (150–250 Hours Community Service)."
+                    : "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations Matrix) for Attempt #{$instanceCount}. 1st and 2nd minor attempts receive Category 1 (Written Reprimand / Warning) with 0 Hours Community Service.";
+
+                return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                     . "{$recCountText}\n\n"
+                     . "📌 **NU Lipa Student Handbook Section 4 Minor Offense Escalation Matrix**:\n"
+                     . "• **1st Attempt**: Written Reprimand & Category 1 Warning (**0 Hours CS**)\n"
+                     . "• **2nd Attempt**: Formal Warning, SDO Counseling & Category 1 Warning (**0 Hours CS**)\n"
+                     . "• **3rd Attempt (3-Attempt Escalation Rule)**: **AUTOMATIC ESCALATION** → Converted to **Category 2 Major Offense** (**150–250 Hours CS**)\n\n"
+                     . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
+                     . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+                     . "• **Active Student Offense Instance**: {$attemptStr} (Instance #{$instanceCount} for {$studentName})\n"
+                     . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
+                     . "• **Why? (Reason)**: {$whyReason}\n\n"
+                     . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+            }
+
             if ($totalPrior > 0) {
                 $suggestedCat = 3;
                 $hoursText = "250–400 Hours Community Service / 1 Term Non-Readmission";
                 $whyReason = "The student has {$totalPrior} prior resolved case(s) on file. Under NU Lipa Handbook Section 5, repeat offenses after a prior sanction escalate to Category 3 or Category 4 (Non-Readmission / Suspension).";
             } else {
                 $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
-                $hoursText = $suggestedCat === 2 ? "150 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+                $hoursText = $suggestedCat === 2 ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
                 $whyReason = "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix) for a 1st offense.";
             }
 
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                 . "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**). This is a new or rare infraction on record, so recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**:\n\n"
+                 . "{$recCountText} Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**:\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
@@ -381,19 +409,46 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "• **Why? (Reason)**: Historical campus discipline records for offenses matching '{$offName}' show that students were assigned **Category {$sCat} Sanction** ({$sancStr}). Aligning with past records avoids bias and promotes standardized, impartial enforcement.\n\n"
                  . "Let me know if you want me to review additional handbook clauses for {$studentName}!";
         } else {
-            // Check student's prior record for repeat offender escalation
+            $excelCount = count($excelPrecedents);
+            $recCountText = ($excelCount > 0)
+                ? "I checked our official campus precedent records and **found {$excelCount} matching precedent record(s)** for this offense (**{$offName}**)."
+                : "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**).";
+
+            if ($offLvl === 'MINOR') {
+                $instanceCount = $caseMeta['instance_count'] ?? 1;
+                $attemptStr = ($instanceCount === 1) ? "1st Attempt" : (($instanceCount === 2) ? "2nd Attempt" : "3rd Attempt (Escalation)");
+                $suggestedCat = ($instanceCount >= 3) ? 2 : 1;
+                $hoursText = ($suggestedCat === 2) ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+                $whyReason = ($instanceCount >= 3)
+                    ? "Under NU Lipa Student Handbook Section 4 (3-Attempt Escalation Rule), accumulating 3 minor offenses automatically escalates the sanction to a **Category 2 Major Offense** (150–250 Hours Community Service)."
+                    : "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations Matrix) for Attempt #{$instanceCount}. 1st and 2nd minor attempts receive Category 1 (Written Reprimand / Warning) with 0 Hours Community Service.";
+
+                return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                     . "{$recCountText}\n\n"
+                     . "📌 **NU Lipa Student Handbook Section 4 Minor Offense Escalation Matrix**:\n"
+                     . "• **1st Attempt**: Written Reprimand & Category 1 Warning (**0 Hours CS**)\n"
+                     . "• **2nd Attempt**: Formal Warning, SDO Counseling & Category 1 Warning (**0 Hours CS**)\n"
+                     . "• **3rd Attempt (3-Attempt Escalation Rule)**: **AUTOMATIC ESCALATION** → Converted to **Category 2 Major Offense** (**150–250 Hours CS**)\n\n"
+                     . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
+                     . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+                     . "• **Active Student Offense Instance**: {$attemptStr} (Instance #{$instanceCount} for {$studentName})\n"
+                     . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
+                     . "• **Why? (Reason)**: {$whyReason}\n\n"
+                     . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+            }
+
             if ($totalPrior > 0) {
                 $suggestedCat = 3;
-                $hoursText = "25–50 Hours Community Service / 1 Term Non-Readmission";
+                $hoursText = "250–400 Hours Community Service / 1 Term Non-Readmission";
                 $whyReason = "The student has {$totalPrior} prior resolved case(s) on file (including prior major violations). Under NU Lipa Handbook Section 5, repeat offenses after a prior major sanction escalate to Category 3 or Category 4 (Non-Readmission / Suspension).";
             } else {
                 $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
-                $hoursText = $suggestedCat === 2 ? "150 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+                $hoursText = $suggestedCat === 2 ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
                 $whyReason = "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix) for a 1st offense.";
             }
             
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                 . "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**). Based on the NU Lipa Student Handbook Penalty Matrix, I suggest:\n\n"
+                 . "{$recCountText} Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**:\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
