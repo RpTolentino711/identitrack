@@ -261,12 +261,51 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
 
     $studentName = $caseMeta['student_name'] ?? 'the student';
 
+    $offenseCount = count($allOffensesAnalysis);
+    if ($offenseCount > 1) {
+        $offLines = [];
+        foreach ($allOffensesAnalysis as $idx => $oa) {
+            $num = $idx + 1;
+            $offLines[] = "  {$num}. **{$oa['offense_name']}** ({$oa['offense_level']})";
+        }
+        $offensesChargedText = "• **Offenses Charged ({$offenseCount} Infractions)**:\n" . implode("\n", $offLines);
+    } else {
+        $offensesChargedText = "• **Offense Charged**: {$offName} ({$offLvl})";
+    }
+
     // 1. GREETINGS & INTRODUCTIONS — IMMEDIATELY ANALYZE & SUGGEST PUNISHMENT
     if (preg_match('/\b(hi|hello|hey|sup|yo|greetings|good morning|good afternoon|good evening|who are you|what can you do)\b/i', $promptLower)) {
         $excelCount = count($excelPrecedents);
         $totalHistoryCount = $totalPrior + $pendingCasesCount;
 
-        // PRIORITIZE HISTORICAL CAMPUS PRECEDENT MATCHES FIRST TO AVOID BIAS
+        // MULTI-OFFENSE HEARINGS: If case contains MULTIPLE charged offenses (e.g. 3 Minor offenses under Section 4)
+        if ($offenseCount > 1) {
+            $offenseBreakdownLines = [];
+            foreach ($allOffensesAnalysis as $idx => $oa) {
+                $num = $idx + 1;
+                $oN = $oa['offense_name'];
+                $oL = $oa['offense_level'];
+                $hrs = $oa['hours'];
+                $src = $oa['source_explanation'];
+                $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — *{$hrs} Hours CS* ({$src})";
+            }
+            $combinedCategory = ($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1);
+            $breakdownBlock = implode("\n", $offenseBreakdownLines);
+
+            $whyMulti = ($offenseCount >= 3)
+                ? "The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category 2 Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
+                : "The student is charged with **{$offenseCount} offenses** in this hearing. Aggregating precedent baseline hours and handbook gravity analysis across all charged infractions yields a combined **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
+
+            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                 . "📋 **Offenses Charged ({$offenseCount} Infractions)**:\n"
+                 . "{$breakdownBlock}\n\n"
+                 . "⚖️ **Suggested Combined Punishment & Advisory Recommendation**:\n\n"
+                 . "• **Suggested Punishment**: **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service + Active Probation)\n"
+                 . "• **Why? (Reason)**: {$whyMulti}\n\n"
+                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+        }
+
+        // SINGLE OFFENSE HEARINGS: PRIORITIZE HISTORICAL CAMPUS PRECEDENT MATCHES FIRST TO AVOID BIAS
         if (!empty($exactPrecedents)) {
             $mostRecent = $exactPrecedents[0];
             $catNum = (int)($mostRecent['decided_category'] ?? 2);
@@ -278,7 +317,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                  . "Based on our official campus precedent records, **to avoid bias**, a previous record shows this punishment for this exact offense (**{$offName}**):\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
-                 . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+                 . "{$offensesChargedText}\n"
                  . "• **Suggested Punishment**: **Category {$catNum} Sanction** ({$punishmentText})\n"
                  . "• **Why? (Reason)**: Historical campus precedent for this exact offense is Category {$catNum} ({$punishmentText}). Recommending this same punishment avoids bias, ensures consistency, and guarantees equal treatment under NU Lipa Disciplinary Policies.{$historyNote}\n\n"
                  . "Please let me know if you would like more details about this recommendation for {$studentName}!";
@@ -297,7 +336,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                  . "Based on our official campus precedent records, **to avoid bias**, I found **{$excelCount} matching precedent record(s)** for this offense (**{$offName}**):\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
-                 . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+                 . "{$offensesChargedText}\n"
                  . "• **Suggested Punishment**: **Category {$sCat} Sanction** ({$sancStr})\n"
                  . "• **Why? (Reason)**: Historical campus discipline records for offenses matching '{$offName}' show that students were assigned Category {$sCat} ({$sancStr}). Aligning with past campus records avoids bias and promotes standardized, impartial enforcement.{$historyNote}\n\n"
                  . "Please let me know if you would like more details about this recommendation for {$studentName}!";
@@ -319,7 +358,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "{$recCountText}\n\n"
                  . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **{$pendingCasesCount} pending case(s)** on file for **{$studentName}**.\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
-                 . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+                 . "{$offensesChargedText}\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
                  . "Please let me know if you would like more details about this recommendation for {$studentName}!";
@@ -341,7 +380,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "• **2nd Attempt**: Formal Warning, SDO Counseling & Category 1 Warning (**0 Hours CS**)\n"
                  . "• **3rd Attempt (3-Attempt Escalation Rule)**: **AUTOMATIC ESCALATION** → Converted to **Category 2 Major Offense** (**150–250 Hours CS**)\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
-                 . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+                 . "{$offensesChargedText}\n"
                  . "• **Active Student Offense Instance**: {$attemptStr} (Instance #{$instanceCount} for {$studentName})\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
@@ -355,7 +394,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
              . "{$recCountText}\n\n"
              . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
-             . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+             . "{$offensesChargedText}\n"
              . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
              . "• **Why? (Reason)**: {$whyReason}\n\n"
              . "Please let me know if you would like more details about this recommendation for {$studentName}!";
@@ -1153,8 +1192,19 @@ try {
             . "10. DO NOT MENTION FILE NAMES: Never mention specific data file names (such as SANCTION.xlsx or cache filenames) to the user; refer to them strictly as 'our official campus precedent records' or 'historical campus precedent dataset'.\n\n"
             . $dynamicRules;
 
+        $offensesContextLines = [];
+        if (!empty($allOffensesAnalysis) && count($allOffensesAnalysis) > 1) {
+            foreach ($allOffensesAnalysis as $idx => $oa) {
+                $n = $idx + 1;
+                $offensesContextLines[] = "  {$n}. {$oa['offense_name']} ({$oa['offense_level']})";
+            }
+            $offensesSummaryText = "• Current Case #{$caseId} Charged Offenses (" . count($allOffensesAnalysis) . " Infractions):\n" . implode("\n", $offensesContextLines);
+        } else {
+            $offensesSummaryText = "• Current Case #{$caseId} Offense: {$offenseName} (Level: {$offenseLevel}, Instance #{$instanceCount})";
+        }
+
         $userPrompt = "ACTIVE HEARING CASE DATA (BACKGROUND CONTEXT FOR INFERENCE ONLY):\n"
-            . "• Current Case #{$caseId} Offense: {$offenseName} (Level: {$offenseLevel}, Instance #{$instanceCount})\n"
+            . "{$offensesSummaryText}\n"
             . "• Total Major Offenses: {$totalMajorCount}\n"
             . "• Prior Resolved Cases Record:\n{$priorCasesBreakdownText}\n"
             . "• Other Pending Cases Record:\n{$pendingCasesText}\n"
@@ -1184,7 +1234,7 @@ try {
                     $aiText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                             . "Based on our official campus precedent records, **to avoid bias**, a previous record shows this punishment for this exact offense (**{$offenseName}**):\n\n"
                             . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
-                            . "• **Offense Charged**: {$offenseName} ({$offenseLevel})\n"
+                            . "{$offensesChargedText}\n"
                             . "• **Suggested Punishment**: **Category {$catNum} Sanction** ({$punishmentText})\n"
                             . "• **Why? (Reason)**: Historical campus precedent for this exact offense is Category {$catNum} ({$punishmentText}). Recommending this same punishment avoids bias, ensures consistency, and guarantees equal treatment under NU Lipa Disciplinary Policies.{$historyNote}\n\n"
                             . "Please let me know if you would like more details about this recommendation for {$studentName}!";
@@ -1204,7 +1254,7 @@ try {
                     $aiText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                             . "Based on our official campus precedent records, **to avoid bias**, I found **" . count($excelPrecedents) . " matching precedent record(s)** for this offense (**{$offenseName}**):\n\n"
                             . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
-                            . "• **Offense Charged**: {$offenseName} ({$offenseLevel})\n"
+                            . "{$offensesChargedText}\n"
                             . "• **Suggested Punishment**: **Category {$sCat} Sanction** ({$sancStr})\n"
                             . "• **Why? (Reason)**: Historical campus discipline records for offenses matching '{$offenseName}' show that students were assigned Category {$sCat} ({$sancStr}). Aligning with past campus records avoids bias and promotes standardized, impartial enforcement.{$historyNote}\n\n"
                             . "Please let me know if you would like more details about this recommendation for {$studentName}!";
@@ -1226,7 +1276,7 @@ try {
                                 . "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offenseName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.\n\n"
                                 . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **" . count($pendingCasesRows) . " pending case(s)** on file for **{$studentName}**.\n\n"
                                 . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
-                                . "• **Offense Charged**: {$offenseName} ({$offenseLevel})\n"
+                                . "{$offensesChargedText}\n"
                                 . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                                 . "• **Why? (Reason)**: {$whyReason}\n\n"
                                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
@@ -1240,7 +1290,7 @@ try {
                     $whyReason = "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix) for a 1st offense on record.";
 
                     $aiText .= "\n\n⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
-                             . "• **Offense Charged**: {$offenseName} ({$offenseLevel})\n"
+                             . "{$offensesChargedText}\n"
                              . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                              . "• **Why? (Reason)**: {$whyReason}\n\n"
                              . "Please let me know if you would like more details about this recommendation for {$studentName}!";
