@@ -1520,10 +1520,10 @@ function student_account_mode(string $studentId): array
     ];
   }
 
-  // For Category 2: if student already has ACTIVE/COMPLETED community service,
+  // For Category >= 2: if student already has ACTIVE/COMPLETED community service,
   // they accepted the decision — skip the grace period banner.
   $hasAcceptedViaService = false;
-  if ((int)($row['decided_category'] ?? 0) === 2) {
+  if ((int)($row['decided_category'] ?? 0) >= 2) {
     $csrCheck = db_one(
       "SELECT requirement_id FROM community_service_requirement
        WHERE student_id = :sid AND related_case_id = :cid
@@ -1541,8 +1541,8 @@ function student_account_mode(string $studentId): array
       // 1. Update case status to RESOLVED
       db_exec("UPDATE upcc_case SET status = 'RESOLVED', updated_at = NOW() WHERE case_id = :cid", [':cid' => $caseId]);
 
-      // 2. If Category 2, activate or merge the pending community service requirement
-      if ($category === 2) {
+      // 2. If Category >= 2, activate or merge the pending community service requirement
+      if ($category >= 2) {
           activate_or_merge_community_service_requirement($studentId, $caseId);
       }
 

@@ -181,7 +181,7 @@ try {
 
         if ($category === 1 && !empty($details['semester'])) {
             $summary .= ' Probation semester: ' . (string)$details['semester'] . '.';
-        } elseif ($category === 2 && !empty($details['interventions'])) {
+        } elseif ($category >= 2 && !empty($details['interventions'])) {
             $summary .= ' Interventions: ' . implode(', ', array_map('strval', (array)$details['interventions'])) . '.';
         }
 

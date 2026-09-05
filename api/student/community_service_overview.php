@@ -65,12 +65,12 @@ $reqs = db_all("
   ORDER BY assigned_at DESC
 ", $params);
 
-// Check if student has a Category 2 case in upcc_case
+// Check if student has a UPCC case with assigned community service hours in upcc_case
 $c2_case_params = [':sid' => $studentId];
 db_add_encryption_key($c2_case_params);
 $c2_case = db_one(
   "SELECT case_id, " . db_decrypt_col('punishment_details') . " FROM upcc_case
-   WHERE student_id = :sid AND decided_category = 2 AND status IN ('CLOSED', 'RESOLVED')
+   WHERE student_id = :sid AND decided_category >= 2 AND status IN ('CLOSED', 'RESOLVED')
    ORDER BY case_id DESC LIMIT 1",
   $c2_case_params
 );

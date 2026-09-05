@@ -205,11 +205,11 @@ $reqExistsRow = db_one(
 );
 $reqExists = (int)($reqExistsRow['cnt'] ?? 0) > 0;
 
-// Fallback to Category 2 case service hours only if no requirement exists in database yet
+// Fallback to case service hours for Category >= 2 if no requirement exists in database yet
 if (!$reqExists) {
   $c2_case = db_one(
     "SELECT punishment_details FROM upcc_case
-     WHERE student_id = :sid AND decided_category = 2 AND status = 'RESOLVED'
+     WHERE student_id = :sid AND decided_category >= 2 AND status = 'RESOLVED'
      ORDER BY case_id DESC LIMIT 1",
     [':sid' => $studentId]
   );
@@ -389,9 +389,9 @@ if ($closedCase) {
   $isResolved = $closedCase['case_status'] === 'RESOLVED';
 
   // If the student has an ACTIVE or COMPLETED community service requirement
-  // linked to this case, they have already accepted the Category 2 decision.
+  // linked to this case, they have already accepted the decision.
   $hasAcceptedViaService = false;
-  if ((int)$closedCase['decided_category'] === 2) {
+  if ((int)$closedCase['decided_category'] >= 2) {
     $csrRow = db_one(
       "SELECT requirement_id FROM community_service_requirement
        WHERE student_id = :sid AND related_case_id = :cid

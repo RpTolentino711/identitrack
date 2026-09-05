@@ -309,11 +309,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         $details['probation_terms'] = max(1, min(3, $terms));
                         $probationUntil = date('Y-m-d H:i:s', strtotime('+' . ($details['probation_terms'] * 6) . ' months'));
 
-                    } elseif ($category === 2) {
+                    } elseif ($category >= 2) {
                         $details['interventions'] = [];
-                        if (isset($_POST['cat2_university_service'])) {
+                        if (isset($_POST['cat2_university_service']) || !empty($_POST['service_hours'])) {
                             $details['interventions'][] = 'University Service';
-                            $hrs = trim((string)($_POST['cat2_service_hours'] ?? ''));
+                            $hrs = trim((string)($_POST['cat2_service_hours'] ?? $_POST['service_hours'] ?? ''));
                             if ($hrs === 'OTHER' || !in_array($hrs, ['100','150','200','250','300','350','400','450','500'], true)) {
                                 $hVal = trim((string)($_POST['cat2_service_hours_custom_h'] ?? ''));
                                 $mVal = trim((string)($_POST['cat2_service_hours_custom_m'] ?? ''));
@@ -324,7 +324,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             $details['service_hours'] = is_numeric($hrs) ? (float)$hrs : 0.0;
                         }
                         if (isset($_POST['cat2_counseling']))   $details['interventions'][] = 'Referral for Counseling';
-                        if (isset($_POST['cat2_lectures']))     $details['interventions'][] = 'Attendance to lectures';
+                        if (isset($_POST['cat2_lectures']))     $details['interventions'][] = 'Attendance to Discipline Education Program';
                         if (isset($_POST['cat2_evaluation']))   $details['interventions'][] = 'Evaluation';
 
                     } else {
@@ -348,7 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 record_finalized_case_to_historical_dataset((int)$case_id);
 
                 $previousOngoingHours = null;
-                if ($category === 2 && !empty($details['service_hours'])) {
+                if ($category >= 2 && !empty($details['service_hours'])) {
                     $activeReq = db_one(
                         "SELECT requirement_id, hours_required FROM community_service_requirement WHERE student_id = :sid AND status = 'ACTIVE' LIMIT 1",
                         [':sid' => $case['student_id']]

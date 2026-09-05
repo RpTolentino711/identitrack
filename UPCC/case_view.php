@@ -188,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sugge
             $terms = (int)($_POST['suggest_cat1_terms'] ?? 3);
             $terms = max(1, min(3, $terms));
             $voteDetails['probation_terms'] = $terms;
-        } elseif ($category === 2) {
+        } elseif ($category >= 2) {
             $voteDetails['interventions'] = [];
             if (!empty($_POST['suggest_cat2_university_service'])) {
                 $voteDetails['interventions'][] = 'University Service';
@@ -203,10 +203,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sugge
                 $voteDetails['service_hours'] = is_numeric($hrs) ? (float)$hrs : 0.0;
             }
             if (!empty($_POST['suggest_cat2_counseling']))  $voteDetails['interventions'][] = 'Referral for Counseling';
-            if (!empty($_POST['suggest_cat2_lectures']))    $voteDetails['interventions'][] = 'Attendance to lectures';
+            if (!empty($_POST['suggest_cat2_lectures']))    $voteDetails['interventions'][] = 'Attendance to Discipline Education Program';
             if (!empty($_POST['suggest_cat2_evaluation']))  $voteDetails['interventions'][] = 'Evaluation';
         }
-        // Cat 3/4/5 — no extra input, punishment is fixed by policy
+        // Cat 3/4/5 — include rationale / notes
         $voteDetails['description'] = trim((string)($_POST['suggest_description'] ?? ''));
 
         // Create round
@@ -430,14 +430,21 @@ function _closeRound(int $caseId, int $roundNo): void {
 }
 
 function _catLabel(int $cat, array $details = []): string {
+    $hrsStr = !empty($details['service_hours']) && (float)$details['service_hours'] > 0
+        ? ' (' . (float)$details['service_hours'] . ' Hours CS)'
+        : '';
+    $interventionsList = !empty($details['interventions']) && is_array($details['interventions'])
+        ? ' (' . implode(', ', $details['interventions']) . ')'
+        : '';
+
     $labels = [
         1 => 'Category 1 — Probation (' . ($details['probation_terms'] ?? 3) . ' terms)',
-        2 => 'Category 2 — Formative Intervention (' . implode(', ', $details['interventions'] ?? []) . ')',
-        3 => 'Category 3 — Non-Readmission',
-        4 => 'Category 4 — Exclusion',
-        5 => 'Category 5 — Expulsion',
+        2 => 'Category 2 — Formative Intervention' . $interventionsList . $hrsStr,
+        3 => 'Category 3 — Non-Readmission / Suspension' . $interventionsList . $hrsStr,
+        4 => 'Category 4 — Exclusion / Mandatory Dismissal' . $interventionsList . $hrsStr,
+        5 => 'Category 5 — Expulsion & Police Referral' . $interventionsList . $hrsStr,
     ];
-    return $labels[$cat] ?? "Category {$cat}";
+    return $labels[$cat] ?? "Category {$cat}{$hrsStr}";
 }
 
 /**
@@ -568,7 +575,7 @@ function _checkAndFinalizeConsensus(int $caseId, int $roundNo, array $assignedPa
                     'instance_number' => max(1, (int)($instRow['cnt'] ?? 1)),
                     'prior_total_offenses' => max(0, (int)($priorRow['cnt'] ?? 1) - 1),
                     'decided_category' => $consensusCategory,
-                    'recommended_hours' => $consensusCategory === 2 ? $votedHours : 0,
+                    'recommended_hours' => $votedHours > 0 ? $votedHours : ($consensusCategory === 3 ? 300 : ($consensusCategory === 2 ? 150 : 0)),
                     'probation_days' => 90,
                     'handbook_citation' => "NU Lipa Student Handbook Section " . ($consensusCategory === 2 ? "4.2" : ($consensusCategory === 1 ? "3.1" : "4")),
                     'case_summary' => "UPCC Panel Consensus Precedent Case #" . $caseId,
@@ -2248,17 +2255,20 @@ function toggleSugFields() {
     const show = id => { const el = document.getElementById(id); if (el) el.style.display = 'block'; };
     const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
     hide('sugCat1'); hide('sugCat2'); hide('sugCat345');
-    if (v === 1) show('sugCat1');
-    else if (v === 2) show('sugCat2');
-    else if (v >= 3 && v <= 5) {
-        show('sugCat345');
-        const texts = {
-            3: 'Non-Readmission: The student cannot enroll next term but may finish the current one.',
-            4: 'Exclusion: The student will be dropped from the roll immediately upon promulgation.',
-            5: 'Expulsion: The student will be permanently disqualified from all higher education.',
-        };
-        const t = document.getElementById('sugCat345Text');
-        if (t) t.textContent = texts[v] || '';
+    if (v === 1) {
+        show('sugCat1');
+    } else if (v >= 2 && v <= 5) {
+        show('sugCat2');
+        if (v >= 3) {
+            show('sugCat345');
+            const texts = {
+                3: 'Category 3 — Non-Readmission / Suspension (250–400 Hours Community Service or 1 Term Suspension).',
+                4: 'Category 4 — Exclusion / Mandatory Dismissal (400+ Hours Community Service or Exclusion).',
+                5: 'Category 5 — Summary Expulsion & Police Referral.',
+            };
+            const t = document.getElementById('sugCat345Text');
+            if (t) t.textContent = texts[v] || '';
+        }
     }
 }
 
