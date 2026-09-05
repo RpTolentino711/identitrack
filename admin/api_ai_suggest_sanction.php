@@ -290,14 +290,20 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         $offLines = [];
         foreach ($allOffensesAnalysis as $idx => $oa) {
             $num = $idx + 1;
-            $cStr = $oa['cases_str'] ?? 'cases - 0';
-            $offLines[] = "  {$num}. **{$oa['offense_name']}** ({$oa['offense_level']}) — **{$cStr}**";
+            $mCount = (int)($oa['dataset_match_count'] ?? 0);
+            $rTag = "record - {$mCount}";
+            $offLines[] = "  {$num}. **{$oa['offense_name']}** ({$oa['offense_level']}) — **{$rTag}**";
         }
         $offensesChargedText = "• **Offenses Charged ({$offenseCount} Infractions)**:\n" . implode("\n", $offLines);
+        $recCountText = "I analyzed our campus precedent dataset records for all **{$offenseCount} charged offenses** in this hearing.";
     } else {
         $firstAnalysis = $allOffensesAnalysis[0] ?? null;
-        $cStr = $firstAnalysis['cases_str'] ?? (count($excelPrecedents) > 0 ? "cases - " . count($excelPrecedents) : "cases - 0");
-        $offensesChargedText = "• **Offense Charged**: {$offName} ({$offLvl}) — **{$cStr}**";
+        $mCount = (int)($firstAnalysis['dataset_match_count'] ?? (count($excelPrecedents) + count($exactPrecedents)));
+        $rTag = "record - {$mCount}";
+        $offensesChargedText = "• **Offense Charged**: {$offName} ({$offLvl}) — **{$rTag}**";
+        $recCountText = ($mCount > 0)
+            ? "I checked our official campus precedent records and **found {$mCount} matching precedent record(s) in historical dataset (record - {$mCount})** for this offense (**{$offName}**)."
+            : "I analyzed our campus precedent records and **found no prior record in historical dataset (record - 0)** for this specific offense (**{$offName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.";
     }
 
     // 1. GREETINGS & INTRODUCTIONS — IMMEDIATELY ANALYZE & SUGGEST PUNISHMENT
@@ -385,7 +391,9 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         }
 
         // 3. 0-PRECEDENT 1ST-TIME OFFENDER HANDBOOK EVALUATION
-        $recCountText = "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.";
+        if (empty($recCountText)) {
+            $recCountText = "I analyzed our campus precedent records and **found no prior record in historical dataset (record - 0)** for this specific offense (**{$offName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.";
+        }
 
         if ($totalHistoryCount > 0) {
             $suggestedCat = ($totalHistoryCount >= 2) ? 4 : 3;
@@ -1018,7 +1026,7 @@ try {
         }
         $dbMatchesForThis = getExactPrecedents($oId, $caseId, 50);
         $totalDatasetMatchCount = count($excelMatchesForThis) + count($dbMatchesForThis);
-        $casesStr = "cases - {$totalDatasetMatchCount}";
+        $casesStr = "record - {$totalDatasetMatchCount}";
 
         $matchedHours = null;
         $matchedSource = null;
@@ -1474,8 +1482,12 @@ try {
                         if (!preg_match('/Category ' . $suggestedCat . '/i', $aiText) || !preg_match('/Suggested Punishment|Category \d Sanction/i', $aiText)) {
                             $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, count($pendingCasesRows), $priorCasesBreakdownText, $pendingCasesText, $studentName);
 
+                            $recCountText = ($offenseCount > 1)
+                                ? "I analyzed our campus precedent dataset records for all **{$offenseCount} charged offenses** in this hearing."
+                                : "I analyzed our campus precedent records and **found no prior record in historical dataset (record - 0)** for this specific offense (**{$offenseName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.";
+
                             $aiText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                                    . "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offenseName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.\n\n"
+                                    . "{$recCountText}\n\n"
                                     . "{$historyBlock}\n\n"
                                     . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                                     . "{$offensesChargedText}\n"
