@@ -283,11 +283,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         if ($totalHistoryCount > 0) {
             $suggestedCat = ($totalHistoryCount >= 2) ? 4 : 3;
             $hoursText = ($suggestedCat >= 4)
-                ? "Mandatory Exclusion / Dismissal / Category 4 Sanction (400+ Hours CS)"
-                : "250–400 Hours Community Service / 1 Term Non-Readmission (Suspension)";
+                ? "Mandatory Exclusion / Non-Readmission"
+                : "250 to 400 Hours Community Service";
             $whyReason = ($totalHistoryCount >= 2)
-                ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Dismissal / Expulsion)."
-                : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension / Non-Readmission).";
+                ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
+                : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                  . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **{$pendingCasesCount} pending case(s)** on file for **{$studentName}**.\n\n"
@@ -295,7 +295,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
-                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
 
         // MULTI-OFFENSE HEARINGS: If case contains MULTIPLE charged offenses (e.g. 3 Minor offenses under Section 4) for 1st-time offenders
@@ -322,7 +322,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "⚖️ **Suggested Combined Punishment & Advisory Recommendation**:\n\n"
                  . "• **Suggested Punishment**: **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service + Active Probation)\n"
                  . "• **Why? (Reason)**: {$whyMulti}\n\n"
-                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
 
         // 2. 1ST-TIME OFFENDER HEARINGS: CHECK HISTORICAL CAMPUS PRECEDENTS FOR BASELINE
@@ -337,7 +337,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "{$offensesChargedText}\n"
                  . "• **Suggested Punishment**: **Category {$catNum} Sanction** ({$punishmentText})\n"
                  . "• **Why? (Reason)**: Historical campus precedent for this exact offense is Category {$catNum} ({$punishmentText}). Recommending this same punishment avoids bias, ensures consistency, and guarantees equal treatment under NU Lipa Disciplinary Policies.\n\n"
-                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
 
         if (!empty($excelPrecedents)) {
@@ -353,7 +353,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "{$offensesChargedText}\n"
                  . "• **Suggested Punishment**: **Category {$sCat} Sanction** ({$sancStr})\n"
                  . "• **Why? (Reason)**: Historical campus discipline records for offenses matching '{$offName}' show that students were assigned Category {$sCat} ({$sancStr}). Aligning with past campus records avoids bias and promotes standardized, impartial enforcement.\n\n"
-                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
 
         // 3. 0-PRECEDENT 1ST-TIME OFFENDER HANDBOOK EVALUATION
@@ -362,11 +362,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         if ($totalHistoryCount > 0) {
             $suggestedCat = ($totalHistoryCount >= 2) ? 4 : 3;
             $hoursText = ($suggestedCat >= 4)
-                ? "Mandatory Exclusion / Dismissal / Category 4 Sanction (400+ Hours CS)"
-                : "250–400 Hours Community Service / 1 Term Non-Readmission (Suspension)";
+                ? "Mandatory Exclusion / Non-Readmission"
+                : "250 to 400 Hours Community Service";
             $whyReason = ($totalHistoryCount >= 2)
-                ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Dismissal / Expulsion)."
-                : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension / Non-Readmission).";
+                ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
+                : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                  . "{$recCountText}\n\n"
@@ -375,7 +375,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "{$offensesChargedText}\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
-                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
 
         if ($offLvl === 'MINOR') {
@@ -398,7 +398,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "• **Active Student Offense Instance**: {$attemptStr} (Instance #{$instanceCount} for {$studentName})\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
-                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
 
         $suggestedCat = ($offLvl === 'MAJOR') ? 2 : 1;
@@ -411,7 +411,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "{$offensesChargedText}\n"
              . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
              . "• **Why? (Reason)**: {$whyReason}\n\n"
-             . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+             . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
     }
 
     // 2. SIMILAR CASES & PRECEDENT SEARCH INQUIRY
@@ -462,12 +462,12 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                      . "• **Active Student Offense Instance**: {$attemptStr} (Instance #{$instanceCount} for {$studentName})\n"
                      . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                      . "• **Why? (Reason)**: {$whyReason}\n\n"
-                     . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                     . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
             }
 
             if ($totalPrior > 0) {
                 $suggestedCat = 3;
-                $hoursText = "250–400 Hours Community Service / 1 Term Non-Readmission";
+                $hoursText = "250 to 400 Hours Community Service";
                 $whyReason = "The student has {$totalPrior} prior resolved case(s) on file. Under NU Lipa Handbook Section 5, repeat offenses after a prior sanction escalate to Category 3 or Category 4 (Non-Readmission / Suspension).";
             } else {
                 $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
@@ -481,7 +481,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
-                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
     }
 
@@ -493,8 +493,8 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         if ($totalHistoryCount > 0) {
             $suggestedCat = ($totalHistoryCount >= 2) ? 4 : 3;
             $hoursText = ($suggestedCat >= 4)
-                ? "Mandatory Exclusion / Dismissal / Category 4 Sanction (400+ Hours CS)"
-                : "250–400 Hours Community Service / 1 Term Non-Readmission (Suspension)";
+                ? "Mandatory Exclusion / Non-Readmission"
+                : "250 to 400 Hours Community Service";
 
             $historyDetails = [];
             if ($totalPrior > 0) {
@@ -506,8 +506,8 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             $historyDetailsText = implode(' and ', $historyDetails);
 
             $whyReason = ($totalHistoryCount >= 2)
-                ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Dismissal / Expulsion)."
-                : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension / Non-Readmission).";
+                ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
+                : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                  . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **{$pendingCasesCount} pending case(s)** on file for **{$studentName}**.\n\n"
@@ -515,7 +515,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
-                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
 
         // 2. MULTI-OFFENSE HEARINGS (0 Prior History)
@@ -554,7 +554,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "📋 **Offense Breakdown & Precedent Aggregation**:\n"
                  . "{$breakdownBlock}\n\n"
                  . "💡 **Why? (Reason)**: {$whyMultiReason}\n\n"
-                 . "Let me know if you would like me to adjust any office assignments or handbook details for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
 
         // 3. 1ST-TIME OFFENDER PRECEDENT CHECKS (0 Prior History)
@@ -569,7 +569,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                  . "• **Historical Campus Precedent**: Previous decided case(s) for this exact offense were assigned **Category {$catNum} Sanction**.\n"
                  . "• **Why? (Reason)**: Historical campus precedent for this exact offense is Category {$catNum} ({$punishmentText}). Recommending this same punishment avoids bias, ensures consistency, and guarantees equal treatment under NU Lipa Disciplinary Policies.\n\n"
-                 . "Would you like me to check any other handbook details or prior case records for {$studentName}?";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         } elseif (!empty($excelPrecedents)) {
             $firstExcelMatch = $excelPrecedents[0];
             $sancStr = $firstExcelMatch['sanction'] ?? 'FORMATIVE INTERVENTION';
@@ -584,7 +584,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                  . "• **Historical Campus Precedents Found**: {$excelCount} matching historical precedent record(s).\n"
                  . "• **Why? (Reason)**: Historical campus discipline records for offenses matching '{$offName}' show that students were assigned **Category {$sCat} Sanction** ({$sancStr}). Aligning with past records avoids bias and promotes standardized, impartial enforcement.\n\n"
-                 . "Let me know if you want me to review additional handbook clauses for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         } else {
             $excelCount = count($excelPrecedents);
             $recCountText = ($excelCount > 0)
@@ -596,11 +596,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             if ($totalHistoryCount > 0) {
                 $suggestedCat = ($totalHistoryCount >= 2) ? 4 : 3;
                 $hoursText = ($suggestedCat >= 4)
-                    ? "Mandatory Exclusion / Dismissal / Category 4 Sanction (400+ Hours CS)"
-                    : "250–400 Hours Community Service / 1 Term Non-Readmission (Suspension)";
+                    ? "Mandatory Exclusion / Non-Readmission"
+                    : "250 to 400 Hours Community Service";
                 $whyReason = ($totalHistoryCount >= 2)
-                    ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Dismissal / Expulsion)."
-                    : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension / Non-Readmission).";
+                    ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
+                    : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
                 return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                      . "{$recCountText}\n\n"
@@ -609,7 +609,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                      . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                      . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                      . "• **Why? (Reason)**: {$whyReason}\n\n"
-                     . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                     . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
             }
 
             if ($offLvl === 'MINOR') {
@@ -632,7 +632,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                      . "• **Active Student Offense Instance**: {$attemptStr} (Instance #{$instanceCount} for {$studentName})\n"
                      . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                      . "• **Why? (Reason)**: {$whyReason}\n\n"
-                     . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                     . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
             }
 
             $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
@@ -645,7 +645,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
-                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
     }
 
@@ -1058,7 +1058,7 @@ try {
         if ($totalHistoryCount > 0) {
             $suggestedCategory = ($totalHistoryCount >= 2) ? 4 : 3;
             $hoursText = ($suggestedCategory >= 4)
-                ? "Mandatory Exclusion / Dismissal / Category 4 Sanction (400+ Hours CS)"
+                ? "Mandatory Exclusion / Non-Readmission / Summary Expulsion"
                 : "250–400 Hours Community Service / 1 Term Non-Readmission (Suspension)";
 
             $historyDetails = [];
@@ -1071,8 +1071,8 @@ try {
             $historyDetailsText = implode(' and ', $historyDetails);
 
             $whyReason = ($totalHistoryCount >= 2)
-                ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Dismissal / Expulsion)."
-                : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension / Non-Readmission).";
+                ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
+                : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
             $aiExplanationText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                 . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **" . count($pendingCasesRows) . " pending case(s)** on file for **{$studentName}**.\n\n"
@@ -1080,7 +1080,7 @@ try {
                 . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                 . "• **Suggested Punishment**: **Category {$suggestedCategory} Sanction** ({$hoursText} + Active Probation)\n"
                 . "• **Why? (Reason)**: {$whyReason}\n\n"
-                . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
 
             echo json_encode([
                 'ok' => true,
@@ -1274,7 +1274,7 @@ try {
             . "   b) TIER 2 - HANDBOOK MATRIX & REPEAT OFFENDER ESCALATION (ONLY FOR 0-PRECEDENT CASES):\n"
             . "      • IF NO MATCHING PRECEDENT RECORDS EXIST in campus dataset (0-precedent case): State clearly that no prior record exists for this specific offense, then evaluate against NU Lipa Student Handbook:\n"
             . "        - IF STUDENT HAS 1 PRIOR RESOLVED CASE OR 1 PENDING CASE: Escalate to CATEGORY 3 SANCTION (250–400 Hours CS / Suspension / 1 Term Non-Readmission).\n"
-            . "        - IF STUDENT HAS 2 OR MORE PRIOR RESOLVED/PENDING CASES: Escalate to CATEGORY 4 OR CATEGORY 5 SANCTION (Mandatory Exclusion / Dismissal / Summary Expulsion).\n"
+            . "        - IF STUDENT HAS 2 OR MORE PRIOR RESOLVED/PENDING CASES: Escalate to CATEGORY 4 OR CATEGORY 5 SANCTION (Mandatory Exclusion / Non-Readmission / Summary Expulsion).\n"
             . "        - IF STUDENT HAS 0 PRIOR RESOLVED AND 0 PENDING CASES (1st Offense): Apply Section 4 Minor Violations Matrix (Cat 1 for Attempt 1/2, Cat 2 for Attempt 3+) or Section 5 Major Violations Matrix (Cat 2 for Major 1st Offense 150–250 Hours CS).\n"
             . "   c) ALWAYS INCLUDE A CLEAR 'Why? (Reason)' EXPLANATION grounded in precedence or handbook rules.\n"
             . "5. ANSWER ONLY WHAT IS ASKED: Answer the panel member's specific question directly, conversationally, and naturally. DO NOT prepend or append active student file summaries, background context headers, handbook matrix blocks, or community service logs to your answer unless explicitly asked.\n"
@@ -1333,11 +1333,11 @@ try {
                 if ($totalDisciplinaryHistory > 0) {
                     $suggestedCat = ($totalDisciplinaryHistory >= 2) ? 4 : 3;
                     $hoursText = ($suggestedCat >= 4)
-                        ? "Mandatory Exclusion / Dismissal / Category 4 Sanction (400+ Hours CS)"
-                        : "250–400 Hours Community Service / 1 Term Non-Readmission (Suspension)";
+                        ? "Mandatory Exclusion / Non-Readmission"
+                        : "250 to 400 Hours Community Service";
                     $whyReason = ($totalDisciplinaryHistory >= 2)
-                        ? "The student is charged with {$offenseCount} offenses in this hearing AND has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file (total {$totalDisciplinaryHistory} prior records). Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Dismissal / Expulsion)."
-                        : "The student is charged with {$offenseCount} offenses in this hearing AND has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file. Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions escalate to Category 3 (250–400 Hours CS / Suspension / Non-Readmission).";
+                        ? "The student is charged with {$offenseCount} offenses in this hearing AND has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file (total {$totalDisciplinaryHistory} prior records). Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
+                        : "The student is charged with {$offenseCount} offenses in this hearing AND has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file. Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions escalate to Category 3 (250–400 Hours CS / Suspension).";
 
                     $aiText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                             . "📋 **Offenses Charged ({$offenseCount} Infractions)**:\n"
@@ -1346,7 +1346,7 @@ try {
                             . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                             . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                             . "• **Why? (Reason)**: {$whyReason}\n\n"
-                            . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                            . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
                 } else {
                     $whyMulti = ($offenseCount >= 3)
                         ? "The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category 2 Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
@@ -1358,7 +1358,7 @@ try {
                             . "⚖️ **Suggested Combined Punishment & Advisory Recommendation**:\n\n"
                             . "• **Suggested Punishment**: **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service + Active Probation)\n"
                             . "• **Why? (Reason)**: {$whyMulti}\n\n"
-                            . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                            . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
                 }
             } else {
                 // TIER 1: Check if historical precedents exist FIRST (Single Offense)
@@ -1378,7 +1378,7 @@ try {
                                 . "{$offensesChargedText}\n"
                                 . "• **Suggested Punishment**: **Category {$catNum} Sanction** ({$punishmentText})\n"
                                 . "• **Why? (Reason)**: Historical campus precedent for this exact offense is Category {$catNum} ({$punishmentText}). Recommending this same punishment avoids bias, ensures consistency, and guarantees equal treatment under NU Lipa Disciplinary Policies.{$historyNote}\n\n"
-                                . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                                . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
                     }
                 } elseif (!empty($excelPrecedents)) {
                     $firstExcelMatch = $excelPrecedents[0];
@@ -1398,19 +1398,19 @@ try {
                                 . "{$offensesChargedText}\n"
                                 . "• **Suggested Punishment**: **Category {$sCat} Sanction** ({$sancStr})\n"
                                 . "• **Why? (Reason)**: Historical campus discipline records for offenses matching '{$offenseName}' show that students were assigned Category {$sCat} ({$sancStr}). Aligning with past campus records avoids bias and promotes standardized, impartial enforcement.{$historyNote}\n\n"
-                                . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                                . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
                     }
                 } else {
                     // TIER 2: 0-Precedent Cases -> Evaluate Handbook & Disciplinary History Escalation
                     if ($totalDisciplinaryHistory > 0) {
                         $suggestedCat = ($totalDisciplinaryHistory >= 2) ? 4 : 3;
                         $hoursText = ($suggestedCat >= 4)
-                            ? "Mandatory Exclusion / Dismissal / Category 4 Sanction (400+ Hours CS)"
-                            : "250–400 Hours Community Service / 1 Term Non-Readmission (Suspension)";
+                            ? "Mandatory Exclusion / Non-Readmission"
+                            : "250 to 400 Hours Community Service";
 
                         $whyReason = ($totalDisciplinaryHistory >= 2)
-                            ? "The student has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file (total {$totalDisciplinaryHistory} prior records). Under NU Lipa Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Dismissal / Expulsion)."
-                            : "The student has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file. Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension / Non-Readmission).";
+                            ? "The student has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file (total {$totalDisciplinaryHistory} prior records). Under NU Lipa Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
+                            : "The student has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file. Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
                         if (!preg_match('/Category ' . $suggestedCat . '/i', $aiText) || !preg_match('/Suggested Punishment|Category \d Sanction/i', $aiText)) {
                             $aiText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
@@ -1420,7 +1420,7 @@ try {
                                     . "{$offensesChargedText}\n"
                                     . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                                     . "• **Why? (Reason)**: {$whyReason}\n\n"
-                                    . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                                    . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
                         }
                     } elseif (!preg_match('/Suggested Punishment|Category \d Sanction/i', $aiText)) {
                         $aiText = preg_replace('/Would you like me to analyze.*$/i', '', $aiText);
@@ -1434,7 +1434,7 @@ try {
                                  . "{$offensesChargedText}\n"
                                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                                  . "• **Why? (Reason)**: {$whyReason}\n\n"
-                                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+                                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
                     }
                 }
             }
