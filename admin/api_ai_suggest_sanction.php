@@ -239,6 +239,29 @@ function callGroqApi(string $sysPrompt, string $userPrompt): ?string
 }
 
 /**
+ * Formats a clean, readable student disciplinary history block including all prior resolved
+ * and pending minor/major offenses committed by the student on record.
+ */
+function formatStudentDisciplinaryHistoryBlock(int $totalPrior, int $pendingCount, string $priorCasesText, string $pendingCasesText, string $studentName): string
+{
+    $header = "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **{$pendingCount} pending case(s)** on file for **{$studentName}**";
+    
+    $listItems = [];
+    if (!empty($priorCasesText) && $priorCasesText !== "No prior resolved UPCC cases on file.") {
+        $listItems[] = $priorCasesText;
+    }
+    if (!empty($pendingCasesText) && $pendingCasesText !== "No other pending cases on file.") {
+        $listItems[] = $pendingCasesText;
+    }
+
+    if (!empty($listItems)) {
+        return $header . ":\n" . implode("\n", $listItems);
+    }
+    
+    return $header . ".";
+}
+
+/**
  * Built-In System AI Hearing Advisory Engine (Conversational Knowledge Base Fallback)
  * Directly answers the user's question without dumping active student file headers or handbook matrix blocks.
  */
@@ -289,8 +312,10 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
                 : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
+            $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, $pendingCasesCount, $priorCasesText, $pendingCasesText, $studentName);
+
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                 . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **{$pendingCasesCount} pending case(s)** on file for **{$studentName}**.\n\n"
+                 . "{$historyBlock}\n\n"
                  . "{$offensesChargedText}\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
@@ -368,9 +393,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
                 : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
+            $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, $pendingCasesCount, $priorCasesText, $pendingCasesText, $studentName);
+
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                  . "{$recCountText}\n\n"
-                 . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **{$pendingCasesCount} pending case(s)** on file for **{$studentName}**.\n\n"
+                 . "{$historyBlock}\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "{$offensesChargedText}\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
@@ -509,8 +536,10 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
                 : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
+            $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, $pendingCasesCount, $priorCasesText, $pendingCasesText, $studentName);
+
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                 . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **{$pendingCasesCount} pending case(s)** on file for **{$studentName}**.\n\n"
+                 . "{$historyBlock}\n\n"
                  . "{$offensesChargedText}\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
@@ -602,9 +631,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                     ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
                     : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
+                $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, $pendingCasesCount, $priorCasesText, $pendingCasesText, $studentName);
+
                 return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                      . "{$recCountText}\n\n"
-                     . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **{$pendingCasesCount} pending case(s)** on file for **{$studentName}**.\n\n"
+                     . "{$historyBlock}\n\n"
                      . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                      . "• **Offense Charged**: {$offName} ({$offLvl})\n"
                      . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
@@ -844,11 +875,17 @@ try {
         [':sid' => $targetStudentId, ':otid' => $offenseTypeId]) : ['cnt' => 1];
     $instanceCount = max(1, (int)($instanceCountRow['cnt'] ?? 1));
 
-    // ── Detailed Prior Resolved Cases Breakdown (Strictly Confidential: NO Offense Action Descriptions) ──
+    // ── Detailed Prior Resolved Cases Breakdown (Includes Offense Names) ──
     $priorCasesWithCat = $targetStudentId !== '' ? db_all("
-        SELECT c.case_id, c.decided_category, c.punishment_details, c.status, c.created_at
+        SELECT c.case_id, c.decided_category, c.punishment_details, c.status, c.created_at,
+               GROUP_CONCAT(DISTINCT ot.name SEPARATOR ', ') as offense_names,
+               GROUP_CONCAT(DISTINCT ot.level SEPARATOR ', ') as offense_levels
         FROM upcc_case c
+        LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
+        LEFT JOIN offense o ON o.offense_id = uco.offense_id
+        LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
         WHERE c.student_id = :sid AND c.case_id != :cid AND c.status IN ('RESOLVED', 'CLOSED', 'DECIDED')
+        GROUP BY c.case_id
         ORDER BY c.case_id DESC
     ", [':sid' => $targetStudentId, ':cid' => $caseId]) : [];
 
@@ -863,11 +900,17 @@ try {
     ", [':sid' => $targetStudentId, ':cid' => $caseId]) : ['cnt' => 0];
     $totalMajorCount = (int)($totalMajorRow['cnt'] ?? 0);
 
-    // ── Pending / Ongoing Cases Lookup (Strictly Confidential: NO Offense Action Descriptions) ──
+    // ── Pending / Ongoing Cases Lookup (Includes Offense Names) ──
     $pendingCasesRows = $targetStudentId !== '' ? db_all("
-        SELECT c.case_id, c.status
+        SELECT c.case_id, c.status,
+               GROUP_CONCAT(DISTINCT ot.name SEPARATOR ', ') as offense_names,
+               GROUP_CONCAT(DISTINCT ot.level SEPARATOR ', ') as offense_levels
         FROM upcc_case c
+        LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
+        LEFT JOIN offense o ON o.offense_id = uco.offense_id
+        LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
         WHERE c.student_id = :sid AND c.case_id != :cid AND c.status NOT IN ('RESOLVED', 'CLOSED', 'DECIDED', 'CANCELLED', 'DISMISSED')
+        GROUP BY c.case_id
         ORDER BY c.case_id DESC
     ", [':sid' => $targetStudentId, ':cid' => $caseId]) : [];
 
@@ -875,7 +918,8 @@ try {
     if (!empty($pendingCasesRows)) {
         $pLines = [];
         foreach ($pendingCasesRows as $pc) {
-            $pLines[] = "  • Case #{$pc['case_id']} (Pending Hearing)";
+            $offNameStr = !empty($pc['offense_names']) ? " — **{$pc['offense_names']}**" : "";
+            $pLines[] = "  • Case #{$pc['case_id']}{$offNameStr} (Pending Hearing)";
         }
         $pendingCasesText = implode("\n", $pLines);
     }
@@ -888,7 +932,8 @@ try {
             $catVal = !empty($pc['decided_category']) ? "Category {$pc['decided_category']} Sanction" : "Sanction Decided";
             $punDetails = formatPunishmentDetails((string)($pc['punishment_details'] ?? ''));
             $punStr = ($punDetails !== 'n/a' && $punDetails !== '') ? " ({$punDetails})" : "";
-            $lines[] = "  • Case #{$cId}: {$catVal}{$punStr}";
+            $offNameStr = !empty($pc['offense_names']) ? " — **{$pc['offense_names']}**" : "";
+            $lines[] = "  • Case #{$cId}:{$offNameStr} ({$catVal}{$punStr})";
         }
         $priorCasesBreakdownText = implode("\n", $lines);
     }
@@ -1074,8 +1119,10 @@ try {
                 ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
                 : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
+            $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, count($pendingCasesRows), $priorCasesBreakdownText, $pendingCasesText, $studentName);
+
             $aiExplanationText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **" . count($pendingCasesRows) . " pending case(s)** on file for **{$studentName}**.\n\n"
+                . "{$historyBlock}\n\n"
                 . "{$offensesChargedText}\n\n"
                 . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                 . "• **Suggested Punishment**: **Category {$suggestedCategory} Sanction** ({$hoursText} + Active Probation)\n"
@@ -1339,10 +1386,12 @@ try {
                         ? "The student is charged with {$offenseCount} offenses in this hearing AND has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file (total {$totalDisciplinaryHistory} prior records). Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
                         : "The student is charged with {$offenseCount} offenses in this hearing AND has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file. Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions escalate to Category 3 (250–400 Hours CS / Suspension).";
 
+                    $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, count($pendingCasesRows), $priorCasesBreakdownText, $pendingCasesText, $studentName);
+
                     $aiText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                             . "📋 **Offenses Charged ({$offenseCount} Infractions)**:\n"
                             . "{$breakdownBlock}\n\n"
-                            . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **" . count($pendingCasesRows) . " pending case(s)** on file for **{$studentName}**.\n\n"
+                            . "{$historyBlock}\n\n"
                             . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                             . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
                             . "• **Why? (Reason)**: {$whyReason}\n\n"
@@ -1413,9 +1462,11 @@ try {
                             : "The student has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file. Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
 
                         if (!preg_match('/Category ' . $suggestedCat . '/i', $aiText) || !preg_match('/Suggested Punishment|Category \d Sanction/i', $aiText)) {
+                            $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, count($pendingCasesRows), $priorCasesBreakdownText, $pendingCasesText, $studentName);
+
                             $aiText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
                                     . "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offenseName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.\n\n"
-                                    . "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **" . count($pendingCasesRows) . " pending case(s)** on file for **{$studentName}**.\n\n"
+                                    . "{$historyBlock}\n\n"
                                     . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                                     . "{$offensesChargedText}\n"
                                     . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
