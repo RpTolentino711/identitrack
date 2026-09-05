@@ -291,9 +291,23 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . implode("\n", $lines) . "\n\n"
                  . "💡 **Why? (Reason)**: Following prior decided records avoids bias, maintains equal treatment, and guarantees procedural fairness under NU Lipa Disciplinary Policies.";
         } else {
+            if ($totalPrior > 0) {
+                $suggestedCat = 3;
+                $hoursText = "250–400 Hours Community Service / 1 Term Non-Readmission";
+                $whyReason = "The student has {$totalPrior} prior resolved case(s) on file. Under NU Lipa Handbook Section 5, repeat offenses after a prior sanction escalate to Category 3 or Category 4 (Non-Readmission / Suspension).";
+            } else {
+                $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
+                $hoursText = $suggestedCat === 2 ? "150 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+                $whyReason = "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix) for a 1st offense.";
+            }
+
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                 . "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**). This is a new or rare infraction on record, so recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.\n\n"
-                 . "Would you like me to analyze the handbook penalty options for {$studentName}?";
+                 . "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**). This is a new or rare infraction on record, so recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**:\n\n"
+                 . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
+                 . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+                 . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
+                 . "• **Why? (Reason)**: {$whyReason}\n\n"
+                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
         }
     }
 
