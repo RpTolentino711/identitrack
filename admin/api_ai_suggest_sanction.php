@@ -306,8 +306,18 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             : "I analyzed our campus precedent records and **found no prior record in historical dataset (record - 0)** for this specific offense (**{$offName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.";
     }
 
+    // 0. CREATOR, IDENTITY & PURPOSE INQUIRIES
+    if (preg_match('/\b(who created|who made|who built|who programmed|who developed|who designed|creator|developer|identitrack ai|your name|who are you|what is your purpose)\b/i', $promptLower)) {
+        return "👋 **Hello Panel Member! I am IdentiTrack AI**, an executive decision-support assistant developed specifically for NU Lipa Disciplinary Panel Members & Administrators.\n\n"
+             . "🤖 **About Me & My Capabilities**:\n\n"
+             . "• **Creation & Development**: I was created by the IdentiTrack System Engineering Team for NU Lipa to serve as an intelligent, impartial hearing decision-support assistant.\n"
+             . "• **Core Function**: I analyze active student hearing files, check 204+ historical campus precedent records to prevent enforcement bias, calculate community service hours, and evaluate sanctions strictly against the NU Lipa Student Handbook.\n"
+             . "• **Data Privacy & Confidentiality**: I operate under 100% compliance with the Data Privacy Act of 2012 (RA 10173) and UPCC hearing confidentiality guidelines.\n\n"
+             . "Feel free to ask me any questions regarding handbook policies, case precedents, or sanction recommendations!";
+    }
+
     // 1. GREETINGS & INTRODUCTIONS — IMMEDIATELY ANALYZE & SUGGEST PUNISHMENT
-    if (preg_match('/\b(hi|hello|hey|sup|yo|greetings|good morning|good afternoon|good evening|who are you|what can you do)\b/i', $promptLower)) {
+    if (preg_match('/\b(hi|hello|hey|sup|yo|greetings|good morning|good afternoon|good evening|what can you do)\b/i', $promptLower)) {
         $excelCount = count($excelPrecedents);
         $totalHistoryCount = $totalPrior + $pendingCasesCount;
 
@@ -1325,7 +1335,9 @@ try {
         // STRICT CONVERSATIONAL, PRECEDENT & HANDBOOK POLICY MANDATE
         $sysPrompt = "You are IdentiTrack AI, a warm, friendly, executive decision-support assistant for NU Lipa Disciplinary Administrators & Panel Members.\n"
             . "TONE & STYLE MANDATE:\n"
-            . "1. BE VERY CONVERSATIONAL & FRIENDLY: Address the user warmly as 'Panel Member' or 'Administrator'. EVEN WHEN GREETED (e.g. 'hi', 'hello', 'hey'), YOU MUST IMMEDIATELY PRESENT THE COMPLETE CASE ANALYSIS & SUGGESTED PUNISHMENT RECOMMENDATION FOR THE ACTIVE STUDENT RIGHT IN YOUR INITIAL RESPONSE. NEVER respond with a plain generic greeting asking what the user wants—ALWAYS deliver the full suggested sanction immediately.\n"
+            . "1. BE CONVERSATIONAL, FRIENDLY & HELPFUL: Address the user warmly as 'Panel Member' or 'Administrator'.\n"
+            . "   - For initial greetings (e.g. 'hi', 'hello') or direct sanction requests (e.g. 'suggest sanction', 'what category?'), present the active case analysis and suggested punishment recommendation.\n"
+            . "   - For specific conversational inquiries (e.g. 'who created you?', 'who are you?', 'how do you work?', 'what is your purpose?'), ANSWER THE USER'S QUESTION DIRECTLY, WARMLY, AND NATURALLY! Do NOT spam or re-dump the full case analysis card unless asked.\n"
             . "2. STRICT CONSISTENCY & DETERMINISM MANDATE:\n"
             . "   You must ALWAYS produce identical, standardized, consistent advisory determinations and sanction results regardless of how the admin or panel member phrases, structures, or tones their question (e.g. 'what punishment should we give?', 'what sanction is recommended?', 'what category?', 'what is the decision?', 'is there a similar case of this student?'). Phrasing variations, typos, or tone differences must NEVER alter the underlying sanction category, policy rule, community service calculation, or advisory result.\n"
             . "3. SIMILAR CASE / PRECEDENT INQUIRIES:\n"
