@@ -290,11 +290,14 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         $offLines = [];
         foreach ($allOffensesAnalysis as $idx => $oa) {
             $num = $idx + 1;
-            $offLines[] = "  {$num}. **{$oa['offense_name']}** ({$oa['offense_level']})";
+            $cStr = $oa['cases_str'] ?? 'cases - 0';
+            $offLines[] = "  {$num}. **{$oa['offense_name']}** ({$oa['offense_level']}) — **{$cStr}**";
         }
         $offensesChargedText = "• **Offenses Charged ({$offenseCount} Infractions)**:\n" . implode("\n", $offLines);
     } else {
-        $offensesChargedText = "• **Offense Charged**: {$offName} ({$offLvl})";
+        $firstAnalysis = $allOffensesAnalysis[0] ?? null;
+        $cStr = $firstAnalysis['cases_str'] ?? (count($excelPrecedents) > 0 ? "cases - " . count($excelPrecedents) : "cases - 0");
+        $offensesChargedText = "• **Offense Charged**: {$offName} ({$offLvl}) — **{$cStr}**";
     }
 
     // 1. GREETINGS & INTRODUCTIONS — IMMEDIATELY ANALYZE & SUGGEST PUNISHMENT
@@ -933,7 +936,7 @@ try {
             $punDetails = formatPunishmentDetails((string)($pc['punishment_details'] ?? ''));
             $punStr = ($punDetails !== 'n/a' && $punDetails !== '') ? " ({$punDetails})" : "";
             $offNameStr = !empty($pc['offense_names']) ? " — **{$pc['offense_names']}**" : "";
-            $lines[] = "  • Case #{$cId}:{$offNameStr} ({$catVal}{$punStr})";
+            $lines[] = "  • Case #{$cId}{$offNameStr} ({$catVal}{$punStr})";
         }
         $priorCasesBreakdownText = implode("\n", $lines);
     }
@@ -1010,9 +1013,26 @@ try {
         $matchedHours = null;
         $matchedSource = null;
 
+        // Count exact matching precedent records in historical dataset (SANCTION.xlsx + Database)
+        $excelMatchesForThis = [];
+        if (!empty($cacheRecords)) {
+            foreach ($cacheRecords as $cr) {
+                $crOff = (string)($cr['offense'] ?? '');
+                if ($crOff !== '' && areOffensesSemanticallyEqual($crOff, $oName)) {
+                    $excelMatchesForThis[] = $cr;
+                }
+            }
+        }
+        $dbMatchesForThis = getExactPrecedents($oId, $caseId, 50);
+        $totalDatasetMatchCount = count($excelMatchesForThis) + count($dbMatchesForThis);
+        $casesStr = "cases - {$totalDatasetMatchCount}";
+
+        $matchedHours = null;
+        $matchedSource = null;
+
         // Check exact DB precedents
-        $dbP = getExactPrecedents($oId, $caseId, 1);
-        if (!empty($dbP)) {
+        if (!empty($dbMatchesForThis)) {
+            $dbP = $dbMatchesForThis;
             $punStr = formatPunishmentDetails((string)($dbP[0]['punishment_details'] ?? ''));
             if (preg_match('/(\d+)\s*Hours/i', $punStr, $pm)) {
                 $matchedHours = (int)$pm[1];
@@ -1023,20 +1043,15 @@ try {
         }
 
         // Check SANCTION.xlsx Excel dataset cache using Semantic Concept Matching
-        if ($matchedHours === null && !empty($cacheRecords)) {
-            foreach ($cacheRecords as $cr) {
-                $crOff = (string)($cr['offense'] ?? '');
-                if ($crOff !== '' && areOffensesSemanticallyEqual($crOff, $oName)) {
-                    $sanc = (string)($cr['sanction'] ?? '');
-                    if (preg_match('/(\d+)\s*Hours/i', $sanc, $pm)) {
-                        $matchedHours = (int)$pm[1];
-                    } else {
-                        $matchedHours = (strpos(strtoupper($sanc), 'NON-READMISSION') !== false) ? 300 : ((strpos(strtoupper($sanc), '150') !== false) ? 150 : 250);
-                    }
-                    $matchedSource = "'{$cr['offense']}' ({$cr['sanction']})";
-                    break;
-                }
+        if ($matchedHours === null && !empty($excelMatchesForThis)) {
+            $cr = $excelMatchesForThis[0];
+            $sanc = (string)($cr['sanction'] ?? '');
+            if (preg_match('/(\d+)\s*Hours/i', $sanc, $pm)) {
+                $matchedHours = (int)$pm[1];
+            } else {
+                $matchedHours = (strpos(strtoupper($sanc), 'NON-READMISSION') !== false) ? 300 : ((strpos(strtoupper($sanc), '150') !== false) ? 150 : 250);
             }
+            $matchedSource = "'{$cr['offense']}' ({$cr['sanction']})";
         }
 
         // Fallback: Handbook Gravity & Meaning Assessment if no dataset record
@@ -1065,7 +1080,9 @@ try {
             'offense_level' => $oLvl,
             'hours' => $matchedHours,
             'has_precedent' => ($matchedSource && strpos($matchedSource, 'Evaluated via') === false),
-            'source_explanation' => $matchedSource
+            'source_explanation' => $matchedSource,
+            'dataset_match_count' => $totalDatasetMatchCount,
+            'cases_str' => $casesStr
         ];
     }
 
