@@ -246,16 +246,16 @@ function formatStudentDisciplinaryHistoryBlock(int $totalPrior, int $pendingCoun
 {
     $header = "📋 **Student Disciplinary Record Check**: Found **{$totalPrior} prior resolved case(s)** and **{$pendingCount} pending case(s)** on file for **{$studentName}**";
     
-    $listItems = [];
+    $sections = [];
     if (!empty($priorCasesText) && $priorCasesText !== "No prior resolved UPCC cases on file.") {
-        $listItems[] = $priorCasesText;
+        $sections[] = "**Prior Resolved Cases**:\n" . $priorCasesText;
     }
     if (!empty($pendingCasesText) && $pendingCasesText !== "No other pending cases on file.") {
-        $listItems[] = $pendingCasesText;
+        $sections[] = "**Pending Cases**:\n" . $pendingCasesText;
     }
 
-    if (!empty($listItems)) {
-        return $header . ":\n" . implode("\n", $listItems);
+    if (!empty($sections)) {
+        return $header . ":\n\n" . implode("\n\n", $sections);
     }
     
     return $header . ".";
@@ -881,8 +881,8 @@ try {
     // ── Detailed Prior Resolved Cases Breakdown (Includes Offense Names) ──
     $priorCasesWithCat = $targetStudentId !== '' ? db_all("
         SELECT c.case_id, c.decided_category, c.punishment_details, c.status, c.created_at,
-               GROUP_CONCAT(DISTINCT ot.name SEPARATOR ', ') as offense_names,
-               GROUP_CONCAT(DISTINCT ot.level SEPARATOR ', ') as offense_levels
+               GROUP_CONCAT(DISTINCT ot.name SEPARATOR '|||') as offense_names,
+               GROUP_CONCAT(DISTINCT ot.level SEPARATOR '|||') as offense_levels
         FROM upcc_case c
         LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
         LEFT JOIN offense o ON o.offense_id = uco.offense_id
@@ -906,8 +906,8 @@ try {
     // ── Pending / Ongoing Cases Lookup (Includes Offense Names) ──
     $pendingCasesRows = $targetStudentId !== '' ? db_all("
         SELECT c.case_id, c.status,
-               GROUP_CONCAT(DISTINCT ot.name SEPARATOR ', ') as offense_names,
-               GROUP_CONCAT(DISTINCT ot.level SEPARATOR ', ') as offense_levels
+               GROUP_CONCAT(DISTINCT ot.name SEPARATOR '|||') as offense_names,
+               GROUP_CONCAT(DISTINCT ot.level SEPARATOR '|||') as offense_levels
         FROM upcc_case c
         LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
         LEFT JOIN offense o ON o.offense_id = uco.offense_id
@@ -921,10 +921,25 @@ try {
     if (!empty($pendingCasesRows)) {
         $pLines = [];
         foreach ($pendingCasesRows as $pc) {
-            $offNameStr = !empty($pc['offense_names']) ? " — **{$pc['offense_names']}**" : "";
-            $pLines[] = "  • Case #{$pc['case_id']}{$offNameStr} (Pending Hearing)";
+            $cId = (int)$pc['case_id'];
+            $rawNames = (string)($pc['offense_names'] ?? '');
+            $offNames = $rawNames !== '' ? explode('|||', $rawNames) : [];
+            
+            $caseHeader = "• **Case #{$cId}** *(Pending Hearing)*:";
+            if (!empty($offNames)) {
+                $subBullets = [];
+                foreach ($offNames as $oname) {
+                    $oname = trim($oname);
+                    if ($oname !== '') {
+                        $subBullets[] = "  - {$oname}";
+                    }
+                }
+                $pLines[] = $caseHeader . "\n" . implode("\n", $subBullets);
+            } else {
+                $pLines[] = "• **Case #{$cId}** *(Pending Hearing)*";
+            }
         }
-        $pendingCasesText = implode("\n", $pLines);
+        $pendingCasesText = implode("\n\n", $pLines);
     }
 
     $priorCasesBreakdownText = "No prior resolved UPCC cases on file.";
@@ -934,11 +949,25 @@ try {
             $cId = (int)$pc['case_id'];
             $catVal = !empty($pc['decided_category']) ? "Category {$pc['decided_category']} Sanction" : "Sanction Decided";
             $punDetails = formatPunishmentDetails((string)($pc['punishment_details'] ?? ''));
-            $punStr = ($punDetails !== 'n/a' && $punDetails !== '') ? " ({$punDetails})" : "";
-            $offNameStr = !empty($pc['offense_names']) ? " — **{$pc['offense_names']}**" : "";
-            $lines[] = "  • Case #{$cId}{$offNameStr} ({$catVal}{$punStr})";
+            $punStr = ($punDetails !== 'n/a' && $punDetails !== '') ? " — {$punDetails}" : "";
+            $rawNames = (string)($pc['offense_names'] ?? '');
+            $offNames = $rawNames !== '' ? explode('|||', $rawNames) : [];
+            
+            $caseHeader = "• **Case #{$cId}** *({$catVal}{$punStr})*:";
+            if (!empty($offNames)) {
+                $subBullets = [];
+                foreach ($offNames as $oname) {
+                    $oname = trim($oname);
+                    if ($oname !== '') {
+                        $subBullets[] = "  - {$oname}";
+                    }
+                }
+                $lines[] = $caseHeader . "\n" . implode("\n", $subBullets);
+            } else {
+                $lines[] = "• **Case #{$cId}** *({$catVal}{$punStr})*";
+            }
         }
-        $priorCasesBreakdownText = implode("\n", $lines);
+        $priorCasesBreakdownText = implode("\n\n", $lines);
     }
 
     // ── Community Service Lookup ──────────────────────────────────────────────
