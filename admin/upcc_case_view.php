@@ -4011,6 +4011,69 @@ syncLive();
 
 <style>
 /* AI BOT AVATAR & DRAWER ANIMATIONS */
+.ai-dots-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.ai-dots-loader span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+  animation: aiDotPulse 1.4s infinite ease-in-out both;
+}
+.ai-dots-loader span:nth-child(1) { animation-delay: -0.32s; }
+.ai-dots-loader span:nth-child(2) { animation-delay: -0.16s; }
+.ai-dots-loader span:nth-child(3) { animation-delay: 0s; }
+@keyframes aiDotPulse {
+  0%, 80%, 100% { transform: scale(0.55); opacity: 0.35; }
+  40% { transform: scale(1.25); opacity: 1; filter: drop-shadow(0 0 8px #38bdf8); }
+}
+
+.ai-shimmer-text {
+  background: linear-gradient(90deg, #94a3b8 0%, #38bdf8 50%, #94a3b8 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: aiShimmer 2s infinite linear;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+@keyframes aiShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.ai-avatar-container {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(56,189,248,0.35), rgba(15,23,42,0.95));
+  border: 1.5px solid rgba(56,189,248,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(56,189,248,0.35);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.ai-avatar-container:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 18px rgba(56,189,248,0.6);
+}
+.ai-avatar-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 4px rgba(56,189,248,0.6));
+}
+
 .ai-bot-avatar-wrapper {
   position: relative;
   width: 44px;
@@ -4304,8 +4367,8 @@ syncLive();
     <!-- LOADING STATE -->
     <div id="ai-drawer-loading-state" style="display: none; padding: 1.5rem 0.5rem;">
       <div style="font-weight: 800; font-size: 1rem; color: #38bdf8; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 10px;">
-        <span class="spinner-sm" style="width: 20px; height: 20px; border: 3px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite;"></span>
-        IdentiTrack AI is thinking & scanning precedents...
+        <div class="ai-dots-loader"><span></span><span></span><span></span></div>
+        <span class="ai-shimmer-text">IdentiTrack AI is thinking & scanning precedents...</span>
       </div>
       <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);">
         <div id="drawer-step-1" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Reviewing case information</div>

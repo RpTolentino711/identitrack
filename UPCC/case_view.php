@@ -3403,6 +3403,69 @@ function closeHandbookModal() {
 
 <style>
 /* AI BOT AVATAR & DRAWER ANIMATIONS */
+.ai-dots-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.ai-dots-loader span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+  animation: aiDotPulse 1.4s infinite ease-in-out both;
+}
+.ai-dots-loader span:nth-child(1) { animation-delay: -0.32s; }
+.ai-dots-loader span:nth-child(2) { animation-delay: -0.16s; }
+.ai-dots-loader span:nth-child(3) { animation-delay: 0s; }
+@keyframes aiDotPulse {
+  0%, 80%, 100% { transform: scale(0.55); opacity: 0.35; }
+  40% { transform: scale(1.25); opacity: 1; filter: drop-shadow(0 0 8px #38bdf8); }
+}
+
+.ai-shimmer-text {
+  background: linear-gradient(90deg, #94a3b8 0%, #38bdf8 50%, #94a3b8 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: aiShimmer 2s infinite linear;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+@keyframes aiShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.ai-avatar-container {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(56,189,248,0.35), rgba(15,23,42,0.95));
+  border: 1.5px solid rgba(56,189,248,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(56,189,248,0.35);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.ai-avatar-container:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 18px rgba(56,189,248,0.6);
+}
+.ai-avatar-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 4px rgba(56,189,248,0.6));
+}
+
 .ai-bot-avatar-wrapper {
   position: relative;
   width: 44px;
@@ -3819,10 +3882,14 @@ async function fetchInitialAiSanctionRecommendation() {
     aiMsgDiv.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
     const aiBubbleId = 'ai-initial-msg-' + Date.now();
     aiMsgDiv.innerHTML = `
-        <div style="width:32px;height:32px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
+        <div class="ai-avatar-container">
+            <img src="../assets/identilogo.png" alt="IdentiTrack AI" class="ai-avatar-img">
+        </div>
         <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:14px 16px;font-size:14.5px;color:#f8fafc;line-height:1.6;max-width:90%;">
-            <span class="spinner-sm" style="width:16px;height:16px;border:2.5px solid rgba(56,189,248,0.2);border-top-color:#38bdf8;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span>
-            <span style="color:#94a3b8;font-style:italic;font-size:14px;">Analyzing hearing file & handbook policies...</span>
+            <div style="display:inline-flex;align-items:center;">
+                <div class="ai-dots-loader"><span></span><span></span><span></span></div>
+                <span class="ai-shimmer-text">Analyzing hearing file & handbook policies...</span>
+            </div>
         </div>
     `;
     thread.appendChild(aiMsgDiv);
@@ -3964,7 +4031,9 @@ function toggleDrawerWhyPanel() {
   <div id="aiChatThread" style="flex:1;padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth;">
     <!-- Welcome message bubble -->
     <div style="display:flex;gap:12px;align-items:flex-start;">
-      <div style="width:32px;height:32px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
+      <div class="ai-avatar-container">
+        <img src="../assets/identilogo.png" alt="IdentiTrack AI" class="ai-avatar-img">
+      </div>
       <div style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:14px 16px;font-size:14.5px;color:#f8fafc;line-height:1.6;max-width:90%;">
         Hello Panel Member! I am strictly bound to the <strong>NU Lipa Student Handbook</strong> and anonymized historical case precedents.<br><br>
         Please type any question you have regarding this hearing, handbook rules, or precedent outcomes below.
@@ -4003,7 +4072,7 @@ function sendQuickAiPrompt(text) {
 
 function stopAiTyping() {
     if (currentTypingInterval) {
-        clearInterval(currentTypingInterval);
+        clearTimeout(currentTypingInterval);
         currentTypingInterval = null;
     }
     isAiGenerating = false;
@@ -4044,10 +4113,14 @@ async function handleAiChatSubmit(e) {
     aiMsgDiv.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
     const aiBubbleId = 'ai-msg-' + Date.now();
     aiMsgDiv.innerHTML = `
-        <div style="width:32px;height:32px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
+        <div class="ai-avatar-container">
+            <img src="../assets/identilogo.png" alt="IdentiTrack AI" class="ai-avatar-img">
+        </div>
         <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:14px 16px;font-size:14.5px;color:#f8fafc;line-height:1.6;max-width:90%;">
-            <span class="spinner-sm" style="width:16px;height:16px;border:2.5px solid rgba(56,189,248,0.2);border-top-color:#38bdf8;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span>
-            <span style="color:#94a3b8;font-style:italic;font-size:14px;">Analyzing hearing file & handbook...</span>
+            <div style="display:inline-flex;align-items:center;">
+                <div class="ai-dots-loader"><span></span><span></span><span></span></div>
+                <span class="ai-shimmer-text">Analyzing hearing file & handbook...</span>
+            </div>
         </div>
     `;
     thread.appendChild(aiMsgDiv);
@@ -4132,33 +4205,63 @@ function typeOutAiResponse(containerEl, fullText, threadEl) {
     let accumulatedHtml = '';
     let lastScrollTime = 0;
 
-    function step() {
+    function getBalancedHtml(html) {
+        const tags = html.match(/<\/?([a-z1-6]+)[^>]*>/gi);
+        if (!tags) return html;
+        const stack = [];
+        for (let i = 0; i < tags.length; i++) {
+            const tag = tags[i];
+            if (tag.startsWith('</')) {
+                stack.pop();
+            } else if (!tag.endsWith('/>') && !/^<br\s*\/?>/i.test(tag) && !/^<img/i.test(tag)) {
+                const m = tag.match(/<([a-z1-6]+)/i);
+                if (m) stack.push(m[1]);
+            }
+        }
+        let res = html;
+        while (stack.length > 0) {
+            res += '</' + stack.pop() + '>';
+        }
+        return res;
+    }
+
+    function renderNextFrame() {
         if (!isAiGenerating) {
             cursorSpan.remove();
             return;
         }
 
         if (tokenIdx < tokens.length) {
-            accumulatedHtml += tokens[tokenIdx];
-            tokenIdx++;
+            // Process all consecutive tags in one batch
+            while (tokenIdx < tokens.length && tokens[tokenIdx].startsWith('<')) {
+                accumulatedHtml += tokens[tokenIdx];
+                tokenIdx++;
+            }
 
-            textSpan.innerHTML = accumulatedHtml;
+            if (tokenIdx < tokens.length) {
+                accumulatedHtml += tokens[tokenIdx];
+                tokenIdx++;
+            }
+
+            textSpan.innerHTML = getBalancedHtml(accumulatedHtml);
 
             const now = Date.now();
-            if (now - lastScrollTime > 40) {
+            if (now - lastScrollTime > 30 && threadEl) {
                 threadEl.scrollTop = threadEl.scrollHeight;
                 lastScrollTime = now;
             }
 
-            currentTypingInterval = setTimeout(step, 18);
+            currentTypingInterval = setTimeout(() => {
+                requestAnimationFrame(renderNextFrame);
+            }, 12);
         } else {
             textSpan.innerHTML = formattedText;
-            threadEl.scrollTop = threadEl.scrollHeight;
+            if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
             stopAiTyping();
         }
     }
 
-    step();
+    renderNextFrame();
 }
 </script>
 </body>
