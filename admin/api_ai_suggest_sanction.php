@@ -64,7 +64,8 @@ function areOffensesSemanticallyEqual(string $offA, string $offB): bool
     $clusters = [
         'fight' => ['fight', 'fighting', 'suntukan', 'away', 'bugbugan', 'physical altercation', 'physical misconduct', 'assault', 'brawl', 'brawling', 'physical injury', 'injuries', 'striking', 'mauling', 'misconduct'],
         'vape' => ['vape', 'vaping', 'e-cigarette', 'juul', 'pod', 'smoke', 'smoking', 'tobacco', 'cigarette', 'yosi', 'bringing in vape'],
-        'id' => ['lending of id', 'lending id', 'borrowing id', 'id lending', 'id misuse', 'id tampering', 'passing id', 'id swap', 'double tapping', 'tap in tap out', 'using another id', 'false id'],
+        'id' => ['lending of id', 'lending id', 'borrowing id', 'id lending', 'id misuse', 'id tampering', 'passing id', 'id swap', 'double tapping', 'tap in tap out', 'using another id', 'false id', 'no id', 'id badge', 'badge', 'failure to wear', 'unapproved id', 'no badge'],
+        'dress' => ['dress code', 'attire', 'civilian attire', 'uniform', 'improper attire', 'grooming', 'hair', 'dyeing hair', 'hair color', 'hair dye', 'misconduct', 'inappropriate attire', 'unapproved attire'],
         'cheating' => ['cheating', 'academic dishonesty', 'kodigo', 'plagiarism', 'exam cheating', 'copying', 'test cheating', 'exam fraud', 'dishonesty'],
         'theft' => ['theft', 'stealing', 'ninakaw', 'pilferage', 'shoplifting', 'taking property', 'robbery', 'pocketing', 'burglary', 'stolen'],
         'disrespect' => ['gross act of disrespect', 'disrespect', 'pambabastos', 'bastos', 'insult', 'insulting', 'verbal assault', 'profanity', 'cursing', 'offensive language', 'insubordination'],
