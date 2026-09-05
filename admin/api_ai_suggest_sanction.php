@@ -351,7 +351,9 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 $oL = $oa['offense_level'];
                 $hrs = $oa['hours'];
                 $src = $oa['source_explanation'];
-                $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — *{$hrs} Hours CS* ({$src})";
+                $mCount = (int)($oa['dataset_match_count'] ?? 0);
+                $rTag = "record - {$mCount}";
+                $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
             }
             $combinedCategory = ($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1);
             $breakdownBlock = implode("\n", $offenseBreakdownLines);
@@ -361,6 +363,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 : "The student is charged with **{$offenseCount} offenses** in this hearing. Aggregating precedent baseline hours and handbook gravity analysis across all charged infractions yields a combined **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
 
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                 . "{$recCountText}\n\n"
                  . "📋 **Offenses Charged ({$offenseCount} Infractions)**:\n"
                  . "{$breakdownBlock}\n\n"
                  . "⚖️ **Suggested Combined Punishment & Advisory Recommendation**:\n\n"
@@ -370,7 +373,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         }
 
         // 2. 1ST-TIME OFFENDER HEARINGS: CHECK HISTORICAL CAMPUS PRECEDENTS FOR BASELINE
-        if (!empty($exactPrecedents)) {
+        if ($offenseCount === 1 && !empty($exactPrecedents)) {
             $mostRecent = $exactPrecedents[0];
             $catNum = (int)($mostRecent['decided_category'] ?? 2);
             $punishmentText = formatPunishmentDetails((string)($mostRecent['punishment_details'] ?? ''));
@@ -384,7 +387,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         }
 
-        if (!empty($excelPrecedents)) {
+        if ($offenseCount === 1 && !empty($excelPrecedents)) {
             $firstExcelMatch = $excelPrecedents[0];
             $sancStr = $firstExcelMatch['sanction'] ?? 'FORMATIVE INTERVENTION';
             $sCat = (strpos(strtoupper($sancStr), 'NON-READMISSION') !== false || strpos(strtoupper($sancStr), 'DROPPED') !== false) ? 4
@@ -402,7 +405,9 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
 
         // 3. 0-PRECEDENT 1ST-TIME OFFENDER HANDBOOK EVALUATION
         if (empty($recCountText)) {
-            $recCountText = "I analyzed our campus precedent records and **found no prior record in historical dataset (record - 0)** for this specific offense (**{$offName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.";
+            $recCountText = ($offenseCount > 1)
+                ? "I analyzed our campus precedent dataset records for all **{$offenseCount} charged offenses** in this hearing."
+                : "I analyzed our campus precedent records and **found no prior record in historical dataset (record - 0)** for this specific offense (**{$offName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.";
         }
 
         if ($totalHistoryCount > 0) {
@@ -427,6 +432,35 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         }
 
         if ($offLvl === 'MINOR') {
+            if ($offenseCount > 1) {
+                $offenseBreakdownLines = [];
+                foreach ($allOffensesAnalysis as $idx => $oa) {
+                    $num = $idx + 1;
+                    $oN = $oa['offense_name'];
+                    $oL = $oa['offense_level'];
+                    $hrs = $oa['hours'];
+                    $src = $oa['source_explanation'];
+                    $mCount = (int)($oa['dataset_match_count'] ?? 0);
+                    $rTag = "record - {$mCount}";
+                    $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
+                }
+                $combinedCategory = ($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1);
+                $breakdownBlock = implode("\n", $offenseBreakdownLines);
+
+                $whyMulti = ($offenseCount >= 3)
+                    ? "The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category 2 Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
+                    : "The student is charged with **{$offenseCount} offenses** in this hearing. Aggregating precedent baseline hours and handbook gravity analysis across all charged infractions yields a combined **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
+
+                return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                     . "{$recCountText}\n\n"
+                     . "📋 **Offenses Charged ({$offenseCount} Infractions)**:\n"
+                     . "{$breakdownBlock}\n\n"
+                     . "⚖️ **Suggested Combined Punishment & Advisory Recommendation**:\n\n"
+                     . "• **Suggested Punishment**: **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service + Active Probation)\n"
+                     . "• **Why? (Reason)**: {$whyMulti}\n\n"
+                     . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
+            }
+
             $instanceCount = $caseMeta['instance_count'] ?? 1;
             $attemptStr = ($instanceCount === 1) ? "1st Attempt" : (($instanceCount === 2) ? "2nd Attempt" : "3rd Attempt (Escalation)");
             $suggestedCat = ($instanceCount >= 3) ? 2 : 1;
@@ -608,7 +642,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         }
 
         // 3. 1ST-TIME OFFENDER PRECEDENT CHECKS (0 Prior History)
-        if (!empty($exactPrecedents)) {
+        if ($offenseCount === 1 && !empty($exactPrecedents)) {
             $mostRecent = $exactPrecedents[0];
             $catNum = (int)($mostRecent['decided_category'] ?? 2);
             $punishmentText = formatPunishmentDetails((string)($mostRecent['punishment_details'] ?? ''));
@@ -620,7 +654,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "• **Historical Campus Precedent**: Previous decided case(s) for this exact offense were assigned **Category {$catNum} Sanction**.\n"
                  . "• **Why? (Reason)**: Historical campus precedent for this exact offense is Category {$catNum} ({$punishmentText}). Recommending this same punishment avoids bias, ensures consistency, and guarantees equal treatment under NU Lipa Disciplinary Policies.\n\n"
                  . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
-        } elseif (!empty($excelPrecedents)) {
+        } elseif ($offenseCount === 1 && !empty($excelPrecedents)) {
             $firstExcelMatch = $excelPrecedents[0];
             $sancStr = $firstExcelMatch['sanction'] ?? 'FORMATIVE INTERVENTION';
             $sCat = (strpos(strtoupper($sancStr), 'NON-READMISSION') !== false || strpos(strtoupper($sancStr), 'DROPPED') !== false) ? 4
@@ -637,9 +671,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                  . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
         } else {
             $excelCount = count($excelPrecedents);
-            $recCountText = ($excelCount > 0)
-                ? "I checked our official campus precedent records and **found {$excelCount} matching precedent record(s)** for this offense (**{$offName}**)."
-                : "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**).";
+            $recCountText = ($offenseCount > 1)
+                ? "I analyzed our campus precedent dataset records for all **{$offenseCount} charged offenses** in this hearing."
+                : (($excelCount > 0)
+                    ? "I checked our official campus precedent records and **found {$excelCount} matching precedent record(s)** for this offense (**{$offName}**)."
+                    : "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**).");
 
             $totalHistoryCount = $totalPrior + $pendingCasesCount;
 
@@ -1097,6 +1133,27 @@ try {
         ];
     }
 
+    $offenseCount = count($allOffensesAnalysis);
+    if ($offenseCount > 1) {
+        $offLines = [];
+        foreach ($allOffensesAnalysis as $idx => $oa) {
+            $num = $idx + 1;
+            $mCount = (int)($oa['dataset_match_count'] ?? 0);
+            $rTag = "record - {$mCount}";
+            $offLines[] = "  {$num}. **{$oa['offense_name']}** ({$oa['offense_level']}) — **{$rTag}**";
+        }
+        $offensesChargedText = "• **Offenses Charged ({$offenseCount} Infractions)**:\n" . implode("\n", $offLines);
+        $recCountText = "I analyzed our campus precedent dataset records for all **{$offenseCount} charged offenses** in this hearing.";
+    } else {
+        $firstAnalysis = $allOffensesAnalysis[0] ?? null;
+        $mCount = (int)($firstAnalysis['dataset_match_count'] ?? (count($excelPrecedents) + count($exactPrecedents)));
+        $rTag = "record - {$mCount}";
+        $offensesChargedText = "• **Offense Charged**: {$offenseName} ({$offenseLevel}) — **{$rTag}**";
+        $recCountText = ($mCount > 0)
+            ? "I checked our official campus precedent records and **found {$mCount} matching precedent record(s) in historical dataset (record - {$mCount})** for this offense (**{$offenseName}**)."
+            : "I analyzed our campus precedent records and **found no prior record in historical dataset (record - 0)** for this specific offense (**{$offenseName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.";
+    }
+
     $categoryPrecedents = empty($exactPrecedents)
         ? getCategoryPrecedents($majorCategory, $offenseTypeId, $caseId)
         : [];
@@ -1169,6 +1226,53 @@ try {
                 'pending_cases_count' => count($pendingCasesRows),
                 'suggested_category' => $suggestedCategory,
                 'suggested_punishment' => $hoursText,
+                'ai_explanation' => $aiExplanationText,
+                'ai_available' => true,
+                'engine' => 'IdentiTrack Rules Engine',
+                'privacy' => '🔒 100% Native (RA 10173 Compliant)'
+            ]);
+            exit;
+        }
+
+        // 2. MULTI-OFFENSE HEARINGS (1st-Time Offenders)
+        if ($offenseCount > 1) {
+            $offenseBreakdownLines = [];
+            foreach ($allOffensesAnalysis as $idx => $oa) {
+                $num = $idx + 1;
+                $oN = $oa['offense_name'];
+                $oL = $oa['offense_level'];
+                $hrs = $oa['hours'];
+                $src = $oa['source_explanation'];
+                $mCount = (int)($oa['dataset_match_count'] ?? 0);
+                $rTag = "record - {$mCount}";
+                $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
+            }
+            $combinedCategory = ($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1);
+            $breakdownBlock = implode("\n", $offenseBreakdownLines);
+
+            $whyMulti = ($offenseCount >= 3)
+                ? "The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category 2 Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
+                : "The student is charged with **{$offenseCount} offenses** in this hearing. Aggregating precedent baseline hours and handbook gravity analysis across all charged infractions yields a combined **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
+
+            $aiExplanationText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                . "{$recCountText}\n\n"
+                . "📋 **Offenses Charged ({$offenseCount} Infractions)**:\n"
+                . "{$breakdownBlock}\n\n"
+                . "⚖️ **Suggested Combined Punishment & Advisory Recommendation**:\n\n"
+                . "• **Suggested Punishment**: **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service + Active Probation)\n"
+                . "• **Why? (Reason)**: {$whyMulti}\n\n"
+                . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
+
+            echo json_encode([
+                'ok' => true,
+                'source' => 'multi_offense_escalation',
+                'is_new_offense_type' => false,
+                'student_id' => $targetStudentId,
+                'student_name' => $studentName,
+                'offense_name' => "Multiple Charged Offenses ({$offenseCount} Infractions)",
+                'instance_count' => $offenseCount,
+                'suggested_category' => $combinedCategory,
+                'suggested_punishment' => "{$totalCombinedHours} Hours Community Service + Active Probation",
                 'ai_explanation' => $aiExplanationText,
                 'ai_available' => true,
                 'engine' => 'IdentiTrack Rules Engine',
@@ -1402,7 +1506,9 @@ try {
                     $oL = $oa['offense_level'];
                     $hrs = $oa['hours'];
                     $src = $oa['source_explanation'];
-                    $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — *{$hrs} Hours CS* ({$src})";
+                    $mCount = (int)($oa['dataset_match_count'] ?? 0);
+                    $rTag = "record - {$mCount}";
+                    $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
                 }
                 $combinedCategory = ($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1);
                 $breakdownBlock = implode("\n", $offenseBreakdownLines);
@@ -1419,6 +1525,7 @@ try {
                     $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, count($pendingCasesRows), $priorCasesBreakdownText, $pendingCasesText, $studentName);
 
                     $aiText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                            . "{$recCountText}\n\n"
                             . "📋 **Offenses Charged ({$offenseCount} Infractions)**:\n"
                             . "{$breakdownBlock}\n\n"
                             . "{$historyBlock}\n\n"
@@ -1432,6 +1539,7 @@ try {
                         : "The student is charged with **{$offenseCount} offenses** in this hearing. Aggregating precedent baseline hours and handbook gravity analysis across all charged infractions yields a combined **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
 
                     $aiText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                            . "{$recCountText}\n\n"
                             . "📋 **Offenses Charged ({$offenseCount} Infractions)**:\n"
                             . "{$breakdownBlock}\n\n"
                             . "⚖️ **Suggested Combined Punishment & Advisory Recommendation**:\n\n"
