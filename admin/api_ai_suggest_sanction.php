@@ -33,14 +33,14 @@ function getDynamicHandbookRules(): string
     $rules .= "\n\nMINOR OFFENSE ESCALATION POLICY:\n";
     $rules .= "• 1st Attempt: Written Reprimand & 30 Days Disciplinary Probation\n";
     $rules .= "• 2nd Attempt: Warning, SDO Counseling & 60 Days Disciplinary Probation\n";
-    $rules .= "• 3rd Attempt (3-Attempt Escalation): Escalated to Major Offense Category 2 Community Service (15 Hours)\n\n";
+    $rules .= "• 3rd Attempt (3-Attempt Escalation): Escalated to Major Offense Category 2 Community Service (150 Hours)\n\n";
 
     $rules .= "REGISTERED MAJOR OFFENSES (" . count($majors) . " Active Types in Database):\n";
     $rules .= !empty($majors) ? implode("\n", $majors) : "• General Major Violations";
     $rules .= "\n\nMAJOR CATEGORY PENALTY MATRIX:\n";
     $rules .= "• Category 1: Formal Reprimand & Active Semester Probation\n";
-    $rules .= "• Category 2: Formative Community Service (15–40 Hours) + Active Probation\n";
-    $rules .= "• Category 3: 1 Semester Non-Readmission / Suspension\n";
+    $rules .= "• Category 2: Formative Community Service (150–250 Hours) + Active Probation\n";
+    $rules .= "• Category 3: 1 Semester Non-Readmission / Suspension (250–400 Hours CS)\n";
     $rules .= "• Category 4: Exclusion / Mandatory Dismissal\n";
     $rules .= "• Category 5: Summary Expulsion & Police Referral\n";
 
@@ -374,7 +374,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 $whyReason = "The student has {$totalPrior} prior resolved case(s) on file (including prior major violations). Under NU Lipa Handbook Section 5, repeat offenses after a prior major sanction escalate to Category 3 or Category 4 (Non-Readmission / Suspension).";
             } else {
                 $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
-                $hoursText = $suggestedCat === 2 ? "15 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+                $hoursText = $suggestedCat === 2 ? "150 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
                 $whyReason = "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix) for a 1st offense.";
             }
             
@@ -453,8 +453,8 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "⏱️ **Community Service Status & Calculation Matrix**:\n\n"
              . "• **Active Status**: {$extractedCS}\n\n"
              . "• **Category 1 (Minor Initial Violation)**: **0 Hours** (Written Reprimand ONLY).\n"
-             . "• **Category 2 (Repeated / Major Offense)**: **15 to 25 Hours** of University Service.\n"
-             . "• **Category 3 (Severe / Repeat Major Offense)**: **25 to 50 Hours** of University Service.\n\n"
+             . "• **Category 2 (Repeated / Major Offense)**: **150 to 250 Hours** of University Service.\n"
+             . "• **Category 3 (Severe / Repeat Major Offense)**: **250 to 400 Hours** of University Service.\n\n"
              . "💡 *IdentiTrack Tracking*: All service sessions are verified via photo check-in/check-out logs in the guard module.\n\n"
              . "Let me know if you want me to check specific session attendance records!";
     }
@@ -465,7 +465,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "📌 **Section 4 Minor Offense Escalation Policy**:\n\n"
              . "• **1st Offense**: Written Reprimand & Category 1 Warning (**0 Hours CS**).\n"
              . "• **2nd Offense**: Category 1 Warning (**0 Hours CS**).\n"
-             . "• **3rd Offense (3-Attempt Rule)**: **AUTOMATIC ESCALATION** — Accumulating 3 minor offenses converts the case into a **Category 2 Major Offense** (**15–25 Hours CS**).\n\n"
+             . "• **3rd Offense (3-Attempt Rule)**: **AUTOMATIC ESCALATION** — Accumulating 3 minor offenses converts the case into a **Category 2 Major Offense** (**150–250 Hours CS**).\n\n"
              . "📋 *Panel Note*: The student currently has " . ($totalPrior > 0 ? "{$totalPrior} prior recorded case(s)" : "0 prior records") . " on file.\n\n"
              . "How else can I assist your case review today?";
     }
