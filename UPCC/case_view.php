@@ -3751,6 +3751,8 @@ function setAiHeadExpression(mode) {
 }
 
 let isAiDrawerOpen = false;
+let hasAutoFetchedAiSanction = false;
+
 function toggleAiDrawer(forceState) {
     const drawer = document.getElementById('aiChatDrawer');
     const bubble = document.getElementById('aiFloatingBubble');
@@ -3772,6 +3774,13 @@ function toggleAiDrawer(forceState) {
             bubble.style.opacity = '0';
             setTimeout(() => { if (bubble) bubble.style.display = 'none'; }, 200);
         }
+
+        if (!hasAutoFetchedAiSanction) {
+            hasAutoFetchedAiSanction = true;
+            setTimeout(() => {
+                fetchInitialAiSanctionRecommendation();
+            }, 300);
+        }
     } else {
         drawer.style.transform = 'translateY(120%) scale(0.95)';
         drawer.style.opacity = '0';
@@ -3787,6 +3796,56 @@ function toggleAiDrawer(forceState) {
             }, 50);
         }
         setAiHeadExpression('idle');
+    }
+}
+
+async function fetchInitialAiSanctionRecommendation() {
+    const thread = document.getElementById('aiChatThread');
+    if (!thread) return;
+
+    thread.innerHTML = '';
+    
+    const aiMsgDiv = document.createElement('div');
+    aiMsgDiv.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
+    const aiBubbleId = 'ai-initial-msg-' + Date.now();
+    aiMsgDiv.innerHTML = `
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;color:#38bdf8;font-weight:800;">AI</div>
+        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:14px 16px;font-size:14.5px;color:#f8fafc;line-height:1.6;max-width:90%;">
+            <span class="spinner-sm" style="width:16px;height:16px;border:2.5px solid rgba(56,189,248,0.2);border-top-color:#38bdf8;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span>
+            <span style="color:#94a3b8;font-style:italic;font-size:14px;">Analyzing hearing file & handbook policies...</span>
+        </div>
+    `;
+    thread.appendChild(aiMsgDiv);
+
+    isAiGenerating = true;
+    if (typeof setAiHeadExpression === 'function') setAiHeadExpression('thinking');
+    const stopContainer = document.getElementById('aiStopGeneratingContainer');
+    if (stopContainer) stopContainer.style.display = 'block';
+    const sendBtn = document.getElementById('aiChatSendBtn');
+    if (sendBtn) sendBtn.disabled = true;
+
+    try {
+        const caseId = <?= (int)$caseId ?>;
+        const res = await fetch(`../admin/api_ai_suggest_sanction.php?action=chat&case_id=${caseId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `query=suggest%20punishment&user_query=suggest%20punishment`
+        });
+        const data = await res.json();
+        const bubble = document.getElementById(aiBubbleId);
+        if (!bubble) return;
+
+        let replyText = (data && data.ok && data.reply) ? data.reply : (data && data.error ? data.error : "Unable to analyze hearing file.");
+        
+        if (typeof setAiHeadExpression === 'function') setAiHeadExpression('speaking');
+        typeOutAiResponse(bubble, replyText, thread);
+
+    } catch (err) {
+        stopAiTyping();
+        const bubble = document.getElementById(aiBubbleId);
+        if (bubble) {
+            bubble.innerHTML = "⚠️ Network connection issue. Please try refreshing.";
+        }
     }
 }
 

@@ -261,11 +261,49 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
 
     $studentName = $caseMeta['student_name'] ?? 'the student';
 
-    // 1. GREETINGS & INTRODUCTIONS (Catches casual inputs like "sup", "hi", "hello", "hey")
+    // 1. GREETINGS & INTRODUCTIONS — IMMEDIATELY ANALYZE & SUGGEST PUNISHMENT
     if (preg_match('/\b(hi|hello|hey|sup|yo|greetings|good morning|good afternoon|good evening|who are you|what can you do)\b/i', $promptLower)) {
-        return "👋 **Hello Administrator / Panel Member! I am IdentiTrack AI.**\n\n"
-             . "Let me analyze **{$studentName}**'s case file for this current hearing. I am right here to support you with hearing file analysis, NU Lipa Student Handbook policies, community service tracking, and our official campus precedent records.\n\n"
-             . "Feel free to ask me anything about **{$studentName}**'s hearing or our handbook rules—I'd be glad to help!";
+        $excelCount = count($excelPrecedents);
+        $recCountText = ($excelCount > 0)
+            ? "Based on our official campus precedent records, **to avoid bias**, I found **{$excelCount} matching precedent record(s)** for this offense (**{$offName}**)."
+            : "I analyzed our campus precedent records and **found no prior record** for this specific offense (**{$offName}**). Recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix**.";
+
+        if ($offLvl === 'MINOR') {
+            $instanceCount = $caseMeta['instance_count'] ?? 1;
+            $attemptStr = ($instanceCount === 1) ? "1st Attempt" : (($instanceCount === 2) ? "2nd Attempt" : "3rd Attempt (Escalation)");
+            $suggestedCat = ($instanceCount >= 3) ? 2 : 1;
+            $hoursText = ($suggestedCat === 2) ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+            $whyReason = ($instanceCount >= 3)
+                ? "Under NU Lipa Student Handbook Section 4 (3-Attempt Escalation Rule), accumulating 3 minor offenses automatically escalates the sanction to a **Category 2 Major Offense** (150–250 Hours Community Service)."
+                : "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations Matrix) for Attempt #{$instanceCount}. 1st and 2nd minor attempts receive Category 1 (Written Reprimand / Warning) with 0 Hours Community Service.";
+
+            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+                 . "{$recCountText}\n\n"
+                 . "📌 **NU Lipa Student Handbook Section 4 Minor Offense Escalation Matrix**:\n"
+                 . "• **1st Attempt**: Written Reprimand & Category 1 Warning (**0 Hours CS**)\n"
+                 . "• **2nd Attempt**: Formal Warning, SDO Counseling & Category 1 Warning (**0 Hours CS**)\n"
+                 . "• **3rd Attempt (3-Attempt Escalation Rule)**: **AUTOMATIC ESCALATION** → Converted to **Category 2 Major Offense** (**150–250 Hours CS**)\n\n"
+                 . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
+                 . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+                 . "• **Active Student Offense Instance**: {$attemptStr} (Instance #{$instanceCount} for {$studentName})\n"
+                 . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
+                 . "• **Why? (Reason)**: {$whyReason}\n\n"
+                 . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+        }
+
+        $suggestedCat = ($totalPrior > 0) ? 3 : (($offLvl === 'MAJOR') ? 2 : 1);
+        $hoursText = ($suggestedCat === 3) ? "250–400 Hours Community Service / 1 Term Non-Readmission" : (($suggestedCat === 2) ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)");
+        $whyReason = ($totalPrior > 0)
+            ? "The student has {$totalPrior} prior resolved case(s) on file. Under NU Lipa Handbook Section 5, repeat offenses escalate to Category 3."
+            : "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix) for a 1st offense on record.";
+
+        return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
+             . "{$recCountText}\n\n"
+             . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
+             . "• **Offense Charged**: {$offName} ({$offLvl})\n"
+             . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
+             . "• **Why? (Reason)**: {$whyReason}\n\n"
+             . "Please let me know if you would like more details about this recommendation for {$studentName}!";
     }
 
     // 2. SIMILAR CASES & PRECEDENT SEARCH INQUIRY
@@ -1017,7 +1055,7 @@ try {
         // STRICT CONVERSATIONAL, PRECEDENT & HANDBOOK POLICY MANDATE
         $sysPrompt = "You are IdentiTrack AI, a warm, friendly, executive decision-support assistant for NU Lipa Disciplinary Administrators & Panel Members.\n"
             . "TONE & STYLE MANDATE:\n"
-            . "1. BE VERY CONVERSATIONAL & FRIENDLY: Address the user warmly as 'Panel Member' or 'Administrator'. Speak in a natural, helpful, engaging voice like a trusted executive colleague. Start with a warm greeting (e.g. 'Hello Administrator!', 'Hi Panel Member!') and close with a helpful invitation for follow-up questions.\n"
+            . "1. BE VERY CONVERSATIONAL & FRIENDLY: Address the user warmly as 'Panel Member' or 'Administrator'. EVEN WHEN GREETED (e.g. 'hi', 'hello', 'hey'), YOU MUST IMMEDIATELY PRESENT THE COMPLETE CASE ANALYSIS & SUGGESTED PUNISHMENT RECOMMENDATION FOR THE ACTIVE STUDENT RIGHT IN YOUR INITIAL RESPONSE. NEVER respond with a plain generic greeting asking what the user wants—ALWAYS deliver the full suggested sanction immediately.\n"
             . "2. STRICT CONSISTENCY & DETERMINISM MANDATE:\n"
             . "   You must ALWAYS produce identical, standardized, consistent advisory determinations and sanction results regardless of how the admin or panel member phrases, structures, or tones their question (e.g. 'what punishment should we give?', 'what sanction is recommended?', 'what category?', 'what is the decision?', 'is there a similar case of this student?'). Phrasing variations, typos, or tone differences must NEVER alter the underlying sanction category, policy rule, community service calculation, or advisory result.\n"
             . "3. SIMILAR CASE / PRECEDENT INQUIRIES:\n"
