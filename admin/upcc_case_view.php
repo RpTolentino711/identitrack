@@ -4053,25 +4053,25 @@ syncLive();
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(56,189,248,0.35), rgba(15,23,42,0.95));
-  border: 1.5px solid rgba(56,189,248,0.6);
+  background: rgba(15, 23, 42, 0.95);
+  border: 1.5px solid rgba(56, 189, 248, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
-  box-shadow: 0 0 12px rgba(56,189,248,0.35);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 .ai-avatar-container:hover {
   transform: scale(1.08);
-  box-shadow: 0 0 18px rgba(56,189,248,0.6);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.7);
 }
 .ai-avatar-img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  filter: drop-shadow(0 0 4px rgba(56,189,248,0.6));
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .ai-bot-avatar-wrapper {
