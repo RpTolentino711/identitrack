@@ -973,7 +973,7 @@ try {
             . "   When asked to suggest a punishment or sanction (e.g. 'suggest punishment', 'what sanction should we give?'):\n"
             . "   a) Check the 'Precedent Record for this Offense' provided in the data.\n"
             . "   b) IF DIRECT PRECEDENT EXISTS: State clearly that historical campus precedent exists for this offense. Citing the precedent outcome (e.g., 'Category X Sanction'), recommend following the precedent to ensure equal treatment, predictability, and procedural fairness.\n"
-            . "   c) IF NO DIRECT PRECEDENT EXISTS: State clearly that this is a new offense without direct historical precedent, and perform Handbook Policy analysis to suggest a fair sanction category (Category 1 to 5), community service hours, and probation terms grounded strictly in the NU Lipa Student Handbook matrix rules provided.\n"
+            . "   c) IF NO DIRECT PRECEDENT EXISTS: State clearly that this is a new offense without direct historical precedent, AND IMMEDIATELY OUTPUT THE FULL SUGGESTED PUNISHMENT & ADVISORY RECOMMENDATION BLOCK in the VERY SAME RESPONSE. Specify the Offense Charged, Level, Suggested Punishment Category (Category 1 for Minor / Category 2 for Major 1st offense), Community Service Hours (0 Hours for Minor 1st offense / 150–250 Hours for Major 1st offense), and a clear 'Why? (Reason)' explanation grounded in the Student Handbook Penalty Matrix. ABSOLUTELY DO NOT ask 'Would you like me to analyze...' or ask for permission to provide the sanction. DELIVER THE SUGGESTED PUNISHMENT IMMEDIATELY IN THE SAME RESPONSE.\n"
             . "   d) ALWAYS INCLUDE A CLEAR 'Why? (Reason)' EXPLANATION: Clearly explain the exact reasons (e.g., student's prior major/minor records, Section 4 escalation rule, Section 5 penalty matrix, or campus dataset match).\n"
             . "5. ANSWER ONLY WHAT IS ASKED: Answer the panel member's specific question directly, conversationally, and naturally. DO NOT prepend or append active student file summaries, background context headers, handbook matrix blocks, or community service logs to your answer unless explicitly asked.\n"
             . "6. STRICT CONFIDENTIALITY FOR PRIOR & PENDING CASES:\n"
@@ -998,6 +998,27 @@ try {
         $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId, $caseMeta);
         $aiText = $aiEngineRes['text'];
         $aiEngineName = $aiEngineRes['engine'];
+
+        // ── Guard: Guarantee immediate suggested punishment for 0-precedent / new offenses ──
+        if ($aiText !== null && preg_match('/\b(suggest|sanction|category|punishment|recommend|decision|vote|penalty)\b/i', $userQuery)) {
+            if (preg_match('/found no prior record|no direct historical precedent|new or rare infraction/i', $aiText) && !preg_match('/Suggested Punishment|Category \d Sanction/i', $aiText)) {
+                // Strip trailing question asking for permission (e.g. "Would you like me to analyze...")
+                $aiText = preg_replace('/Would you like me to analyze.*$/i', '', $aiText);
+                $aiText = trim($aiText);
+
+                $suggestedCat = ($totalPrior > 0) ? 3 : (($offenseLevel === 'MAJOR') ? 2 : 1);
+                $hoursText = ($suggestedCat === 3) ? "250–400 Hours Community Service / 1 Term Non-Readmission" : (($suggestedCat === 2) ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)");
+                $whyReason = ($totalPrior > 0)
+                    ? "The student has {$totalPrior} prior resolved case(s) on file. Under NU Lipa Handbook Section 5, repeat offenses escalate to Category 3."
+                    : "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix) for a 1st offense on record.";
+
+                $aiText .= "\n\n⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
+                         . "• **Offense Charged**: {$offenseName} ({$offenseLevel})\n"
+                         . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText} + Active Probation)\n"
+                         . "• **Why? (Reason)**: {$whyReason}\n\n"
+                         . "Please let me know if you would like more details about this recommendation for {$studentName}!";
+            }
+        }
 
         if ($aiText !== null && trim($aiText) !== '') {
             echo json_encode([
