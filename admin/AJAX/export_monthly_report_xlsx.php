@@ -505,11 +505,11 @@ $activeCases = 0;
         $sanctionStr = 'Case / Offense Dismissed (No Sanction Imposed)';
     } elseif (!empty($r['final_decision']) || $decidedCat > 0) {
         $catDescriptions = [
-            1 => 'Category 1 (Formative Intervention & Written Warning)',
-            2 => 'Category 2 (Formative Intervention & Community Service 5-10 Hours)',
-            3 => 'Category 3 (Community Service 15-30 Hours / Short Suspension 1-3 Days)',
-            4 => 'Category 4 (Extended Suspension 5-15 Days / Semester)',
-            5 => 'Category 5 (Non-Readmission / Exclusion from NU Lipa)'
+            1 => 'Category 1 (Formal Reprimand & Active Semester Probation - 0 Hours CS)',
+            2 => 'Category 2 (Formative Intervention & Community Service 150-250 Hours)',
+            3 => 'Category 3 (Non-Readmission / Suspension & Community Service 250-400 Hours)',
+            4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
+            5 => 'Category 5 (Summary Expulsion & Police Referral)'
         ];
         $catLabel = $catDescriptions[$decidedCat] ?? ($decidedCat > 0 ? "Category {$decidedCat}" : "Decided Major Case");
         $decisionText = !empty($r['final_decision']) ? " - " . (string)$r['final_decision'] : "";

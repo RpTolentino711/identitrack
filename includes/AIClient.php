@@ -278,15 +278,15 @@ class AIClient
             $reply = "👋 **Hello Administrator!** Here is the policy breakdown for minor offense escalation:\n\n"
                    . "📌 **Section 4 Minor Offense 3-Attempt Escalation Rule**:\n\n"
                    . "Under the **NU Lipa Student Handbook**, accumulating **3 minor offenses** automatically triggers escalation to a **Category 2 Major Offense**.\n\n"
-                   . "• **1st Offense**: Written Reprimand & Warning (10 Hours CS).\n"
-                   . "• **2nd Offense**: Category 1 Warning (15 Hours CS).\n"
-                   . "• **3rd Offense**: **AUTOMATIC MAJOR ESCALATION**.\n\n"
+                   . "• **1st Offense**: Written Reprimand & Warning (0 Hours CS).\n"
+                   . "• **2nd Offense**: Category 1 Warning (0 Hours CS).\n"
+                   . "• **3rd Offense**: **AUTOMATIC MAJOR ESCALATION** (Category 2 Formative CS 150–250 Hours).\n\n"
                    . "Would you like me to look up a student's prior offense history for you?";
         } elseif (preg_match('/\b(cheat|exam|test|quiz|phone)\b/i', $pLower)) {
             $reply = "👋 **Hello Administrator!** Here is the Academic Integrity policy analysis:\n\n"
                    . "⚠️ **Academic Integrity Policy Analysis**:\n\n"
                    . "Using unauthorized devices or cheat sheets during examinations is classified under **Section V (Major Offenses)**.\n\n"
-                   . "• **Prescribed Penalty**: Category 2 Sanction (Disciplinary Probation & 25–40 Hours of Community Service).\n"
+                   . "• **Prescribed Penalty**: Category 2 Sanction (Formative Community Service 150–250 Hours).\n"
                    . "• **Honors Disqualification**: Automatically disqualifies the student from graduating with Latin Honors.\n\n"
                    . "Let me know if you would like me to check historical precedents for cheating cases!";
         } else {
@@ -371,7 +371,7 @@ class AIClient
                 'source' => 'Student Handbook'
             ],
             'recommendation' => [
-                'intervention' => $isMajorKeywords ? 'Category 2 Sanction (Probation & CS)' : 'Category 1 Sanction (Warning & 10h CS)',
+                'intervention' => $isMajorKeywords ? 'Category 2 Sanction (Formative CS 150–250 Hours)' : 'Category 1 Sanction (Warning & 0 Hours CS)',
                 'reason' => 'Initial policy alignment based on offense keywords.'
             ],
             'ai_explanation' => 'Initial decision-support suggestion. Requires verification against exact handbook clause.',

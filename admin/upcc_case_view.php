@@ -3960,11 +3960,12 @@ syncLive();
       </div>
       <p><strong>Section IV — Minor Offenses & 3-Attempt Rule:</strong><br>
       • 1st & 2nd Offense: Category 1 Warning & Written Reprimand (0 CS Hours).<br>
-      • 3rd Offense: Automatic escalation to Category 2 Major Offense (15–25 CS Hours + Disciplinary Probation).</p>
+      • 3rd Offense: Automatic escalation to Category 2 Major Offense (150–250 CS Hours).</p>
 
       <p><strong>Section V — Major Offenses & Sanction Categories:</strong><br>
-      • Category 2: Disciplinary Probation + 15 to 25 Hours of Community Service + Guidance Counseling.<br>
-      • Category 3: Disciplinary Probation / 3–5 Days Class Suspension + 25 to 50 Hours of Community Service.<br>
+      • Category 1: Formal Reprimand & Active Semester Probation (0 Hours CS).<br>
+      • Category 2: Formative Community Service (150 to 250 Hours) + Counseling / Education.<br>
+      • Category 3: Non-Readmission / Suspension (250 to 400 Hours Community Service or 1 Term Suspension).<br>
       • Category 4 / 5: Non-Readmission, Exclusion, or Expulsion for extreme violence, theft, or weapons.</p>
     </div>
     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
@@ -4387,7 +4388,7 @@ syncLive();
         </div>
         <div style="font-size: 1.85rem; font-weight: 900; color: #38bdf8; margin-bottom: 0.2rem; letter-spacing:-0.5px;" id="drawer-ai-rec-title">CATEGORY 2</div>
         <div style="font-size: 0.85rem; font-weight: 700; color: #34d399; margin-bottom: 1rem; display:flex; align-items:center; gap:6px;" id="drawer-ai-cs-hours">
-          <span>🧹</span> <span id="drawer-ai-cs-text">15–25 Hours Community Service</span>
+          <span>🧹</span> <span id="drawer-ai-cs-text">150–250 Hours Formative Community Service</span>
         </div>
         
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 1rem;">

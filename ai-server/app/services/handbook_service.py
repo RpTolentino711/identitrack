@@ -9,7 +9,7 @@ HANDBOOK_DATABASE = [
         "description": "Failure to wear prescribed school uniform, unauthorized hair color/dye, or improper civilian attire on campus.",
         "offense_type": "Grooming / Dress Code",
         "severity": "Minor Offense",
-        "intervention": "Category 1 Warning & 10–15 Hours Community Service",
+        "intervention": "Category 1 Warning & Written Reprimand (0 Hours CS)",
         "keywords": ["uniform", "dress code", "hair dye", "hair color", "attire", "grooming", "civilian"]
     },
     {
@@ -19,7 +19,7 @@ HANDBOOK_DATABASE = [
         "description": "Failure to wear valid student ID inside campus premises or lending ID card to another individual.",
         "offense_type": "Identification Violation",
         "severity": "Minor Offense",
-        "intervention": "Category 1 Reprimand & 10 Hours Community Service",
+        "intervention": "Category 1 Formal Reprimand & Warning (0 Hours CS)",
         "keywords": ["id", "card", "lending", "wearing id", "no id", "identification"]
     },
     {
@@ -29,7 +29,7 @@ HANDBOOK_DATABASE = [
         "description": "Using unauthorized materials, mobile devices, cheat sheets, or communicating with others during examinations or major quizzes.",
         "offense_type": "Academic Integrity",
         "severity": "Major Offense",
-        "intervention": "Category 2 Sanction (Disciplinary Probation & 25–40 Hours Community Service)",
+        "intervention": "Category 2 Sanction (Formative Community Service 150–250 Hours)",
         "keywords": ["cheat", "cheating", "phone exam", "exam", "quiz", "dishonesty", "leak", "crib sheet"]
     },
     {
@@ -39,7 +39,7 @@ HANDBOOK_DATABASE = [
         "description": "Bringing, consuming, or distributing illegal drugs, alcoholic beverages, e-cigarettes, or tobacco inside university premises.",
         "offense_type": "Substance & Campus Safety",
         "severity": "Major Offense",
-        "intervention": "Category 3 Sanction (Disciplinary Probation, 30–50 Hours Community Service, or Suspension)",
+        "intervention": "Category 3 Sanction (Non-Readmission / Suspension 250–400 Hours CS)",
         "keywords": ["alcohol", "liquor", "drugs", "vape", "vaping", "smoke", "smoking", "substance", "marijuana", "beer"]
     },
     {
@@ -49,7 +49,7 @@ HANDBOOK_DATABASE = [
         "description": "Submitting false evidence, forged documents, or making deliberately deceptive statements during a UPCC hearing.",
         "offense_type": "Administrative Deceit",
         "severity": "Major Offense",
-        "intervention": "Category 2 Sanction (Probation & Parental Notification)",
+        "intervention": "Category 2 Sanction (Formative Community Service 150–250 Hours)",
         "keywords": ["lie", "lying", "false statement", "forgery", "fake", "deceit", "untruth", "perjury"]
     }
 ]
@@ -94,7 +94,7 @@ class HandbookService:
                 "description": "General Student Handbook Code of Conduct Violation",
                 "offense_type": "Academic Integrity / Safety" if is_major else "General Student Conduct",
                 "severity": "Major Offense" if is_major else "Section 4 Minor Offense",
-                "intervention": "Category 2 Sanction (Probation & CS)" if is_major else "Category 1 Warning (10–15h CS)"
+                "intervention": "Category 2 Sanction (Formative CS 150–250 Hours)" if is_major else "Category 1 Warning (0 Hours CS)"
             },
             "confidence": 0.65 if is_major else 0.60,
             "uncertainty": True

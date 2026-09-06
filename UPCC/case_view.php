@@ -2257,18 +2257,17 @@ function toggleSugFields() {
     hide('sugCat1'); hide('sugCat2'); hide('sugCat345');
     if (v === 1) {
         show('sugCat1');
-    } else if (v >= 2 && v <= 5) {
+    } else if (v === 2) {
         show('sugCat2');
-        if (v >= 3) {
-            show('sugCat345');
-            const texts = {
-                3: 'Category 3 — Non-Readmission / Suspension (250–400 Hours Community Service or 1 Term Suspension).',
-                4: 'Category 4 — Exclusion / Mandatory Dismissal (400+ Hours Community Service or Exclusion).',
-                5: 'Category 5 — Summary Expulsion & Police Referral.',
-            };
-            const t = document.getElementById('sugCat345Text');
-            if (t) t.textContent = texts[v] || '';
-        }
+    } else if (v >= 3 && v <= 5) {
+        show('sugCat345');
+        const texts = {
+            3: 'Category 3 — Non-Readmission / Suspension (250–400 Hours Community Service or 1 Term Suspension).',
+            4: 'Category 4 — Exclusion / Mandatory Dismissal (400+ Hours Community Service or Exclusion).',
+            5: 'Category 5 — Summary Expulsion & Police Referral.',
+        };
+        const t = document.getElementById('sugCat345Text');
+        if (t) t.textContent = texts[v] || '';
     }
 }
 
@@ -3298,9 +3297,9 @@ async function runAiAnalysis() {
         const csHours = data.community_service_hours || 0;
         let csText = "0 Hours (Formal Reprimand / Advisory)";
         if (data.suggested_category === 2) {
-            csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "15–25 Hours Formative Community Service";
+            csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "150–250 Hours Formative Community Service";
         } else if (data.suggested_category === 3) {
-            csText = csHours > 0 ? `${csHours} Hours Community Service + Probation` : "25–50 Hours Community Service";
+            csText = csHours > 0 ? `${csHours} Hours Community Service` : "250–400 Hours Community Service";
         } else if (data.suggested_category === 4) {
             csText = "0 Hours (Non-Readmission / Exclusion)";
         } else if (data.suggested_category === 5) {
@@ -3648,11 +3647,12 @@ function closeHandbookModal() {
       </div>
       <p><strong>Section IV — Minor Offenses & 3-Attempt Rule:</strong><br>
       • 1st & 2nd Offense: Category 1 Warning & Written Reprimand (0 CS Hours).<br>
-      • 3rd Offense: Automatic escalation to Category 2 Major Offense (15–25 CS Hours + Disciplinary Probation).</p>
+      • 3rd Offense: Automatic escalation to Category 2 Major Offense (150–250 CS Hours).</p>
 
       <p><strong>Section V — Major Offenses & Sanction Categories:</strong><br>
-      • Category 2: Disciplinary Probation + 15 to 25 Hours of Community Service + Guidance Counseling.<br>
-      • Category 3: Disciplinary Probation / 3–5 Days Class Suspension + 25 to 50 Hours of Community Service.<br>
+      • Category 1: Formal Reprimand & Active Semester Probation (0 Hours CS).<br>
+      • Category 2: Formative Community Service (150 to 250 Hours) + Counseling / Education.<br>
+      • Category 3: Non-Readmission / Suspension (250 to 400 Hours Community Service or 1 Term Suspension).<br>
       • Category 4 / 5: Non-Readmission, Exclusion, or Expulsion for extreme violence, theft, or weapons.</p>
     </div>
     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
