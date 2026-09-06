@@ -2255,6 +2255,13 @@ function toggleSugFields() {
     const show = id => { const el = document.getElementById(id); if (el) el.style.display = 'block'; };
     const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
     hide('sugCat1'); hide('sugCat2'); hide('sugCat345');
+    if (v !== 2) {
+        const cat2Box = document.getElementById('sugCat2');
+        if (cat2Box) {
+            cat2Box.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+        }
+        toggleSugHours();
+    }
     if (v === 1) {
         show('sugCat1');
     } else if (v === 2) {
