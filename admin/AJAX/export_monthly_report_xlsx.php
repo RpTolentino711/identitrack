@@ -507,7 +507,7 @@ $activeCases = 0;
         $catDescriptions = [
             1 => 'Category 1 (Formal Reprimand & Active Semester Probation - 0 Hours CS)',
             2 => 'Category 2 (Formative Intervention & Community Service 150-250 Hours)',
-            3 => 'Category 3 (Non-Readmission / Suspension & Community Service 250-400 Hours)',
+            3 => 'Category 3 (Non-Readmission / Suspension)',
             4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
             5 => 'Category 5 (Summary Expulsion & Police Referral)'
         ];

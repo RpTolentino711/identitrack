@@ -177,7 +177,7 @@ function formatCaseActivity(array $act): string {
             $catNames = [
                 1 => 'Category 1 (Formal Reprimand / Probation)',
                 2 => 'Category 2 (Formative CS 150–250 Hours)',
-                3 => 'Category 3 (Non-Readmission / Suspension 250–400 Hours CS)',
+                3 => 'Category 3 (Non-Readmission / Suspension)',
                 4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
                 5 => 'Category 5 (Summary Expulsion & Police Referral)'
             ];
@@ -210,7 +210,7 @@ function formatCaseActivity(array $act): string {
                 $oldCatNames = [
                     1 => 'Category 1 (Formal Reprimand / Probation)',
                     2 => 'Category 2 (Formative CS 150–250 Hours)',
-                    3 => 'Category 3 (Non-Readmission / Suspension 250–400 Hours CS)',
+                    3 => 'Category 3 (Non-Readmission / Suspension)',
                     4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
                     5 => 'Category 5 (Summary Expulsion & Police Referral)'
                 ];
@@ -263,7 +263,7 @@ function formatCaseActivity(array $act): string {
             $catNames = [
                 1 => 'Category 1 (Formal Reprimand / Probation)',
                 2 => 'Category 2 (Formative Intervention / Service)',
-                3 => 'Category 3 (Non-Readmission / Suspension 250–400 Hours CS)',
+                3 => 'Category 3 (Non-Readmission / Suspension)',
                 4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
                 5 => 'Category 5 (Summary Expulsion & Police Referral)'
             ];
@@ -1908,7 +1908,7 @@ function formatCaseActivity(array $act): string {
               <select id="editCategory" class="form-group input" style="width:100%;" onchange="handleCategoryChange(); checkEditSanctionFormDirty();">
                 <option value="1">Category 1 - Formal Reprimand & Active Semester Probation</option>
                 <option value="2">Category 2 - Formative Community Service (150–250 Hours)</option>
-                <option value="3">Category 3 - Non-Readmission / Suspension (250–400 Hours CS)</option>
+                <option value="3">Category 3 - Non-Readmission / Suspension</option>
                 <option value="4">Category 4 - Exclusion / Mandatory Dismissal</option>
                 <option value="5">Category 5 - Summary Expulsion & Police Referral</option>
               </select>
@@ -3367,7 +3367,7 @@ function formatCaseActivity(array $act): string {
           const catNames = {
             1: 'Category 1 (Formal Reprimand / Probation)',
             2: 'Category 2 (Formative CS 150–250 Hours)',
-            3: 'Category 3 (Non-Readmission / Suspension 250–400 Hours CS)',
+            3: 'Category 3 (Non-Readmission / Suspension)',
             4: 'Category 4 (Exclusion / Mandatory Dismissal)',
             5: 'Category 5 (Summary Expulsion & Police Referral)'
           };
@@ -3458,7 +3458,7 @@ function formatCaseActivity(array $act): string {
           const catNamesMap = {
             1: 'Category 1 (Formal Reprimand / Probation)',
             2: 'Category 2 (Formative Intervention / Service)',
-            3: 'Category 3 (Non-Readmission / Suspension 250–400 Hours CS)',
+            3: 'Category 3 (Non-Readmission / Suspension)',
             4: 'Category 4 (Exclusion / Mandatory Dismissal)',
             5: 'Category 5 (Summary Expulsion & Police Referral)'
           };

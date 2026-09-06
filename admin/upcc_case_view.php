@@ -3838,7 +3838,7 @@ async function runAiAnalysis() {
         if (data.suggested_category === 2) {
             csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "150–250 Hours Formative Community Service";
         } else if (data.suggested_category === 3) {
-            csText = csHours > 0 ? `${csHours} Hours Community Service` : "250–400 Hours Community Service";
+            csText = "0 Hours (Non-Readmission / Suspension)";
         } else if (data.suggested_category === 4) {
             csText = "0 Hours (Non-Readmission / Exclusion)";
         } else if (data.suggested_category === 5) {
@@ -3965,8 +3965,8 @@ syncLive();
       <p><strong>Section V — Major Offenses & Sanction Categories:</strong><br>
       • Category 1: Formal Reprimand & Active Semester Probation (0 Hours CS).<br>
       • Category 2: Formative Community Service (150 to 250 Hours) + Counseling / Education.<br>
-      • Category 3: Non-Readmission / Suspension (250 to 400 Hours Community Service or 1 Term Suspension).<br>
-      • Category 4 / 5: Non-Readmission, Exclusion, or Expulsion for extreme violence, theft, or weapons.</p>
+      • Category 3: Non-Readmission / Suspension (1 Term Non-Readmission / Suspension).<br>
+      • Category 4 / 5: Exclusion or Expulsion for extreme violence, theft, or weapons.</p>
     </div>
     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
       <button type="button" class="btn btn-primary" onclick="closeHandbookModal()" style="padding:8px 20px; border-radius:8px; font-weight:700; background:#2563eb; border-color:#2563eb;">Understood</button>

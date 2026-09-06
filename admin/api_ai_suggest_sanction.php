@@ -40,7 +40,7 @@ function getDynamicHandbookRules(): string
     $rules .= "\n\nMAJOR CATEGORY PENALTY MATRIX:\n";
     $rules .= "• Category 1: Formal Reprimand & Active Semester Probation\n";
     $rules .= "• Category 2: Formative Community Service (150–250 Hours)\n";
-    $rules .= "• Category 3: 1 Semester Non-Readmission / Suspension (250–400 Hours CS)\n";
+    $rules .= "• Category 3: 1 Semester Non-Readmission / Suspension\n";
     $rules .= "• Category 4: Exclusion / Mandatory Dismissal\n";
     $rules .= "• Category 5: Summary Expulsion & Police Referral\n";
 
@@ -1207,7 +1207,7 @@ try {
                 ? "Summary Expulsion / Permanent Disqualification"
                 : (($suggestedCategory >= 4)
                     ? "Mandatory Exclusion / Non-Readmission"
-                    : "250–400 Hours Community Service");
+                    : "1 Semester Non-Readmission / Suspension");
 
             $historyDetails = [];
             if ($totalPrior > 0) {
@@ -1222,7 +1222,7 @@ try {
                 ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, chronic repeat infractions (3+ prior records) escalate to a Category 5 Sanction (Summary Expulsion / Permanent Disqualification)."
                 : (($totalHistoryCount >= 2)
                     ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, accumulating 2 prior records escalates repeat infractions to a Category 4 Sanction (Mandatory Exclusion / Non-Readmission)."
-                    : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to a Category 3 Sanction (250–400 Hours CS).");
+                    : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to a Category 3 Sanction (1 Semester Non-Readmission / Suspension).");
 
             $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, count($pendingCasesRows), $priorCasesBreakdownText, $pendingCasesText, $studentName);
 

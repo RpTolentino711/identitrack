@@ -39,7 +39,7 @@ HANDBOOK_DATABASE = [
         "description": "Bringing, consuming, or distributing illegal drugs, alcoholic beverages, e-cigarettes, or tobacco inside university premises.",
         "offense_type": "Substance & Campus Safety",
         "severity": "Major Offense",
-        "intervention": "Category 3 Sanction (Non-Readmission / Suspension 250–400 Hours CS)",
+        "intervention": "Category 3 Sanction (Non-Readmission / Suspension)",
         "keywords": ["alcohol", "liquor", "drugs", "vape", "vaping", "smoke", "smoking", "substance", "marijuana", "beer"]
     },
     {
