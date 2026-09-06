@@ -4278,7 +4278,7 @@ syncLive();
 </div>
 
 <!-- SLIDE-UP FLOATING GLASS DRAWER WITH ANIMATED BOT HEAD -->
-<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:440px;height:650px;max-height:88vh;background:rgba(9, 14, 28, 0.96);backdrop-filter:blur(28px);border:1px solid rgba(56, 189, 248, 0.4);border-radius:28px;box-shadow:0 30px 70px rgba(0,0,0,0.85), 0 0 50px rgba(14, 165, 233, 0.25);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%) scale(0.95);opacity:0;visibility:hidden;pointer-events:none;transition:transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;box-sizing:border-box;">
+<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:540px;height:720px;max-width:96vw;max-height:92vh;background:rgba(9, 14, 28, 0.96);backdrop-filter:blur(28px);border:1px solid rgba(56, 189, 248, 0.4);border-radius:28px;box-shadow:0 30px 70px rgba(0,0,0,0.85), 0 0 50px rgba(14, 165, 233, 0.25);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%) scale(0.95);opacity:0;visibility:hidden;pointer-events:none;transition:transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;box-sizing:border-box;">
   
   <!-- DRAWER HEADER WITH ANIMATED AI HEAD AVATAR -->
   <div style="background:rgba(15, 23, 42, 0.95);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;">

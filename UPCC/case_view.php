@@ -3902,7 +3902,7 @@ async function fetchInitialAiSanctionRecommendation() {
         <div class="ai-avatar-container">
             <img src="../assets/identilogo.png" alt="IdentiTrack AI" class="ai-avatar-img">
         </div>
-        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:14px 16px;font-size:14.5px;color:#f8fafc;line-height:1.6;max-width:90%;">
+        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:16px 18px;font-size:16.5px;color:#f8fafc;line-height:1.75;max-width:92%;letter-spacing:0.2px;">
             <div style="display:inline-flex;align-items:center;">
                 <div class="ai-dots-loader"><span></span><span></span><span></span></div>
                 <span class="ai-shimmer-text">Analyzing hearing file & handbook policies...</span>
@@ -3999,7 +3999,7 @@ function toggleDrawerWhyPanel() {
 </div>
 
 <!-- SLIDE-UP FLOATING GLASS DRAWER WITH ANIMATED BOT HEAD (ChatGPT-style Conversational AI) -->
-<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:490px;height:700px;max-width:94vw;max-height:90vh;background:rgba(9, 14, 28, 0.97);backdrop-filter:blur(28px);border:1px solid rgba(56, 189, 248, 0.4);border-radius:28px;box-shadow:0 30px 70px rgba(0,0,0,0.85), 0 0 50px rgba(14, 165, 233, 0.25);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%) scale(0.95);opacity:0;visibility:hidden;pointer-events:none;transition:transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;box-sizing:border-box;">
+<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:540px;height:720px;max-width:96vw;max-height:92vh;background:rgba(9, 14, 28, 0.97);backdrop-filter:blur(28px);border:1px solid rgba(56, 189, 248, 0.4);border-radius:28px;box-shadow:0 30px 70px rgba(0,0,0,0.85), 0 0 50px rgba(14, 165, 233, 0.25);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%) scale(0.95);opacity:0;visibility:hidden;pointer-events:none;transition:transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;box-sizing:border-box;">
   
   <!-- DRAWER HEADER WITH ANIMATED AI HEAD AVATAR -->
   <div style="background:rgba(15, 23, 42, 0.95);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
@@ -4031,10 +4031,10 @@ function toggleDrawerWhyPanel() {
         </svg>
       </div>
       <div>
-        <div style="font-weight:800;font-size:15px;color:#f8fafc;letter-spacing:0.3px;display:flex;align-items:center;gap:6px;">
-          IdentiTrack AI <span style="font-size:10px;background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 8px;border-radius:12px;border:1px solid rgba(56,189,248,0.3);font-weight:700;">CONVERSATIONAL</span>
+        <div style="font-weight:800;font-size:16px;color:#f8fafc;letter-spacing:0.3px;display:flex;align-items:center;gap:6px;">
+          IdentiTrack AI <span style="font-size:11px;background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 8px;border-radius:12px;border:1px solid rgba(56,189,248,0.3);font-weight:700;">CONVERSATIONAL</span>
         </div>
-        <div style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-top:2px;">
+        <div style="font-size:11.5px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-top:2px;">
           <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block;"></span> Strictly Handbook & Precedents
         </div>
       </div>
@@ -4045,30 +4045,30 @@ function toggleDrawerWhyPanel() {
   </div>
 
   <!-- CONVERSATIONAL CHAT THREAD -->
-  <div id="aiChatThread" style="flex:1;padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth;">
+  <div id="aiChatThread" style="flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:18px;scroll-behavior:smooth;">
     <!-- Welcome message bubble -->
     <div style="display:flex;gap:12px;align-items:flex-start;">
       <div class="ai-avatar-container">
         <img src="../assets/identilogo.png" alt="IdentiTrack AI" class="ai-avatar-img">
       </div>
-      <div style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:14px 16px;font-size:14.5px;color:#f8fafc;line-height:1.6;max-width:90%;">
+      <div style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:16px 18px;font-size:16.5px;color:#f8fafc;line-height:1.75;max-width:92%;letter-spacing:0.2px;">
         Hello Panel Member! I am strictly bound to the <strong>NU Lipa Student Handbook</strong> and anonymized historical case precedents.<br><br>
-        Please type any question you have regarding this hearing, handbook rules, or precedent outcomes below.
+        Please type any question you have regarding this hearing, handbook rules, or precedent outcomes below. I am glad to answer them in detail!
       </div>
     </div>
   </div>
 
   <!-- STOP GENERATING BAR (Dynamically shown during typing) -->
   <div id="aiStopGeneratingContainer" style="display:none;padding:8px;text-align:center;background:rgba(15,23,42,0.95);border-top:1px solid rgba(255,255,255,0.08);">
-    <button type="button" onclick="stopAiTyping()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.5);color:#fca5a5;padding:7px 18px;border-radius:20px;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.35)';" onmouseout="this.style.background='rgba(239,68,68,0.2)';">
+    <button type="button" onclick="stopAiTyping()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.5);color:#fca5a5;padding:7px 18px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.35)';" onmouseout="this.style.background='rgba(239,68,68,0.2)';">
       <span>🛑</span> Stop Generating
     </button>
   </div>
 
   <!-- BOTTOM INPUT BAR -->
   <form id="aiChatForm" onsubmit="handleAiChatSubmit(event)" style="padding:14px 18px;background:rgba(15, 23, 42, 0.97);border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:10px;align-items:center;">
-    <input type="text" id="aiDrawerChatInput" placeholder="Ask AI about handbook rules or precedents..." autocomplete="off" style="flex:1;background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.18);border-radius:14px;padding:12px 16px;font-size:14px;color:#f8fafc;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#38bdf8';" onblur="this.style.borderColor='rgba(255,255,255,0.18)';">
-    <button type="submit" id="aiChatSendBtn" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:12px 18px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='scale(1.03)';" onmouseout="this.style.transform='scale(1)';">
+    <input type="text" id="aiDrawerChatInput" placeholder="Ask AI about handbook rules or precedents..." autocomplete="off" style="flex:1;background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.18);border-radius:14px;padding:14px 18px;font-size:15.5px;color:#f8fafc;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#38bdf8';" onblur="this.style.borderColor='rgba(255,255,255,0.18)';">
+    <button type="submit" id="aiChatSendBtn" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:14px 20px;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='scale(1.03)';" onmouseout="this.style.transform='scale(1)';">
       ✦ Send
     </button>
   </form>
@@ -4118,7 +4118,7 @@ async function handleAiChatSubmit(e) {
     const userMsgDiv = document.createElement('div');
     userMsgDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:4px;';
     userMsgDiv.innerHTML = `
-        <div style="background:linear-gradient(135deg, #2563eb, #1d4ed8);border-radius:18px;border-top-right-radius:4px;padding:12px 16px;font-size:14.5px;color:#ffffff;line-height:1.6;max-width:88%;box-shadow:0 4px 14px rgba(37,99,235,0.35);">
+        <div style="background:linear-gradient(135deg, #2563eb, #1d4ed8);border-radius:18px;border-top-right-radius:4px;padding:14px 18px;font-size:16px;color:#ffffff;line-height:1.65;max-width:88%;box-shadow:0 4px 14px rgba(37,99,235,0.35);">
             ${escHtml(query)}
         </div>
     `;
@@ -4133,7 +4133,7 @@ async function handleAiChatSubmit(e) {
         <div class="ai-avatar-container">
             <img src="../assets/identilogo.png" alt="IdentiTrack AI" class="ai-avatar-img">
         </div>
-        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:14px 16px;font-size:14.5px;color:#f8fafc;line-height:1.6;max-width:90%;">
+        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:16px 18px;font-size:16.5px;color:#f8fafc;line-height:1.75;max-width:92%;letter-spacing:0.2px;">
             <div style="display:inline-flex;align-items:center;">
                 <div class="ai-dots-loader"><span></span><span></span><span></span></div>
                 <span class="ai-shimmer-text">Analyzing hearing file & handbook...</span>
@@ -4196,20 +4196,20 @@ function typeOutAiResponse(containerEl, fullText, threadEl) {
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/^### (.*$)/gim, '<strong style="color:#38bdf8;font-size:15px;display:block;margin:12px 0 4px;font-weight:700;">$1</strong>')
-        .replace(/^## (.*$)/gim, '<strong style="color:#38bdf8;font-size:16px;display:block;margin:14px 0 6px;font-weight:700;">$1</strong>')
-        .replace(/^# (.*$)/gim, '<strong style="color:#38bdf8;font-size:17px;display:block;margin:16px 0 8px;font-weight:700;">$1</strong>')
-        .replace(/^[\u2022\-\*] (.*$)/gim, '<div style="margin-left:8px;margin-bottom:4px;line-height:1.6;">• $1</div>')
+        .replace(/^### (.*$)/gim, '<strong style="color:#38bdf8;font-size:17.5px;display:block;margin:14px 0 6px;font-weight:700;">$1</strong>')
+        .replace(/^## (.*$)/gim, '<strong style="color:#38bdf8;font-size:18.5px;display:block;margin:16px 0 8px;font-weight:800;">$1</strong>')
+        .replace(/^# (.*$)/gim, '<strong style="color:#38bdf8;font-size:20px;display:block;margin:18px 0 10px;font-weight:800;">$1</strong>')
+        .replace(/^[\u2022\-\*] (.*$)/gim, '<div style="margin-left:8px;margin-bottom:6px;line-height:1.75;font-size:16.5px;">• $1</div>')
         .replace(/\n/g, '<br>')
-        // Category styling: Bold white text, slightly larger, no pill background colors
-        .replace(/\bCategory ([1-5])\b/gi, '<strong style="color:#ffffff;font-weight:800;font-size:16px;">Category $1</strong>');
+        // Category styling: Bold white text, larger font size, clear emphasis
+        .replace(/\bCategory ([1-5])\b/gi, '<strong style="color:#ffffff;font-weight:800;font-size:18px;">Category $1</strong>');
 
     const textSpan = document.createElement('div');
-    textSpan.style.cssText = 'font-size:14.5px;line-height:1.65;color:#f8fafc;word-break:break-word;';
+    textSpan.style.cssText = 'font-size:16.5px;line-height:1.75;color:#f8fafc;word-break:break-word;letter-spacing:0.2px;';
 
     const cursorSpan = document.createElement('span');
     cursorSpan.className = 'ai-typing-cursor';
-    cursorSpan.style.cssText = 'color:#38bdf8;font-weight:900;animation:blink 0.7s infinite;margin-left:3px;display:inline-block;font-size:14px;';
+    cursorSpan.style.cssText = 'color:#38bdf8;font-weight:900;animation:blink 0.7s infinite;margin-left:3px;display:inline-block;font-size:16px;';
     cursorSpan.textContent = '▌';
 
     containerEl.appendChild(textSpan);
