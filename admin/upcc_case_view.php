@@ -309,7 +309,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         $details['probation_terms'] = max(1, min(3, $terms));
                         $probationUntil = date('Y-m-d H:i:s', strtotime('+' . ($details['probation_terms'] * 6) . ' months'));
 
-                    } elseif ($category >= 2) {
+                    } elseif ($category === 2) {
                         $details['interventions'] = [];
                         if (isset($_POST['cat2_university_service']) || !empty($_POST['service_hours'])) {
                             $details['interventions'][] = 'University Service';

@@ -188,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sugge
             $terms = (int)($_POST['suggest_cat1_terms'] ?? 3);
             $terms = max(1, min(3, $terms));
             $voteDetails['probation_terms'] = $terms;
-        } elseif ($category >= 2) {
+        } elseif ($category === 2) {
             $voteDetails['interventions'] = [];
             if (!empty($_POST['suggest_cat2_university_service'])) {
                 $voteDetails['interventions'][] = 'University Service';
@@ -440,9 +440,9 @@ function _catLabel(int $cat, array $details = []): string {
     $labels = [
         1 => 'Category 1 — Probation (' . ($details['probation_terms'] ?? 3) . ' terms)',
         2 => 'Category 2 — Formative Intervention' . $interventionsList . $hrsStr,
-        3 => 'Category 3 — Non-Readmission / Suspension' . $interventionsList . $hrsStr,
-        4 => 'Category 4 — Exclusion / Mandatory Dismissal' . $interventionsList . $hrsStr,
-        5 => 'Category 5 — Expulsion & Police Referral' . $interventionsList . $hrsStr,
+        3 => 'Category 3 — Non-Readmission / Suspension' . $hrsStr,
+        4 => 'Category 4 — Exclusion / Mandatory Dismissal',
+        5 => 'Category 5 — Expulsion & Police Referral',
     ];
     return $labels[$cat] ?? "Category {$cat}{$hrsStr}";
 }
