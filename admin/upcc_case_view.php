@@ -156,11 +156,11 @@ if (!empty($assignedPanelIds)) {
 
 // ── Category descriptions ─────────────────────────────────────────────────
 $categoryDescriptions = [
-    1 => 'Probation for the selected number of academic terms with referral for counseling. Any subsequent major offense during probation triggers Suspension or Non-Readmission.',
-    2 => "Formative Intervention — any or all of the following:\n• University service\n• Referral for counseling\n• Attendance to lectures in Discipline Education Program\n• Evaluation",
-    3 => 'Non-Readmission. The student is not allowed to enroll next term but may finish the current one. Student account will be frozen.',
-    4 => 'Exclusion. The student is dropped from the roll immediately upon promulgation. Student account will be frozen.',
-    5 => 'Expulsion. The student is permanently disqualified from admission to any higher education institution. Student account will be permanently frozen.',
+    1 => 'Formal Reprimand & Active Semester Probation (0 Hours CS).',
+    2 => 'Formative Community Service (150 to 250 Hours) with Counseling / Education / Evaluation.',
+    3 => 'Non-Readmission / Suspension (250 to 400 Hours Community Service or 1 Term Suspension).',
+    4 => 'Exclusion / Mandatory Dismissal (Dropped from University Rolls).',
+    5 => 'Summary Expulsion & Police Referral (Permanent Disqualification from Higher Education).',
 ];
 
 // ── POST actions ──────────────────────────────────────────────────────────
@@ -1812,11 +1812,11 @@ body {
                 $punishDetails   = [];
                 try { $punishDetails = json_decode((string)($case['punishment_details'] ?? ''), true) ?: []; } catch (Throwable $e) {}
                 $catLabels = [
-                    1 => 'Category 1 — Probation',
-                    2 => 'Category 2 — Intervention',
-                    3 => 'Category 3 — Suspension',
-                    4 => 'Category 4 — Expulsion (Dismissal)',
-                    5 => 'Category 5 — Expulsion (Exclusion)',
+                    1 => 'Category 1 — Formal Reprimand & Active Semester Probation',
+                    2 => 'Category 2 — Formative Intervention',
+                    3 => 'Category 3 — Non-Readmission / Suspension',
+                    4 => 'Category 4 — Exclusion / Mandatory Dismissal',
+                    5 => 'Category 5 — Summary Expulsion & Police Referral',
                 ];
                 $catLabel = $catLabels[$decidedCat] ?? "Category {$decidedCat}";
               ?>

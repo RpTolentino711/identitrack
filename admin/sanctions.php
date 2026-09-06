@@ -175,11 +175,11 @@ function formatCaseActivity(array $act): string {
             }
             
             $catNames = [
-                1 => 'Category 1 (Suspension/Probation)',
-                2 => 'Category 2 (Community Service)',
-                3 => 'Category 3 (Non-Readmission Warning)',
-                4 => 'Category 4 (Exclusion)',
-                5 => 'Category 5 (Expulsion)'
+                1 => 'Category 1 (Formal Reprimand / Probation)',
+                2 => 'Category 2 (Formative CS 150–250 Hours)',
+                3 => 'Category 3 (Non-Readmission / Suspension 250–400 Hours CS)',
+                4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
+                5 => 'Category 5 (Summary Expulsion & Police Referral)'
             ];
             $catName = $catNames[$cat] ?? "Category $cat";
 
@@ -208,11 +208,11 @@ function formatCaseActivity(array $act): string {
             $oldCat = isset($payload['old_category']) ? (int)$payload['old_category'] : null;
             if ($oldCat !== null && $oldCat !== $cat) {
                 $oldCatNames = [
-                    1 => 'Category 1 (Suspension/Probation)',
-                    2 => 'Category 2 (Community Service)',
-                    3 => 'Category 3 (Non-Readmission Warning)',
-                    4 => 'Category 4 (Exclusion)',
-                    5 => 'Category 5 (Expulsion)'
+                    1 => 'Category 1 (Formal Reprimand / Probation)',
+                    2 => 'Category 2 (Formative CS 150–250 Hours)',
+                    3 => 'Category 3 (Non-Readmission / Suspension 250–400 Hours CS)',
+                    4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
+                    5 => 'Category 5 (Summary Expulsion & Police Referral)'
                 ];
                 $oldCatName = $oldCatNames[$oldCat] ?? "Category $oldCat";
                 
@@ -261,11 +261,11 @@ function formatCaseActivity(array $act): string {
             }
             
             $catNames = [
-                1 => 'Category 1 (Suspension/Probation)',
+                1 => 'Category 1 (Formal Reprimand / Probation)',
                 2 => 'Category 2 (Formative Intervention / Service)',
-                3 => 'Category 3 (Non-Readmission Warning)',
-                4 => 'Category 4 (Exclusion)',
-                5 => 'Category 5 (Expulsion)'
+                3 => 'Category 3 (Non-Readmission / Suspension 250–400 Hours CS)',
+                4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
+                5 => 'Category 5 (Summary Expulsion & Police Referral)'
             ];
             $cName = $catNames[$cat] ?? "Category $cat";
             return "<strong>[$dateStr]</strong> 🏛️ <strong>UPCC Panel Decision (Case #$caseNum)</strong> finalized: <strong>$cName</strong> by Admin.";
@@ -1906,11 +1906,11 @@ function formatCaseActivity(array $act): string {
             <div class="form-group">
               <label for="editCategory">Sanction Category</label>
               <select id="editCategory" class="form-group input" style="width:100%;" onchange="handleCategoryChange(); checkEditSanctionFormDirty();">
-                <option value="1">Category 1 - Probation / Suspension</option>
-                <option value="2">Category 2 - Community Service / Formative Intervention</option>
-                <option value="3">Category 3 - Non-Readmission Warning</option>
-                <option value="4">Category 4 - Exclusion</option>
-                <option value="5">Category 5 - Expulsion</option>
+                <option value="1">Category 1 - Formal Reprimand & Active Semester Probation</option>
+                <option value="2">Category 2 - Formative Community Service (150–250 Hours)</option>
+                <option value="3">Category 3 - Non-Readmission / Suspension (250–400 Hours CS)</option>
+                <option value="4">Category 4 - Exclusion / Mandatory Dismissal</option>
+                <option value="5">Category 5 - Summary Expulsion & Police Referral</option>
               </select>
             </div>
 
@@ -3365,11 +3365,11 @@ function formatCaseActivity(array $act): string {
           }
           
           const catNames = {
-            1: 'Category 1 (Suspension/Probation)',
-            2: 'Category 2 (Community Service)',
-            3: 'Category 3 (Non-Readmission Warning)',
-            4: 'Category 4 (Exclusion)',
-            5: 'Category 5 (Expulsion)'
+            1: 'Category 1 (Formal Reprimand / Probation)',
+            2: 'Category 2 (Formative CS 150–250 Hours)',
+            3: 'Category 3 (Non-Readmission / Suspension 250–400 Hours CS)',
+            4: 'Category 4 (Exclusion / Mandatory Dismissal)',
+            5: 'Category 5 (Summary Expulsion & Police Referral)'
           };
           const catName = catNames[cat] || `Category ${cat}`;
           
@@ -3456,11 +3456,11 @@ function formatCaseActivity(array $act): string {
           }
           
           const catNamesMap = {
-            1: 'Category 1 (Suspension/Probation)',
+            1: 'Category 1 (Formal Reprimand / Probation)',
             2: 'Category 2 (Formative Intervention / Service)',
-            3: 'Category 3 (Non-Readmission Warning)',
-            4: 'Category 4 (Exclusion)',
-            5: 'Category 5 (Expulsion)'
+            3: 'Category 3 (Non-Readmission / Suspension 250–400 Hours CS)',
+            4: 'Category 4 (Exclusion / Mandatory Dismissal)',
+            5: 'Category 5 (Summary Expulsion & Police Referral)'
           };
           const cName = catNamesMap[fCat] || `Category ${fCat}`;
           return `<strong>[${dateStr}]</strong> 🏛️ <strong>UPCC Panel Decision (Case #${caseNum})</strong> finalized: <strong>${cName}</strong> by Admin.`;

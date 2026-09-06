@@ -438,11 +438,11 @@ function _catLabel(int $cat, array $details = []): string {
         : '';
 
     $labels = [
-        1 => 'Category 1 — Probation (' . ($details['probation_terms'] ?? 3) . ' terms)',
+        1 => 'Category 1 — Formal Reprimand & Active Semester Probation',
         2 => 'Category 2 — Formative Intervention' . $interventionsList . $hrsStr,
         3 => 'Category 3 — Non-Readmission / Suspension' . $hrsStr,
         4 => 'Category 4 — Exclusion / Mandatory Dismissal',
-        5 => 'Category 5 — Expulsion & Police Referral',
+        5 => 'Category 5 — Summary Expulsion & Police Referral',
     ];
     return $labels[$cat] ?? "Category {$cat}{$hrsStr}";
 }
@@ -856,11 +856,11 @@ function decision_badge(string $s): array {
 $statusBadge = decision_badge($statusRaw);
 
 $categoryDescriptions = [
-    1 => 'Probation for the chosen number of academic terms with referral for counseling. Any subsequent major offense during probation triggers Suspension or Non-Readmission.',
-    2 => 'Formative Intervention — University Service, Referral for Counseling, Attendance to Discipline Education Program lectures, and/or Evaluation.',
-    3 => 'Non-Readmission — the student is not allowed to enroll for the next term but may finish the current one. Student account will be frozen.',
-    4 => 'Exclusion — the student is dropped from the roll upon promulgation. Student account will be frozen.',
-    5 => 'Expulsion — the student is permanently disqualified from admission to any higher education institution. Student account will be permanently frozen.',
+    1 => 'Formal Reprimand & Active Semester Probation (0 Hours CS).',
+    2 => 'Formative Community Service (150 to 250 Hours) with Counseling / Education / Evaluation.',
+    3 => 'Non-Readmission / Suspension (250 to 400 Hours Community Service or 1 Term Suspension).',
+    4 => 'Exclusion / Mandatory Dismissal (Dropped from University Rolls).',
+    5 => 'Summary Expulsion & Police Referral (Permanent Disqualification from Higher Education).',
 ];
 
 $postedDecidedCategory = isset($_POST['decided_category']) ? (int)$_POST['decided_category'] : 0;
