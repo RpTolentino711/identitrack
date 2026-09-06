@@ -2251,10 +2251,15 @@ function setSuggestionLocked(locked, remainingSeconds) {
 //  SUGGEST FORM FIELD TOGGLING
 // ─────────────────────────────────────────────────────────────────────────
 function toggleSugFields() {
-    const v = parseInt(document.getElementById('suggest_category')?.value || '0', 10);
-    const show = id => { const el = document.getElementById(id); if (el) el.style.display = 'block'; };
-    const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
-    hide('sugCat1'); hide('sugCat2'); hide('sugCat345');
+    const sugCatEl = document.getElementById('suggest_category');
+    const v = parseInt(sugCatEl?.value || '0', 10);
+    const show = id => { const el = document.getElementById(id); if (el) el.style.setProperty('display', 'block', 'important'); };
+    const hide = id => { const el = document.getElementById(id); if (el) el.style.setProperty('display', 'none', 'important'); };
+    
+    hide('sugCat1');
+    hide('sugCat2');
+    hide('sugCat345');
+
     if (v !== 2) {
         const cat2Box = document.getElementById('sugCat2');
         if (cat2Box) {
@@ -2262,6 +2267,7 @@ function toggleSugFields() {
         }
         toggleSugHours();
     }
+
     if (v === 1) {
         show('sugCat1');
     } else if (v === 2) {
@@ -3145,7 +3151,11 @@ document.addEventListener('keydown', e => { if (e.ctrlKey && ['p','s'].includes(
 function initFormToggles() {
     // suggestion form
     const sugCat = document.getElementById('suggest_category');
-    if (sugCat?.value) toggleSugFields();
+    if (sugCat) {
+        sugCat.removeEventListener('change', toggleSugFields);
+        sugCat.addEventListener('change', toggleSugFields);
+        toggleSugFields();
+    }
     bindSuggestFormValidation();
     // final decision form
     const finalCat = document.getElementById('decided_category');
