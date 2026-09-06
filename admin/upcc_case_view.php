@@ -3836,9 +3836,9 @@ async function runAiAnalysis() {
         const csHours = data.community_service_hours || 0;
         let csText = "0 Hours (Formal Reprimand / Advisory)";
         if (data.suggested_category === 2) {
-            csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "15–25 Hours Formative Community Service";
+            csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "150–250 Hours Formative Community Service";
         } else if (data.suggested_category === 3) {
-            csText = csHours > 0 ? `${csHours} Hours Community Service + Probation` : "25–50 Hours Community Service";
+            csText = csHours > 0 ? `${csHours} Hours Community Service` : "250–400 Hours Community Service";
         } else if (data.suggested_category === 4) {
             csText = "0 Hours (Non-Readmission / Exclusion)";
         } else if (data.suggested_category === 5) {
