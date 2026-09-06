@@ -359,11 +359,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 $rTag = "record - {$mCount}";
                 $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
             }
-            $combinedCategory = ($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1);
+            $combinedCategory = ($offenseCount >= 3) ? 2 : (($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1));
             $breakdownBlock = implode("\n", $offenseBreakdownLines);
 
             $whyMulti = ($offenseCount >= 3)
-                ? "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and ensures procedural consistency**. The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category 2 Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
+                ? "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and ensures procedural consistency**. The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category {$combinedCategory} Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
                 : "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and promotes standardized enforcement**. The student is charged with **{$offenseCount} offenses** in this hearing. Aggregating precedent baseline hours and handbook gravity analysis across all charged infractions yields a combined **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
 
             return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
@@ -452,11 +452,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                     $rTag = "record - {$mCount}";
                     $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
                 }
-                $combinedCategory = ($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1);
+                $combinedCategory = ($offenseCount >= 3) ? 2 : (($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1));
                 $breakdownBlock = implode("\n", $offenseBreakdownLines);
 
                 $whyMulti = ($offenseCount >= 3)
-                    ? "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and ensures procedural consistency**. The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category 2 Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
+                    ? "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and ensures procedural consistency**. The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category {$combinedCategory} Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
                     : "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and promotes standardized enforcement**. The student is charged with **{$offenseCount} offenses** in this hearing. Aggregating precedent baseline hours and handbook gravity analysis across all charged infractions yields a combined **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
 
                 return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
@@ -807,7 +807,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
     if (preg_match('/\b(graduat|latin honor|cum laude|magna|summa|clearance|diploma|senior)\b/i', $promptLower)) {
         return "👋 **Hello Administrator!** Here is how disciplinary sanctions impact graduation and honors:\n\n"
              . "🎓 **Impact on Graduation & Academic Honors**:\n\n"
-             . "• **Disqualification from Honors**: Any student found guilty of a **Major Offense** or assigned a Category 2/3 sanction is automatically disqualified from graduating with Latin Honors (Cum Laude, Magna Cum Laude, Summa Cum Laude).\n"
+             . "• **Disqualification from Honors**: Any student found guilty of a **Major Offense** or assigned a Category 2 Sanction or higher is automatically disqualified from graduating with Latin Honors (Cum Laude, Magna Cum Laude, Summa Cum Laude).\n"
              . "• **Student Clearance**: Disciplinary cases for the student must reach **RESOLVED** or **CLOSED** status with all community service hours completed before graduation clearance can be approved.\n\n"
              . "Let me know if you need to generate a clearance hold status notice for the Registrar!";
     }
@@ -1267,11 +1267,11 @@ try {
                 $rTag = "record - {$mCount}";
                 $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
             }
-            $combinedCategory = ($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1);
+            $combinedCategory = ($offenseCount >= 3) ? 2 : (($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1));
             $breakdownBlock = implode("\n", $offenseBreakdownLines);
 
             $whyMulti = ($offenseCount >= 3)
-                ? "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and ensures procedural consistency**. The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category 2 Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
+                ? "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and ensures procedural consistency**. The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category {$combinedCategory} Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
                 : "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and promotes standardized enforcement**. The student is charged with **{$offenseCount} offenses** in this hearing. Aggregating precedent baseline hours and handbook gravity analysis across all charged infractions yields a combined **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
 
             $aiExplanationText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
@@ -1530,7 +1530,7 @@ try {
                     $rTag = "record - {$mCount}";
                     $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
                 }
-                $combinedCategory = ($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1);
+                $combinedCategory = ($offenseCount >= 3) ? 2 : (($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1));
                 $breakdownBlock = implode("\n", $offenseBreakdownLines);
 
                 if ($totalDisciplinaryHistory > 0) {
@@ -1559,7 +1559,7 @@ try {
                             . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
                 } else {
                     $whyMulti = ($offenseCount >= 3)
-                        ? "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and ensures procedural consistency**. The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category 2 Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
+                        ? "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and ensures procedural consistency**. The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category {$combinedCategory} Major Offense** ({$totalCombinedHours} Hours Community Service + Active Probation)."
                         : "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and promotes standardized enforcement**. The student is charged with **{$offenseCount} offenses** in this hearing. Aggregating precedent baseline hours and handbook gravity analysis across all charged infractions yields a combined **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
 
                     $aiText = "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
