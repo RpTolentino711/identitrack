@@ -2276,8 +2276,8 @@ function toggleSugFields() {
         show('sugCat345');
         const texts = {
             3: 'Category 3 — Non-Readmission / Suspension (250–400 Hours Community Service or 1 Term Suspension).',
-            4: 'Category 4 — Exclusion / Mandatory Dismissal (400+ Hours Community Service or Exclusion).',
-            5: 'Category 5 — Summary Expulsion & Police Referral.',
+            4: 'Category 4 — Exclusion / Mandatory Dismissal (Dropped from University Rolls).',
+            5: 'Category 5 — Summary Expulsion & Police Referral (Permanent Disqualification).',
         };
         const t = document.getElementById('sugCat345Text');
         if (t) t.textContent = texts[v] || '';
