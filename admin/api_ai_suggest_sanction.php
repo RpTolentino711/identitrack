@@ -328,8 +328,8 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 ? "Mandatory Exclusion / Non-Readmission"
                 : "250 to 400 Hours Community Service";
             $whyReason = ($totalHistoryCount >= 2)
-                ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
-                : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
+                ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 (Mandatory Exclusion / Non-Readmission)."
+                : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Active Probation).";
 
             $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, $pendingCasesCount, $priorCasesText, $pendingCasesText, $studentName);
 
@@ -416,8 +416,8 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 ? "Mandatory Exclusion / Non-Readmission"
                 : "250 to 400 Hours Community Service";
             $whyReason = ($totalHistoryCount >= 2)
-                ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
-                : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
+                ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 (Mandatory Exclusion / Non-Readmission)."
+                : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Active Probation).";
 
             $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, $pendingCasesCount, $priorCasesText, $pendingCasesText, $studentName);
 
@@ -550,7 +550,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             if ($totalPrior > 0) {
                 $suggestedCat = 3;
                 $hoursText = "250 to 400 Hours Community Service";
-                $whyReason = "The student has {$totalPrior} prior resolved case(s) on file. Under NU Lipa Handbook Section 5, repeat offenses after a prior sanction escalate to Category 3 or Category 4 (Non-Readmission / Suspension).";
+                $whyReason = "The student has {$totalPrior} prior resolved case(s) on file. Under NU Lipa Handbook Section 5, repeat offenses after a prior sanction escalate to Category 3 (250–400 Hours CS / Active Probation).";
             } else {
                 $suggestedCat = $offLvl === 'MAJOR' ? 2 : 1;
                 $hoursText = $suggestedCat === 2 ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
@@ -588,8 +588,8 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             $historyDetailsText = implode(' and ', $historyDetails);
 
             $whyReason = ($totalHistoryCount >= 2)
-                ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
-                : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
+                ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 (Mandatory Exclusion / Non-Readmission)."
+                : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Active Probation).";
 
             $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, $pendingCasesCount, $priorCasesText, $pendingCasesText, $studentName);
 
@@ -685,8 +685,8 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                     ? "Mandatory Exclusion / Non-Readmission"
                     : "250 to 400 Hours Community Service";
                 $whyReason = ($totalHistoryCount >= 2)
-                    ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
-                    : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
+                    ? "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 (Mandatory Exclusion / Non-Readmission)."
+                    : "The student has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Active Probation).";
 
                 $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, $pendingCasesCount, $priorCasesText, $pendingCasesText, $studentName);
 
@@ -761,7 +761,7 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
         return "👋 **Hello Panel Member!** Here is our policy guidance regarding false statements during a hearing:\n\n"
              . "⚠️ **Policy Guidance on Submitting False Information / Lying**:\n\n"
              . "• **Handbook Violation**: Providing false statements, forged documents, or lying during a UPCC hearing is classified as an independent **Major Offense** under NU Lipa Academic & Administrative Dishonesty policies.\n"
-             . "• **Sanction Escalation**: If established during the hearing, the committee should note this aggravating circumstance and consider escalating the penalty to a **Category 2 or Category 3 Sanction** (Disciplinary Probation or Suspension).\n"
+             . "• **Sanction Escalation**: If established during the hearing, the committee should note this aggravating circumstance and consider escalating the penalty to a **Category 2 Sanction** (Disciplinary Probation & Community Service).\n"
              . "• **Recommendation**: Advise the student of their obligation to speak truthfully under the Student Code of Conduct.\n\n"
              . "Let me know if you would like me to cite the exact handbook clause for dishonesty!";
     }
@@ -1201,8 +1201,8 @@ try {
             $historyDetailsText = implode(' and ', $historyDetails);
 
             $whyReason = ($totalHistoryCount >= 2)
-                ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
-                : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
+                ? "The student has {$historyDetailsText} on file (total {$totalHistoryCount} prior records). Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 (Mandatory Exclusion / Non-Readmission)."
+                : "The student has {$historyDetailsText} on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Active Probation).";
 
             $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, count($pendingCasesRows), $priorCasesBreakdownText, $pendingCasesText, $studentName);
 
@@ -1519,8 +1519,8 @@ try {
                         ? "Mandatory Exclusion / Non-Readmission"
                         : "250 to 400 Hours Community Service";
                     $whyReason = ($totalDisciplinaryHistory >= 2)
-                        ? "The student is charged with {$offenseCount} offenses in this hearing AND has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file (total {$totalDisciplinaryHistory} prior records). Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
-                        : "The student is charged with {$offenseCount} offenses in this hearing AND has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file. Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions escalate to Category 3 (250–400 Hours CS / Suspension).";
+                        ? "The student is charged with {$offenseCount} offenses in this hearing AND has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file (total {$totalDisciplinaryHistory} prior records). Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions escalate to Category 4 (Mandatory Exclusion / Non-Readmission)."
+                        : "The student is charged with {$offenseCount} offenses in this hearing AND has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file. Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions escalate to Category 3 (250–400 Hours CS / Active Probation).";
 
                     $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, count($pendingCasesRows), $priorCasesBreakdownText, $pendingCasesText, $studentName);
 
@@ -1596,8 +1596,8 @@ try {
                             : "250 to 400 Hours Community Service";
 
                         $whyReason = ($totalDisciplinaryHistory >= 2)
-                            ? "The student has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file (total {$totalDisciplinaryHistory} prior records). Under NU Lipa Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 or Category 5 (Mandatory Exclusion / Non-Readmission / Summary Expulsion)."
-                            : "The student has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file. Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Suspension).";
+                            ? "The student has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file (total {$totalDisciplinaryHistory} prior records). Under NU Lipa Handbook Section 5 Repeat Offender Policy, multiple repeat infractions escalate to Category 4 (Mandatory Exclusion / Non-Readmission)."
+                            : "The student has {$totalPrior} prior resolved case(s) and " . count($pendingCasesRows) . " pending case(s) on file. Under NU Lipa Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to Category 3 (250–400 Hours CS / Active Probation).";
 
                         if (!preg_match('/Category ' . $suggestedCat . '/i', $aiText) || !preg_match('/Suggested Punishment|Category \d Sanction/i', $aiText)) {
                             $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, count($pendingCasesRows), $priorCasesBreakdownText, $pendingCasesText, $studentName);
