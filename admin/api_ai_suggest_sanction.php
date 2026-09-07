@@ -303,6 +303,25 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "Feel free to ask me any questions regarding handbook policies, case precedents, or sanction recommendations!";
     }
 
+    // 0.1. RECORD, CHARGED & FIRST-TIME INQUIRIES
+    if (preg_match('/\b(record|data|first time|charged|no record|any record|charged to|previous|prior)\b/i', $promptLower)) {
+        $hasHistory = ($totalPrior + $pendingCasesCount) > 0;
+        $historyStr = $hasHistory 
+            ? "Student **{$studentName}** has **{$totalPrior} prior resolved case(s)** and **{$pendingCasesCount} pending case(s)** on file."
+            : "Student **{$studentName}** has **0 prior resolved cases** and **0 pending cases** (No prior disciplinary record).";
+
+        $mCount = count($excelPrecedents) + count($exactPrecedents);
+        $precedentStr = ($mCount > 0)
+            ? "We found **{$mCount} matching precedent record(s)** in our historical campus dataset for **{$offName}**."
+            : "There are **0 matching historical precedent records (record - 0)** in our campus dataset for **{$offName}**.";
+
+        return "👋 **Hello Panel Member!** Here is the record analysis regarding your inquiry:\n\n"
+             . "• **Student Record**: {$historyStr}\n"
+             . "• **Campus Precedent Check**: {$precedentStr}\n\n"
+             . "💡 **Handbook Basis**: Because " . ($mCount > 0 ? "historical precedents exist, recommendations align with past campus decisions to avoid bias." : "this is a 0-precedent case, recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix** (Category 1 for 1st/2nd Minor Attempt, Category 2 for 3rd Attempt Escalation).") . "\n\n"
+             . "Feel free to ask any further questions regarding this case!";
+    }
+
     // 1. GREETINGS & INTRODUCTIONS — IMMEDIATELY ANALYZE & SUGGEST PUNISHMENT
     if (preg_match('/\b(hi|hello|hey|sup|yo|greetings|good morning|good afternoon|good evening|what can you do)\b/i', $promptLower)) {
         $excelCount = count($excelPrecedents);
