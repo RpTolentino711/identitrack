@@ -990,16 +990,28 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
     ? '<div class="ap-email"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' . htmlspecialchars($guardianEmail) . '</div>'
     : '<div class="ap-email ap-email--warn"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>No guardian email on file</div>';
 
-  $trigDesc = ($maxSame >= 3)
+  $displayActiveCount = $isEsc ? $reqCount : max(1, $activeCount);
+  $isDiffTypes = ($reqCount === 4) || ($cycleInfo && $cycleInfo['trigger_reason'] === 'DIFF_TYPES_4');
+
+  $trigDesc = ($maxSame >= 3 || ($cycleInfo && $cycleInfo['trigger_reason'] === 'SAME_TYPE_3'))
     ? '3 minor offenses of the SAME type accumulated (' . htmlspecialchars($cycleInfo['max_same_type_name'] ?? 'Same Type') . '). Section 4 Escalation triggered!'
     : '4 minor offenses of DIFFERENT types accumulated. Section 4 Escalation triggered!';
+
+  $stepsHtml = $isDiffTypes
+    ? '<div class="ap-step ap-step--done">1st Minor ✓</div>'
+      . '<div class="ap-step ap-step--done">2nd Minor ✓</div>'
+      . '<div class="ap-step ap-step--done" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">3rd Minor (App Warning) ✓</div>'
+      . '<div class="ap-step" style="background:#dc2626; color:#ffffff; font-weight:800; border-radius:6px; padding:6px 10px; box-shadow:0 2px 8px rgba(220,38,38,0.35);">4th Minor ⬅ Section 4 Panel (4/4 Triggered)</div>'
+    : '<div class="ap-step ap-step--done">1st Minor ✓</div>'
+      . '<div class="ap-step ap-step--done">2nd Minor ✓</div>'
+      . '<div class="ap-step" style="background:#dc2626; color:#ffffff; font-weight:800; border-radius:6px; padding:6px 10px; box-shadow:0 2px 8px rgba(220,38,38,0.35);">3rd Minor ⬅ Section 4 Panel (3/3 Triggered)</div>';
 
   return '
   <div class="alert-panel alert-panel--critical">
     <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
     <div class="ap-body">
       <div class="ap-title">⚖️ Section 4 Escalation Triggered (' . $cycleOrd . ' Cycle)</div>
-      <div class="ap-projected-badge ap-projected--critical">🚨 Active Cycle ' . $cycleOrd . ' → <strong>' . $activeCount . '/' . $reqCount . ' Trigger Reached</strong></div>
+      <div class="ap-projected-badge ap-projected--critical">🚨 Active Cycle ' . $cycleOrd . ' → <strong>' . $displayActiveCount . '/' . $reqCount . ' Trigger Reached</strong></div>
       <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--critical" style="width:100%"></div></div><span class="ap-progress-label">100% – UPCC Panel Investigation Triggered</span></div>
       <div class="ap-desc" style="font-weight:700; color:#b91c1c;">' . $trigDesc . ' Student referred to UPCC Panel for Category 1–5 voting.</div>
       ' . $emailHtml2 . '
@@ -1008,10 +1020,8 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
         <div class="ap-check">✓ Panel assigns category (1–5)</div>
         <div class="ap-check">✓ Guardian letter generated</div>
       </div>
-      <div class="ap-steps" style="margin-top:10px;">
-        <div class="ap-step ap-step--done">1st Minor ✓</div>
-        <div class="ap-step ap-step--done">2nd Minor ✓</div>
-        <div class="ap-step" style="background:#dc2626; color:#ffffff; font-weight:800; border-radius:6px; padding:6px 10px; box-shadow:0 2px 8px rgba(220,38,38,0.35);">3rd Minor ⬅ Section 4 Panel (3/3 Triggered)</div>
+      <div class="ap-steps" style="margin-top:10px; display:flex; flex-direction:column; gap:4px;">
+        ' . $stepsHtml . '
       </div>
     </div>
   </div>';
@@ -3764,24 +3774,37 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       ? `<div class="ap-email"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>${escHtml(guardianEmail)}</div>`
       : `<div class="ap-email ap-email--warn"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>No guardian email on file</div>`;
 
+    const displayActiveCount = isEsc ? reqCount : Math.max(1, activeCount);
+    const isDiffTypes = (reqCount === 4) || (cycle.trigger_reason === 'DIFF_TYPES_4');
+    const trigDesc = isDiffTypes
+      ? '4 minor offenses of DIFFERENT types accumulated. Section 4 Escalation triggered!'
+      : `3 minor offenses of the SAME type accumulated (${escHtml(cycle.max_same_type_name || 'Same Type')}). Section 4 Escalation triggered!`;
+
+    const stepsHtml = isDiffTypes
+      ? `<div class="ap-step ap-step--done">1st Minor ✓</div>
+         <div class="ap-step ap-step--done">2nd Minor ✓</div>
+         <div class="ap-step ap-step--done" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">3rd Minor (App Warning) ✓</div>
+         <div class="ap-step" style="background:#dc2626; color:#ffffff; font-weight:800; border-radius:6px; padding:6px 10px; box-shadow:0 2px 8px rgba(220,38,38,0.35);">4th Minor ⬅ Section 4 Panel (4/4 Triggered)</div>`
+      : `<div class="ap-step ap-step--done">1st Minor ✓</div>
+         <div class="ap-step ap-step--done">2nd Minor ✓</div>
+         <div class="ap-step" style="background:#dc2626; color:#ffffff; font-weight:800; border-radius:6px; padding:6px 10px; box-shadow:0 2px 8px rgba(220,38,38,0.35);">3rd Minor ⬅ Section 4 Panel (3/3 Triggered)</div>`;
+
     return `
     <div class="alert-panel alert-panel--critical">
       <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
       <div class="ap-body">
         <div class="ap-title">⚖️ Section 4 Escalation Triggered (${cycleOrd} Cycle)</div>
-        <div class="ap-projected-badge ap-projected--critical">🚨 Active Cycle ${cycleOrd} → <strong>${activeCount}/${reqCount} Trigger Reached</strong></div>
+        <div class="ap-projected-badge ap-projected--critical">🚨 Active Cycle ${cycleOrd} → <strong>${displayActiveCount}/${reqCount} Trigger Reached</strong></div>
         <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--critical" style="width:100%"></div></div><span class="ap-progress-label">100% – UPCC Panel Investigation Triggered</span></div>
-        <div class="ap-desc" style="font-weight:700; color:#b91c1c;">Student referred to UPCC Panel for Category 1–5 voting.</div>
+        <div class="ap-desc" style="font-weight:700; color:#b91c1c;">${trigDesc} Student referred to UPCC Panel for Category 1–5 voting.</div>
         ${emailHtml2}
         <div class="ap-checklist">
           <div class="ap-check">✓ UPCC case will be created</div>
-          <div class="ap-check">✓ Panel assigns category (1–5)</div>
-          <div class="ap-check">✓ Guardian letter generated</div>
+          <div class="ap-check">✓ 3-Modal Workflow (Notice, NTE, Photo) opened</div>
+          <div class="ap-check">✓ Panel votes to assign Category (1–5)</div>
         </div>
-        <div class="ap-steps" style="margin-top:10px;">
-          <div class="ap-step ap-step--done">1st Minor ✓</div>
-          <div class="ap-step ap-step--done">2nd Minor ✓</div>
-          <div class="ap-step" style="background:#dc2626; color:#ffffff; font-weight:800; border-radius:6px; padding:6px 10px; box-shadow:0 2px 8px rgba(220,38,38,0.35);">3rd Minor ⬅ Section 4 Panel (3/3 Triggered)</div>
+        <div class="ap-steps" style="margin-top:10px; display:flex; flex-direction:column; gap:4px;">
+          ${stepsHtml}
         </div>
       </div>
     </div>`;
