@@ -1084,9 +1084,9 @@ try {
     $csReq = $targetStudentId !== '' ? db_one("
         SELECT csr.requirement_id, " . db_decrypt_col('task_name', 'csr') . " AS task_name, csr.hours_required, csr.status,
         (
-            SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, COALESCE(time_out, NOW()))/3600.0), 0.0)
+            SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, time_out)/3600.0), 0.0)
             FROM community_service_session css
-            WHERE css.requirement_id = csr.requirement_id
+            WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NOT NULL
         ) AS hours_completed,
         (
             SELECT COUNT(*) FROM community_service_session css
@@ -1191,7 +1191,9 @@ try {
             $dbP = $dbMatchesForThis;
             $punStr = formatPunishmentDetails((string)($dbP[0]['punishment_details'] ?? ''));
             if (preg_match('/(\d+)\s*Hours/i', $punStr, $pm)) {
-                $matchedHours = (int)$pm[1];
+                $matchedHours = (float)$pm[1];
+            } elseif (preg_match('/(\d+)\s*Minutes/i', $punStr, $pm)) {
+                $matchedHours = (float)$pm[1] / 60.0;
             } else {
                 $matchedHours = ($dbP[0]['decided_category'] >= 2) ? 150 : 0;
             }
@@ -1203,7 +1205,9 @@ try {
             $cr = $excelMatchesForThis[0];
             $sanc = (string)($cr['sanction'] ?? '');
             if (preg_match('/(\d+)\s*Hours/i', $sanc, $pm)) {
-                $matchedHours = (int)$pm[1];
+                $matchedHours = (float)$pm[1];
+            } elseif (preg_match('/(\d+)\s*Minutes/i', $sanc, $pm)) {
+                $matchedHours = (float)$pm[1] / 60.0;
             } else {
                 $matchedHours = (strpos(strtoupper($sanc), 'NON-READMISSION') !== false) ? 300 : ((strpos(strtoupper($sanc), '150') !== false) ? 150 : 250);
             }

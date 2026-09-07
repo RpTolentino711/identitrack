@@ -100,7 +100,7 @@ function record_finalized_case_to_historical_dataset(int $caseId): bool
         $priorRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid", [':sid' => $studentId]);
 
         $details = json_decode((string)($cRow['punishment_details'] ?? ''), true) ?: [];
-        $serviceHours = (int)($details['service_hours'] ?? ($details['hours'] ?? 0));
+        $serviceHours = (float)($details['service_hours'] ?? ($details['hours'] ?? 0));
 
         $datasetPaths = [
             __DIR__ . '/../storage/dataset/sanction_history_dataset.json',
@@ -1649,7 +1649,7 @@ function student_account_mode(string $studentId): array
     if (!empty($details['interventions']) && is_array($details['interventions'])) {
       $interventions = array_map('strval', $details['interventions']);
     }
-    $serviceHours = (int)($details['service_hours'] ?? 0);
+    $serviceHours = (float)($details['service_hours'] ?? 0);
     $messageParts = ['Complete your formative intervention requirements.'];
     if ($interventions) {
       $messageParts[] = 'Selected interventions: ' . implode(', ', $interventions) . '.';
