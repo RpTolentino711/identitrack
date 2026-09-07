@@ -914,17 +914,18 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
       $cycleInfo = getStudentActiveMinorCycle($studentId, $selectedTypeId);
   }
 
-  $activeCount = $cycleInfo ? $cycleInfo['active_count'] : max(1, $projectedCount);
-  $reqCount = $cycleInfo ? $cycleInfo['required_for_escalation'] : 3;
-  $maxSame = $cycleInfo ? $cycleInfo['max_same_type_count'] : 1;
-  $cycleNum = $cycleInfo ? $cycleInfo['current_cycle_num'] : max(1, (int)ceil($projectedCount / 3));
+  $existingActiveCount = $cycleInfo ? (int)$cycleInfo['active_count'] : max(0, $projectedCount - 1);
+  $projectedActiveCount = $existingActiveCount + 1;
+  $reqCount = $cycleInfo ? (int)$cycleInfo['required_for_escalation'] : 3;
+  $maxSame = $cycleInfo ? (int)$cycleInfo['max_same_type_count'] : 1;
+  $cycleNum = $cycleInfo ? (int)$cycleInfo['current_cycle_num'] : max(1, (int)ceil($projectedCount / 3));
   $cycleOrd = getOrdinal($cycleNum);
-  $isEsc = $cycleInfo ? $cycleInfo['is_escalation_triggered'] : ($activeCount >= $reqCount);
+  $isEsc = ($cycleInfo && $cycleInfo['is_escalation_triggered']) || ($projectedActiveCount >= $reqCount && ($maxSame >= 3 || $projectedActiveCount >= 4));
 
-  $pct = min(100, (int)round(($activeCount / $reqCount) * 100));
+  $pct = min(100, (int)round(($projectedActiveCount / $reqCount) * 100));
 
-  // 1st Minor
-  if ($activeCount === 1 && !$isEsc) {
+  // 1st Minor (or 0 active offenses projected as 1st minor)
+  if ($projectedActiveCount <= 1 && !$isEsc) {
     return '
     <div class="alert-panel alert-panel--info">
       <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
@@ -943,7 +944,7 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
   }
 
   // 2nd Minor
-  if ($activeCount === 2 && !$isEsc) {
+  if ($projectedActiveCount === 2 && !$isEsc) {
     $emailHtml = $guardianEmail
       ? '<div class="ap-email"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' . htmlspecialchars($guardianEmail) . '</div>'
       : '<div class="ap-email ap-email--warn"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>No guardian email on file</div>';
@@ -966,7 +967,7 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
   }
 
   // 3rd Minor of DIFFERENT types (Student App Warning Issued!)
-  if ($activeCount === 3 && !$isEsc) {
+  if ($projectedActiveCount === 3 && !$isEsc) {
     return '
     <div class="alert-panel" style="background:#fffbe0; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:10px; padding:14px; box-shadow:0 2px 8px rgba(245,158,11,0.15);">
       <div class="ap-icon" style="color:#d97706;"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
@@ -3699,19 +3700,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   function renderMinorAlert(projectedCount, guardianEmail, currentCount) {
     const cycle = window.__activeMinorCycle || {};
-    const activeCount = cycle.active_count || (projectedCount || 1);
+    const existingActiveCount = (typeof cycle.active_count !== 'undefined') ? Number(cycle.active_count) : Math.max(0, (projectedCount || 1) - 1);
+    const projectedActiveCount = existingActiveCount + 1;
     const reqCount = cycle.required_for_escalation || 3;
+    const maxSame = cycle.max_same_type_count || 1;
     const cycleNum = cycle.current_cycle_num || 1;
-    const isEsc = cycle.is_escalation_triggered || (activeCount >= reqCount);
+    const isEsc = Boolean(cycle.is_escalation_triggered) || (projectedActiveCount >= reqCount && (maxSame >= 3 || projectedActiveCount >= 4));
 
     function getOrd(n) {
       const s = ['th','st','nd','rd'], v = n % 100;
       return n + (s[(v - 20) % 10] || s[v] || s[0]);
     }
     const cycleOrd = getOrd(cycleNum);
-    const pct = Math.min(100, Math.round((activeCount / reqCount) * 100));
+    const pct = Math.min(100, Math.round((projectedActiveCount / reqCount) * 100));
 
-    if (activeCount === 1 && !isEsc) {
+    if (projectedActiveCount <= 1 && !isEsc) {
       return `
       <div class="alert-panel alert-panel--info">
         <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
@@ -3729,7 +3732,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       </div>`;
     }
 
-    if (activeCount === 2 && !isEsc) {
+    if (projectedActiveCount === 2 && !isEsc) {
       const emailHtml = guardianEmail
         ? `<div class="ap-email"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>${escHtml(guardianEmail)}</div>`
         : `<div class="ap-email ap-email--warn"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>No guardian email on file</div>`;
@@ -3751,7 +3754,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       </div>`;
     }
 
-    if (activeCount === 3 && !isEsc) {
+    if (projectedActiveCount === 3 && !isEsc) {
       return `
       <div class="alert-panel" style="background:#fffbe0; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:10px; padding:14px; box-shadow:0 2px 8px rgba(245,158,11,0.15);">
         <div class="ap-icon" style="color:#d97706;"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
