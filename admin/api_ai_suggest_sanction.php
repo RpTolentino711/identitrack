@@ -1492,8 +1492,9 @@ try {
         $aiText = $aiEngineRes['text'];
         $aiEngineName = $aiEngineRes['engine'];
 
-        // ── Guard: Guarantee immediate suggested punishment & Prioritize Precedents First ──
-        if ($aiText !== null && preg_match('/\b(suggest|sanction|category|punishment|recommend|decision|vote|penalty|minor|section 4)\b/i', $userQuery)) {
+        // ── Guard: Guarantee immediate suggested punishment on initial load or explicit recommendation request ──
+        $isExplicitSanctionQuery = preg_match('/^(suggest|suggest punishment|recommend sanction|what sanction|what category|what punishment)$/i', trim($userQuery));
+        if ($isExplicitSanctionQuery) {
             $totalDisciplinaryHistory = $totalPrior + count($pendingCasesRows);
 
             // MULTI-OFFENSE HEARINGS: If case contains MULTIPLE charged offenses (e.g. 3 Minor offenses under Section 4)

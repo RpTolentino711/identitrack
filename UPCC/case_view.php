@@ -4066,9 +4066,9 @@ function toggleDrawerWhyPanel() {
   </div>
 
   <!-- BOTTOM INPUT BAR -->
-  <form id="aiChatForm" onsubmit="handleAiChatSubmit(event)" style="padding:14px 18px;background:rgba(15, 23, 42, 0.97);border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:10px;align-items:center;">
-    <input type="text" id="aiDrawerChatInput" placeholder="Ask AI about handbook rules or precedents..." autocomplete="off" style="flex:1;background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.18);border-radius:14px;padding:14px 18px;font-size:15.5px;color:#f8fafc;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#38bdf8';" onblur="this.style.borderColor='rgba(255,255,255,0.18)';">
-    <button type="submit" id="aiChatSendBtn" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:14px 20px;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='scale(1.03)';" onmouseout="this.style.transform='scale(1)';">
+  <form id="aiChatForm" onsubmit="handleAiChatSubmit(event)" style="padding:14px 18px;background:rgba(15, 23, 42, 0.97);border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:10px;align-items:flex-end;">
+    <textarea id="aiDrawerChatInput" rows="1" placeholder="Ask AI about handbook rules or precedents..." autocomplete="off" style="flex:1;background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.18);border-radius:14px;padding:12px 16px;font-size:15.5px;color:#f8fafc;outline:none;transition:border-color 0.2s;resize:none;max-height:130px;min-height:48px;line-height:1.45;font-family:inherit;" oninput="this.style.height='48px';this.style.height=Math.min(this.scrollHeight, 130)+'px';" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();handleAiChatSubmit(event);}" onfocus="this.style.borderColor='#38bdf8';" onblur="this.style.borderColor='rgba(255,255,255,0.18)';"></textarea>
+    <button type="submit" id="aiChatSendBtn" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:12px 20px;height:48px;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(2,132,199,0.4);transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.transform='scale(1.03)';" onmouseout="this.style.transform='scale(1)';">
       ✦ Send
     </button>
   </form>
@@ -4112,6 +4112,7 @@ async function handleAiChatSubmit(e) {
     if (!query || isAiGenerating) return;
 
     input.value = '';
+    input.style.height = '48px';
     
     // Append User Message to Thread
     const thread = document.getElementById('aiChatThread');
