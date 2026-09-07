@@ -232,8 +232,7 @@ function get_historical_dataset_records() {
   // Dynamically append real finalized cases from MySQL database table upcc_case
   try {
       if (function_exists('db_all')) {
-          $dbDecidedCases = db_all("
-              SELECT uc.case_id, uc.decided_category, uc.punishment_details, uc.final_decision, uc.updated_at,
+          $dbDecidedCases = db_all(" SELECT uc.case_id, uc.decided_category, uc.punishment_details, uc.final_decision, uc.updated_at,
                      s.program,
                      ot.name AS offense_name, ot.level AS offense_level
               FROM upcc_case uc
