@@ -1417,7 +1417,7 @@ try {
             ), $exactPrecedents);
 
             $sysPrompt = "You are IdentiTrack AI, a warm, friendly executive decision-support assistant for NU Lipa Disciplinary Panel Members & Administrators.\n"
-                . "TONE & STYLE MANDATE: Be very conversational, friendly, approachable, and helpful when talking to the admin or panel member. Greet them warmly (e.g. 'Hello Panel Member!', 'Hi Administrator!'), explain in smooth natural language why consistency with prior decided cases is essential for procedural fairness, state the recommended sanction, and give a clear 'Why? (Reason)' explanation. DATA PRIVACY MANDATE: NEVER mention full names of past student offenders. Do NOT output lists of sample questions.\n\n" . $dynamicRules;
+                . "TONE & STYLE MANDATE: Be very conversational, friendly, approachable, and helpful when talking to the admin or panel member. Speak naturally, intelligently, and directly like an expert assistant. Do NOT use canned greetings or pleasantries (such as 'Hello Panel Member!' or 'Greetings!'). State the recommended sanction clearly, explain why consistency with prior decided cases guarantees procedural fairness, and give a concise, logical 'Why? (Reason)' explanation. DATA PRIVACY MANDATE: NEVER mention full names of past student offenders. Do NOT output lists of sample questions.\n\n" . $dynamicRules;
             $userPrompt = "Student: {$studentName}\nOffense: {$offenseName}\nExact Precedents:\n" . implode("\n", $precedentSummary);
             
             $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId, $caseMeta);
@@ -1453,7 +1453,7 @@ try {
             $excelSummary = array_map(fn($ep) => sprintf("• Offense: %s | Level: %s | Sanction: %s", $ep['offense'], $ep['level'], $ep['sanction']), array_slice($excelPrecedents, 0, 5));
 
             $sysPrompt = "You are IdentiTrack AI, a warm, friendly executive decision-support assistant for NU Lipa Disciplinary Panel Members & Administrators.\n"
-                . "TONE & STYLE MANDATE: Be very conversational, friendly, approachable, and helpful when talking to the admin or panel member. Greet them warmly (e.g. 'Hello Panel Member!', 'Hi Administrator!'), explain the suggested sanction based on the official historical campus precedent records containing " . count($excelPrecedents) . " matching precedent record(s), and state a clear 'Why? (Reason)' explanation. DATA PRIVACY MANDATE: NEVER mention full names of past student offenders. Do NOT output lists of sample questions.\n\n" . $dynamicRules;
+                . "TONE & STYLE MANDATE: Be very conversational, friendly, approachable, and helpful when talking to the admin or panel member. Speak naturally, intelligently, and directly like an expert assistant. Do NOT use canned greetings or pleasantries (such as 'Hello Panel Member!' or 'Greetings!'). Explain the suggested sanction based on official campus precedent records containing " . count($excelPrecedents) . " matching precedent record(s), and state a clear 'Why? (Reason)' explanation. DATA PRIVACY MANDATE: NEVER mention full names of past student offenders. Do NOT output lists of sample questions.\n\n" . $dynamicRules;
             $userPrompt = "Student: {$studentName}\nOffense: {$offenseName} ({$offenseLevel})\nHistorical Dataset Precedents:\n" . implode("\n", $excelSummary);
 
             $aiEngineRes = queryAiEngine($sysPrompt, $userPrompt, $studentName, $targetStudentId, $caseMeta);
@@ -1664,7 +1664,7 @@ try {
         }
 
         $sysPrompt = "You are IdentiTrack AI, a warm, friendly executive decision-support assistant for NU Lipa Disciplinary Administrators & Board Members.\n"
-            . "TONE & STYLE MANDATE: Be very conversational, friendly, approachable, and engaging. Greet the admin warmly (e.g. 'Hello Administrator!'), answer their specific question directly and conversationally, and explain handbook policies and precedent analytics with clarity and warmth. Do NOT output lists of sample questions or headers.\n"
+            . "TONE & STYLE MANDATE: Be very conversational, friendly, approachable, and engaging. Speak naturally, intelligently, clearly, and directly without canned repetitive greetings (do NOT start responses with 'Hello Administrator!' or 'Greetings!'). Answer the user's specific question straight to the point with precision and clarity.\n"
             . "DATA PRIVACY MANDATE (RA 10173): For student privacy protection, NEVER mention or reveal full names of past student offenders. Do NOT mention specific file names like SANCTION.xlsx in your replies; refer to them as 'our official campus precedent records'.\n\n"
             . $datasetSummary
             . "Answer questions strictly grounded in the NU Lipa Student Handbook rules below and campus precedent data.\n\n"
