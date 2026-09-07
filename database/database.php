@@ -332,6 +332,15 @@ function db_last_id(): string
   return db()->lastInsertId();
 }
 
+function db_val(string $sql, array $params = []): mixed
+{
+  $row = db_one($sql, $params);
+  if ($row !== null && !empty($row)) {
+    return reset($row);
+  }
+  return null;
+}
+
 /* =========================
    DATABASE ENCRYPTION HELPERS
    ========================= */

@@ -822,13 +822,14 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
         $startDate = '1970-01-01 00:00:00';
     }
 
-    $completedCyclesCount = (int)db_val(
-        "SELECT COUNT(*) FROM upcc_case 
+    $completedRow = db_one(
+        "SELECT COUNT(*) AS cnt FROM upcc_case 
          WHERE student_id = :sid 
            AND case_kind = 'SECTION4_MINOR_ESCALATION' 
            AND status NOT IN ('CANCELLED','VOID')",
         [':sid' => $studentId]
     );
+    $completedCyclesCount = (int)($completedRow['cnt'] ?? 0);
 
     $minors = db_all(
         "SELECT o.offense_id, o.offense_type_id, o.date_committed, ot.code, ot.name
