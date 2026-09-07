@@ -235,10 +235,10 @@ function formatStudentDisciplinaryHistoryBlock(int $totalPrior, int $pendingCoun
     
     $sections = [];
     if (!empty($priorCasesText) && $priorCasesText !== "No prior resolved UPCC cases on file.") {
-        $sections[] = "**Prior Resolved Cases**:\n" . $priorCasesText;
+        $sections[] = "• **Prior Resolved Cases Breakdown**:\n" . $priorCasesText;
     }
     if (!empty($pendingCasesText) && $pendingCasesText !== "No other pending cases on file.") {
-        $sections[] = "**Pending Cases**:\n" . $pendingCasesText;
+        $sections[] = "• **Other Pending Cases Breakdown**:\n" . $pendingCasesText;
     }
 
     if (!empty($sections)) {
@@ -303,23 +303,47 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
              . "Feel free to ask me any questions regarding handbook policies, case precedents, or sanction recommendations!";
     }
 
-    // 0.1. RECORD, CHARGED & FIRST-TIME INQUIRIES
-    if (preg_match('/\b(record|data|first time|charged|no record|any record|charged to|previous|prior)\b/i', $promptLower)) {
+    // 0.1. RECORD, CHARGED & FIRST-TIME INQUIRIES / SANCTION INQUIRIES
+    if (preg_match('/\b(record|data|first time|charged|no record|any record|charged to|previous|prior|penalty|punishment|sanction|suggested)\b/i', $promptLower)) {
         $hasHistory = ($totalPrior + $pendingCasesCount) > 0;
-        $historyStr = $hasHistory 
-            ? "Student **{$studentName}** has **{$totalPrior} prior resolved case(s)** and **{$pendingCasesCount} pending case(s)** on file."
-            : "Student **{$studentName}** has **0 prior resolved cases** and **0 pending cases** (No prior disciplinary record).";
+        $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, $pendingCasesCount, $priorCasesText, $pendingCasesText, $studentName);
 
         $mCount = count($excelPrecedents) + count($exactPrecedents);
         $precedentStr = ($mCount > 0)
             ? "We found **{$mCount} matching precedent record(s)** in our historical campus dataset for **{$offName}**."
             : "There are **0 matching historical precedent records (record - 0)** in our campus dataset for **{$offName}**.";
 
-        return "👋 **Hello Panel Member!** Here is the record analysis regarding your inquiry:\n\n"
-             . "• **Student Record**: {$historyStr}\n"
+        // Calculate explicit suggested sanction category
+        if ($hasHistory) {
+            $suggestedCat = 3;
+            $hoursText = "1 Term Non-Readmission / Suspension";
+            $whyReason = "Student **{$studentName}** has {$totalPrior} prior resolved case(s) and {$pendingCasesCount} pending case(s) on file. Under NU Lipa Student Handbook Section 5 Repeat Offender Policy, repeat infractions following a prior record escalate to a Category 3 Sanction (1 Term Non-Readmission / Suspension).";
+        } elseif (!empty($exactPrecedents)) {
+            $mostRecent = $exactPrecedents[0];
+            $suggestedCat = (int)($mostRecent['decided_category'] ?? 2);
+            $hoursText = formatPunishmentDetails((string)($mostRecent['punishment_details'] ?? ''));
+            $whyReason = "Historical campus precedent for this exact offense ('{$offName}') is Category {$suggestedCat} ({$hoursText}). Recommending this same punishment avoids bias and ensures equal treatment.";
+        } elseif (!empty($excelPrecedents)) {
+            $firstExcelMatch = $excelPrecedents[0];
+            $hoursText = $firstExcelMatch['sanction'] ?? 'FORMATIVE INTERVENTION';
+            $suggestedCat = (strpos(strtoupper($hoursText), 'NON-READMISSION') !== false || strpos(strtoupper($hoursText), 'DROPPED') !== false) ? 4
+                : ((strpos(strtoupper($hoursText), 'SUSPENSION') !== false) ? 3
+                : ((strpos(strtoupper($hoursText), 'REPRIMAND') !== false || strpos(strtoupper($hoursText), 'DISMISS') !== false) ? 1 : 2));
+            $whyReason = "Historical campus discipline records for offenses matching '{$offName}' show that past students were assigned Category {$suggestedCat} ({$hoursText}).";
+        } else {
+            $suggestedCat = ($offLvl === 'MAJOR') ? 2 : 1;
+            $hoursText = ($suggestedCat === 2) ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+            $whyReason = "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix) for a 1st offense on record.";
+        }
+
+        return "👋 **Hello Panel Member!** Here is the complete record & sanction analysis regarding your inquiry:\n\n"
+             . "{$historyBlock}\n\n"
              . "• **Campus Precedent Check**: {$precedentStr}\n\n"
-             . "💡 **Handbook Basis**: Because " . ($mCount > 0 ? "historical precedents exist, recommendations align with past campus decisions to avoid bias." : "this is a 0-precedent case, recommendations are evaluated directly against the **NU Lipa Student Handbook Penalty Matrix** (Category 1 for 1st/2nd Minor Attempt, Category 2 for 3rd Attempt Escalation).") . "\n\n"
-             . "Feel free to ask any further questions regarding this case!";
+             . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
+             . "{$offensesChargedText}\n"
+             . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText})\n"
+             . "• **Why? (Reason)**: {$whyReason}\n\n"
+             . "If you have any further questions regarding this case, handbook rules, or precedent outcomes, feel free to ask!";
     }
 
     // 1. GREETINGS & INTRODUCTIONS — IMMEDIATELY ANALYZE & SUGGEST PUNISHMENT
@@ -956,11 +980,17 @@ try {
     ", [':sid' => $targetStudentId, ':cid' => $caseId]) : ['cnt' => 0];
     $totalMajorCount = (int)($totalMajorRow['cnt'] ?? 0);
 
-    // ── Pending / Ongoing Cases Lookup (Confidential: Case # and Status ONLY) ──
+    // ── Pending / Ongoing Cases Lookup (Includes Offense Names & Levels) ──
     $pendingCasesRows = $targetStudentId !== '' ? db_all("
-        SELECT c.case_id, c.status
+        SELECT c.case_id, c.status,
+               GROUP_CONCAT(DISTINCT ot.name SEPARATOR '|||') as offense_names,
+               GROUP_CONCAT(DISTINCT ot.level SEPARATOR '|||') as offense_levels
         FROM upcc_case c
+        LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
+        LEFT JOIN offense o ON o.offense_id = uco.offense_id
+        LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
         WHERE c.student_id = :sid AND c.case_id != :cid AND c.status NOT IN ('RESOLVED', 'CLOSED', 'DECIDED', 'CANCELLED', 'DISMISSED')
+        GROUP BY c.case_id
         ORDER BY c.case_id DESC
     ", [':sid' => $targetStudentId, ':cid' => $caseId]) : [];
 
@@ -969,7 +999,11 @@ try {
         $pLines = [];
         foreach ($pendingCasesRows as $pc) {
             $cId = (int)$pc['case_id'];
-            $pLines[] = "• **Case #{$cId}** *(Pending Hearing)*";
+            $rawOff = (string)($pc['offense_names'] ?? '');
+            $rawLvl = (string)($pc['offense_levels'] ?? '');
+            $offStr = !empty($rawOff) ? implode(', ', array_unique(array_filter(explode('|||', $rawOff)))) : 'General Infraction';
+            $lvlStr = !empty($rawLvl) ? implode('/', array_unique(array_filter(explode('|||', $rawLvl)))) : 'Minor/Major';
+            $pLines[] = "• **Case #{$cId}** *(Pending Hearing)* — Charged Offense: **{$offStr}** ({$lvlStr} Offense)";
         }
         $pendingCasesText = implode("\n", $pLines);
     }
@@ -982,7 +1016,13 @@ try {
             $catVal = !empty($pc['decided_category']) ? "Category {$pc['decided_category']} Sanction" : "Sanction Decided";
             $punDetails = formatPunishmentDetails((string)($pc['punishment_details'] ?? ''));
             $punStr = ($punDetails !== 'n/a' && $punDetails !== '') ? " — {$punDetails}" : "";
-            $lines[] = "• **Case #{$cId}** *({$catVal}{$punStr})*";
+            
+            $rawOff = (string)($pc['offense_names'] ?? '');
+            $rawLvl = (string)($pc['offense_levels'] ?? '');
+            $offStr = !empty($rawOff) ? implode(', ', array_unique(array_filter(explode('|||', $rawOff)))) : 'General Infraction';
+            $lvlStr = !empty($rawLvl) ? implode('/', array_unique(array_filter(explode('|||', $rawLvl)))) : 'Minor/Major';
+
+            $lines[] = "• **Case #{$cId}** *(Resolved)* — Charged Offense: **{$offStr}** ({$lvlStr} Offense) — Assigned: **{$catVal}**{$punStr}";
         }
         $priorCasesBreakdownText = implode("\n", $lines);
     }
@@ -1477,10 +1517,9 @@ try {
             . "        - IF STUDENT HAS 0 PRIOR RESOLVED AND 0 PENDING CASES (1st Offense): Apply Section 4 Minor Violations Matrix (Cat 1 for Attempt 1/2, Cat 2 for Attempt 3+) or Section 5 Major Violations Matrix (Cat 2 for Major 1st Offense 150–250 Hours CS).\n"
             . "   c) ALWAYS INCLUDE A DETAILED, TALKATIVE 'Why? (Reason)' EXPLANATION grounded in precedence or handbook rules.\n"
             . "5. ANSWER ANY QUESTION ASKED: Answer the panel member's specific question directly, conversationally, and thoroughly. Provide rich context when requested.\n"
-            . "6. STRICT CONFIDENTIALITY FOR PRIOR & PENDING CASES:\n"
-            . "   - Panel members may NOT be assigned to other cases of the student. You MUST NEVER disclose or describe the specific underlying actions, titles, or descriptions of what the student did in other prior or pending cases!\n"
-            . "   - For pending cases: State ONLY that a pending case exists (e.g. 'Case #72: Pending Hearing'). Do NOT show what the student did.\n"
-            . "   - For resolved cases: State ONLY the Case Number and decided sanction/punishment (e.g. 'Case #68: Category 2 Sanction'). Do NOT show what the student did.\n"
+            . "6. DISCIPLINARY RECORD & CHARGES ANALYSIS:\n"
+            . "   - Always analyze and state the charged offense names and offense levels (Minor vs Major) along with their assigned Category levels (Category 1, 2, 3, 4, or 5) for all prior resolved and pending cases on file for the student.\n"
+            . "   - Clearly explain to the panel how the student's past charged offenses and category levels relate to the current charge and why repeat infractions escalate according to the Student Handbook Penalty Matrix.\n"
             . "7. STRICT HANDBOOK FOCUS: Follow the NU Lipa Student Handbook rules.\n"
             . "8. ZERO NAME DROPPING / NO OTHER STUDENTS: Never reveal real names or discuss other students under Data Privacy (RA 10173).\n"
             . "9. CLEAN MARKDOWN FORMATTING: Use clear, readable Markdown with bold text and bullet points.\n"
@@ -1512,7 +1551,7 @@ try {
         $aiEngineName = $aiEngineRes['engine'];
 
         // ── Guard: Guarantee immediate suggested punishment on initial load or explicit recommendation request ──
-        $isExplicitSanctionQuery = preg_match('/^(suggest|suggest punishment|recommend sanction|what sanction|what category|what punishment)$/i', trim($userQuery));
+        $isExplicitSanctionQuery = preg_match('/(suggest|recommend|sanction|penalty|punishment|category)/i', trim($userQuery));
         if ($isExplicitSanctionQuery) {
             $totalDisciplinaryHistory = $totalPrior + count($pendingCasesRows);
 
