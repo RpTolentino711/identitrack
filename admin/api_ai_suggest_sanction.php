@@ -336,7 +336,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 $src = $oa['source_explanation'];
                 $mCount = (int)($oa['dataset_match_count'] ?? 0);
                 $rTag = "record - {$mCount}";
-                $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
+                if ($mCount > 0) {
+                    $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
+                } else {
+                    $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}**";
+                }
             }
             $combinedCategory = ($offenseCount >= 3) ? 2 : (($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1));
             $breakdownBlock = implode("\n", $offenseBreakdownLines);
@@ -421,7 +425,11 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                     $src = $oa['source_explanation'];
                     $mCount = (int)($oa['dataset_match_count'] ?? 0);
                     $rTag = "record - {$mCount}";
-                    $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
+                    if ($mCount > 0) {
+                        $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
+                    } else {
+                        $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}**";
+                    }
                 }
                 $combinedCategory = ($offenseCount >= 3) ? 2 : (($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1));
                 $breakdownBlock = implode("\n", $offenseBreakdownLines);
@@ -591,12 +599,13 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 $hasP = $oa['has_precedent'];
                 $src = $oa['source_explanation'];
 
-                if ($hasP) {
+                $mCount = (int)($oa['dataset_match_count'] ?? 0);
+                if ($hasP && $mCount > 0) {
                     $precedentCount++;
                     $offenseBreakdownLines[] = "• **Offense {$num}**: {$oN} ({$oL})\n  ↳ *Historical Record Precedent Match*: **{$hrs} Hours CS** ({$src})";
                 } else {
                     $evaluatedCount++;
-                    $offenseBreakdownLines[] = "• **Offense {$num}**: {$oN} ({$oL})\n  ↳ *No Direct Dataset Precedent Record*: Evaluated via **NU Lipa Student Handbook Section 4 Gravity Analysis** → **{$hrs} Hours CS** (*Assessed based on offense nature, context, and campus impact*)";
+                    $offenseBreakdownLines[] = "• **Offense {$num}**: {$oN} ({$oL})\n  ↳ *No Direct Dataset Precedent Record* (record - 0)";
                 }
             }
 
@@ -1498,7 +1507,11 @@ try {
                     $src = $oa['source_explanation'];
                     $mCount = (int)($oa['dataset_match_count'] ?? 0);
                     $rTag = "record - {$mCount}";
-                    $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
+                    if ($mCount > 0) {
+                        $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}** — *{$hrs} Hours CS* ({$src})";
+                    } else {
+                        $offenseBreakdownLines[] = "  {$num}. **{$oN}** ({$oL}) — **{$rTag}**";
+                    }
                 }
                 $combinedCategory = ($offenseCount >= 3) ? 2 : (($totalCombinedHours >= 250) ? 3 : (($totalCombinedHours >= 15) ? 2 : 1));
                 $breakdownBlock = implode("\n", $offenseBreakdownLines);
