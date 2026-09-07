@@ -30,10 +30,12 @@ function getDynamicHandbookRules(): string
     
     $rules .= "REGISTERED MINOR OFFENSES (" . count($minors) . " Active Types in Database):\n";
     $rules .= !empty($minors) ? implode("\n", $minors) : "• General Minor Violations";
-    $rules .= "\n\nMINOR OFFENSE ESCALATION POLICY:\n";
-    $rules .= "• 1st Attempt: Written Reprimand & 30 Days Disciplinary Probation\n";
-    $rules .= "• 2nd Attempt: Warning, SDO Counseling & 60 Days Disciplinary Probation\n";
-    $rules .= "• 3rd Attempt (3-Attempt Escalation): Escalated to Major Offense Category 2 Community Service (150 Hours)\n\n";
+    $rules .= "\n\nSECTION 4 MINOR OFFENSE CYCLE & ESCALATION POLICY:\n";
+    $rules .= "• 1st Minor Offense (Attempt #1 of Cycle): Student Warning.\n";
+    $rules .= "• 2nd Minor Offense (Attempt #2 of Cycle): Guardian Warning / Notification.\n";
+    $rules .= "• 3rd Minor Offense (Attempt #3 of Cycle): Section 4 Escalation Triggered! Creates UPCC Case and opens 3-Modal Workflow (Notice of Guardian, Form F-005 NTE Upload, Incident Photo Upload — Admin can upload immediately or skip/defer). Referred to UPCC Panel for voting.\n";
+    $rules .= "• UPCC PANEL VOTING SUPREMACY: Section 4 escalation and automatic major offenses refer cases to the UPCC Panel, where Panel Members vote to decide the final Category (Category 1, 2, 3, 4, or 5). Section 4 does NOT force Category 2; final sanction always depends on Panel voting.\n";
+    $rules .= "• CONTINUOUS CYCLING METER: Minors cycle continuously in groups of 3 (1st cycle: minors 1–3; 2nd cycle: minors 4–6; 3rd cycle: minors 7–9, etc.), tracked dynamically on the Section 4 meter on the right side.\n\n";
 
     $rules .= "REGISTERED MAJOR OFFENSES (" . count($majors) . " Active Types in Database):\n";
     $rules .= !empty($majors) ? implode("\n", $majors) : "• General Major Violations";
@@ -449,13 +451,12 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
             $catNum = (int)($mostRecent['decided_category'] ?? 2);
             $punishmentText = formatPunishmentDetails((string)($mostRecent['punishment_details'] ?? ''));
 
-            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                 . "Based on our official campus precedent records, **to avoid bias**, a previous record shows this punishment for this exact offense (**{$offName}**):\n\n"
+            return "Based on our official campus precedent records, **to avoid bias**, a previous record shows this punishment for this exact offense (**{$offName}**):\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "{$offensesChargedText}\n"
                  . "• **Suggested Punishment**: **Category {$catNum} Sanction** ({$punishmentText})\n"
                  . "• **Why? (Reason)**: Historical campus precedent for this exact offense is Category {$catNum} ({$punishmentText}). Recommending this same punishment avoids bias, ensures consistency, and guarantees equal treatment under NU Lipa Disciplinary Policies.\n\n"
-                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
+                 . "*Note: This recommendation is advisory. The UPCC Panel Members hold full voting authority to decide the final category (Categories 1–5).*";
         }
 
         if ($offenseCount === 1 && !empty($excelPrecedents)) {
@@ -465,13 +466,12 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                   : ((strpos(strtoupper($sancStr), 'SUSPENSION') !== false) ? 3
                   : ((strpos(strtoupper($sancStr), 'REPRIMAND') !== false || strpos(strtoupper($sancStr), 'DISMISS') !== false) ? 1 : 2));
 
-            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                 . "Based on our official campus precedent records, **to avoid bias**, I found **{$excelCount} matching precedent record(s)** for this offense (**{$offName}**):\n\n"
+            return "Based on our official campus precedent records, **to avoid bias**, I found **{$excelCount} matching precedent record(s)** for this offense (**{$offName}**):\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "{$offensesChargedText}\n"
                  . "• **Suggested Punishment**: **Category {$sCat} Sanction** ({$sancStr})\n"
                  . "• **Why? (Reason)**: Historical campus discipline records for offenses matching '{$offName}' show that students were assigned Category {$sCat} ({$sancStr}). Aligning with past campus records avoids bias and promotes standardized, impartial enforcement.\n\n"
-                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
+                 . "*Note: This recommendation is advisory. The UPCC Panel Members hold full voting authority to decide the final category (Categories 1–5).*";
         }
 
         // 3. 0-PRECEDENT 1ST-TIME OFFENDER HANDBOOK EVALUATION
@@ -488,14 +488,13 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
 
             $historyBlock = formatStudentDisciplinaryHistoryBlock($totalPrior, $pendingCasesCount, $priorCasesText, $pendingCasesText, $studentName);
 
-            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                 . "{$recCountText}\n\n"
+            return "{$recCountText}\n\n"
                  . "{$historyBlock}\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "{$offensesChargedText}\n"
                  . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText})\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
-                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
+                 . "*Note: This recommendation is advisory. The UPCC Panel Members hold full voting authority to decide the final category (Categories 1–5).*";
         }
 
         if ($offLvl === 'MINOR') {
@@ -519,52 +518,49 @@ function buildBuiltInAiHearingResponse(string $systemPrompt, string $userPrompt,
                 $breakdownBlock = implode("\n", $offenseBreakdownLines);
 
                 $whyMulti = ($offenseCount >= 3)
-                    ? "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and ensures procedural consistency**. The student is charged with **{$offenseCount} offenses** in this hearing. Under NU Lipa Student Handbook Section 4 (3-Attempt / Multi-Minor Offense Escalation Rule), accumulating 3 minor infractions automatically converts/escalates the sanction to a **Category {$combinedCategory} Major Offense** ({$totalCombinedHours} Hours Community Service)."
-                    : "Based on our official campus precedent dataset records, aligning with historical campus discipline records **avoids bias and promotes standardized enforcement**. The student is charged with **{$offenseCount} offenses** in this hearing. Aggregating precedent baseline hours and handbook gravity analysis across all charged infractions yields a combined **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
+                    ? "Based on campus policy, the student is charged with **{$offenseCount} minor offenses** in this hearing. Under Section 4, accumulating 3 minor infractions triggers Section 4 Escalation and refers the case to the UPCC Panel for voting (Categories 1 to 5 decided by Panel vote)."
+                    : "Based on official campus precedent dataset records, aligning with historical records avoids bias. Aggregating baseline hours yields an advisory **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service).";
 
-                return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                     . "{$recCountText}\n\n"
+                return "{$recCountText}\n\n"
                      . "📋 **Offenses Charged ({$offenseCount} Infractions)**:\n"
                      . "{$breakdownBlock}\n\n"
                      . "⚖️ **Suggested Combined Punishment & Advisory Recommendation**:\n\n"
                      . "• **Suggested Punishment**: **Category {$combinedCategory} Sanction** ({$totalCombinedHours} Hours Community Service)\n"
                      . "• **Why? (Reason)**: {$whyMulti}\n\n"
-                     . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
+                     . "*Note: This recommendation is advisory. The UPCC Panel Members hold full voting authority to decide the final category (Categories 1–5).*";
             }
 
             $instanceCount = $caseMeta['instance_count'] ?? 1;
-            $attemptStr = ($instanceCount === 1) ? "1st Attempt" : (($instanceCount === 2) ? "2nd Attempt" : "3rd Attempt (Escalation)");
+            $attemptStr = ($instanceCount === 1) ? "1st Attempt (Student Warning)" : (($instanceCount === 2) ? "2nd Attempt (Guardian Warning)" : "3rd Attempt (Section 4 Escalation Triggered)");
             $suggestedCat = ($instanceCount >= 3) ? 2 : 1;
-            $hoursText = ($suggestedCat === 2) ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
+            $hoursText = ($suggestedCat === 2) ? "Advisory Category 2 Baseline (150–250 Hours CS) — UPCC Panel Votes Final Category" : "0 Hours Community Service (Written Reprimand / Warning)";
             $whyReason = ($instanceCount >= 3)
-                ? "Under NU Lipa Student Handbook Section 4 (3-Attempt Escalation Rule), accumulating 3 minor offenses automatically escalates the sanction to a **Category 2 Major Offense** (150–250 Hours Community Service)."
-                : "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations Matrix) for Attempt #{$instanceCount}. 1st and 2nd minor attempts receive Category 1 (Written Reprimand / Warning) with 0 Hours Community Service.";
+                ? "Under Section 4, the 3rd minor offense triggers Section 4 Escalation. This creates a UPCC case, opens the 3-Modal Workflow (Notice of Guardian, Form F-005 NTE Upload, Incident Photo Upload — admin can upload or skip/defer), and refers the case to the UPCC Panel. The UPCC Panel Members hold full voting authority to vote on the final category (Categories 1 to 5)."
+                : "Evaluated directly against NU Lipa Student Handbook Section 4 for Attempt #{$instanceCount}. 1st minor attempt issues a Student Warning; 2nd minor attempt issues a Guardian Warning.";
 
-            return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-                 . "{$recCountText}\n\n"
-                 . "📌 **NU Lipa Student Handbook Section 4 Minor Offense Escalation Matrix**:\n"
-                 . "• **1st Attempt**: Written Reprimand & Category 1 Warning (**0 Hours CS**)\n"
-                 . "• **2nd Attempt**: Formal Warning, SDO Counseling & Category 1 Warning (**0 Hours CS**)\n"
-                 . "• **3rd Attempt (3-Attempt Escalation Rule)**: **AUTOMATIC ESCALATION** → Converted to **Category 2 Major Offense** (**150–250 Hours CS**)\n\n"
+            return "{$recCountText}\n\n"
+                 . "📌 **NU Lipa Student Handbook Section 4 Minor Offense Cycle & Escalation Matrix**:\n"
+                 . "• **1st Minor (Attempt #1)**: Student Warning\n"
+                 . "• **2nd Minor (Attempt #2)**: Guardian Warning / Notification\n"
+                 . "• **3rd Minor (Attempt #3)**: **Section 4 Escalation Triggered** → UPCC Case Created & 3-Modal Workflow Opened → Case Referred to UPCC Panel for Voting (Panel decides Category 1–5)\n\n"
                  . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
                  . "{$offensesChargedText}\n"
                  . "• **Active Student Offense Instance**: {$attemptStr} (Instance #{$instanceCount} for {$studentName})\n"
-                 . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText})\n"
+                 . "• **Suggested Punishment**: **Category {$suggestedCat} Advisory Recommendation** ({$hoursText})\n"
                  . "• **Why? (Reason)**: {$whyReason}\n\n"
-                 . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
+                 . "*Note: This recommendation is advisory. The UPCC Panel Members hold full voting authority to decide the final category (Categories 1–5).*";
         }
 
         $suggestedCat = ($offLvl === 'MAJOR') ? 2 : 1;
         $hoursText = ($suggestedCat === 2) ? "150 to 250 Hours Community Service" : "0 Hours Community Service (Written Reprimand)";
         $whyReason = "Evaluated directly against NU Lipa Student Handbook Section 4 (Minor Violations) and Section 5 (Major Offense Penalty Matrix) for a 1st offense on record.";
 
-        return "👋 **Hello Panel Member! I am IdentiTrack AI.** Let me analyze **{$studentName}**'s case file for this current hearing.\n\n"
-             . "{$recCountText}\n\n"
+        return "{$recCountText}\n\n"
              . "⚖️ **Suggested Punishment & Advisory Recommendation**:\n\n"
              . "{$offensesChargedText}\n"
              . "• **Suggested Punishment**: **Category {$suggestedCat} Sanction** ({$hoursText})\n"
              . "• **Why? (Reason)**: {$whyReason}\n\n"
-             . "If you have any questions regarding this hearing or handbook rules, please feel free to ask! I am gladly here to answer them.";
+             . "*Note: This recommendation is advisory. The UPCC Panel Members hold full voting authority to decide the final category (Categories 1–5).*";
     }
 
     // 2. SIMILAR CASES & PRECEDENT SEARCH INQUIRY
