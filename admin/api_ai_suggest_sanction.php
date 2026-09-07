@@ -988,14 +988,28 @@ try {
         $totalSessions = (int)($csReq['total_session_count'] ?? 0);
         $activeSessions = (int)($csReq['active_session_count'] ?? 0);
         
-        $hrsReqStr = $rawReq < 1.0 ? round($rawReq * 60) . " mins (" . round($rawReq, 1) . "h)" : round($rawReq, 1) . "h";
-        $hrsCompStr = round($rawComp, 1) . "h";
-        $hrsRemStr = $rawRem < 1.0 && $rawRem > 0 ? round($rawRem * 60) . " mins (" . round($rawRem, 1) . "h)" : round($rawRem, 1) . "h";
+        $formatMinutesHours = function(float $decimalHours): string {
+            $totalMins = (int)round($decimalHours * 60);
+            if ($totalMins <= 0) return "0 mins";
+            $h = (int)floor($totalMins / 60);
+            $m = $totalMins % 60;
+            if ($h > 0 && $m > 0) {
+                return "{$h}h {$m}m ({$totalMins} mins)";
+            } elseif ($h > 0) {
+                return "{$h}h";
+            } else {
+                return "{$m} mins";
+            }
+        };
+
+        $hrsReqStr = $formatMinutesHours($rawReq);
+        $hrsCompStr = $formatMinutesHours($rawComp);
+        $hrsRemStr = $formatMinutesHours($rawRem);
         
         $isClockedIn = $activeSessions > 0 ? "YES (Clocked In & Active — hours calculated in real-time)" : "NO";
         $sessionText = $totalSessions === 0 ? "0 attendance sessions logged" : "{$totalSessions} session(s) logged";
         
-        $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsCompStr} / {$hrsReqStr} completed — {$hrsRemStr} remaining — {$sessionText} | Clocked In: {$isClockedIn})";
+        $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsCompStr} completed / {$hrsReqStr} required — {$hrsRemStr} remaining — {$sessionText} | Clocked In: {$isClockedIn})";
     }
 
     $exactPrecedents = getExactPrecedents($offenseTypeId, $caseId);
