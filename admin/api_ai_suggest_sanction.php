@@ -98,16 +98,44 @@ function formatPunishmentDetails(?string $details): string
         $json = json_decode($details, true);
         if (is_array($json)) {
             $parts = [];
-            if (!empty($json['service_hours'])) {
-                $parts[] = round((float)$json['service_hours']) . " Hours Community Service";
+            $val = null;
+            if (isset($json['service_hours']) && $json['service_hours'] !== null && $json['service_hours'] !== '') {
+                $val = (float)$json['service_hours'];
+            } elseif (isset($json['hours']) && $json['hours'] !== null && $json['hours'] !== '') {
+                $val = (float)$json['hours'];
+            } elseif (isset($json['minutes']) && $json['minutes'] !== null && $json['minutes'] !== '') {
+                $val = (float)$json['minutes'] / 60.0;
             }
+
+            if ($val !== null && $val > 0) {
+                $totalMins = (int)round($val * 60);
+                if ($totalMins > 0) {
+                    $h = (int)floor($totalMins / 60);
+                    $m = $totalMins % 60;
+                    if ($h > 0 && $m > 0) {
+                        $parts[] = "{$h} Hours {$m} Minutes Community Service";
+                    } elseif ($h > 0) {
+                        $parts[] = "{$h} Hours Community Service";
+                    } else {
+                        $parts[] = "{$m} Minutes Community Service";
+                    }
+                }
+            }
+
             if (!empty($json['interventions']) && is_array($json['interventions'])) {
-                $parts[] = implode(', ', $json['interventions']);
+                $cleanInterventions = array_filter(array_map('trim', $json['interventions']));
+                if (!empty($cleanInterventions)) {
+                    $parts[] = implode(', ', $cleanInterventions);
+                }
             }
-            return !empty($parts) ? implode(' — ', $parts) : $details;
+            return !empty($parts) ? implode(' — ', $parts) : '';
         }
     }
-    return $details;
+
+    $str = (string)$details;
+    $str = preg_replace('/\b0\s*Hours?\s*(Community\s*Service)?\s*(—|-)?/i', '', $str);
+    $str = preg_replace('/(—|-)\s*0\s*Hours?\s*(Community\s*Service)?/i', '', $str);
+    return trim($str, " \t\n\r\0\x0B—-");
 }
 
 /**
@@ -1007,6 +1035,15 @@ try {
         ORDER BY c.case_id DESC
     ", [':sid' => $targetStudentId, ':cid' => $caseId]) : [];
 
+    $formatCleanOffenseList = function(string $rawNames): string {
+        if (empty($rawNames)) return 'General Infraction';
+        $items = array_unique(array_filter(array_map('trim', explode('|||', $rawNames))));
+        $cleaned = array_map(function($item) {
+            return rtrim(trim($item), '.,;');
+        }, $items);
+        return implode('; ', $cleaned);
+    };
+
     $pendingCasesText = "No other pending cases on file.";
     if (!empty($pendingCasesRows)) {
         $pLines = [];
@@ -1014,9 +1051,10 @@ try {
             $cId = (int)$pc['case_id'];
             $rawOff = (string)($pc['offense_names'] ?? '');
             $rawLvl = (string)($pc['offense_levels'] ?? '');
-            $offStr = !empty($rawOff) ? implode(', ', array_unique(array_filter(explode('|||', $rawOff)))) : 'General Infraction';
+            $offStr = $formatCleanOffenseList($rawOff);
             $lvlStr = !empty($rawLvl) ? implode('/', array_unique(array_filter(explode('|||', $rawLvl)))) : 'Minor/Major';
-            $pLines[] = "• **Case #{$cId}** *(Pending Hearing)* — Charged Offense: **{$offStr}** ({$lvlStr} Offense)";
+            $pLines[] = "• **Case #{$cId}** *(Pending Hearing)*:\n"
+                     . "   - **Charged Offense**: {$offStr} ({$lvlStr} Offense)";
         }
         $pendingCasesText = implode("\n", $pLines);
     }
@@ -1028,21 +1066,23 @@ try {
             $cId = (int)$pc['case_id'];
             $catVal = !empty($pc['decided_category']) ? "Category {$pc['decided_category']} Sanction" : "Sanction Decided";
             $punDetails = formatPunishmentDetails((string)($pc['punishment_details'] ?? ''));
-            $punStr = ($punDetails !== 'n/a' && $punDetails !== '') ? " — {$punDetails}" : "";
+            $punStr = ($punDetails !== 'n/a' && $punDetails !== '') ? " ({$punDetails})" : "";
             
             $rawOff = (string)($pc['offense_names'] ?? '');
             $rawLvl = (string)($pc['offense_levels'] ?? '');
-            $offStr = !empty($rawOff) ? implode(', ', array_unique(array_filter(explode('|||', $rawOff)))) : 'General Infraction';
+            $offStr = $formatCleanOffenseList($rawOff);
             $lvlStr = !empty($rawLvl) ? implode('/', array_unique(array_filter(explode('|||', $rawLvl)))) : 'Minor/Major';
 
-            $lines[] = "• **Case #{$cId}** *(Resolved)* — Charged Offense: **{$offStr}** ({$lvlStr} Offense) — Assigned: **{$catVal}**{$punStr}";
+            $lines[] = "• **Case #{$cId}** *(Resolved)*:\n"
+                     . "   - **Charged Offense**: {$offStr} ({$lvlStr} Offense)\n"
+                     . "   - **Assigned Sanction**: **{$catVal}**{$punStr}";
         }
         $priorCasesBreakdownText = implode("\n", $lines);
     }
 
     // ── Community Service Lookup ──────────────────────────────────────────────
     $csReq = $targetStudentId !== '' ? db_one("
-        SELECT csr.task_name, csr.hours_required, csr.status,
+        SELECT csr.requirement_id, " . db_decrypt_col('task_name', 'csr') . " AS task_name, csr.hours_required, csr.status,
         (
             SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, COALESCE(time_out, NOW()))/3600.0), 0.0)
             FROM community_service_session css
@@ -1057,17 +1097,18 @@ try {
             WHERE css.requirement_id = csr.requirement_id
         ) AS total_session_count
         FROM community_service_requirement csr
-        WHERE csr.student_id = :sid AND csr.status = 'ACTIVE'
-        ORDER BY csr.requirement_id DESC LIMIT 1
+        WHERE csr.student_id = :sid
+        ORDER BY CASE WHEN csr.status = 'ACTIVE' THEN 1 WHEN csr.status = 'PENDING_ACCEPTANCE' THEN 2 ELSE 3 END, csr.requirement_id DESC LIMIT 1
     ", [':sid' => $targetStudentId]) : null;
 
     $csStatusText = "No active community service requirement on file (0 attendance sessions logged).";
-    if ($csReq && (float)($csReq['hours_required'] ?? 0) > 0) {
-        $rawReq = (float)$csReq['hours_required'];
+    if ($csReq) {
+        $rawReq = (float)($csReq['hours_required'] ?? 0);
         $rawComp = (float)($csReq['hours_completed'] ?? 0);
         $rawRem = max(0.0, $rawReq - $rawComp);
         $totalSessions = (int)($csReq['total_session_count'] ?? 0);
         $activeSessions = (int)($csReq['active_session_count'] ?? 0);
+        $taskName = !empty($csReq['task_name']) ? (string)$csReq['task_name'] : 'Community Service';
         
         $formatMinutesHours = function(float $decimalHours): string {
             $totalMins = (int)round($decimalHours * 60);
@@ -1077,9 +1118,9 @@ try {
             if ($h > 0 && $m > 0) {
                 return "{$h}h {$m}m ({$totalMins} mins)";
             } elseif ($h > 0) {
-                return "{$h}h";
+                return "{$h} Hours";
             } else {
-                return "{$m} mins";
+                return "{$m} Minutes";
             }
         };
 
@@ -1089,8 +1130,9 @@ try {
         
         $isClockedIn = $activeSessions > 0 ? "YES (Clocked In & Active — hours calculated in real-time)" : "NO";
         $sessionText = $totalSessions === 0 ? "0 attendance sessions logged" : "{$totalSessions} session(s) logged";
+        $statusLabel = strtoupper((string)($csReq['status'] ?? 'ACTIVE'));
         
-        $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsCompStr} completed / {$hrsReqStr} required — {$hrsRemStr} remaining — {$sessionText} | Clocked In: {$isClockedIn})";
+        $csStatusText = "Status: {$statusLabel} | Task: {$taskName} | Progress: {$hrsCompStr} completed / {$hrsReqStr} required ({$hrsRemStr} remaining) | Sessions: {$sessionText} | Clocked In: {$isClockedIn}";
     }
 
     $exactPrecedents = getExactPrecedents($offenseTypeId, $caseId);
