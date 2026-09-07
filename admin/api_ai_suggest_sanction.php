@@ -157,20 +157,7 @@ function getCategoryPrecedents(?int $majorCategory, int $offenseTypeId, int $exc
  */
 function anonymizeAiPromptText(string $text, string $realName = '', string $studentId = ''): string
 {
-    // Mask specific real name if provided
-    if ($realName !== '') {
-        $anonLabel = 'Student (Active Hearing)';
-        $text = str_replace($realName, $anonLabel, $text);
-    }
-
-    // Mask student IDs
-    if ($studentId !== '') {
-        $parts = explode('-', $studentId);
-        $lastDigits = end($parts);
-        $maskedId = (count($parts) > 1 ? $parts[0] . '-XX' : 'STU-XXXX');
-        $text = str_replace($studentId, $maskedId, $text);
-    }
-
+    // Active hearing student's real name is retained for hearing context.
     // Mask Email addresses
     $text = preg_replace('/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/', '[ANONYMIZED_EMAIL]', $text);
 
@@ -976,9 +963,9 @@ try {
     $csReq = $targetStudentId !== '' ? db_one("
         SELECT csr.task_name, csr.hours_required, csr.status,
         (
-            SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, time_out)/3600.0), 0.0)
+            SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, COALESCE(time_out, NOW()))/3600.0), 0.0)
             FROM community_service_session css
-            WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NOT NULL
+            WHERE css.requirement_id = csr.requirement_id
         ) AS hours_completed,
         (
             SELECT COUNT(*) FROM community_service_session css
@@ -999,15 +986,16 @@ try {
         $rawComp = (float)($csReq['hours_completed'] ?? 0);
         $rawRem = max(0.0, $rawReq - $rawComp);
         $totalSessions = (int)($csReq['total_session_count'] ?? 0);
+        $activeSessions = (int)($csReq['active_session_count'] ?? 0);
         
         $hrsReqStr = $rawReq < 1.0 ? round($rawReq * 60) . " mins (" . round($rawReq, 1) . "h)" : round($rawReq, 1) . "h";
         $hrsCompStr = round($rawComp, 1) . "h";
         $hrsRemStr = $rawRem < 1.0 && $rawRem > 0 ? round($rawRem * 60) . " mins (" . round($rawRem, 1) . "h)" : round($rawRem, 1) . "h";
         
-        $isClockedIn = (int)($csReq['active_session_count'] ?? 0) > 0 ? "YES (Clocked In)" : "NO";
+        $isClockedIn = $activeSessions > 0 ? "YES (Clocked In & Active — hours calculated in real-time)" : "NO";
         $sessionText = $totalSessions === 0 ? "0 attendance sessions logged" : "{$totalSessions} session(s) logged";
         
-        $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsCompStr} / {$hrsReqStr} completed — {$sessionText} | Clocked In: {$isClockedIn})";
+        $csStatusText = "Active Task: {$csReq['task_name']} ({$hrsCompStr} / {$hrsReqStr} completed — {$hrsRemStr} remaining — {$sessionText} | Clocked In: {$isClockedIn})";
     }
 
     $exactPrecedents = getExactPrecedents($offenseTypeId, $caseId);
