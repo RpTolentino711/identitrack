@@ -219,7 +219,7 @@ function callGroqApi(string $sysPrompt, string $userPrompt): ?string
     ]));
 
     foreach ($modelsToTry as $model) {
-        if (empty($model) || $model === 'llama-3.3-70b-versatile' || $model === 'gemini-1.5-flash') {
+        if (empty($model)) {
             continue;
         }
 
