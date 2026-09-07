@@ -3911,12 +3911,8 @@ async function fetchInitialAiSanctionRecommendation() {
     `;
     thread.appendChild(aiMsgDiv);
 
-    isAiGenerating = true;
+    setAiGeneratingState(true);
     if (typeof setAiHeadExpression === 'function') setAiHeadExpression('thinking');
-    const stopContainer = document.getElementById('aiStopGeneratingContainer');
-    if (stopContainer) stopContainer.style.display = 'block';
-    const sendBtn = document.getElementById('aiChatSendBtn');
-    if (sendBtn) sendBtn.disabled = true;
 
     try {
         const caseId = <?= (int)$caseId ?>;
@@ -4079,6 +4075,32 @@ function toggleDrawerWhyPanel() {
 let currentTypingInterval = null;
 let isAiGenerating = false;
 
+function setAiGeneratingState(isGenerating) {
+    isAiGenerating = isGenerating;
+    const stopContainer = document.getElementById('aiStopGeneratingContainer');
+    if (stopContainer) stopContainer.style.display = isGenerating ? 'block' : 'none';
+    
+    const sendBtn = document.getElementById('aiChatSendBtn');
+    if (sendBtn) {
+        sendBtn.disabled = isGenerating;
+        sendBtn.style.opacity = isGenerating ? '0.55' : '1';
+        sendBtn.style.cursor = isGenerating ? 'not-allowed' : 'pointer';
+        sendBtn.style.pointerEvents = isGenerating ? 'none' : 'auto';
+    }
+    
+    const input = document.getElementById('aiDrawerChatInput');
+    if (input) {
+        input.disabled = isGenerating;
+        input.style.opacity = isGenerating ? '0.55' : '1';
+        input.style.cursor = isGenerating ? 'not-allowed' : 'text';
+        if (!isGenerating) {
+            setTimeout(() => {
+                try { input.focus(); } catch(e) {}
+            }, 50);
+        }
+    }
+}
+
 function sendQuickAiPrompt(text) {
     const input = document.getElementById('aiDrawerChatInput');
     if (input) {
@@ -4092,13 +4114,8 @@ function stopAiTyping() {
         clearTimeout(currentTypingInterval);
         currentTypingInterval = null;
     }
-    isAiGenerating = false;
+    setAiGeneratingState(false);
     if (typeof setAiHeadExpression === 'function') setAiHeadExpression('idle');
-    const stopContainer = document.getElementById('aiStopGeneratingContainer');
-    if (stopContainer) stopContainer.style.display = 'none';
-    
-    const sendBtn = document.getElementById('aiChatSendBtn');
-    if (sendBtn) sendBtn.disabled = false;
     
     const activeCursor = document.querySelector('.ai-typing-cursor');
     if (activeCursor) activeCursor.remove();
@@ -4144,10 +4161,8 @@ async function handleAiChatSubmit(e) {
     thread.appendChild(aiMsgDiv);
     thread.scrollTop = thread.scrollHeight;
 
-    isAiGenerating = true;
+    setAiGeneratingState(true);
     if (typeof setAiHeadExpression === 'function') setAiHeadExpression('thinking');
-    document.getElementById('aiStopGeneratingContainer').style.display = 'block';
-    document.getElementById('aiChatSendBtn').disabled = true;
 
     try {
         const caseId = <?= (int)$caseId ?>;
