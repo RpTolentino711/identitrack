@@ -826,17 +826,41 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
     );
     $completedCyclesCount = (int)($completedRow['cnt'] ?? 0);
 
-    $minors = db_all(
-        "SELECT o.offense_id, o.offense_type_id, o.date_committed, ot.code, ot.name
-         FROM offense o
-         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-         WHERE o.student_id = :sid 
-           AND o.level = 'MINOR'
-           AND o.status <> 'VOID'
-           AND o.offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
-         ORDER BY o.date_committed ASC, o.offense_id ASC",
+    $lastSection4 = db_one(
+        "SELECT MAX(created_at) AS max_date FROM upcc_case 
+         WHERE student_id = :sid 
+           AND case_kind = 'SECTION4_MINOR_ESCALATION' 
+           AND status NOT IN ('CANCELLED','VOID')",
         [':sid' => $studentId]
-    ) ?: [];
+    );
+    $startDate = $lastSection4['max_date'] ?? null;
+
+    if (!empty($startDate)) {
+        $minors = db_all(
+            "SELECT o.offense_id, o.offense_type_id, o.date_committed, o.created_at, ot.code, ot.name
+             FROM offense o
+             JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+             WHERE o.student_id = :sid 
+               AND o.level = 'MINOR'
+               AND o.status <> 'VOID'
+               AND o.created_at > :start_date
+               AND o.offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
+             ORDER BY o.date_committed ASC, o.offense_id ASC",
+            [':sid' => $studentId, ':start_date' => $startDate]
+        ) ?: [];
+    } else {
+        $minors = db_all(
+            "SELECT o.offense_id, o.offense_type_id, o.date_committed, o.created_at, ot.code, ot.name
+             FROM offense o
+             JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+             WHERE o.student_id = :sid 
+               AND o.level = 'MINOR'
+               AND o.status <> 'VOID'
+               AND o.offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
+             ORDER BY o.date_committed ASC, o.offense_id ASC",
+            [':sid' => $studentId]
+        ) ?: [];
+    }
 
     if ($includeNewTypeId !== null && $includeNewTypeId > 0) {
         $otName = db_one("SELECT code, name FROM offense_type WHERE offense_type_id = ?", [$includeNewTypeId]);

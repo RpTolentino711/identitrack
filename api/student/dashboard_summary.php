@@ -98,16 +98,39 @@ $unseenRow = db_one(
 $unseenOffensesCount = (int)($unseenRow['c'] ?? 0);
 
 // Section 4 conversion (3 SAME type OR 4 DIFFERENT types)
-$unhandledMinorsList = db_all(
-  "SELECT offense_id, offense_type_id, date_committed
-   FROM offense
-   WHERE student_id = :sid
-     AND status <> 'VOID'
-     AND level = 'MINOR'
-     AND offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
-   ORDER BY date_committed ASC",
+$lastSection4 = db_one(
+  "SELECT MAX(created_at) AS max_date FROM upcc_case 
+   WHERE student_id = :sid 
+     AND case_kind = 'SECTION4_MINOR_ESCALATION' 
+     AND status <> 'VOID'",
   [':sid' => $studentId]
 );
+$lastSec4Date = $lastSection4['max_date'] ?? null;
+
+if (!empty($lastSec4Date)) {
+  $unhandledMinorsList = db_all(
+    "SELECT offense_id, offense_type_id, date_committed
+     FROM offense
+     WHERE student_id = :sid
+       AND status <> 'VOID'
+       AND level = 'MINOR'
+       AND created_at > :last_date
+       AND offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
+     ORDER BY date_committed ASC",
+    [':sid' => $studentId, ':last_date' => $lastSec4Date]
+  ) ?: [];
+} else {
+  $unhandledMinorsList = db_all(
+    "SELECT offense_id, offense_type_id, date_committed
+     FROM offense
+     WHERE student_id = :sid
+       AND status <> 'VOID'
+       AND level = 'MINOR'
+       AND offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
+     ORDER BY date_committed ASC",
+    [':sid' => $studentId]
+  ) ?: [];
+}
 
 $derivedSection4Count = 0;
 $activePool = [];
