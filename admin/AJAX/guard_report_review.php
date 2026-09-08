@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../database/database.php';
+require_once __DIR__ . '/../offense_new.php';
 require_admin();
 
 header('Content-Type: application/json; charset=utf-8');
@@ -251,11 +252,9 @@ if ($action === 'approve_guard_report') {
       $guardianEmail = trim($guardianRow['guardian_email'] ?? '');
       
   } elseif ($level === 'MINOR') {
-      $afterRow = db_one(
-        "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MINOR'",
-        [':sid' => $studentId]
-      );
-      $afterMinor = (int)($afterRow['cnt'] ?? 0);
+      $cycleInfo = getStudentActiveMinorCycle($studentId);
+      $afterMinor = (int)($cycleInfo['existing_count'] ?? $cycleInfo['active_count'] ?? 0);
+      $isEsc = (bool)($cycleInfo['is_escalation_triggered'] ?? false);
 
       $escalationType = null;
       $defaultSubject = '';
@@ -305,42 +304,56 @@ if ($action === 'approve_guard_report') {
                   if ($hDesc !== '') $defaultBody .= "   Notes: " . $hDesc . "\n";
               }
           }
-          $defaultBody .= "\n\nPlease be reminded that a 3rd minor offense will automatically escalate to a Major Offense and trigger a UPCC Investigation.\n\nWe encourage you to support your student in maintaining proper conduct within our institution.\n\nSincerely,\nStudent Discipline Office";
+          $defaultBody .= "\n\nPlease be reminded that accumulating minor offenses under Section 4 will trigger automatic escalation and referral to the UPCC Panel.\n\nWe encourage you to support your student in maintaining proper conduct within our institution.\n\nSincerely,\nStudent Discipline Office";
       }
 
       $existingSection4Case = db_one(
         "SELECT case_id FROM upcc_case
          WHERE student_id = :sid
-           AND status IN ('PENDING','UNDER_APPEAL')
+           AND status IN ('PENDING','UNDER_INVESTIGATION','UNDER_APPEAL')
            AND case_kind = 'SECTION4_MINOR_ESCALATION'
          LIMIT 1",
         [':sid' => $studentId]
       );
 
-      if (!$existingSection4Case && $afterMinor >= 3) {
+      if (!$existingSection4Case && $isEsc) {
+        $reason = $cycleInfo['trigger_reason'] ?? 'NONE';
+        $cycleNum = $cycleInfo['current_cycle_num'] ?? 1;
+        $ordStr = getOrdinal($cycleNum);
+
+        if ($reason === 'SAME_TYPE_3') {
+            $typeName = $cycleInfo['max_same_type_name'];
+            $summaryStr = 'Section 4 Major (' . $ordStr . ' Escalation - 3 Same Minor Offenses: ' . $typeName . ') → Referred to UPCC panel for investigation and category assignment (1‑5).';
+        } else {
+            $summaryStr = 'Section 4 Major (' . $ordStr . ' Escalation - 4 Different Minor Offenses) → Referred to UPCC panel for investigation and category assignment (1‑5).';
+        }
+
         db_exec(
           "INSERT INTO upcc_case (student_id, created_by, status, case_kind, case_summary, created_at, updated_at)
            VALUES (:sid, :aid, 'PENDING', 'SECTION4_MINOR_ESCALATION', :summary, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
           [
             ':sid'     => $studentId,
             ':aid'     => $adminId,
-            ':summary' => 'Section 4 — 3 minor offenses → Referred to UPCC panel for investigation and category assignment (1‑5).',
+            ':summary' => $summaryStr,
           ]
         );
         $caseId = (int)db_last_id();
 
-        $triggerMinors = db_all(
-          "SELECT offense_id FROM offense
-           WHERE student_id = :sid AND level = 'MINOR'
-           ORDER BY date_committed ASC
-           LIMIT 3",
-          [':sid' => $studentId]
-        );
+        $triggerMinors = $cycleInfo['minors'] ?? [];
+        if ($reason === 'SAME_TYPE_3') {
+            $targetTypeId = $cycleInfo['max_same_type_id'];
+            $triggerMinors = array_values(array_filter($triggerMinors, function($m) use ($targetTypeId) {
+                return (int)$m['offense_type_id'] === $targetTypeId;
+            }));
+        }
+
         foreach ($triggerMinors as $minor) {
-          db_exec(
-            "INSERT INTO upcc_case_offense (case_id, offense_id) VALUES (:case_id, :offense_id)",
-            [':case_id' => $caseId, ':offense_id' => (int)$minor['offense_id']]
-          );
+          if (!empty($minor['offense_id'])) {
+              db_exec(
+                "INSERT INTO upcc_case_offense (case_id, offense_id) VALUES (:case_id, :offense_id)",
+                [':case_id' => $caseId, ':offense_id' => (int)$minor['offense_id']]
+              );
+          }
         }
 
         $escalationMsg = "This is the student's 3rd Minor Offense. It has been escalated to a Major Offense, a UPCC case has been generated. Please review and send the notification to the guardian.";

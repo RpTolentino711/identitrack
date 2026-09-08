@@ -809,7 +809,10 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
     if (empty($studentId)) {
         return [
             'minors' => [],
+            'projected_minors' => [],
             'active_count' => 0,
+            'existing_count' => 0,
+            'projected_count' => 0,
             'completed_cycles' => 0,
             'current_cycle_num' => 1,
             'type_counts' => [],
@@ -822,6 +825,9 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
             'required_for_escalation' => 3,
             'is_escalation_triggered' => false,
             'trigger_reason' => 'NONE',
+            'selected_type_id' => 0,
+            'selected_type_code' => '',
+            'selected_type_name' => '',
         ];
     }
 
@@ -844,7 +850,7 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
     $startDate = $lastSection4['max_date'] ?? null;
 
     if (!empty($startDate)) {
-        $minors = db_all(
+        $existingMinors = db_all(
             "SELECT o.offense_id, o.offense_type_id, o.date_committed, o.created_at, ot.code, ot.name
              FROM offense o
              JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -857,7 +863,7 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
             [':sid' => $studentId, ':start_date' => $startDate]
         ) ?: [];
     } else {
-        $minors = db_all(
+        $existingMinors = db_all(
             "SELECT o.offense_id, o.offense_type_id, o.date_committed, o.created_at, ot.code, ot.name
              FROM offense o
              JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -870,28 +876,36 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
         ) ?: [];
     }
 
+    $existingCount = count($existingMinors);
+    $projectedMinors = $existingMinors;
+    $selectedTypeCode = '';
+    $selectedTypeName = '';
+
     if ($includeNewTypeId !== null && $includeNewTypeId > 0) {
         $otName = db_one("SELECT code, name FROM offense_type WHERE offense_type_id = ?", [$includeNewTypeId]);
-        $minors[] = [
+        $selectedTypeCode = $otName['code'] ?? '';
+        $selectedTypeName = $otName['name'] ?? '';
+        $projectedMinors[] = [
             'offense_id' => 0,
             'offense_type_id' => $includeNewTypeId,
             'date_committed' => date('Y-m-d H:i:s'),
-            'code' => $otName['code'] ?? 'CUSTOM',
-            'name' => $otName['name'] ?? 'Minor Offense',
+            'code' => $selectedTypeCode ?: 'CUSTOM',
+            'name' => $selectedTypeName ?: 'Minor Offense',
+            'is_new' => true,
         ];
     }
 
     $typeCounts = [];
     $typeNames = [];
     $typeOffenseIds = [];
-    foreach ($minors as $m) {
+    foreach ($projectedMinors as $m) {
         $tid = (int)$m['offense_type_id'];
         $typeCounts[$tid] = ($typeCounts[$tid] ?? 0) + 1;
         $typeNames[$tid] = $m['name'];
         $typeOffenseIds[$tid][] = (int)$m['offense_id'];
     }
 
-    $activeCount = count($minors);
+    $projectedCount = count($projectedMinors);
     $maxSameTypeCount = !empty($typeCounts) ? max($typeCounts) : 0;
     $maxSameTypeId = 0;
     foreach ($typeCounts as $tid => $c) {
@@ -902,8 +916,6 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
     }
 
     $distinctTypesCount = count($typeCounts);
-    
-    // Determine target requirement: 3 for same minor type, 4 for different minor types
     $isSameTypeTarget = ($maxSameTypeCount >= 3);
     $requiredForEscalation = $isSameTypeTarget ? 3 : 4;
 
@@ -913,14 +925,17 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
     if ($maxSameTypeCount >= 3) {
         $isEscalationTriggered = true;
         $triggerReason = 'SAME_TYPE_3';
-    } elseif ($activeCount >= 4) {
+    } elseif ($projectedCount >= 4) {
         $isEscalationTriggered = true;
         $triggerReason = 'DIFF_TYPES_4';
     }
 
     return [
-        'minors' => $minors,
-        'active_count' => $activeCount,
+        'minors' => $existingMinors,
+        'projected_minors' => $projectedMinors,
+        'active_count' => $existingCount,
+        'existing_count' => $existingCount,
+        'projected_count' => $projectedCount,
         'completed_cycles' => $completedCyclesCount,
         'current_cycle_num' => $completedCyclesCount + 1,
         'type_counts' => $typeCounts,
@@ -933,6 +948,9 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
         'required_for_escalation' => $requiredForEscalation,
         'is_escalation_triggered' => $isEscalationTriggered,
         'trigger_reason' => $triggerReason,
+        'selected_type_id' => (int)($includeNewTypeId ?? 0),
+        'selected_type_code' => $selectedTypeCode,
+        'selected_type_name' => $selectedTypeName,
     ];
 }
 
@@ -942,21 +960,37 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
       $cycleInfo = getStudentActiveMinorCycle($studentId, $selectedTypeId);
   }
 
-  $existingActiveCount = $cycleInfo ? (int)$cycleInfo['active_count'] : max(0, $projectedCount - 1);
-  $projectedActiveCount = $existingActiveCount + 1;
+  $existingActiveCount = $cycleInfo ? (int)$cycleInfo['existing_count'] : max(0, $currentCount);
+  $projectedActiveCount = $cycleInfo ? (int)$cycleInfo['projected_count'] : ($existingActiveCount + ($selectedTypeId > 0 ? 1 : 0));
   $reqCount = $cycleInfo ? (int)$cycleInfo['required_for_escalation'] : 4;
   $maxSame = $cycleInfo ? (int)$cycleInfo['max_same_type_count'] : 1;
   $cycleNum = $cycleInfo ? (int)$cycleInfo['current_cycle_num'] : max(1, (int)ceil($projectedCount / 3));
   $cycleOrd = getOrdinal($cycleNum);
-  $isEsc = $cycleInfo ? (bool)$cycleInfo['is_escalation_triggered'] : ($existingActiveCount >= 4 || ($maxSame >= 3 && $existingActiveCount >= 3));
+  $isEsc = $cycleInfo ? (bool)$cycleInfo['is_escalation_triggered'] : ($projectedActiveCount >= 4 || ($maxSame >= 3 && $projectedActiveCount >= 3));
 
-  $pct = min(100, (int)round(($existingActiveCount / $reqCount) * 100));
+  $selCode = $cycleInfo['selected_type_code'] ?? '';
+  $selName = $cycleInfo['selected_type_name'] ?? '';
+
+  $pendingNoticeHtml = '';
+  if ($selectedTypeId > 0 && !empty($selCode)) {
+      $pendingNoticeHtml = '<div style="margin-top:6px; padding:6px 10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; font-size:11.5px; color:#1e40af; font-weight:700;">'
+          . '➕ Selected to Register: <strong>' . htmlspecialchars($selCode) . '</strong> (' . htmlspecialchars($selName) . ')</div>';
+  }
 
   // Build active cycle breakdown HTML
   $breakdownHtml = '';
-  if ($cycleInfo && !empty($cycleInfo['minors'])) {
+  $completedCyclesCount = $cycleInfo ? (int)($cycleInfo['completed_cycles'] ?? 0) : 0;
+  $completedNoticeHtml = '';
+  if ($completedCyclesCount > 0) {
+      $completedNoticeHtml = '<div style="margin-top:6px; font-size:11px; color:#2563eb; font-weight:600;">'
+          . 'ℹ️ Student has ' . $completedCyclesCount . ' completed Section 4 cycle(s). Prior cycle offenses are resolved & excluded from the active Cycle ' . $cycleOrd . ' tracker.'
+          . '</div>';
+  }
+
+  $minorsList = $cycleInfo ? ($cycleInfo['minors'] ?? []) : [];
+  if (!empty($minorsList)) {
       $countsByType = [];
-      foreach ($cycleInfo['minors'] as $m) {
+      foreach ($minorsList as $m) {
           $tid = (int)$m['offense_type_id'];
           if (!isset($countsByType[$tid])) {
               $countsByType[$tid] = [
@@ -973,11 +1007,20 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
       }
       if (!empty($items)) {
           $breakdownHtml = '<div style="margin-top:10px; padding:8px 12px; background:#ffffff; border:1px solid #fcd34d; border-radius:8px; font-size:12px; color:#475569;">'
-              . '<div style="font-weight:800; color:#92400e; margin-bottom:4px; font-size:11px; text-transform:uppercase;">Active Cycle Infractions Breakdown:</div>'
+              . '<div style="font-weight:800; color:#92400e; margin-bottom:4px; font-size:11px; text-transform:uppercase;">Active Cycle ' . $cycleOrd . ' Recorded Infractions:</div>'
               . implode('<br>', $items)
+              . $pendingNoticeHtml
+              . $completedNoticeHtml
               . '<div style="font-size:11px; margin-top:6px; font-style:italic; color:#64748b;">(Rule: 3 of SAME type OR 4 of MIXED types triggers Section 4)</div>'
               . '</div>';
       }
+  } else {
+      $breakdownHtml = '<div style="margin-top:10px; padding:8px 12px; background:#ffffff; border:1px solid #fcd34d; border-radius:8px; font-size:12px; color:#475569;">'
+          . '<div style="font-weight:800; color:#92400e; margin-bottom:4px; font-size:11px; text-transform:uppercase;">Active Cycle ' . $cycleOrd . ' Status:</div>'
+          . '<div style="font-size:12px; color:#64748b;">0 minor offenses recorded in database for this active cycle.</div>'
+          . $pendingNoticeHtml
+          . $completedNoticeHtml
+          . '</div>';
   }
 
   // 0 Active Minors Recorded (Clean Record)
@@ -986,10 +1029,11 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
     <div class="alert-panel alert-panel--info">
       <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
       <div class="ap-body">
-        <div class="ap-title">Clean Record (0 Active Minor Offenses)</div>
-        <div class="ap-projected-badge ap-projected--info">📋 Active Cycle ' . $cycleOrd . ' → <strong>0/' . $reqCount . ' Minor Infractions Recorded</strong></div>
+        <div class="ap-title">Clean Record (0 Active Minor Offenses Recorded)</div>
+        <div class="ap-projected-badge ap-projected--info">📋 Active Cycle ' . $cycleOrd . ' → <strong>0/' . $reqCount . ' Minor Infractions Recorded in DB</strong></div>
         <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--info" style="width:0%"></div></div><span class="ap-progress-label">0/' . $reqCount . ' Recorded (Submitting will log 1st Minor Warning)</span></div>
-        <div class="ap-desc">Student currently has 0 minor offenses. Registering this form will log the 1st minor offense warning.</div>
+        <div class="ap-desc">Student currently has 0 active minor offenses recorded in the database for Cycle ' . $cycleOrd . '. Registering this form will log the 1st minor offense warning.</div>
+        ' . $breakdownHtml . '
         <div class="ap-steps">
           <div class="ap-step ap-step--next">1st Minor ⬅ Student Warning</div>
           <div class="ap-step">2nd Minor → Guardian Letter</div>
@@ -1008,10 +1052,10 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
     <div class="alert-panel alert-panel--warning">
       <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
       <div class="ap-body">
-        <div class="ap-title">1 Active Minor Recorded (Filing 2nd Minor)</div>
-        <div class="ap-projected-badge ap-projected--warning">📋 Active Cycle ' . $cycleOrd . ' → <strong>1/' . $reqCount . ' Recorded (Submitting 2nd)</strong></div>
-        <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:33%"></div></div><span class="ap-progress-label">1/' . $reqCount . ' – Submitting will trigger Guardian Notice</span></div>
-        <div class="ap-desc">1 minor offense currently recorded. Submitting this form will log the 2nd minor offense and generate a guardian letter.</div>
+        <div class="ap-title">1 Active Minor Recorded in DB (Submitting 2nd)</div>
+        <div class="ap-projected-badge ap-projected--warning">📋 Active Cycle ' . $cycleOrd . ' → <strong>1/' . $reqCount . ' Recorded in DB</strong></div>
+        <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:33%"></div></div><span class="ap-progress-label">1/' . $reqCount . ' Recorded – Submitting will trigger Guardian Notice</span></div>
+        <div class="ap-desc">1 minor offense currently recorded in the database. Submitting this form will log the 2nd minor offense and generate a guardian letter.</div>
         ' . $emailHtml . '
         ' . $breakdownHtml . '
         <div class="ap-steps">
@@ -1029,9 +1073,9 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
     <div class="alert-panel" style="background:#fffbe0; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:10px; padding:14px; box-shadow:0 2px 8px rgba(245,158,11,0.15);">
       <div class="ap-icon" style="color:#d97706;"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
       <div class="ap-body">
-        <div class="ap-title" style="color:#92400e; font-weight:800; font-size:14px;">2 Active Minors Recorded (Filing 3rd Minor)</div>
-        <div class="ap-projected-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">📋 Active Cycle ' . $cycleOrd . ' → <strong>2/' . $reqCount . ' Recorded (Submitting 3rd)</strong></div>
-        <div class="ap-progress" style="margin:8px 0;"><div class="ap-progress-track" style="background:#fef3c7;"><div class="ap-progress-fill" style="width:66%; background:#f59e0b;"></div></div><span class="ap-progress-label" style="color:#92400e; font-weight:700;">2/' . $reqCount . ' Recorded</span></div>
+        <div class="ap-title" style="color:#92400e; font-weight:800; font-size:14px;">2 Active Minors Recorded in DB (Submitting 3rd)</div>
+        <div class="ap-projected-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">📋 Active Cycle ' . $cycleOrd . ' → <strong>2/' . $reqCount . ' Recorded in DB</strong></div>
+        <div class="ap-progress" style="margin:8px 0;"><div class="ap-progress-track" style="background:#fef3c7;"><div class="ap-progress-fill" style="width:66%; background:#f59e0b;"></div></div><span class="ap-progress-label" style="color:#92400e; font-weight:700;">2/' . $reqCount . ' Recorded in DB</span></div>
         <div class="ap-desc" style="color:#78350f; font-weight:600;">Student currently has 2 minor offenses recorded. Submitting a 3rd minor of the SAME type will trigger Section 4 Escalation. If DIFFERENT type, it will issue a Student App Warning Alert.</div>
         ' . $breakdownHtml . '
         <div class="ap-steps" style="margin-top:10px;">
@@ -3778,13 +3822,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   function renderMinorAlert(projectedCount, guardianEmail, currentCount) {
     const cycle = window.__activeMinorCycle || {};
-    const existingActiveCount = (typeof cycle.active_count !== 'undefined') ? Number(cycle.active_count) : 0;
+    const existingActiveCount = (typeof cycle.existing_count !== 'undefined') ? Number(cycle.existing_count) : ((typeof cycle.active_count !== 'undefined') ? Number(cycle.active_count) : 0);
+    const projectedActiveCount = (typeof cycle.projected_count !== 'undefined') ? Number(cycle.projected_count) : (existingActiveCount + 1);
     const reqCount = cycle.required_for_escalation || 4;
     const maxSame = cycle.max_same_type_count || 1;
     const cycleNum = cycle.current_cycle_num || 1;
     const isEsc = typeof cycle.is_escalation_triggered !== 'undefined'
       ? Boolean(cycle.is_escalation_triggered)
-      : (existingActiveCount >= 4 || (maxSame >= 3 && existingActiveCount >= 3));
+      : (projectedActiveCount >= 4 || (maxSame >= 3 && projectedActiveCount >= 3));
 
     function getOrd(n) {
       const s = ['th','st','nd','rd'], v = n % 100;
@@ -3792,7 +3837,20 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
     const cycleOrd = getOrd(cycleNum);
 
+    const selCode = cycle.selected_type_code || '';
+    const selName = cycle.selected_type_name || '';
+    let pendingNoticeHtml = '';
+    if (cycle.selected_type_id > 0 && selCode) {
+      pendingNoticeHtml = `<div style="margin-top:6px; padding:6px 10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; font-size:11.5px; color:#1e40af; font-weight:700;">➕ Selected to Register: <strong>${escHtml(selCode)}</strong> (${escHtml(selName)})</div>`;
+    }
+
     let breakdownHtml = '';
+    const completedCyclesCount = Number(cycle.completed_cycles || 0);
+    let completedNoticeHtml = '';
+    if (completedCyclesCount > 0) {
+      completedNoticeHtml = `<div style="margin-top:6px; font-size:11px; color:#2563eb; font-weight:600;">ℹ️ Student has ${completedCyclesCount} completed Section 4 cycle(s). Prior cycle offenses are resolved & excluded from the active Cycle ${cycleOrd} tracker.</div>`;
+    }
+
     if (cycle && Array.isArray(cycle.minors) && cycle.minors.length > 0) {
       const countsByType = {};
       cycle.minors.forEach(m => {
@@ -3808,11 +3866,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       if (items.length > 0) {
         breakdownHtml = `
           <div style="margin-top:10px; padding:8px 12px; background:#ffffff; border:1px solid #fcd34d; border-radius:8px; font-size:12px; color:#475569;">
-            <div style="font-weight:800; color:#92400e; margin-bottom:4px; font-size:11px; text-transform:uppercase;">Active Cycle Infractions Breakdown:</div>
+            <div style="font-weight:800; color:#92400e; margin-bottom:4px; font-size:11px; text-transform:uppercase;">Active Cycle ${cycleOrd} Recorded Infractions:</div>
             ${items.join('<br>')}
+            ${pendingNoticeHtml}
+            ${completedNoticeHtml}
             <div style="font-size:11px; margin-top:6px; font-style:italic; color:#64748b;">(Rule: 3 of SAME type OR 4 of MIXED types triggers Section 4)</div>
           </div>`;
       }
+    } else {
+      breakdownHtml = `
+        <div style="margin-top:10px; padding:8px 12px; background:#ffffff; border:1px solid #fcd34d; border-radius:8px; font-size:12px; color:#475569;">
+          <div style="font-weight:800; color:#92400e; margin-bottom:4px; font-size:11px; text-transform:uppercase;">Active Cycle ${cycleOrd} Status:</div>
+          <div style="font-size:12px; color:#64748b;">0 minor offenses recorded in database for this active cycle.</div>
+          ${pendingNoticeHtml}
+          ${completedNoticeHtml}
+        </div>`;
     }
 
     // 0 Active Minors Recorded (Clean Record)
@@ -3821,10 +3889,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       <div class="alert-panel alert-panel--info">
         <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
         <div class="ap-body">
-          <div class="ap-title">Clean Record (0 Active Minor Offenses)</div>
-          <div class="ap-projected-badge ap-projected--info">📋 Active Cycle ${cycleOrd} → <strong>0/${reqCount} Minor Infractions Recorded</strong></div>
+          <div class="ap-title">Clean Record (0 Active Minor Offenses Recorded)</div>
+          <div class="ap-projected-badge ap-projected--info">📋 Active Cycle ${cycleOrd} → <strong>0/${reqCount} Minor Infractions Recorded in DB</strong></div>
           <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--info" style="width:0%"></div></div><span class="ap-progress-label">0/${reqCount} Recorded (Submitting will log 1st Minor Warning)</span></div>
-          <div class="ap-desc">Student currently has 0 minor offenses. Registering this form will log the 1st minor offense warning.</div>
+          <div class="ap-desc">Student currently has 0 active minor offenses recorded in the database for Cycle ${cycleOrd}. Registering this form will log the 1st minor offense warning.</div>
+          ${breakdownHtml}
           <div class="ap-steps">
             <div class="ap-step ap-step--next">1st Minor ⬅ Student Warning</div>
             <div class="ap-step">2nd Minor → Guardian Letter</div>
@@ -3843,10 +3912,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       <div class="alert-panel alert-panel--warning">
         <div class="ap-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
         <div class="ap-body">
-          <div class="ap-title">1 Active Minor Recorded (Filing 2nd Minor)</div>
-          <div class="ap-projected-badge ap-projected--warning">📋 Active Cycle ${cycleOrd} → <strong>1/${reqCount} Recorded (Submitting 2nd)</strong></div>
-          <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:33%"></div></div><span class="ap-progress-label">1/${reqCount} – Submitting will trigger Guardian Notice</span></div>
-          <div class="ap-desc">1 minor offense currently recorded. Submitting this form will log the 2nd minor offense and generate a guardian letter.</div>
+          <div class="ap-title">1 Active Minor Recorded in DB (Submitting 2nd)</div>
+          <div class="ap-projected-badge ap-projected--warning">📋 Active Cycle ${cycleOrd} → <strong>1/${reqCount} Recorded in DB</strong></div>
+          <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:33%"></div></div><span class="ap-progress-label">1/${reqCount} Recorded – Submitting will trigger Guardian Notice</span></div>
+          <div class="ap-desc">1 minor offense currently recorded in the database. Submitting this form will log the 2nd minor offense and generate a guardian letter.</div>
           ${emailHtml}
           ${breakdownHtml}
           <div class="ap-steps">
@@ -3864,9 +3933,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       <div class="alert-panel" style="background:#fffbe0; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:10px; padding:14px; box-shadow:0 2px 8px rgba(245,158,11,0.15);">
         <div class="ap-icon" style="color:#d97706;"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
         <div class="ap-body">
-          <div class="ap-title" style="color:#92400e; font-weight:800; font-size:14px;">2 Active Minors Recorded (Filing 3rd Minor)</div>
-          <div class="ap-projected-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">📋 Active Cycle ${cycleOrd} → <strong>2/${reqCount} Recorded (Submitting 3rd)</strong></div>
-          <div class="ap-progress" style="margin:8px 0;"><div class="ap-progress-track" style="background:#fef3c7;"><div class="ap-progress-fill" style="width:66%; background:#f59e0b;"></div></div><span class="ap-progress-label" style="color:#92400e; font-weight:700;">2/${reqCount} Recorded</span></div>
+          <div class="ap-title" style="color:#92400e; font-weight:800; font-size:14px;">2 Active Minors Recorded in DB (Submitting 3rd)</div>
+          <div class="ap-projected-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">📋 Active Cycle ${cycleOrd} → <strong>2/${reqCount} Recorded in DB</strong></div>
+          <div class="ap-progress" style="margin:8px 0;"><div class="ap-progress-track" style="background:#fef3c7;"><div class="ap-progress-fill" style="width:66%; background:#f59e0b;"></div></div><span class="ap-progress-label" style="color:#92400e; font-weight:700;">2/${reqCount} Recorded in DB</span></div>
           <div class="ap-desc" style="color:#78350f; font-weight:600;">Student currently has 2 minor offenses recorded. Submitting a 3rd minor of the SAME type will trigger Section 4 Escalation. If DIFFERENT type, it will issue a Student App Warning Alert.</div>
           ${breakdownHtml}
           <div class="ap-steps" style="margin-top:10px;">
@@ -3884,10 +3953,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       <div class="alert-panel" style="background:#fffbe0; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:10px; padding:14px; box-shadow:0 2px 8px rgba(245,158,11,0.15);">
         <div class="ap-icon" style="color:#d97706;"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
         <div class="ap-body">
-          <div class="ap-title" style="color:#92400e; font-weight:800; font-size:14px;">📱 3 Active Minors Recorded (Mixed Types)</div>
-          <div class="ap-projected-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">📋 Active Cycle ${cycleOrd} → <strong>3/4 Minor Infractions Recorded</strong></div>
-          <div class="ap-progress" style="margin:8px 0;"><div class="ap-progress-track" style="background:#fef3c7;"><div class="ap-progress-fill" style="width:75%; background:#f59e0b;"></div></div><span class="ap-progress-label" style="color:#92400e; font-weight:700;">3/4 Recorded (Submitting 4th will trigger Section 4 Escalation)</span></div>
-          <div class="ap-desc" style="color:#78350f; font-weight:600;">Student currently has 3 minor offenses of MIXED types recorded. Submitting a 4th minor of any type will trigger Section 4 Escalation to the UPCC Panel.</div>
+          <div class="ap-title" style="color:#92400e; font-weight:800; font-size:14px;">📱 3 Active Minors Recorded in DB (Mixed Types)</div>
+          <div class="ap-projected-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">📋 Active Cycle ${cycleOrd} → <strong>3/4 Minor Infractions Recorded in DB</strong></div>
+          <div class="ap-progress" style="margin:8px 0;"><div class="ap-progress-track" style="background:#fef3c7;"><div class="ap-progress-fill" style="width:75%; background:#f59e0b;"></div></div><span class="ap-progress-label" style="color:#92400e; font-weight:700;">3/4 Recorded in DB (Submitting 4th will trigger Section 4 Escalation)</span></div>
+          <div class="ap-desc" style="color:#78350f; font-weight:600;">Student currently has 3 minor offenses of MIXED types recorded in database. Submitting a 4th minor of any type will trigger Section 4 Escalation to the UPCC Panel.</div>
           ${breakdownHtml}
           <div class="ap-steps" style="margin-top:10px;">
             <div class="ap-step ap-step--done">1st Minor ✓</div>

@@ -84,6 +84,12 @@ $section4Count = db_one(
 );
 $majorCount += (int)($section4Count['c'] ?? 0);
 
+$lastSec4Row = db_one(
+  "SELECT MAX(created_at) AS max_date FROM upcc_case WHERE student_id = :sid AND case_kind = 'SECTION4_MINOR_ESCALATION' AND status <> 'VOID'",
+  [':sid' => $studentId]
+);
+$lastSec4Date = $lastSec4Row['max_date'] ?? null;
+
 // Include Unlinked Major Cases in Major count and total
 $unlinkedMajorCount = db_one(
   "SELECT COUNT(*) AS c FROM upcc_case 
@@ -173,11 +179,14 @@ $minorList = array_reverse($minorList);
 
 $explicitCaseMap = [];
 $unlinkedMinors = [];
+$completedCycleMinors = [];
 
 foreach ($minorList as $m) {
   if (isset($m['upcc_case_id']) && $m['upcc_case_id'] !== null && (int)$m['upcc_case_id'] > 0) {
     $cid = (int)$m['upcc_case_id'];
     $explicitCaseMap[$cid][] = $m;
+  } elseif (!empty($lastSec4Date) && isset($m['created_at']) && $m['created_at'] <= $lastSec4Date) {
+    $completedCycleMinors[] = $m;
   } else {
     $unlinkedMinors[] = $m;
   }
