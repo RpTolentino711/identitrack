@@ -97,18 +97,50 @@ $unseenRow = db_one(
 );
 $unseenOffensesCount = (int)($unseenRow['c'] ?? 0);
 
-// 3 Minors = 1 Major (Section 4 conversion)
-// BUT: only convert minors that ARE NOT already part of a UPCC case
-$unhandledMinorsCount = db_one(
-  "SELECT COUNT(*) as c FROM offense 
-   WHERE student_id = :sid 
-     AND status <> 'VOID' 
+// Section 4 conversion (3 SAME type OR 4 DIFFERENT types)
+$unhandledMinorsList = db_all(
+  "SELECT offense_id, offense_type_id, date_committed
+   FROM offense
+   WHERE student_id = :sid
+     AND status <> 'VOID'
      AND level = 'MINOR'
-     AND offense_id NOT IN (SELECT offense_id FROM upcc_case_offense)",
+     AND offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
+   ORDER BY date_committed ASC",
   [':sid' => $studentId]
 );
-$unhandledMinors = (int)($unhandledMinorsCount['c'] ?? 0);
-$major += (int)floor($unhandledMinors / 3);
+
+$derivedSection4Count = 0;
+$activePool = [];
+foreach ($unhandledMinorsList as $m) {
+    $activePool[] = $m;
+    $typeCounts = [];
+    foreach ($activePool as $item) {
+        $tid = (int)$item['offense_type_id'];
+        $typeCounts[$tid] = ($typeCounts[$tid] ?? 0) + 1;
+    }
+    $maxSame = !empty($typeCounts) ? max($typeCounts) : 0;
+    if ($maxSame >= 3) {
+        $derivedSection4Count++;
+        $targetTid = 0;
+        foreach ($typeCounts as $t => $c) {
+            if ($c >= 3) { $targetTid = $t; break; }
+        }
+        $removed = 0;
+        $newPool = [];
+        foreach ($activePool as $item) {
+            if ((int)$item['offense_type_id'] === $targetTid && $removed < 3) {
+                $removed++;
+            } else {
+                $newPool[] = $item;
+            }
+        }
+        $activePool = $newPool;
+    } elseif (count($activePool) >= 4) {
+        $derivedSection4Count++;
+        $activePool = array_slice($activePool, 4);
+    }
+}
+$major += $derivedSection4Count;
 
 // Include Section 4 escalations as Major Offenses (these don't have a 'MAJOR' record in the offense table)
 $section4Count = db_one(

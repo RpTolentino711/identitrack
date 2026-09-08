@@ -33,9 +33,29 @@ try {
     require_student_api_auth($studentId);
     auto_complete_all_active_sessions();
 
-    // Alerts are allowed even if account has restrictions
-
     $alerts = [];
+
+    $dbNotifs = db_all(
+        "SELECT notification_id, type, title, message, created_at, related_table, related_id
+         FROM notification
+         WHERE student_id = :sid AND is_deleted = 0
+         ORDER BY created_at DESC",
+        [':sid' => $studentId]
+    );
+
+    foreach ($dbNotifs as $n) {
+        $alerts[] = [
+            'alert_type' => (string)($n['type'] ?? 'NOTIFICATION'),
+            'title' => (string)($n['title'] ?? 'Student Conduct Notice'),
+            'message' => (string)($n['message'] ?? ''),
+            'created_at' => (string)$n['created_at'],
+            'metadata' => [
+                'notification_id' => (int)$n['notification_id'],
+                'related_table' => (string)($n['related_table'] ?? ''),
+                'related_id' => (int)($n['related_id'] ?? 0),
+            ],
+        ];
+    }
 
     $decrypted_offense = db_decrypt_cols(['description']);
     $params = [':sid' => $studentId];

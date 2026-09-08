@@ -114,6 +114,7 @@ db_add_encryption_key($query_params);
 $rows = db_all(
   "SELECT
       o.offense_id,
+      o.offense_type_id,
       o.level,
       o.status,
       $decrypted_offense,
@@ -170,8 +171,83 @@ foreach ($rows as $r) {
 
 $minorList = array_reverse($minorList);
 
-$bundledItems = [];
+$explicitCaseMap = [];
+$unlinkedMinors = [];
+
+foreach ($minorList as $m) {
+  if (isset($m['upcc_case_id']) && $m['upcc_case_id'] !== null && (int)$m['upcc_case_id'] > 0) {
+    $cid = (int)$m['upcc_case_id'];
+    $explicitCaseMap[$cid][] = $m;
+  } else {
+    $unlinkedMinors[] = $m;
+  }
+}
+
+$bundledItemsList = [];
+
+// 1. Handle Explicit UPCC Cases for minors
+foreach ($explicitCaseMap as $cid => $cMinors) {
+  $bundledItemsList[] = [
+    'case_id' => $cid,
+    'reason' => 'EXPLICIT_CASE',
+    'items' => $cMinors,
+  ];
+}
+
+// 2. Handle Unlinked Minors (apply Section 4 rules: 3 SAME or 4 DIFFERENT)
+$activePool = [];
+foreach ($unlinkedMinors as $m) {
+  $activePool[] = $m;
+  
+  $typeCounts = [];
+  foreach ($activePool as $item) {
+    $tid = (int)$item['offense_type_id'];
+    $typeCounts[$tid] = ($typeCounts[$tid] ?? 0) + 1;
+  }
+  
+  $maxSameCount = !empty($typeCounts) ? max($typeCounts) : 0;
+  
+  if ($maxSameCount >= 3) {
+    $targetTypeId = 0;
+    foreach ($typeCounts as $tid => $cnt) {
+      if ($cnt >= 3) {
+        $targetTypeId = $tid;
+        break;
+      }
+    }
+    
+    $bundleMinors = [];
+    $remainingPool = [];
+    $extracted = 0;
+    foreach ($activePool as $item) {
+      if ((int)$item['offense_type_id'] === $targetTypeId && $extracted < 3) {
+        $bundleMinors[] = $item;
+        $extracted++;
+      } else {
+        $remainingPool[] = $item;
+      }
+    }
+    $activePool = $remainingPool;
+    
+    $bundledItemsList[] = [
+      'case_id' => null,
+      'reason' => 'SAME_TYPE_3',
+      'items' => $bundleMinors,
+    ];
+  } elseif (count($activePool) >= 4) {
+    $bundleMinors = array_slice($activePool, 0, 4);
+    $activePool = array_slice($activePool, 4);
+    
+    $bundledItemsList[] = [
+      'case_id' => null,
+      'reason' => 'DIFF_TYPES_4',
+      'items' => $bundleMinors,
+    ];
+  }
+}
+
 $bundleCount = 0;
+$derivedBundleCount = 0;
 $items = [];
 
 $resolvedCasesMap = []; 
@@ -188,158 +264,161 @@ foreach ($resCases as $rc) {
   $resolvedCasesMap[(int)$rc['offense_id']] = $rc;
 }
 
-// Find Section 4 cases for bundled items
-$section4Cases = db_all("
-  SELECT case_id, status, student_explanation_text, student_explanation_image, student_explanation_pdf, student_explanation_at
-  FROM upcc_case
-  WHERE student_id = :sid AND case_kind = 'SECTION4_MINOR_ESCALATION' AND status <> 'VOID'
-", [':sid' => $studentId]);
+foreach ($bundledItemsList as $bInfo) {
+  $bundleCount++;
+  $bundledItems = $bInfo['items'];
+  $reason = $bInfo['reason'];
+  $latestDate = $bundledItems[count($bundledItems) - 1]['date_committed'];
+  
+  if ($bInfo['case_id'] === null) {
+    $derivedBundleCount++;
+  }
 
-for ($i = 0; $i < count($minorList); $i++) {
-  $bundledItems[] = $minorList[$i];
-  if (count($bundledItems) === 3) {
-    $bundleCount++;
-    $latestDate = $bundledItems[2]['date_committed'];
-    
-    $status = 'ACTIVE';
-    $descAddition = "";
-    $appealStatus = "";
-    $caseId = null;
-    $explanation = null;
-    $expImage = null;
-    $expPdf = null;
-    $expAt = null;
-    
-    foreach ($bundledItems as $bi) {
-      if (isset($bi['upcc_case_id']) && $bi['upcc_case_id'] !== null) {
-          $caseId = (int)$bi['upcc_case_id'];
-          $status = (string)$bi['upcc_case_status'];
-          $explanation = $bi['student_explanation_text'];
-          $expImage = $bi['student_explanation_image'];
-          $expPdf = $bi['student_explanation_pdf'];
-          $expAt = $bi['student_explanation_at'];
-          break;
-      }
-    }
+  $status = 'ACTIVE';
+  $descAddition = "";
+  $appealStatus = "";
+  $caseId = $bInfo['case_id'];
+  $explanation = null;
+  $expImage = null;
+  $expPdf = null;
+  $expAt = null;
 
-    foreach ($bundledItems as $bi) {
-      $oid = (int)$bi['offense_id'];
-      if (isset($resolvedCasesMap[$oid])) {
-        $rc = $resolvedCasesMap[$oid];
-        $status = (string)$rc['status'];
-        
-        $pStatus = 'ONGOING';
-        $catVal = (int)$rc['decided_category'];
-        $caseStatus = (string)$rc['status'];
-        $csrVal = isset($rc['csr_status']) ? (string)$rc['csr_status'] : '';
-        $p_details = json_decode($rc['punishment_details'] ?? '{}', true);
-        $is_manually_completed = !empty($p_details['completed']);
-
-        if ($is_manually_completed) {
-            $pStatus = 'COMPLETED';
-        } else if ($catVal === 1) {
-            $is_probation_active = false;
-            if (!empty($rc['probation_until'])) {
-                $is_probation_active = (strtotime($rc['probation_until']) > time());
-            }
-            if ($is_probation_active) {
-                $pStatus = 'ONGOING';
-            } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
-                $pStatus = 'COMPLETED';
-            } else {
-                $pStatus = 'ONGOING';
-            }
-        } else if ($catVal === 2) {
-            if (strtoupper($csrVal) === 'COMPLETED') {
-                $pStatus = 'COMPLETED';
-            } else {
-                $pStatus = 'ONGOING';
-            }
-        } else {
-            if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
-                $pStatus = 'COMPLETED';
-            } else {
-                $pStatus = 'ONGOING';
-            }
-        }
-        
-        if ($catVal > 0) {
-          $status .= ' (Category ' . $catVal . ') - ' . $pStatus;
-        } else {
-          $status .= ' - ' . $pStatus;
-        }
-        
-        $appealStatus = (string)($rc['appeal_status'] ?? '');
-        $descAddition = "\n\n--- UPCC FINAL DECISION ---\nCategory " . $rc['decided_category'] . "\n" . $rc['final_decision'] . "\nResolved on: " . date('M d, Y', strtotime($rc['resolution_date']));
+  foreach ($bundledItems as $bi) {
+    if (isset($bi['upcc_case_id']) && $bi['upcc_case_id'] !== null) {
+        $caseId = (int)$bi['upcc_case_id'];
+        $status = (string)$bi['upcc_case_status'];
+        $explanation = $bi['student_explanation_text'];
+        $expImage = $bi['student_explanation_image'];
+        $expPdf = $bi['student_explanation_pdf'];
+        $expAt = $bi['student_explanation_at'];
         break;
-      }
     }
-    
-    $desc = "Triggered by the accumulation of 3 Minor Offenses:\n\n" . 
-            "• " . trim(((string)$bundledItems[0]['offense_code']) . ' ' . ((string)$bundledItems[0]['offense_name'])) . " (" . date('M d, Y', strtotime($bundledItems[0]['date_committed'])) . ")\n" .
-            "• " . trim(((string)$bundledItems[1]['offense_code']) . ' ' . ((string)$bundledItems[1]['offense_name'])) . " (" . date('M d, Y', strtotime($bundledItems[1]['date_committed'])) . ")\n" .
-            "• " . trim(((string)$bundledItems[2]['offense_code']) . ' ' . ((string)$bundledItems[2]['offense_name'])) . " (" . date('M d, Y', strtotime($bundledItems[2]['date_committed'])) . ")";
-    
-    if ($descAddition !== '') {
-      $desc .= $descAddition;
-    }
+  }
 
-    $isAllHidden = true;
-    foreach ($bundledItems as $bi) {
-      if (((int)($bi['is_deleted_by_student'] ?? 0)) === 0) {
-        $isAllHidden = false;
-        break;
-      }
-    }
+  foreach ($bundledItems as $bi) {
+    $oid = (int)$bi['offense_id'];
+    if (isset($resolvedCasesMap[$oid])) {
+      $rc = $resolvedCasesMap[$oid];
+      $status = (string)$rc['status'];
+      
+      $pStatus = 'ONGOING';
+      $catVal = (int)$rc['decided_category'];
+      $caseStatus = (string)$rc['status'];
+      $csrVal = isset($rc['csr_status']) ? (string)$rc['csr_status'] : '';
+      $p_details = json_decode($rc['punishment_details'] ?? '{}', true);
+      $is_manually_completed = !empty($p_details['completed']);
 
+      if ($is_manually_completed) {
+          $pStatus = 'COMPLETED';
+      } else if ($catVal === 1) {
+          $is_probation_active = false;
+          if (!empty($rc['probation_until'])) {
+              $is_probation_active = (strtotime($rc['probation_until']) > time());
+          }
+          if ($is_probation_active) {
+              $pStatus = 'ONGOING';
+          } else if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+              $pStatus = 'COMPLETED';
+          } else {
+              $pStatus = 'ONGOING';
+          }
+      } else if ($catVal === 2) {
+          if (strtoupper($csrVal) === 'COMPLETED') {
+              $pStatus = 'COMPLETED';
+          } else {
+              $pStatus = 'ONGOING';
+          }
+      } else {
+          if (in_array($caseStatus, ['CLOSED', 'RESOLVED'], true)) {
+              $pStatus = 'COMPLETED';
+          } else {
+              $pStatus = 'ONGOING';
+          }
+      }
+      
+      if ($catVal > 0) {
+        $status .= ' (Category ' . $catVal . ') - ' . $pStatus;
+      } else {
+        $status .= ' - ' . $pStatus;
+      }
+      
+      $appealStatus = (string)($rc['appeal_status'] ?? '');
+      $descAddition = "\n\n--- UPCC FINAL DECISION ---\nCategory " . $rc['decided_category'] . "\n" . $rc['final_decision'] . "\nResolved on: " . date('M d, Y', strtotime($rc['resolution_date']));
+      break;
+    }
+  }
+
+  if ($reason === 'SAME_TYPE_3') {
+    $typeName = trim((string)$bundledItems[0]['offense_name']);
+    $desc = "Triggered by the accumulation of 3 Minor Offenses of the SAME type (" . $typeName . "):\n\n";
+  } else if ($reason === 'DIFF_TYPES_4') {
+    $desc = "Triggered by the accumulation of 4 Minor Offenses of DIFFERENT types:\n\n";
+  } else {
+    $desc = "Triggered by the accumulation of " . count($bundledItems) . " Minor Offenses:\n\n";
+  }
+
+  foreach ($bundledItems as $bi) {
+    $desc .= "• " . trim(((string)$bi['offense_code']) . ' ' . ((string)$bi['offense_name'])) . " (" . date('M d, Y', strtotime($bi['date_committed'])) . ")\n";
+  }
+  $desc = trim($desc);
+
+  if ($descAddition !== '') {
+    $desc .= $descAddition;
+  }
+
+  $isAllHidden = true;
+  foreach ($bundledItems as $bi) {
+    if (((int)($bi['is_deleted_by_student'] ?? 0)) === 0) {
+      $isAllHidden = false;
+      break;
+    }
+  }
+
+  $items[] = [
+    'offense_id' => -1000 - $bundleCount,
+    'level' => 'MAJOR',
+    'status' => $status,
+    'date_committed' => $latestDate,
+    'acknowledged_at' => $bundledItems[count($bundledItems) - 1]['acknowledged_at'] ?? null,
+    'is_deleted_by_student' => $isAllHidden,
+    'title' => 'Section 4 Major Offense (Derived)',
+    'description' => $desc,
+    'is_bundle' => true,
+    'appeal_status' => $appealStatus,
+    'upcc_case_id' => $caseId,
+    'upcc_case_status' => $status,
+    'has_nte_sent' => (!empty($sentNteMap['case_' . $caseId])),
+    'nte_file_url' => !empty($sentNteMap['case_' . $caseId]['url']) 
+        ? $sentNteMap['case_' . $caseId]['url'] 
+        : ($caseId > 0 ? $baseUrl . '/admin/print_nte.php?case_id=' . $caseId : null),
+    'explanation_text' => $explanation,
+    'explanation_image' => $expImage,
+    'explanation_pdf' => $expPdf,
+    'explanation_at' => $expAt,
+    'hearing_date' => $bundledItems[count($bundledItems) - 1]['hearing_date'] ?? null,
+    'hearing_time' => $bundledItems[count($bundledItems) - 1]['hearing_time'] ?? null,
+    'hearing_type' => $bundledItems[count($bundledItems) - 1]['hearing_type'] ?? null,
+    'student_hearing_response' => (string)($bundledItems[count($bundledItems) - 1]['student_hearing_response'] ?? 'PENDING'),
+  ];
+
+  foreach ($bundledItems as $bi) {
+    $biStatus = (strtoupper((string)($bi['upcc_case_status'] ?? '')) === 'DISMISSED' || strtoupper((string)$status) === 'DISMISSED') ? 'DISMISSED' : (string)$bi['status'];
     $items[] = [
-      'offense_id' => -1000 - $bundleCount,
-      'level' => 'MAJOR',
-      'status' => $status,
-      'date_committed' => $latestDate,
-      'acknowledged_at' => $bundledItems[2]['acknowledged_at'] ?? null,
-      'is_deleted_by_student' => $isAllHidden,
-      'title' => 'Section 4 Major Offense (Derived)',
-      'description' => $desc,
-      'is_bundle' => true,
-      'appeal_status' => $appealStatus,
-      'upcc_case_id' => $caseId,
-      'upcc_case_status' => $status,
-      'has_nte_sent' => (!empty($sentNteMap['case_' . $caseId])),
-      'nte_file_url' => !empty($sentNteMap['case_' . $caseId]['url']) 
-          ? $sentNteMap['case_' . $caseId]['url'] 
-          : ($caseId > 0 ? $baseUrl . '/admin/print_nte.php?case_id=' . $caseId : null),
-      'explanation_text' => $explanation,
-      'explanation_image' => $expImage,
-      'explanation_pdf' => $expPdf,
-      'explanation_at' => $expAt,
-      'hearing_date' => $bundledItems[2]['hearing_date'] ?? null,
-      'hearing_time' => $bundledItems[2]['hearing_time'] ?? null,
-      'hearing_type' => $bundledItems[2]['hearing_type'] ?? null,
-      'student_hearing_response' => (string)($bundledItems[2]['student_hearing_response'] ?? 'PENDING'),
+      'offense_id' => (int)$bi['offense_id'],
+      'level' => 'MINOR',
+      'status' => $biStatus,
+      'date_committed' => (string)$bi['date_committed'],
+      'acknowledged_at' => $bi['acknowledged_at'] ? (string)$bi['acknowledged_at'] : null,
+      'is_deleted_by_student' => ((int)($bi['is_deleted_by_student'] ?? 0)) === 1,
+      'title' => trim(((string)$bi['offense_code']) . ' ' . ((string)$bi['offense_name'])),
+      'description' => (string)($bi['description'] ?? ''),
+      'is_bundle' => false,
+      'appeal_status' => (string)($bi['appeal_status'] ?? ''),
     ];
-
-    foreach ($bundledItems as $bi) {
-      $biStatus = (strtoupper((string)($bi['upcc_case_status'] ?? '')) === 'DISMISSED' || strtoupper((string)$status) === 'DISMISSED') ? 'DISMISSED' : (string)$bi['status'];
-      $items[] = [
-        'offense_id' => (int)$bi['offense_id'],
-        'level' => 'MINOR',
-        'status' => $biStatus,
-        'date_committed' => (string)$bi['date_committed'],
-        'acknowledged_at' => $bi['acknowledged_at'] ? (string)$bi['acknowledged_at'] : null,
-        'is_deleted_by_student' => ((int)($bi['is_deleted_by_student'] ?? 0)) === 1,
-        'title' => trim(((string)$bi['offense_code']) . ' ' . ((string)$bi['offense_name'])),
-        'description' => (string)($bi['description'] ?? ''),
-        'is_bundle' => false,
-        'appeal_status' => (string)($bi['appeal_status'] ?? ''),
-      ];
-    }
-
-    $bundledItems = [];
   }
 }
 
-foreach ($bundledItems as $r) {
+foreach ($activePool as $r) {
   $items[] = [
     'offense_id' => (int)$r['offense_id'],
     'level' => 'MINOR',
@@ -353,6 +432,8 @@ foreach ($bundledItems as $r) {
     'appeal_status' => (string)($r['appeal_status'] ?? ''),
   ];
 }
+
+$major += $derivedBundleCount;
 
 foreach ($majorList as $r) {
   $oid = (int)$r['offense_id'];
