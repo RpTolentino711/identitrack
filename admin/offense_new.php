@@ -582,12 +582,14 @@ $hasActiveWorkflowRequest = $letterParam && (int)($_GET['offense_id'] ?? 0) > 0;
 
 if ($letterOffenseId <= 0 && $hasActiveWorkflowRequest && !empty($studentIdPrefill)) {
     $unsentOffense = db_one(
-        "SELECT offense_id, level FROM offense 
-         WHERE student_id = :sid 
-           AND level IN ('MINOR','MAJOR') 
-           AND status <> 'DISMISSED' 
-           AND (guardian_notified_at IS NULL OR guardian_notified_at = '0000-00-00 00:00:00')
-         ORDER BY offense_id DESC 
+        "SELECT o.offense_id, o.level,
+                (SELECT COUNT(*) FROM upcc_case_offense uco JOIN upcc_case uc ON uc.case_id = uco.case_id WHERE uco.offense_id = o.offense_id AND uc.case_kind = 'SECTION4_MINOR_ESCALATION') AS is_section4_case
+         FROM offense o 
+         WHERE o.student_id = :sid 
+           AND o.level IN ('MINOR','MAJOR') 
+           AND o.status <> 'DISMISSED' 
+           AND (o.guardian_notified_at IS NULL OR o.guardian_notified_at = '0000-00-00 00:00:00')
+         ORDER BY o.offense_id DESC 
          LIMIT 1",
         [':sid' => $studentIdPrefill]
     );
@@ -595,11 +597,12 @@ if ($letterOffenseId <= 0 && $hasActiveWorkflowRequest && !empty($studentIdPrefi
         $mCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND level = 'MINOR' AND offense_id <= :oid", [':sid' => $studentIdPrefill, ':oid' => $unsentOffense['offense_id']]);
         $mCount = (int)($mCountRow['cnt'] ?? 0);
         $offLevel = strtoupper((string)$unsentOffense['level']);
+        $isSec4 = ((int)($unsentOffense['is_section4_case'] ?? 0) > 0) || ((string)($_GET['type'] ?? '') === 'escalation');
 
         if ($offLevel === 'MAJOR' && $level === 'MAJOR') {
             $letterOffenseId = (int)$unsentOffense['offense_id'];
             $letterType = 'major';
-        } elseif ($mCount % 3 === 0 && $mCount >= 3) {
+        } elseif ($isSec4 || ($mCount % 3 === 0 && $mCount >= 3)) {
             $letterOffenseId = (int)$unsentOffense['offense_id'];
             $letterType = 'escalation';
         } elseif ($mCount % 3 === 2) {
@@ -626,18 +629,22 @@ if ($targetOffenseId > 0) {
     if ($offCheck) {
         $mCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND level = 'MINOR' AND offense_id <= :oid", [':sid' => $offCheck['student_id'], ':oid' => $targetOffenseId]);
         $mCount = (int)($mCountRow['cnt'] ?? 0);
-        $isEsc = (strtoupper((string)$offCheck['level']) === 'MAJOR') || ((int)$offCheck['is_section4_case'] > 0) || ($mCount % 3 === 0 && $mCount >= 3);
-        $isTriggerOffense = (strtoupper((string)$offCheck['level']) === 'MAJOR') || ($mCount % 3 === 2) || ($mCount % 3 === 0 && $mCount >= 3);
+
+        $isSection4Linked = ((int)($offCheck['is_section4_case'] ?? 0) > 0);
+        $urlTypeIsEsc = ((string)($_GET['type'] ?? '') === 'escalation');
+
+        $isEsc = (strtoupper((string)$offCheck['level']) === 'MAJOR') || $isSection4Linked || $urlTypeIsEsc || ($mCount % 3 === 0 && $mCount >= 3);
+        $isTriggerOffense = (strtoupper((string)$offCheck['level']) === 'MAJOR') || $isSection4Linked || $urlTypeIsEsc || ($mCount % 3 === 2) || ($mCount % 3 === 0 && $mCount >= 3);
         
         if ($isEsc) {
             $isSection4EscalationOffense = true;
         }
 
-        // STAGE 1: Guardian Email Notification (Only for 2nd Minor, 3rd Minor Escalation, or Major!)
+        // STAGE 1: Guardian Email Notification (Only for 2nd Minor, 3rd Minor Escalation, 4th Mixed Minor Escalation, or Major!)
         if ((empty($offCheck['guardian_notified_at']) || $offCheck['guardian_notified_at'] === '0000-00-00 00:00:00') && $isTriggerOffense) {
             $letterMode = true;
             $letterOffenseId = $targetOffenseId;
-            $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : (($mCount % 3 === 0 && $mCount >= 3) ? 'escalation' : 'letter');
+            $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : (($isSection4Linked || $urlTypeIsEsc || ($mCount % 3 === 0 && $mCount >= 3)) ? 'escalation' : 'letter');
         } 
         // STAGE 2: Form F-005 Notice to Explain (for Escalation / Major)
         elseif ($isEsc && empty($_SESSION['nte_done_' . $targetOffenseId])) {
