@@ -872,7 +872,7 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
     $distinctTypesCount = count($typeCounts);
     
     // Determine target requirement: 3 for same minor type, 4 for different minor types
-    $isSameTypeTarget = ($maxSameTypeCount >= 2 || $distinctTypesCount <= 1);
+    $isSameTypeTarget = ($maxSameTypeCount >= 3);
     $requiredForEscalation = $isSameTypeTarget ? 3 : 4;
 
     $isEscalationTriggered = false;
@@ -912,11 +912,11 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
 
   $existingActiveCount = $cycleInfo ? (int)$cycleInfo['active_count'] : max(0, $projectedCount - 1);
   $projectedActiveCount = $existingActiveCount + 1;
-  $reqCount = $cycleInfo ? (int)$cycleInfo['required_for_escalation'] : 3;
+  $reqCount = $cycleInfo ? (int)$cycleInfo['required_for_escalation'] : 4;
   $maxSame = $cycleInfo ? (int)$cycleInfo['max_same_type_count'] : 1;
   $cycleNum = $cycleInfo ? (int)$cycleInfo['current_cycle_num'] : max(1, (int)ceil($projectedCount / 3));
   $cycleOrd = getOrdinal($cycleNum);
-  $isEsc = ($cycleInfo && $cycleInfo['is_escalation_triggered']) || ($projectedActiveCount >= $reqCount && ($maxSame >= 3 || $projectedActiveCount >= 4));
+  $isEsc = $cycleInfo ? (bool)$cycleInfo['is_escalation_triggered'] : ($existingActiveCount >= 4 || ($maxSame >= 3 && $existingActiveCount >= 3));
 
   $pct = min(100, (int)round(($existingActiveCount / $reqCount) * 100));
 
@@ -3716,11 +3716,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   function renderMinorAlert(projectedCount, guardianEmail, currentCount) {
     const cycle = window.__activeMinorCycle || {};
     const existingActiveCount = (typeof cycle.active_count !== 'undefined') ? Number(cycle.active_count) : 0;
-    const projectedActiveCount = existingActiveCount + 1;
-    const reqCount = cycle.required_for_escalation || 3;
+    const reqCount = cycle.required_for_escalation || 4;
     const maxSame = cycle.max_same_type_count || 1;
     const cycleNum = cycle.current_cycle_num || 1;
-    const isEsc = Boolean(cycle.is_escalation_triggered) || (projectedActiveCount >= reqCount && (maxSame >= 3 || projectedActiveCount >= 4));
+    const isEsc = typeof cycle.is_escalation_triggered !== 'undefined'
+      ? Boolean(cycle.is_escalation_triggered)
+      : (existingActiveCount >= 4 || (maxSame >= 3 && existingActiveCount >= 3));
 
     function getOrd(n) {
       const s = ['th','st','nd','rd'], v = n % 100;
