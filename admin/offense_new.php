@@ -810,16 +810,23 @@ function getOrdinal(int $n): string {
  * 3. 3rd Minor offense of DIFFERENT types -> Student App Warning Alert Issued (No Section 4 case yet).
  */
 function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = null): array {
-    $lastSection4Case = db_one(
-        "SELECT MAX(created_at) AS max_date FROM upcc_case 
-         WHERE student_id = :sid 
-           AND case_kind = 'SECTION4_MINOR_ESCALATION' 
-           AND status NOT IN ('CANCELLED','VOID')",
-        [':sid' => $studentId]
-    );
-    $startDate = $lastSection4Case['max_date'] ?? '1970-01-01 00:00:00';
-    if (empty($startDate) || $startDate === '0000-00-00 00:00:00') {
-        $startDate = '1970-01-01 00:00:00';
+    if (empty($studentId)) {
+        return [
+            'minors' => [],
+            'active_count' => 0,
+            'completed_cycles' => 0,
+            'current_cycle_num' => 1,
+            'type_counts' => [],
+            'max_same_type_count' => 0,
+            'max_same_type_id' => 0,
+            'max_same_type_name' => 'Minor Offense',
+            'max_same_type_offense_ids' => [],
+            'distinct_types_count' => 0,
+            'is_same_type_target' => true,
+            'required_for_escalation' => 3,
+            'is_escalation_triggered' => false,
+            'trigger_reason' => 'NONE',
+        ];
     }
 
     $completedRow = db_one(
@@ -837,9 +844,10 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
          JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
          WHERE o.student_id = :sid 
            AND o.level = 'MINOR'
-           AND o.date_committed > :start_date
-         ORDER BY o.date_committed ASC",
-        [':sid' => $studentId, ':start_date' => $startDate]
+           AND o.status <> 'VOID'
+           AND o.offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
+         ORDER BY o.date_committed ASC, o.offense_id ASC",
+        [':sid' => $studentId]
     ) ?: [];
 
     if ($includeNewTypeId !== null && $includeNewTypeId > 0) {
