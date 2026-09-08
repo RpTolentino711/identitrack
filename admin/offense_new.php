@@ -409,6 +409,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
     exit;
   }
 
+  if ($action === 'get_cycle_info') {
+    $sid = trim($_POST['student_id'] ?? '');
+    $selectedTypeId = isset($_POST['selected_type_id']) ? (int)$_POST['selected_type_id'] : null;
+    $cycle = getStudentActiveMinorCycle($sid, $selectedTypeId);
+    echo json_encode(['ok' => true, 'cycle' => $cycle]);
+    exit;
+  }
+
   if ($action === 'list_offense_types') {
     $lvl = $_POST['level'] ?? 'MINOR';
     $cat = isset($_POST['major_category']) ? (int)$_POST['major_category'] : 0;
@@ -944,6 +952,34 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
 
   $pct = min(100, (int)round(($existingActiveCount / $reqCount) * 100));
 
+  // Build active cycle breakdown HTML
+  $breakdownHtml = '';
+  if ($cycleInfo && !empty($cycleInfo['minors'])) {
+      $countsByType = [];
+      foreach ($cycleInfo['minors'] as $m) {
+          $tid = (int)$m['offense_type_id'];
+          if (!isset($countsByType[$tid])) {
+              $countsByType[$tid] = [
+                  'code'  => $m['code'] ?? '',
+                  'name'  => $m['name'] ?? 'Minor Offense',
+                  'count' => 0,
+              ];
+          }
+          $countsByType[$tid]['count']++;
+      }
+      $items = [];
+      foreach ($countsByType as $tInfo) {
+          $items[] = '• <strong>' . htmlspecialchars($tInfo['code']) . '</strong>: ' . htmlspecialchars($tInfo['name']) . ' <span style="font-weight:700; color:#2563eb;">(' . $tInfo['count'] . 'x)</span>';
+      }
+      if (!empty($items)) {
+          $breakdownHtml = '<div style="margin-top:10px; padding:8px 12px; background:#ffffff; border:1px solid #fcd34d; border-radius:8px; font-size:12px; color:#475569;">'
+              . '<div style="font-weight:800; color:#92400e; margin-bottom:4px; font-size:11px; text-transform:uppercase;">Active Cycle Infractions Breakdown:</div>'
+              . implode('<br>', $items)
+              . '<div style="font-size:11px; margin-top:6px; font-style:italic; color:#64748b;">(Rule: 3 of SAME type OR 4 of MIXED types triggers Section 4)</div>'
+              . '</div>';
+      }
+  }
+
   // 0 Active Minors Recorded (Clean Record)
   if ($existingActiveCount === 0 && !$isEsc) {
     return '
@@ -977,6 +1013,7 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
         <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:33%"></div></div><span class="ap-progress-label">1/' . $reqCount . ' – Submitting will trigger Guardian Notice</span></div>
         <div class="ap-desc">1 minor offense currently recorded. Submitting this form will log the 2nd minor offense and generate a guardian letter.</div>
         ' . $emailHtml . '
+        ' . $breakdownHtml . '
         <div class="ap-steps">
           <div class="ap-step ap-step--done">1st Minor ✓</div>
           <div class="ap-step ap-step--next">2nd Minor ⬅ Guardian Letter</div>
@@ -996,6 +1033,7 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
         <div class="ap-projected-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">📋 Active Cycle ' . $cycleOrd . ' → <strong>2/' . $reqCount . ' Recorded (Submitting 3rd)</strong></div>
         <div class="ap-progress" style="margin:8px 0;"><div class="ap-progress-track" style="background:#fef3c7;"><div class="ap-progress-fill" style="width:66%; background:#f59e0b;"></div></div><span class="ap-progress-label" style="color:#92400e; font-weight:700;">2/' . $reqCount . ' Recorded</span></div>
         <div class="ap-desc" style="color:#78350f; font-weight:600;">Student currently has 2 minor offenses recorded. Submitting a 3rd minor of the SAME type will trigger Section 4 Escalation. If DIFFERENT type, it will issue a Student App Warning Alert.</div>
+        ' . $breakdownHtml . '
         <div class="ap-steps" style="margin-top:10px;">
           <div class="ap-step ap-step--done">1st Minor ✓</div>
           <div class="ap-step ap-step--done">2nd Minor ✓</div>
@@ -1005,16 +1043,17 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
     </div>';
   }
 
-  // 3 Active Minors Recorded (Different Types)
+  // 3 Active Minors Recorded (Different / Mixed Types)
   if ($existingActiveCount === 3 && !$isEsc) {
     return '
     <div class="alert-panel" style="background:#fffbe0; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:10px; padding:14px; box-shadow:0 2px 8px rgba(245,158,11,0.15);">
       <div class="ap-icon" style="color:#d97706;"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
       <div class="ap-body">
-        <div class="ap-title" style="color:#92400e; font-weight:800; font-size:14px;">📱 3 Active Minors Recorded (Different Types)</div>
+        <div class="ap-title" style="color:#92400e; font-weight:800; font-size:14px;">📱 3 Active Minors Recorded (Mixed Types)</div>
         <div class="ap-projected-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">📋 Active Cycle ' . $cycleOrd . ' → <strong>3/4 Minor Infractions Recorded</strong></div>
         <div class="ap-progress" style="margin:8px 0;"><div class="ap-progress-track" style="background:#fef3c7;"><div class="ap-progress-fill" style="width:75%; background:#f59e0b;"></div></div><span class="ap-progress-label" style="color:#92400e; font-weight:700;">3/4 Recorded (Submitting 4th will trigger Section 4 Escalation)</span></div>
-        <div class="ap-desc" style="color:#78350f; font-weight:600;">Student currently has 3 minor offenses of DIFFERENT types recorded. Submitting a 4th minor of any type will trigger Section 4 Escalation to the UPCC Panel.</div>
+        <div class="ap-desc" style="color:#78350f; font-weight:600;">Student currently has 3 minor offenses of MIXED types recorded. Submitting a 4th minor of any type will trigger Section 4 Escalation to the UPCC Panel.</div>
+        ' . $breakdownHtml . '
         <div class="ap-steps" style="margin-top:10px;">
           <div class="ap-step ap-step--done">1st Minor ✓</div>
           <div class="ap-step ap-step--done">2nd Minor ✓</div>
@@ -3753,6 +3792,29 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
     const cycleOrd = getOrd(cycleNum);
 
+    let breakdownHtml = '';
+    if (cycle && Array.isArray(cycle.minors) && cycle.minors.length > 0) {
+      const countsByType = {};
+      cycle.minors.forEach(m => {
+        const tid = Number(m.offense_type_id);
+        if (!countsByType[tid]) {
+          countsByType[tid] = { code: m.code || '', name: m.name || 'Minor Offense', count: 0 };
+        }
+        countsByType[tid].count++;
+      });
+      const items = Object.values(countsByType).map(t => 
+        `• <strong>${escHtml(t.code)}</strong>: ${escHtml(t.name)} <span style="font-weight:700; color:#2563eb;">(${t.count}x)</span>`
+      );
+      if (items.length > 0) {
+        breakdownHtml = `
+          <div style="margin-top:10px; padding:8px 12px; background:#ffffff; border:1px solid #fcd34d; border-radius:8px; font-size:12px; color:#475569;">
+            <div style="font-weight:800; color:#92400e; margin-bottom:4px; font-size:11px; text-transform:uppercase;">Active Cycle Infractions Breakdown:</div>
+            ${items.join('<br>')}
+            <div style="font-size:11px; margin-top:6px; font-style:italic; color:#64748b;">(Rule: 3 of SAME type OR 4 of MIXED types triggers Section 4)</div>
+          </div>`;
+      }
+    }
+
     // 0 Active Minors Recorded (Clean Record)
     if (existingActiveCount === 0 && !isEsc) {
       return `
@@ -3786,6 +3848,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           <div class="ap-progress"><div class="ap-progress-track"><div class="ap-progress-fill ap-progress--warning" style="width:33%"></div></div><span class="ap-progress-label">1/${reqCount} – Submitting will trigger Guardian Notice</span></div>
           <div class="ap-desc">1 minor offense currently recorded. Submitting this form will log the 2nd minor offense and generate a guardian letter.</div>
           ${emailHtml}
+          ${breakdownHtml}
           <div class="ap-steps">
             <div class="ap-step ap-step--done">1st Minor ✓</div>
             <div class="ap-step ap-step--next">2nd Minor ⬅ Guardian Letter</div>
@@ -3805,6 +3868,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           <div class="ap-projected-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">📋 Active Cycle ${cycleOrd} → <strong>2/${reqCount} Recorded (Submitting 3rd)</strong></div>
           <div class="ap-progress" style="margin:8px 0;"><div class="ap-progress-track" style="background:#fef3c7;"><div class="ap-progress-fill" style="width:66%; background:#f59e0b;"></div></div><span class="ap-progress-label" style="color:#92400e; font-weight:700;">2/${reqCount} Recorded</span></div>
           <div class="ap-desc" style="color:#78350f; font-weight:600;">Student currently has 2 minor offenses recorded. Submitting a 3rd minor of the SAME type will trigger Section 4 Escalation. If DIFFERENT type, it will issue a Student App Warning Alert.</div>
+          ${breakdownHtml}
           <div class="ap-steps" style="margin-top:10px;">
             <div class="ap-step ap-step--done">1st Minor ✓</div>
             <div class="ap-step ap-step--done">2nd Minor ✓</div>
@@ -3814,16 +3878,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       </div>`;
     }
 
-    // 3 Active Minors Recorded (Different Types)
+    // 3 Active Minors Recorded (Different / Mixed Types)
     if (existingActiveCount === 3 && !isEsc) {
       return `
       <div class="alert-panel" style="background:#fffbe0; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:10px; padding:14px; box-shadow:0 2px 8px rgba(245,158,11,0.15);">
         <div class="ap-icon" style="color:#d97706;"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
         <div class="ap-body">
-          <div class="ap-title" style="color:#92400e; font-weight:800; font-size:14px;">📱 3 Active Minors Recorded (Different Types)</div>
+          <div class="ap-title" style="color:#92400e; font-weight:800; font-size:14px;">📱 3 Active Minors Recorded (Mixed Types)</div>
           <div class="ap-projected-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">📋 Active Cycle ${cycleOrd} → <strong>3/4 Minor Infractions Recorded</strong></div>
           <div class="ap-progress" style="margin:8px 0;"><div class="ap-progress-track" style="background:#fef3c7;"><div class="ap-progress-fill" style="width:75%; background:#f59e0b;"></div></div><span class="ap-progress-label" style="color:#92400e; font-weight:700;">3/4 Recorded (Submitting 4th will trigger Section 4 Escalation)</span></div>
-          <div class="ap-desc" style="color:#78350f; font-weight:600;">Student currently has 3 minor offenses of DIFFERENT types recorded. Submitting a 4th minor of any type will trigger Section 4 Escalation to the UPCC Panel.</div>
+          <div class="ap-desc" style="color:#78350f; font-weight:600;">Student currently has 3 minor offenses of MIXED types recorded. Submitting a 4th minor of any type will trigger Section 4 Escalation to the UPCC Panel.</div>
+          ${breakdownHtml}
           <div class="ap-steps" style="margin-top:10px;">
             <div class="ap-step ap-step--done">1st Minor ✓</div>
             <div class="ap-step ap-step--done">2nd Minor ✓</div>
@@ -4201,7 +4266,35 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
   }
 
-  offenseTypeSelect.addEventListener('change', updateDescriptionRequirement);
+  async function updateCycleTrackerLive() {
+    const sid = studentIdInput ? studentIdInput.value.trim() : '<?= htmlspecialchars($postStudentId) ?>';
+    const tid = parseInt(offenseTypeSelect ? offenseTypeSelect.value : 0) || 0;
+    if (!sid) return;
+
+    const fd = new FormData();
+    fd.append('action', 'get_cycle_info');
+    fd.append('student_id', sid);
+    if (tid > 0) fd.append('selected_type_id', tid);
+
+    try {
+      const res = await fetch(window.location.href, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const data = await res.json();
+      if (data.ok && data.cycle) {
+        window.__activeMinorCycle = data.cycle;
+        if (alertPanel && currentLevel === 'MINOR') {
+          const guardianEmail = document.getElementById('letter_guardian_email')?.value || '';
+          alertPanel.innerHTML = renderMinorAlert(data.cycle.active_count, guardianEmail, data.cycle.active_count);
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (offenseTypeSelect) {
+    offenseTypeSelect.addEventListener('change', function() {
+      updateDescriptionRequirement();
+      updateCycleTrackerLive();
+    });
+  }
   document.addEventListener('DOMContentLoaded', updateDescriptionRequirement);
 
   // Modal
