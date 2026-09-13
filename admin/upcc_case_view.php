@@ -2189,10 +2189,7 @@ body {
 
                     <!-- Overlay Controls on top of Card -->
                     <div style="position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:10;">
-                      <button type="button" onclick="toggleSingleCardBlur(<?= $oc['case_id'] ?>)" class="btn btn-outline btn-sm" id="unblur-btn-<?= $oc['case_id'] ?>" style="padding:3px 8px;font-size:.72rem;background:#fff;border-color:#d97706;color:#873800;box-shadow:0 2px 6px rgba(0,0,0,0.1);">
-                        🔓 Unblur
-                      </button>
-                      <button type="button" onclick="openQuickCaseModal(<?= $oc['case_id'] ?>)" class="btn btn-warning btn-sm" style="padding:3px 10px;font-size:.73rem;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.15);" title="Inspect case without leaving current hearing">
+                      <button type="button" onclick="openQuickCaseModal(<?= $oc['case_id'] ?>)" class="btn btn-warning btn-sm" style="padding:4px 12px;font-size:.73rem;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.15);" title="Inspect case without leaving current hearing">
                         👁️ View Case
                       </button>
                     </div>
@@ -2257,16 +2254,33 @@ body {
 
                     <!-- Overlay Controls on top of Card -->
                     <div style="position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:10;">
-                      <button type="button" onclick="toggleSingleCardBlur(<?= $oc['case_id'] ?>)" class="btn btn-outline btn-sm" id="unblur-btn-<?= $oc['case_id'] ?>" style="padding:3px 8px;font-size:.72rem;background:#fff;border-color:#16a34a;color:#15803d;box-shadow:0 2px 6px rgba(0,0,0,0.1);">
-                        🔓 Unblur
-                      </button>
-                      <button type="button" onclick="openQuickCaseModal(<?= $oc['case_id'] ?>)" class="btn btn-success btn-sm" style="padding:3px 10px;font-size:.73rem;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.15);" title="Inspect case without leaving current hearing">
+                      <button type="button" onclick="openQuickCaseModal(<?= $oc['case_id'] ?>)" class="btn btn-success btn-sm" style="padding:4px 12px;font-size:.73rem;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.15);" title="Inspect case without leaving current hearing">
                         👁️ View Case
                       </button>
                     </div>
                   </div>
                 <?php endforeach; ?>
               <?php endif; ?>
+            </div>
+
+            <!-- UNBLUR SECURITY WARNING CONFIRMATION MODAL -->
+            <div id="unblurWarningModal" class="modal-overlay">
+              <div class="modal-content" style="max-width:460px;width:min(90vw,460px);padding:24px;border-radius:20px;text-align:center;">
+                <div style="font-size:36px;margin-bottom:8px;">🔒</div>
+                <h3 style="margin:0 0 10px 0;font-size:1.1rem;color:var(--ink-900);">Confidential Record Access Warning</h3>
+                <div style="font-size:.82rem;color:var(--ink-600);line-height:1.55;background:#fffbe6;border:1px solid #ffe58f;border-radius:12px;padding:12px 14px;margin-bottom:18px;text-align:left;">
+                  <strong style="color:#873800;display:block;margin-bottom:4px;">⚠️ Administrative Compliance Audit</strong>
+                  Access to student prior disciplinary records is strictly restricted for evaluation purposes only. Unblurring details will be logged under your administrator account. Are you sure you want to unblur these records?
+                </div>
+                <div style="display:flex;gap:10px;justify-content:center;">
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="closeUnblurWarningModal()" style="color:var(--ink-600);">
+                    Cancel
+                  </button>
+                  <button type="button" class="btn btn-warning btn-sm" onclick="confirmUnblurAction()" style="font-weight:700;padding:8px 20px;">
+                    Yes, Unblur Records
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- QUICK CASE INSPECTION MODAL (STAYS ON CURRENT PAGE) -->
@@ -2300,6 +2314,35 @@ body {
             <script>
             const studentOtherCasesData = <?= json_encode($otherStudentCases) ?>;
             const categoryDescriptionsMap = <?= json_encode($categoryDescriptions) ?>;
+            let pendingUnblurCallback = null;
+
+            function isUnblurConfirmed() {
+              return sessionStorage.getItem('identitrack_unblur_confirmed') === 'true';
+            }
+
+            function requestUnblurConfirmation(callback) {
+              if (isUnblurConfirmed()) {
+                callback();
+                return;
+              }
+              pendingUnblurCallback = callback;
+              document.getElementById('unblurWarningModal').classList.add('open');
+            }
+
+            function closeUnblurWarningModal() {
+              document.getElementById('unblurWarningModal').classList.remove('open');
+              pendingUnblurCallback = null;
+            }
+
+            function confirmUnblurAction() {
+              sessionStorage.setItem('identitrack_unblur_confirmed', 'true');
+              document.getElementById('unblurWarningModal').classList.remove('open');
+              if (pendingUnblurCallback) {
+                const cb = pendingUnblurCallback;
+                pendingUnblurCallback = null;
+                cb();
+              }
+            }
 
             function switchCaseTab(tabName) {
               const panes = {
@@ -2328,51 +2371,25 @@ body {
               });
             }
 
-            function toggleSingleCardBlur(caseId) {
-              const cardContent = document.getElementById('card-content-' + caseId);
-              const unblurBtn = document.getElementById('unblur-btn-' + caseId);
-              if (!cardContent) return;
-              
-              const isBlurred = cardContent.classList.contains('blurred');
-              if (isBlurred) {
-                cardContent.classList.remove('blurred');
-                if (unblurBtn) {
-                  unblurBtn.innerHTML = '🔒 Blur';
-                  unblurBtn.style.borderColor = '#94a3b8';
-                  unblurBtn.style.color = '#475569';
-                }
-              } else {
-                cardContent.classList.add('blurred');
-                if (unblurBtn) {
-                  unblurBtn.innerHTML = '🔓 Unblur';
-                  unblurBtn.style.borderColor = '#d97706';
-                  unblurBtn.style.color = '#873800';
-                }
-              }
-            }
-
             function toggleAllTabBlur(type) {
-              const pane = type === 'pending' ? document.getElementById('tabPanePending') : document.getElementById('tabPaneResolved');
-              const btn = type === 'pending' ? document.getElementById('toggleBlurPendingBtn') : document.getElementById('toggleBlurResolvedBtn');
-              if (!pane) return;
+              requestUnblurConfirmation(() => {
+                const pane = type === 'pending' ? document.getElementById('tabPanePending') : document.getElementById('tabPaneResolved');
+                const btn = type === 'pending' ? document.getElementById('toggleBlurPendingBtn') : document.getElementById('toggleBlurResolvedBtn');
+                if (!pane) return;
 
-              const cards = pane.querySelectorAll('.confidential-card-content');
-              const unblurBtns = pane.querySelectorAll('[id^="unblur-btn-"]');
-              let anyBlurred = false;
-              cards.forEach(c => { if (c.classList.contains('blurred')) anyBlurred = true; });
+                const cards = pane.querySelectorAll('.confidential-card-content');
+                let anyBlurred = false;
+                cards.forEach(c => { if (c.classList.contains('blurred')) anyBlurred = true; });
 
-              cards.forEach(c => {
-                if (anyBlurred) c.classList.remove('blurred');
-                else c.classList.add('blurred');
+                cards.forEach(c => {
+                  if (anyBlurred) c.classList.remove('blurred');
+                  else c.classList.add('blurred');
+                });
+
+                if (btn) {
+                  btn.innerHTML = anyBlurred ? (type === 'pending' ? '🔒 Blur All Pending' : '🔒 Blur All Resolved') : (type === 'pending' ? '🔓 Unblur All Pending' : '🔓 Unblur All Resolved');
+                }
               });
-
-              unblurBtns.forEach(b => {
-                b.innerHTML = anyBlurred ? '🔒 Blur' : '🔓 Unblur';
-              });
-
-              if (btn) {
-                btn.innerHTML = anyBlurred ? (type === 'pending' ? '🔒 Blur All Pending' : '🔒 Blur All Resolved') : (type === 'pending' ? '🔓 Unblur All Pending' : '🔓 Unblur All Resolved');
-              }
             }
 
             function openQuickCaseModal(caseId) {
