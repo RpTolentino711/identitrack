@@ -263,6 +263,30 @@ arsort($breakdownMap);
 arsort($coursesMap);
 
 /**
+ * Formats community service hours into clean human-readable text (e.g. "20 Minutes", "1 Hour", "150 Hours")
+ */
+function format_community_service_hours_display(float $hoursVal): string {
+    if ($hoursVal <= 0) return "0 Hours";
+
+    $totalSeconds = (int)round($hoursVal * 3600);
+    $h = (int)floor($totalSeconds / 3600);
+    $m = (int)round(($totalSeconds % 3600) / 60);
+
+    if ($m >= 60) {
+        $h += 1;
+        $m = 0;
+    }
+
+    if ($h > 0 && $m > 0) {
+        return "{$h} Hr" . ($h > 1 ? 's' : '') . " {$m} Min" . ($m > 1 ? 's' : '');
+    } elseif ($h > 0) {
+        return "{$h} Hour" . ($h > 1 ? 's' : '');
+    } else {
+        return "{$m} Minute" . ($m > 1 ? 's' : '');
+    }
+}
+
+/**
  * Formats comprehensive, detailed Sanction / Penalty string according to NU Lipa Discipline Handbook
  */
 function format_full_sanction_penalty(array $r): string {
@@ -317,13 +341,15 @@ function format_full_sanction_penalty(array $r): string {
             if ($csr && (float)($csr['hours_required'] ?? 0) > 0) {
                 $hrs = (float)$csr['hours_required'];
                 $task = !empty($csr['task_name']) ? $csr['task_name'] : 'Community Service';
-                $punishmentParts[] = "{$hrs} Hours {$task}";
+                $timeDisplay = format_community_service_hours_display($hrs);
+                $punishmentParts[] = "{$timeDisplay} {$task}";
             }
         }
 
         if (!empty($punishDetails['service_hours']) && empty($csr)) {
             $hrs = (float)$punishDetails['service_hours'];
-            $punishmentParts[] = "{$hrs} Hours University Service";
+            $timeDisplay = format_community_service_hours_display($hrs);
+            $punishmentParts[] = "{$timeDisplay} University Service";
         }
 
         if (!empty($punishDetails['interventions']) && is_array($punishDetails['interventions'])) {
