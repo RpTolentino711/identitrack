@@ -2186,13 +2186,6 @@ body {
                         <?php endforeach; ?>
                       <?php endif; ?>
                     </div>
-
-                    <!-- Overlay Controls on top of Card -->
-                    <div style="position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:10;">
-                      <button type="button" onclick="openQuickCaseModal(<?= $oc['case_id'] ?>)" class="btn btn-warning btn-sm" style="padding:4px 12px;font-size:.73rem;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.15);" title="Inspect case without leaving current hearing">
-                        👁️ View Case
-                      </button>
-                    </div>
                   </div>
                 <?php endforeach; ?>
               <?php endif; ?>
@@ -2250,13 +2243,6 @@ body {
                           </div>
                         <?php endforeach; ?>
                       <?php endif; ?>
-                    </div>
-
-                    <!-- Overlay Controls on top of Card -->
-                    <div style="position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:10;">
-                      <button type="button" onclick="openQuickCaseModal(<?= $oc['case_id'] ?>)" class="btn btn-success btn-sm" style="padding:4px 12px;font-size:.73rem;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.15);" title="Inspect case without leaving current hearing">
-                        👁️ View Case
-                      </button>
                     </div>
                   </div>
                 <?php endforeach; ?>
