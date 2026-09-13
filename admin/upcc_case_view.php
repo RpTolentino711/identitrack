@@ -2133,26 +2133,24 @@ body {
 
             <!-- TAB 2: PENDING CASES -->
             <div id="tabPanePending" style="display:none;">
-              <!-- Security Warning Box with Global Unblur Toggle -->
-              <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-                <div style="flex:1;min-width:240px;">
-                  <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
-                    🔒 Security &amp; Confidentiality Notice
-                  </strong>
-                  Access to student prior pending cases is restricted for evaluation purposes only. Case access is logged. Details are blurred by default for security.
-                </div>
-                <?php if (!empty($pendingList)): ?>
-                  <button type="button" class="btn btn-outline btn-sm" id="toggleBlurPendingBtn" onclick="toggleAllTabBlur('pending')" style="background:#fff;border-color:#d97706;color:#873800;font-size:.72rem;padding:4px 10px;">
-                    🔓 Unblur All Pending
-                  </button>
-                <?php endif; ?>
-              </div>
-
               <?php if (empty($pendingList)): ?>
                 <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;padding:.5rem 0;">
                   No other pending disciplinary cases recorded for this student.
                 </div>
               <?php else: ?>
+                <!-- Security Warning Box with Global Unblur Toggle -->
+                <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                  <div style="flex:1;min-width:240px;">
+                    <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
+                      🔒 Security &amp; Confidentiality Notice
+                    </strong>
+                    Access to student prior pending cases is restricted for evaluation purposes only. Case access is logged. Details are blurred by default for security.
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm" id="toggleBlurPendingBtn" onclick="toggleAllTabBlur('pending')" style="background:#fff;border-color:#d97706;color:#873800;font-size:.72rem;padding:4px 10px;">
+                    🔓 Unblur All Pending
+                  </button>
+                </div>
+
                 <?php foreach ($pendingList as $oc): ?>
                   <div class="confidential-card-wrapper" id="card-wrap-<?= $oc['case_id'] ?>" style="margin-bottom:.85rem;">
                     <div class="confidential-card-content blurred" id="card-content-<?= $oc['case_id'] ?>" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:.85rem;">
@@ -2193,26 +2191,24 @@ body {
 
             <!-- TAB 3: RESOLVED CASES -->
             <div id="tabPaneResolved" style="display:none;">
-              <!-- Security Warning Box with Global Unblur Toggle -->
-              <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-                <div style="flex:1;min-width:240px;">
-                  <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
-                    🔒 Security &amp; Confidentiality Notice
-                  </strong>
-                  Access to student prior resolved cases is strictly restricted for evaluation purposes only. Case access is logged. Details are blurred by default for security.
-                </div>
-                <?php if (!empty($resolvedList)): ?>
-                  <button type="button" class="btn btn-outline btn-sm" id="toggleBlurResolvedBtn" onclick="toggleAllTabBlur('resolved')" style="background:#fff;border-color:#16a34a;color:#15803d;font-size:.72rem;padding:4px 10px;">
-                    🔓 Unblur All Resolved
-                  </button>
-                <?php endif; ?>
-              </div>
-
               <?php if (empty($resolvedList)): ?>
                 <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;padding:.5rem 0;">
                   No resolved disciplinary cases recorded for this student.
                 </div>
               <?php else: ?>
+                <!-- Security Warning Box with Global Unblur Toggle -->
+                <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                  <div style="flex:1;min-width:240px;">
+                    <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
+                      🔒 Security &amp; Confidentiality Notice
+                    </strong>
+                    Access to student prior resolved cases is strictly restricted for evaluation purposes only. Case access is logged. Details are blurred by default for security.
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm" id="toggleBlurResolvedBtn" onclick="toggleAllTabBlur('resolved')" style="background:#fff;border-color:#16a34a;color:#15803d;font-size:.72rem;padding:4px 10px;">
+                    🔓 Unblur All Resolved
+                  </button>
+                </div>
+
                 <?php foreach ($resolvedList as $oc): ?>
                   <div class="confidential-card-wrapper" id="card-wrap-<?= $oc['case_id'] ?>" style="margin-bottom:.85rem;">
                     <div class="confidential-card-content blurred" id="card-content-<?= $oc['case_id'] ?>" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:.85rem;">
