@@ -151,8 +151,55 @@ if (!empty($assignedPanelIds)) {
     }
   }
 }
-// We'll fetch all active UPCC users for the edit panel later, but for JS we don't need full list anymore
-// because we AJAX load members per department.
+// ── Fetch other cases for this student (Pending & Resolved) ────────────────────────
+$studentId = (string)($case['student_id'] ?? '');
+$otherStudentCases = [];
+$otherPendingCasesCount = 0;
+$otherResolvedCasesCount = 0;
+
+if ($studentId !== '') {
+    $rawOtherCases = db_all("
+        SELECT uc.case_id, uc.status, uc.final_decision, uc.decided_category, uc.hearing_date, uc.created_at, uc.updated_at
+        FROM upcc_case uc
+        WHERE uc.student_id = :sid AND uc.case_id != :cid
+        ORDER BY uc.created_at DESC
+    ", [':sid' => $studentId, ':cid' => $case_id]);
+
+    foreach ($rawOtherCases as $oc) {
+        $ocId = (int)$oc['case_id'];
+        
+        $ocOffenses = db_all("
+            SELECT o.*, ot.code, ot.name AS offense_name, ot.level, ot.major_category
+            FROM upcc_case_offense uco
+            JOIN offense o ON o.offense_id = uco.offense_id
+            JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+            WHERE uco.case_id = :id 
+            ORDER BY o.date_committed ASC
+        ", [':id' => $ocId]);
+
+        $ocPanelCount = (int)(db_one("SELECT COUNT(*) AS cnt FROM upcc_case_panel_member WHERE case_id = :id", [':id' => $ocId])['cnt'] ?? 0);
+
+        $st = strtoupper((string)($oc['status'] ?? 'PENDING'));
+        $isResolved = in_array($st, ['CLOSED', 'FINALIZED', 'DECIDED', 'RESOLVED'], true) || !empty($oc['final_decision']);
+
+        if ($isResolved) {
+            $otherResolvedCasesCount++;
+        } else {
+            $otherPendingCasesCount++;
+        }
+
+        $otherStudentCases[] = [
+            'case_id' => $ocId,
+            'status' => $oc['status'] ?? 'PENDING',
+            'is_resolved' => $isResolved,
+            'decided_category' => (int)($oc['decided_category'] ?? 0),
+            'final_decision' => $oc['final_decision'] ?? '',
+            'created_at' => $oc['created_at'] ?? '',
+            'offenses' => $ocOffenses ?: [],
+            'panel_count' => $ocPanelCount
+        ];
+    }
+}
 
 // ── Category descriptions ─────────────────────────────────────────────────
 $categoryDescriptions = [
@@ -1283,8 +1330,27 @@ body {
               <!-- Panel members -->
               <div class="section-label">Panel Members</div>
               <?php if (empty($assignedPanelNames)): ?>
-                <p style="font-size:.8rem;color:var(--ink-400);margin-bottom:.9rem">No panel members assigned.</p>
+                <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;color:#991b1b;font-size:.8rem;display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:1.2rem;">⚠️</span>
+                  <div>
+                    <strong>Panel Assignment Warning:</strong> No UPCC panel members have been assigned to this case hearing!
+                    <?php if (!$isClosed): ?>
+                      <br><a href="#editPanel" onclick="toggleEditPanel()" style="color:#7f1d1d;font-weight:700;text-decoration:underline;font-size:.78rem;">Click here to assign UPCC panel members &rarr;</a>
+                    <?php endif; ?>
+                  </div>
+                </div>
               <?php else: ?>
+                <?php 
+                  $pendingAcceptanceCount = 0;
+                  foreach ($assignedPanelNames as $pm) {
+                      if (!$pm['accepted']) $pendingAcceptanceCount++;
+                  }
+                ?>
+                <?php if ($pendingAcceptanceCount > 0): ?>
+                  <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:8px;padding:.5rem .8rem;margin-bottom:.8rem;font-size:.78rem;color:#873800;">
+                    ⚠️ <strong>Panel Acceptance Pending:</strong> <?= $pendingAcceptanceCount ?> assigned panel member(s) have not yet accepted their hearing invitation.
+                  </div>
+                <?php endif; ?>
                 <div class="panel-list">
                   <?php foreach ($assignedPanelNames as $idx => $pm):
                     $avClass = 'av-' . $avatarColors[$idx % count($avatarColors)]; ?>
@@ -1991,6 +2057,110 @@ body {
                   </div>
                 </div>
               <?php endforeach; ?>
+            <?php endif; ?>
+
+            <!-- OTHER STUDENT CASES SECTION (Pending & Resolved) -->
+            <hr class="divider">
+            <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+              <span>Student Disciplinary History &amp; Other Cases</span>
+              <?php if (!empty($otherStudentCases)): ?>
+                <span class="pill pill-warning" style="font-size:.63rem"><?= count($otherStudentCases) ?> other case<?= count($otherStudentCases) !== 1 ? 's' : '' ?></span>
+              <?php endif; ?>
+            </div>
+
+            <!-- Security Warning Box -->
+            <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;">
+              <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
+                🔒 Security &amp; Confidentiality Notice
+              </strong>
+              Access to student prior disciplinary records and other pending or resolved cases is strictly restricted for evaluation purposes only. All case access is logged for administrative compliance.
+            </div>
+
+            <?php if (empty($otherStudentCases)): ?>
+              <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;padding:.5rem 0;">
+                No other disciplinary cases recorded for this student.
+              </div>
+            <?php else: ?>
+              
+              <!-- Other Pending Cases -->
+              <?php
+                $pendingList = array_filter($otherStudentCases, static fn($c) => !$c['is_resolved']);
+                $resolvedList = array_filter($otherStudentCases, static fn($c) => $c['is_resolved']);
+              ?>
+
+              <?php if (!empty($pendingList)): ?>
+                <div style="font-size:.75rem;font-weight:700;color:var(--amber-700);text-transform:uppercase;letter-spacing:.05em;margin:.75rem 0 .5rem;">
+                  ⏳ Pending Cases (<?= count($pendingList) ?>)
+                </div>
+                <?php foreach ($pendingList as $oc): ?>
+                  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:.85rem;margin-bottom:.75rem;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+                      <div>
+                        <span style="font-weight:700;font-size:.85rem;color:var(--ink-800)">Case #<?= $oc['case_id'] ?></span>
+                        <span class="pill pill-warning" style="font-size:.62rem;margin-left:6px;"><?= htmlspecialchars($oc['status']) ?></span>
+                        <?php if ($oc['panel_count'] === 0): ?>
+                          <span style="font-size:.65rem;color:#b91c1c;background:#fee2e2;border:1px solid #fca5a5;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:700;">⚠️ Panel Unassigned</span>
+                        <?php else: ?>
+                          <span style="font-size:.65rem;color:#15803d;background:#dcfce7;border:1px solid #86efac;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:600;">👥 <?= $oc['panel_count'] ?> Panel Assigned</span>
+                        <?php endif; ?>
+                      </div>
+                      <a href="upcc_case_view.php?id=<?= $oc['case_id'] ?>" class="btn btn-outline btn-sm" style="padding:3px 10px;font-size:.73rem;background:#fff;border-color:#f59e0b;color:#b45309;" title="Security View Case #<?= $oc['case_id'] ?>">
+                        👁️ View Case
+                      </a>
+                    </div>
+                    <div style="font-size:.73rem;color:var(--ink-500);margin-bottom:.4rem;">
+                      📅 Created: <?= fmt($oc['created_at']) ?>
+                    </div>
+                    <?php if (!empty($oc['offenses'])): ?>
+                      <div style="font-size:.72rem;font-weight:600;color:var(--ink-600);margin-bottom:.3rem;">Offenses in this case:</div>
+                      <?php foreach ($oc['offenses'] as $ooff): ?>
+                        <div style="background:#fff;border:1px solid #fde68a;border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:.73rem;display:flex;align-items:center;gap:6px;">
+                          <span class="stag <?= ($ooff['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>" style="font-size:.6rem;padding:1px 5px;"><?= htmlspecialchars($ooff['level'] ?? 'MINOR') ?></span>
+                          <strong style="color:var(--ink-700)"><?= htmlspecialchars($ooff['code'] ?? '') ?></strong>
+                          <span style="color:var(--ink-600)"><?= htmlspecialchars($ooff['offense_name'] ?? '') ?></span>
+                        </div>
+                      <?php endforeach; ?>
+                    <?php endif; ?>
+                  </div>
+                <?php endforeach; ?>
+              <?php endif; ?>
+
+              <!-- Other Resolved Cases -->
+              <?php if (!empty($resolvedList)): ?>
+                <div style="font-size:.75rem;font-weight:700;color:var(--green-700);text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .5rem;">
+                  ✅ Resolved Cases (<?= count($resolvedList) ?>)
+                </div>
+                <?php foreach ($resolvedList as $oc): ?>
+                  <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:.85rem;margin-bottom:.75rem;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+                      <div>
+                        <span style="font-weight:700;font-size:.85rem;color:var(--ink-800)">Case #<?= $oc['case_id'] ?></span>
+                        <span class="pill pill-success" style="font-size:.62rem;margin-left:6px;">Closed</span>
+                        <?php if ($oc['decided_category'] > 0): ?>
+                          <span style="font-size:.65rem;color:#166534;background:#dcfce7;border:1px solid #86efac;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:700;">Category <?= $oc['decided_category'] ?></span>
+                        <?php endif; ?>
+                      </div>
+                      <a href="upcc_case_view.php?id=<?= $oc['case_id'] ?>" class="btn btn-outline btn-sm" style="padding:3px 10px;font-size:.73rem;background:#fff;border-color:#16a34a;color:#15803d;" title="Security View Case #<?= $oc['case_id'] ?>">
+                        👁️ View Case
+                      </a>
+                    </div>
+                    <div style="font-size:.73rem;color:var(--ink-500);margin-bottom:.4rem;">
+                      📅 Resolved: <?= fmt($oc['created_at']) ?>
+                    </div>
+                    <?php if (!empty($oc['offenses'])): ?>
+                      <div style="font-size:.72rem;font-weight:600;color:var(--ink-600);margin-bottom:.3rem;">Offenses in this case:</div>
+                      <?php foreach ($oc['offenses'] as $ooff): ?>
+                        <div style="background:#fff;border:1px solid #a7f3d0;border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:.73rem;display:flex;align-items:center;gap:6px;">
+                          <span class="stag <?= ($ooff['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>" style="font-size:.6rem;padding:1px 5px;"><?= htmlspecialchars($ooff['level'] ?? 'MINOR') ?></span>
+                          <strong style="color:var(--ink-700)"><?= htmlspecialchars($ooff['code'] ?? '') ?></strong>
+                          <span style="color:var(--ink-600)"><?= htmlspecialchars($ooff['offense_name'] ?? '') ?></span>
+                        </div>
+                      <?php endforeach; ?>
+                    <?php endif; ?>
+                  </div>
+                <?php endforeach; ?>
+              <?php endif; ?>
+
             <?php endif; ?>
           </div>
         </div>
