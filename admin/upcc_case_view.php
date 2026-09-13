@@ -2111,6 +2111,59 @@ body {
 
             <!-- TAB 1: CURRENT CASE OFFENSES -->
             <div id="tabPaneCurrent">
+              <?php
+                $currMajorCount = 0;
+                $currMinorCount = 0;
+                foreach ($offenses as $off) {
+                    if (strtoupper($off['level'] ?? '') === 'MAJOR') $currMajorCount++;
+                    else $currMinorCount++;
+                }
+                $cKind = strtoupper((string)($case['case_kind'] ?? ''));
+                $cDecidedCat = (int)($case['decided_category'] ?? 0);
+                $isAutoMajor = ($cKind === 'MAJOR_OFFENSE' || $currMajorCount > 0);
+                $isSection4 = (!$isAutoMajor && ($cKind === 'SECTION4_MINOR_ESCALATION' || $currMinorCount >= 3));
+              ?>
+
+              <!-- CASE CLASSIFICATION BANNER -->
+              <div style="margin-bottom: 1.25rem; border-radius: 12px; padding: 1rem 1.25rem; border: 1px solid; <?= $isAutoMajor ? 'background:#fef2f2; border-color:#fca5a5; color:#991b1b;' : ($isSection4 ? 'background:#fffbe6; border-color:#ffe58f; color:#873800;' : 'background:#eff6ff; border-color:#bfdbfe; color:#1e40af;') ?>">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
+                  <strong style="font-size:.9rem; font-weight:800; display:flex; align-items:center; gap:6px;">
+                    <?php if ($isAutoMajor): ?>
+                      🚨 Automatic Major Offense
+                    <?php elseif ($isSection4): ?>
+                      ⚠️ Section 4 Minor Escalation (3+ Accumulated Minors)
+                    <?php else: ?>
+                      ℹ️ Standard Minor Offense Record
+                    <?php endif; ?>
+                  </strong>
+
+                  <?php if ($cDecidedCat > 0): ?>
+                    <span style="font-size:.72rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#dcfce7; color:#166534; border:1px solid #86efac;">
+                      Category <?= $cDecidedCat ?> Assigned
+                    </span>
+                  <?php elseif ($isAutoMajor): ?>
+                    <span style="font-size:.72rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5;">
+                      Major Offense Level (Pending Category)
+                    </span>
+                  <?php elseif ($isSection4): ?>
+                    <span style="font-size:.72rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">
+                      Section 4 Escalated to UPCC
+                    </span>
+                  <?php endif; ?>
+                </div>
+
+                <div style="font-size:.78rem; line-height:1.45; opacity:0.95;">
+                  <?php if ($isAutoMajor): ?>
+                    This case is classified as an <strong>Automatic Major Offense</strong> due to major infraction(s) committed by the student.
+                    <?= !empty($categoryDescriptions[$cDecidedCat]) ? '<br><strong>Assigned Category Definition:</strong> ' . htmlspecialchars($categoryDescriptions[$cDecidedCat]) : '' ?>
+                  <?php elseif ($isSection4): ?>
+                    This case was automatically escalated under <strong>Section 4 Policy</strong> because the student accumulated <strong><?= $currMinorCount ?> minor offenses</strong> (threshold: 3+ minor offenses).
+                  <?php else: ?>
+                    This case contains <strong><?= $currMinorCount ?> minor offense(s)</strong> below the Section 4 escalation threshold.
+                  <?php endif; ?>
+                </div>
+              </div>
+
               <div class="section-label">Offenses in Current Case #<?= $case_id ?></div>
               <?php if (empty($offenses)): ?>
                 <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;">No offenses recorded in this case.</div>
