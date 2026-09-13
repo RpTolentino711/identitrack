@@ -154,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
   }
-} elseif ($isLocked) {
+} elseif ($isLocked && empty($errors)) {
   $min = floor($remainingSeconds / 60);
   $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
   $errors[] = "LOCKOUT_ERR::Too many invalid attempts. (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
