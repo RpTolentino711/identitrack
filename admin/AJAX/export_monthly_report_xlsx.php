@@ -41,7 +41,7 @@ if (strtoupper($month) === 'ALL') {
 $audience = strtoupper(trim((string)($_GET['audience'] ?? 'ALL')));
 if (!in_array($audience, ['ALL', 'COLLEGE', 'SHS'], true)) $audience = 'ALL';
 
-$segmentExpr = "(CASE WHEN (LOWER(COALESCE(s.school,'')) LIKE '%senior high%' OR UPPER(COALESCE(s.school,'')) = 'SHS' OR UPPER(COALESCE(s.program,'')) LIKE '%SHS%' OR UPPER(COALESCE(s.program,'')) LIKE '%STEM%' OR UPPER(COALESCE(s.program,'')) LIKE '%ABM%' OR UPPER(COALESCE(s.program,'')) LIKE '%HUMSS%' OR UPPER(COALESCE(s.program,'')) LIKE '%TVL%' OR UPPER(COALESCE(s.program,'')) LIKE '%GAS%') THEN 'SHS' ELSE 'COLLEGE' END)";
+$segmentExpr = "(CASE WHEN (LOWER(COALESCE(s.school,'')) LIKE '%senior high%' OR UPPER(COALESCE(s.school,'')) = 'SHS' OR UPPER(COALESCE(s.program,'')) LIKE '%SHS%') THEN 'SHS' ELSE 'COLLEGE' END)";
 $audienceClause = '';
 if ($audience === 'SHS') {
   $audienceClause = " AND $segmentExpr = 'SHS' ";
@@ -93,6 +93,8 @@ $offenseRows = db_all(
       NULL AS case_kind,
       0 AS decided_category,
       NULL AS final_decision,
+      NULL AS punishment_details,
+      NULL AS decision_reason,
       NULL AS case_status
    FROM offense o
    JOIN student s ON s.student_id = o.student_id
@@ -131,7 +133,9 @@ if ($category !== 'MINOR') {
         uc.case_id,
         uc.case_kind,
         COALESCE(NULLIF(uc.decided_category,0), 5) AS decided_category,
-        uc.final_decision,
+        " . db_decrypt_col('final_decision', 'uc') . " AS final_decision,
+        " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
+        COALESCE(" . db_decrypt_col('decision_reason', 'uc') . ", '') AS decision_reason,
         uc.status AS case_status
      FROM upcc_case uc
      JOIN student s ON s.student_id = uc.student_id
@@ -201,7 +205,28 @@ $dismissedCasesVal = (int)($upccStatsRow[0]['dismissed_cases_cnt'] ?? 0);
 
 $majorVal = $directMajorVal + $majorCasesVal;
 $total = $minorVal + $majorVal + $dismissedOffensesVal + $dismissedCasesVal;
-$activeCases = 0;
+
+// Active / Pending cases query (cases under investigation, appeal, pending decision)
+if ($monthStart === '1970-01-01 00:00:00') {
+    $upccActiveRow = db_one(
+        "SELECT COUNT(*) AS cnt
+         FROM upcc_case uc
+         JOIN student s ON s.student_id = uc.student_id
+         WHERE UPPER(COALESCE(uc.status,'')) IN ('PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL', 'AWAITING_ADMIN_FINALIZATION', 'OPEN')
+         $audienceClause"
+    );
+} else {
+    $upccActiveRow = db_one(
+        "SELECT COUNT(*) AS cnt
+         FROM upcc_case uc
+         JOIN student s ON s.student_id = uc.student_id
+         WHERE UPPER(COALESCE(uc.status,'')) IN ('PENDING', 'UNDER_INVESTIGATION', 'UNDER_APPEAL', 'AWAITING_ADMIN_FINALIZATION', 'OPEN')
+           AND uc.created_at BETWEEN ? AND ?
+         $audienceClause",
+        [$monthStart, $monthEnd]
+    );
+}
+$activeCases = (int)($upccActiveRow['cnt'] ?? 0);
 
 $breakdownMap = [];
 $coursesMap = [];
@@ -236,6 +261,127 @@ if (empty($coursesMap)) $coursesMap['No Courses Logged'] = 0;
 
 arsort($breakdownMap);
 arsort($coursesMap);
+
+/**
+ * Formats comprehensive, detailed Sanction / Penalty string according to NU Lipa Discipline Handbook
+ */
+function format_full_sanction_penalty(array $r): string {
+    $offenseLevel  = strtoupper((string)($r['offense_level'] ?? ''));
+    $caseStatus    = strtoupper((string)($r['case_status'] ?? ''));
+    $offenseStatus = strtoupper((string)($r['status'] ?? ''));
+    $decidedCat    = (int)($r['decided_category'] ?? 0);
+    $finalDecision = trim((string)($r['final_decision'] ?? ''));
+    $decisionReason = trim((string)($r['decision_reason'] ?? ''));
+    $rawPunishment = trim((string)($r['punishment_details'] ?? ''));
+    $caseId        = !empty($r['case_id']) ? (int)$r['case_id'] : 0;
+    $studentId     = (string)($r['student_id'] ?? '');
+
+    $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
+
+    if ($isDismissed) {
+        return 'Case / Offense Dismissed (No Sanction Imposed)';
+    }
+
+    $seqCount = 0;
+    if ($offenseLevel === 'MINOR') {
+        $seqCount = (int)(db_one(
+            "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = ? AND date_committed <= ? AND status <> 'VOID'",
+            [$studentId, $r['date_committed']]
+        )['cnt'] ?? 1);
+    }
+
+    $punishDetails = [];
+    if (!empty($rawPunishment)) {
+        try {
+            $punishDetails = json_decode($rawPunishment, true) ?: [];
+        } catch (\Throwable $e) {}
+    }
+
+    if ($decidedCat > 0 || !empty($finalDecision) || !empty($punishDetails)) {
+        $catDescriptions = [
+            1 => 'Category 1 (Formal Reprimand & Active Semester Probation - 0 Hours CS)',
+            2 => 'Category 2 (Formative Intervention & Community Service 150-250 Hours)',
+            3 => 'Category 3 (Non-Readmission / Suspension)',
+            4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
+            5 => 'Category 5 (Summary Expulsion & Police Referral)'
+        ];
+        $catHeader = $catDescriptions[$decidedCat] ?? ($decidedCat > 0 ? "Category {$decidedCat}" : "Decided Major Case");
+
+        $punishmentParts = [];
+
+        if ($caseId > 0) {
+            $csr = db_one(
+                "SELECT task_name, hours_required, status FROM community_service_requirement WHERE related_case_id = :cid LIMIT 1",
+                [':cid' => $caseId]
+            );
+            if ($csr && (float)($csr['hours_required'] ?? 0) > 0) {
+                $hrs = (float)$csr['hours_required'];
+                $task = !empty($csr['task_name']) ? $csr['task_name'] : 'Community Service';
+                $punishmentParts[] = "{$hrs} Hours {$task}";
+            }
+        }
+
+        if (!empty($punishDetails['service_hours']) && empty($csr)) {
+            $hrs = (float)$punishDetails['service_hours'];
+            $punishmentParts[] = "{$hrs} Hours University Service";
+        }
+
+        if (!empty($punishDetails['interventions']) && is_array($punishDetails['interventions'])) {
+            $interventions = array_filter(array_map('trim', $punishDetails['interventions']));
+            if (!empty($interventions)) {
+                $punishmentParts[] = "Interventions: " . implode(', ', $interventions);
+            }
+        }
+
+        if (!empty($punishDetails['probation_terms'])) {
+            $terms = (int)$punishDetails['probation_terms'];
+            $punishmentParts[] = "{$terms} Semester(s) Active Probation";
+        }
+
+        if (!empty($punishDetails['suspension_days'])) {
+            $days = (int)$punishDetails['suspension_days'];
+            $punishmentParts[] = "{$days} Days Suspension";
+        }
+
+        if (!empty($punishDetails['description']) && empty($finalDecision)) {
+            $finalDecision = (string)$punishDetails['description'];
+        }
+
+        $fullSanction = $catHeader;
+        
+        if (!empty($punishmentParts)) {
+            $fullSanction .= " — Details: " . implode(' | ', $punishmentParts);
+        }
+
+        if (!empty($finalDecision)) {
+            $fullSanction .= " — Decision: " . $finalDecision;
+        }
+
+        if (!empty($decisionReason)) {
+            $fullSanction .= " — Rationale: " . $decisionReason;
+        }
+
+        return $fullSanction;
+    }
+
+    if ($offenseLevel === 'MINOR') {
+        if ($seqCount === 1) {
+            $interv = !empty($r['intervention_first']) ? " — Intervention: " . $r['intervention_first'] : "";
+            return "1st Minor Offense (Written Warning & Form F-005 Notice to Explain{$interv})";
+        } elseif ($seqCount === 2) {
+            $interv = !empty($r['intervention_second']) ? " — Intervention: " . $r['intervention_second'] : "";
+            return "2nd Minor Offense (2nd Minor Warning & Guardian Notified / Conference Required{$interv})";
+        } else {
+            return "3rd Minor Offense — Section 4 Escalation (UPCC Hearing & Committee Required)";
+        }
+    }
+
+    if ($offenseLevel === 'MAJOR') {
+        return "Major Offense (Pending UPCC Committee Hearing & Sanction)";
+    }
+
+    return "Under Review";
+}
 
 try {
   $spreadsheet = new Spreadsheet();
@@ -513,35 +659,7 @@ try {
         }
     }
 
-    $sanctionStr = '';
-    if ($isDismissed) {
-        $sanctionStr = 'Case / Offense Dismissed (No Sanction Imposed)';
-    } elseif (!empty($r['final_decision']) || $decidedCat > 0) {
-        $catDescriptions = [
-            1 => 'Category 1 (Formal Reprimand & Active Semester Probation - 0 Hours CS)',
-            2 => 'Category 2 (Formative Intervention & Community Service 150-250 Hours)',
-            3 => 'Category 3 (Non-Readmission / Suspension)',
-            4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
-            5 => 'Category 5 (Summary Expulsion & Police Referral)'
-        ];
-        $catLabel = $catDescriptions[$decidedCat] ?? ($decidedCat > 0 ? "Category {$decidedCat}" : "Decided Major Case");
-        $decisionText = !empty($r['final_decision']) ? " - " . (string)$r['final_decision'] : "";
-        $sanctionStr = "{$catLabel}{$decisionText}";
-    } elseif ($offenseLevel === 'MINOR') {
-        if ($seqCount === 1) {
-            $interv = !empty($r['intervention_first']) ? " - " . $r['intervention_first'] : "";
-            $sanctionStr = "1st Minor Offense (Written Warning & Form F-005 Notice to Explain{$interv})";
-        } elseif ($seqCount === 2) {
-            $interv = !empty($r['intervention_second']) ? " - " . $r['intervention_second'] : "";
-            $sanctionStr = "2nd Minor Offense (2nd Minor Warning & Guardian Notified / Conference Required{$interv})";
-        } else {
-            $sanctionStr = "3rd Minor Offense — Section 4 Escalation (UPCC Hearing & Committee Required)";
-        }
-    } elseif ($offenseLevel === 'MAJOR') {
-        $sanctionStr = "Major Offense (Pending UPCC Committee Hearing & Sanction)";
-    } else {
-        $sanctionStr = "Under Review";
-    }
+    $sanctionStr = format_full_sanction_penalty($r);
 
     $sheet1->setCellValueExplicit('A' . $s1Row, (string)($r['offense_id'] ?? ''), DataType::TYPE_STRING);
     $sheet1->setCellValue('B' . $s1Row, strtoupper((string)($r['segment'] ?? 'COLLEGE')));
@@ -643,35 +761,7 @@ try {
         }
     }
 
-    $sanctionStr = '';
-    if ($isDismissed) {
-        $sanctionStr = 'Case / Offense Dismissed (No Sanction Imposed)';
-    } elseif (!empty($r['final_decision']) || $decidedCat > 0) {
-        $catDescriptions = [
-            1 => 'Category 1 (Formal Reprimand & Active Semester Probation - 0 Hours CS)',
-            2 => 'Category 2 (Formative Intervention & Community Service 150-250 Hours)',
-            3 => 'Category 3 (Non-Readmission / Suspension)',
-            4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
-            5 => 'Category 5 (Summary Expulsion & Police Referral)'
-        ];
-        $catLabel = $catDescriptions[$decidedCat] ?? ($decidedCat > 0 ? "Category {$decidedCat}" : "Decided Major Case");
-        $decisionText = !empty($r['final_decision']) ? " - " . (string)$r['final_decision'] : "";
-        $sanctionStr = "{$catLabel}{$decisionText}";
-    } elseif ($offenseLevel === 'MINOR') {
-        if ($seqCount === 1) {
-            $interv = !empty($r['intervention_first']) ? " - " . $r['intervention_first'] : "";
-            $sanctionStr = "1st Minor Offense (Written Warning & Form F-005 Notice to Explain{$interv})";
-        } elseif ($seqCount === 2) {
-            $interv = !empty($r['intervention_second']) ? " - " . $r['intervention_second'] : "";
-            $sanctionStr = "2nd Minor Offense (2nd Minor Warning & Guardian Notified / Conference Required{$interv})";
-        } else {
-            $sanctionStr = "3rd Minor Offense — Section 4 Escalation (UPCC Hearing & Committee Required)";
-        }
-    } elseif ($offenseLevel === 'MAJOR') {
-        $sanctionStr = "Major Offense (Pending UPCC Committee Hearing & Sanction)";
-    } else {
-        $sanctionStr = "Under Review";
-    }
+    $sanctionStr = format_full_sanction_penalty($r);
 
     $sheet2->setCellValueExplicit('A' . $s2Row, (string)($r['offense_id'] ?? ''), DataType::TYPE_STRING);
     $sheet2->setCellValue('B' . $s2Row, strtoupper((string)($r['segment'] ?? 'COLLEGE')));
