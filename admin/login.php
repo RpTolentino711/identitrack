@@ -67,15 +67,19 @@ if (!empty($_SESSION['login_otp_cancelled_msg'])) {
     $infoMsg = "Notice: Your previous verification code was automatically expired. Please log in with your username and password to request a new code.";
 }
 
-if (!empty($_SESSION['login_otp_locked_error'])) {
-    $min = floor($remainingSeconds / 60);
-    $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
-    $errors[] = str_replace('2:00', "{$min}:{$sec}", $_SESSION['login_otp_locked_error']);
+if ($isLocked) {
+    if (!empty($_SESSION['login_otp_locked_error'])) {
+        $min = floor($remainingSeconds / 60);
+        $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
+        $errors[] = str_replace('2:00', "{$min}:{$sec}", $_SESSION['login_otp_locked_error']);
+        unset($_SESSION['login_otp_locked_error']);
+    } elseif (isset($_GET['error']) && $_GET['error'] === 'otp_locked') {
+        $min = floor($remainingSeconds / 60);
+        $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
+        $errors[] = "LOCKOUT_ERR::Security Lockout: Exceeded maximum 4 invalid OTP attempts. (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
+    }
+} else {
     unset($_SESSION['login_otp_locked_error']);
-} elseif (isset($_GET['error']) && $_GET['error'] === 'otp_locked') {
-    $min = floor($remainingSeconds / 60);
-    $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
-    $errors[] = "LOCKOUT_ERR::Security Lockout: Exceeded maximum 4 invalid OTP attempts. (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
 }
 
 // Determine initial visibility of password field on page load
@@ -490,7 +494,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         remaining--;
         if (remaining <= 0) {
           clearInterval(interval);
-          window.location.reload();
+          if (window.history && window.history.replaceState) {
+            var url = new URL(window.location.href);
+            url.searchParams.delete('error');
+            window.history.replaceState(null, '', url.pathname + url.search);
+          }
+          window.location.href = 'login.php';
         } else {
           var m = Math.floor(remaining / 60);
           var s = remaining % 60;
