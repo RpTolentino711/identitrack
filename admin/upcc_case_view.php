@@ -159,7 +159,7 @@ $otherResolvedCasesCount = 0;
 
 if ($studentId !== '') {
     $rawOtherCases = db_all("
-        SELECT uc.case_id, uc.status, uc.final_decision, uc.decided_category, uc.hearing_date, uc.created_at, uc.updated_at
+        SELECT uc.case_id, uc.status, uc.final_decision, uc.decided_category, uc.case_kind, uc.case_summary, uc.hearing_date, uc.created_at, uc.updated_at, uc.punishment_details
         FROM upcc_case uc
         WHERE uc.student_id = :sid AND uc.case_id != :cid
         ORDER BY uc.created_at DESC
@@ -188,13 +188,45 @@ if ($studentId !== '') {
             $otherPendingCasesCount++;
         }
 
+        $majorCount = 0;
+        $minorCount = 0;
+        foreach ($ocOffenses as $ooff) {
+            if (strtoupper($ooff['level'] ?? '') === 'MAJOR') $majorCount++;
+            else $minorCount++;
+        }
+
+        $caseKind = strtoupper((string)($oc['case_kind'] ?? ''));
+        if ($caseKind === 'SECTION4_MINOR_ESCALATION' || $minorCount >= 3) {
+            $triggerType = 'SECTION4_ESCALATION';
+            $triggerLabel = '⚠️ Section 4 Minor Escalation (3+ Accumulated Minors)';
+        } elseif ($caseKind === 'MAJOR_OFFENSE' || $majorCount > 0) {
+            $triggerType = 'AUTOMATIC_MAJOR';
+            $triggerLabel = '🚨 Automatic Major Offense';
+        } else {
+            $triggerType = 'STANDARD_MINOR';
+            $triggerLabel = 'ℹ️ Standard Disciplinary Case';
+        }
+
+        $punish = [];
+        try {
+            if (!empty($oc['punishment_details'])) {
+                $punish = json_decode((string)$oc['punishment_details'], true) ?: [];
+            }
+        } catch (Throwable $e) {}
+
         $otherStudentCases[] = [
             'case_id' => $ocId,
             'status' => $oc['status'] ?? 'PENDING',
             'is_resolved' => $isResolved,
             'decided_category' => (int)($oc['decided_category'] ?? 0),
             'final_decision' => $oc['final_decision'] ?? '',
+            'punishment_details' => $punish,
+            'case_kind' => $oc['case_kind'] ?? '',
+            'case_summary' => $oc['case_summary'] ?? '',
+            'trigger_type' => $triggerType,
+            'trigger_label' => $triggerLabel,
             'created_at' => $oc['created_at'] ?? '',
+            'updated_at' => $oc['updated_at'] ?? '',
             'offenses' => $ocOffenses ?: [],
             'panel_count' => $ocPanelCount
         ];
@@ -2048,6 +2080,18 @@ body {
 
             <!-- TAB NAVIGATION -->
             <hr class="divider">
+            <style>
+              .confidential-card-content.blurred {
+                filter: blur(5px);
+                opacity: 0.8;
+                user-select: none;
+                pointer-events: none;
+                transition: all 0.3s ease;
+              }
+              .confidential-card-wrapper {
+                position: relative;
+              }
+            </style>
             <div class="case-tabs-nav" style="display:flex;gap:6px;border-bottom:2px solid var(--border-light);margin:1.2rem 0 1rem 0;padding-bottom:2px;overflow-x:auto;">
               <button type="button" class="case-tab-btn active" id="tabBtnCurrent" onclick="switchCaseTab('current')"
                       style="padding:8px 14px;font-size:.78rem;font-weight:700;border-radius:8px 8px 0 0;border:1px solid #2563eb;background:#2563eb;color:#ffffff;cursor:pointer;transition:all .15s;white-space:nowrap;">
@@ -2089,12 +2133,19 @@ body {
 
             <!-- TAB 2: PENDING CASES -->
             <div id="tabPanePending" style="display:none;">
-              <!-- Security Warning Box -->
-              <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;">
-                <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
-                  🔒 Security &amp; Confidentiality Notice
-                </strong>
-                Access to student prior disciplinary records and other pending cases is strictly restricted for evaluation purposes only. All case access is logged for administrative compliance.
+              <!-- Security Warning Box with Global Unblur Toggle -->
+              <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <div style="flex:1;min-width:240px;">
+                  <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
+                    🔒 Security &amp; Confidentiality Notice
+                  </strong>
+                  Access to student prior pending cases is restricted for evaluation purposes only. Case access is logged. Details are blurred by default for security.
+                </div>
+                <?php if (!empty($pendingList)): ?>
+                  <button type="button" class="btn btn-outline btn-sm" id="toggleBlurPendingBtn" onclick="toggleAllTabBlur('pending')" style="background:#fff;border-color:#d97706;color:#873800;font-size:.72rem;padding:4px 10px;">
+                    🔓 Unblur All Pending
+                  </button>
+                <?php endif; ?>
               </div>
 
               <?php if (empty($pendingList)): ?>
@@ -2103,34 +2154,48 @@ body {
                 </div>
               <?php else: ?>
                 <?php foreach ($pendingList as $oc): ?>
-                  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:.85rem;margin-bottom:.75rem;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:6px;">
-                      <div>
-                        <span style="font-weight:700;font-size:.85rem;color:var(--ink-800)">Case #<?= $oc['case_id'] ?></span>
-                        <span class="pill pill-warning" style="font-size:.62rem;margin-left:6px;"><?= htmlspecialchars($oc['status']) ?></span>
-                        <?php if ($oc['panel_count'] === 0): ?>
-                          <span style="font-size:.65rem;color:#b91c1c;background:#fee2e2;border:1px solid #fca5a5;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:700;">⚠️ Panel Unassigned</span>
-                        <?php else: ?>
-                          <span style="font-size:.65rem;color:#15803d;background:#dcfce7;border:1px solid #86efac;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:600;">👥 <?= $oc['panel_count'] ?> Panel Assigned</span>
-                        <?php endif; ?>
-                      </div>
-                      <a href="upcc_case_view.php?id=<?= $oc['case_id'] ?>" class="btn btn-outline btn-sm" style="padding:3px 10px;font-size:.73rem;background:#fff;border-color:#f59e0b;color:#b45309;" title="Security View Case #<?= $oc['case_id'] ?>">
-                        👁️ View Case
-                      </a>
-                    </div>
-                    <div style="font-size:.73rem;color:var(--ink-500);margin-bottom:.4rem;">
-                      📅 Created: <?= fmt($oc['created_at']) ?>
-                    </div>
-                    <?php if (!empty($oc['offenses'])): ?>
-                      <div style="font-size:.72rem;font-weight:600;color:var(--ink-600);margin-bottom:.3rem;">Offenses in this case:</div>
-                      <?php foreach ($oc['offenses'] as $ooff): ?>
-                        <div style="background:#fff;border:1px solid #fde68a;border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:.73rem;display:flex;align-items:center;gap:6px;">
-                          <span class="stag <?= ($ooff['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>" style="font-size:.6rem;padding:1px 5px;"><?= htmlspecialchars($ooff['level'] ?? 'MINOR') ?></span>
-                          <strong style="color:var(--ink-700)"><?= htmlspecialchars($ooff['code'] ?? '') ?></strong>
-                          <span style="color:var(--ink-600)"><?= htmlspecialchars($ooff['offense_name'] ?? '') ?></span>
+                  <div class="confidential-card-wrapper" id="card-wrap-<?= $oc['case_id'] ?>" style="margin-bottom:.85rem;">
+                    <div class="confidential-card-content blurred" id="card-content-<?= $oc['case_id'] ?>" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:.85rem;">
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:6px;">
+                        <div>
+                          <span style="font-weight:700;font-size:.85rem;color:var(--ink-800)">Case #<?= $oc['case_id'] ?></span>
+                          <span class="pill pill-warning" style="font-size:.62rem;margin-left:6px;"><?= htmlspecialchars($oc['status']) ?></span>
+                          <?php if ($oc['panel_count'] === 0): ?>
+                            <span style="font-size:.65rem;color:#b91c1c;background:#fee2e2;border:1px solid #fca5a5;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:700;">⚠️ Panel Unassigned</span>
+                          <?php else: ?>
+                            <span style="font-size:.65rem;color:#15803d;background:#dcfce7;border:1px solid #86efac;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:600;">👥 <?= $oc['panel_count'] ?> Panel Assigned</span>
+                          <?php endif; ?>
                         </div>
-                      <?php endforeach; ?>
-                    <?php endif; ?>
+                        <span style="font-size:.68rem;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;padding:2px 7px;border-radius:6px;font-weight:700;">
+                          <?= htmlspecialchars($oc['trigger_label']) ?>
+                        </span>
+                      </div>
+
+                      <div style="font-size:.73rem;color:var(--ink-500);margin-bottom:.4rem;">
+                        📅 Created: <?= fmt($oc['created_at']) ?>
+                      </div>
+
+                      <?php if (!empty($oc['offenses'])): ?>
+                        <div style="font-size:.72rem;font-weight:600;color:var(--ink-600);margin-bottom:.3rem;">Offenses in this case:</div>
+                        <?php foreach ($oc['offenses'] as $ooff): ?>
+                          <div style="background:#fff;border:1px solid #fde68a;border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:.73rem;display:flex;align-items:center;gap:6px;">
+                            <span class="stag <?= ($ooff['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>" style="font-size:.6rem;padding:1px 5px;"><?= htmlspecialchars($ooff['level'] ?? 'MINOR') ?></span>
+                            <strong style="color:var(--ink-700)"><?= htmlspecialchars($ooff['code'] ?? '') ?></strong>
+                            <span style="color:var(--ink-600)"><?= htmlspecialchars($ooff['offense_name'] ?? '') ?></span>
+                          </div>
+                        <?php endforeach; ?>
+                      <?php endif; ?>
+                    </div>
+
+                    <!-- Overlay Controls on top of Card -->
+                    <div style="position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:10;">
+                      <button type="button" onclick="toggleSingleCardBlur(<?= $oc['case_id'] ?>)" class="btn btn-outline btn-sm" id="unblur-btn-<?= $oc['case_id'] ?>" style="padding:3px 8px;font-size:.72rem;background:#fff;border-color:#d97706;color:#873800;box-shadow:0 2px 6px rgba(0,0,0,0.1);">
+                        🔓 Unblur
+                      </button>
+                      <button type="button" onclick="openQuickCaseModal(<?= $oc['case_id'] ?>)" class="btn btn-warning btn-sm" style="padding:3px 10px;font-size:.73rem;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.15);" title="Inspect case without leaving current hearing">
+                        👁️ View Case
+                      </button>
+                    </div>
                   </div>
                 <?php endforeach; ?>
               <?php endif; ?>
@@ -2138,12 +2203,19 @@ body {
 
             <!-- TAB 3: RESOLVED CASES -->
             <div id="tabPaneResolved" style="display:none;">
-              <!-- Security Warning Box -->
-              <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;">
-                <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
-                  🔒 Security &amp; Confidentiality Notice
-                </strong>
-                Access to student prior resolved disciplinary cases is strictly restricted for evaluation purposes only. All case access is logged for administrative compliance.
+              <!-- Security Warning Box with Global Unblur Toggle -->
+              <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <div style="flex:1;min-width:240px;">
+                  <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
+                    🔒 Security &amp; Confidentiality Notice
+                  </strong>
+                  Access to student prior resolved cases is strictly restricted for evaluation purposes only. Case access is logged. Details are blurred by default for security.
+                </div>
+                <?php if (!empty($resolvedList)): ?>
+                  <button type="button" class="btn btn-outline btn-sm" id="toggleBlurResolvedBtn" onclick="toggleAllTabBlur('resolved')" style="background:#fff;border-color:#16a34a;color:#15803d;font-size:.72rem;padding:4px 10px;">
+                    🔓 Unblur All Resolved
+                  </button>
+                <?php endif; ?>
               </div>
 
               <?php if (empty($resolvedList)): ?>
@@ -2152,38 +2224,83 @@ body {
                 </div>
               <?php else: ?>
                 <?php foreach ($resolvedList as $oc): ?>
-                  <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:.85rem;margin-bottom:.75rem;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:6px;">
-                      <div>
-                        <span style="font-weight:700;font-size:.85rem;color:var(--ink-800)">Case #<?= $oc['case_id'] ?></span>
-                        <span class="pill pill-success" style="font-size:.62rem;margin-left:6px;">Closed</span>
-                        <?php if ($oc['decided_category'] > 0): ?>
-                          <span style="font-size:.65rem;color:#166534;background:#dcfce7;border:1px solid #86efac;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:700;">Category <?= $oc['decided_category'] ?></span>
-                        <?php endif; ?>
-                      </div>
-                      <a href="upcc_case_view.php?id=<?= $oc['case_id'] ?>" class="btn btn-outline btn-sm" style="padding:3px 10px;font-size:.73rem;background:#fff;border-color:#16a34a;color:#15803d;" title="Security View Case #<?= $oc['case_id'] ?>">
-                        👁️ View Case
-                      </a>
-                    </div>
-                    <div style="font-size:.73rem;color:var(--ink-500);margin-bottom:.4rem;">
-                      📅 Resolved: <?= fmt($oc['created_at']) ?>
-                    </div>
-                    <?php if (!empty($oc['offenses'])): ?>
-                      <div style="font-size:.72rem;font-weight:600;color:var(--ink-600);margin-bottom:.3rem;">Offenses in this case:</div>
-                      <?php foreach ($oc['offenses'] as $ooff): ?>
-                        <div style="background:#fff;border:1px solid #a7f3d0;border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:.73rem;display:flex;align-items:center;gap:6px;">
-                          <span class="stag <?= ($ooff['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>" style="font-size:.6rem;padding:1px 5px;"><?= htmlspecialchars($ooff['level'] ?? 'MINOR') ?></span>
-                          <strong style="color:var(--ink-700)"><?= htmlspecialchars($ooff['code'] ?? '') ?></strong>
-                          <span style="color:var(--ink-600)"><?= htmlspecialchars($ooff['offense_name'] ?? '') ?></span>
+                  <div class="confidential-card-wrapper" id="card-wrap-<?= $oc['case_id'] ?>" style="margin-bottom:.85rem;">
+                    <div class="confidential-card-content blurred" id="card-content-<?= $oc['case_id'] ?>" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:.85rem;">
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:6px;">
+                        <div>
+                          <span style="font-weight:700;font-size:.85rem;color:var(--ink-800)">Case #<?= $oc['case_id'] ?></span>
+                          <span class="pill pill-success" style="font-size:.62rem;margin-left:6px;">Closed</span>
+                          <?php if ($oc['decided_category'] > 0): ?>
+                            <span style="font-size:.65rem;color:#166534;background:#dcfce7;border:1px solid #86efac;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:700;">Category <?= $oc['decided_category'] ?> Assigned</span>
+                          <?php endif; ?>
                         </div>
-                      <?php endforeach; ?>
-                    <?php endif; ?>
+                        <span style="font-size:.68rem;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:2px 7px;border-radius:6px;font-weight:700;">
+                          <?= htmlspecialchars($oc['trigger_label']) ?>
+                        </span>
+                      </div>
+
+                      <div style="font-size:.73rem;color:var(--ink-500);margin-bottom:.4rem;">
+                        📅 Resolved: <?= fmt($oc['created_at']) ?>
+                      </div>
+
+                      <?php if (!empty($oc['offenses'])): ?>
+                        <div style="font-size:.72rem;font-weight:600;color:var(--ink-600);margin-bottom:.3rem;">Offenses in this case:</div>
+                        <?php foreach ($oc['offenses'] as $ooff): ?>
+                          <div style="background:#fff;border:1px solid #a7f3d0;border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:.73rem;display:flex;align-items:center;gap:6px;">
+                            <span class="stag <?= ($ooff['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>" style="font-size:.6rem;padding:1px 5px;"><?= htmlspecialchars($ooff['level'] ?? 'MINOR') ?></span>
+                            <strong style="color:var(--ink-700)"><?= htmlspecialchars($ooff['code'] ?? '') ?></strong>
+                            <span style="color:var(--ink-600)"><?= htmlspecialchars($ooff['offense_name'] ?? '') ?></span>
+                          </div>
+                        <?php endforeach; ?>
+                      <?php endif; ?>
+                    </div>
+
+                    <!-- Overlay Controls on top of Card -->
+                    <div style="position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:10;">
+                      <button type="button" onclick="toggleSingleCardBlur(<?= $oc['case_id'] ?>)" class="btn btn-outline btn-sm" id="unblur-btn-<?= $oc['case_id'] ?>" style="padding:3px 8px;font-size:.72rem;background:#fff;border-color:#16a34a;color:#15803d;box-shadow:0 2px 6px rgba(0,0,0,0.1);">
+                        🔓 Unblur
+                      </button>
+                      <button type="button" onclick="openQuickCaseModal(<?= $oc['case_id'] ?>)" class="btn btn-success btn-sm" style="padding:3px 10px;font-size:.73rem;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.15);" title="Inspect case without leaving current hearing">
+                        👁️ View Case
+                      </button>
+                    </div>
                   </div>
                 <?php endforeach; ?>
               <?php endif; ?>
             </div>
 
+            <!-- QUICK CASE INSPECTION MODAL (STAYS ON CURRENT PAGE) -->
+            <div id="quickCaseModal" class="modal-overlay">
+              <div class="modal-content" style="max-width:620px;width:min(95vw,620px);padding:24px;border-radius:20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--ink-200);padding-bottom:12px;margin-bottom:16px;">
+                  <div>
+                    <h3 style="margin:0;text-align:left;font-size:1.15rem;color:var(--ink-900);" id="qcmTitle">Case Inspection #0</h3>
+                    <div style="font-size:.75rem;color:var(--ink-500);margin-top:2px;">
+                      Student: <strong><?= htmlspecialchars($case['student_name']) ?></strong> (ID: <?= htmlspecialchars($case['student_id']) ?>)
+                    </div>
+                  </div>
+                  <button type="button" onclick="closeQuickCaseModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--ink-400);line-height:1;">✕</button>
+                </div>
+
+                <div id="qcmBody" style="font-size:.85rem;line-height:1.5;">
+                  <!-- Dynamic Modal Content -->
+                </div>
+
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--ink-200);">
+                  <a href="#" id="qcmNewTabLink" target="_blank" class="btn btn-ghost btn-sm" style="color:var(--blue-600);font-weight:600;">
+                    ↗ Open Full Page in New Tab
+                  </a>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeQuickCaseModal()" style="background:#cbd5e1;color:#1e293b;padding:6px 16px;border-radius:10px;font-weight:700;">
+                    ✕ Close Inspection
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <script>
+            const studentOtherCasesData = <?= json_encode($otherStudentCases) ?>;
+            const categoryDescriptionsMap = <?= json_encode($categoryDescriptions) ?>;
+
             function switchCaseTab(tabName) {
               const panes = {
                 current: document.getElementById('tabPaneCurrent'),
@@ -2209,6 +2326,136 @@ body {
                   }
                 }
               });
+            }
+
+            function toggleSingleCardBlur(caseId) {
+              const cardContent = document.getElementById('card-content-' + caseId);
+              const unblurBtn = document.getElementById('unblur-btn-' + caseId);
+              if (!cardContent) return;
+              
+              const isBlurred = cardContent.classList.contains('blurred');
+              if (isBlurred) {
+                cardContent.classList.remove('blurred');
+                if (unblurBtn) {
+                  unblurBtn.innerHTML = '🔒 Blur';
+                  unblurBtn.style.borderColor = '#94a3b8';
+                  unblurBtn.style.color = '#475569';
+                }
+              } else {
+                cardContent.classList.add('blurred');
+                if (unblurBtn) {
+                  unblurBtn.innerHTML = '🔓 Unblur';
+                  unblurBtn.style.borderColor = '#d97706';
+                  unblurBtn.style.color = '#873800';
+                }
+              }
+            }
+
+            function toggleAllTabBlur(type) {
+              const pane = type === 'pending' ? document.getElementById('tabPanePending') : document.getElementById('tabPaneResolved');
+              const btn = type === 'pending' ? document.getElementById('toggleBlurPendingBtn') : document.getElementById('toggleBlurResolvedBtn');
+              if (!pane) return;
+
+              const cards = pane.querySelectorAll('.confidential-card-content');
+              const unblurBtns = pane.querySelectorAll('[id^="unblur-btn-"]');
+              let anyBlurred = false;
+              cards.forEach(c => { if (c.classList.contains('blurred')) anyBlurred = true; });
+
+              cards.forEach(c => {
+                if (anyBlurred) c.classList.remove('blurred');
+                else c.classList.add('blurred');
+              });
+
+              unblurBtns.forEach(b => {
+                b.innerHTML = anyBlurred ? '🔒 Blur' : '🔓 Unblur';
+              });
+
+              if (btn) {
+                btn.innerHTML = anyBlurred ? (type === 'pending' ? '🔒 Blur All Pending' : '🔒 Blur All Resolved') : (type === 'pending' ? '🔓 Unblur All Pending' : '🔓 Unblur All Resolved');
+              }
+            }
+
+            function openQuickCaseModal(caseId) {
+              const c = studentOtherCasesData.find(item => parseInt(item.case_id) === parseInt(caseId));
+              if (!c) return;
+
+              document.getElementById('qcmTitle').innerText = 'Case #' + c.case_id + ' Inspection (Security View)';
+              document.getElementById('qcmNewTabLink').href = 'upcc_case_view.php?id=' + c.case_id;
+
+              let triggerBadge = '';
+              if (c.trigger_type === 'SECTION4_ESCALATION') {
+                triggerBadge = '<div style="background:#fffbe6;border:1px solid #ffe58f;color:#873800;padding:8px 12px;border-radius:10px;font-weight:700;margin-bottom:14px;font-size:.82rem;">⚠️ TRIGGER: Section 4 Minor Escalation (Accumulated 3+ Minor Offenses)</div>';
+              } else if (c.trigger_type === 'AUTOMATIC_MAJOR') {
+                triggerBadge = '<div style="background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;padding:8px 12px;border-radius:10px;font-weight:700;margin-bottom:14px;font-size:.82rem;">🚨 TRIGGER: Automatic Major Offense</div>';
+              } else {
+                triggerBadge = '<div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:8px 12px;border-radius:10px;font-weight:700;margin-bottom:14px;font-size:.82rem;">ℹ️ TRIGGER: Standard Disciplinary Case Record</div>';
+              }
+
+              let statusSection = '';
+              if (c.is_resolved) {
+                const catNum = c.decided_category > 0 ? c.decided_category : 'N/A';
+                const catDesc = categoryDescriptionsMap[c.decided_category] || '';
+                let punishHtml = '';
+                if (c.punishment_details) {
+                  if (c.punishment_details.probation_terms) {
+                    punishHtml += '<div><strong>Probation Terms:</strong> ' + c.punishment_details.probation_terms + ' semester(s)</div>';
+                  }
+                  if (c.punishment_details.service_hours) {
+                    punishHtml += '<div><strong>Community Service:</strong> ' + c.punishment_details.service_hours + ' hours</div>';
+                  }
+                  if (c.punishment_details.interventions && Array.isArray(c.punishment_details.interventions)) {
+                    punishHtml += '<div><strong>Interventions:</strong> ' + c.punishment_details.interventions.join(', ') + '</div>';
+                  }
+                }
+                statusSection = `
+                  <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:14px;margin-bottom:14px;color:#065f46;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                      <strong style="font-size:.9rem;color:#047857;">Final Decision: Category ${catNum} Assigned</strong>
+                      <span class="pill pill-success" style="font-size:.65rem;">Closed</span>
+                    </div>
+                    ${catDesc ? `<div style="font-size:.78rem;margin-bottom:8px;line-height:1.4;">${catDesc}</div>` : ''}
+                    ${c.final_decision ? `<div style="font-size:.8rem;background:#fff;padding:8px 10px;border-radius:8px;border:1px solid #a7f3d0;margin-bottom:6px;"><strong>Narrative:</strong> ${c.final_decision}</div>` : ''}
+                    ${punishHtml ? `<div style="font-size:.78rem;color:#065f46;">${punishHtml}</div>` : ''}
+                  </div>
+                `;
+              } else {
+                statusSection = `
+                  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px;margin-bottom:14px;color:#92400e;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                      <strong style="font-size:.9rem;color:#b45309;">Status: ${c.status} (Pending Evaluation)</strong>
+                      <span class="pill pill-warning" style="font-size:.65rem;">${c.status}</span>
+                    </div>
+                    <div style="font-size:.78rem;line-height:1.4;">
+                      Panel Assignment: <strong>${c.panel_count > 0 ? c.panel_count + ' Panel Member(s) Assigned' : '⚠️ Panel Unassigned'}</strong>
+                    </div>
+                  </div>
+                `;
+              }
+
+              let offensesListHtml = '';
+              if (c.offenses && c.offenses.length > 0) {
+                offensesListHtml = '<div style="font-weight:700;font-size:.8rem;color:var(--ink-700);margin-bottom:6px;">Offenses Breakdown:</div>';
+                c.offenses.forEach(o => {
+                  const isMaj = (o.level || '').toUpperCase() === 'MAJOR';
+                  const stagClass = isMaj ? 'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;' : 'background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;';
+                  offensesListHtml += `
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:.78rem;display:flex;align-items:center;justify-content:space-between;">
+                      <div>
+                        <span style="font-size:.62rem;font-weight:700;padding:2px 6px;border-radius:4px;margin-right:6px;${stagClass}">${o.level || 'MINOR'}</span>
+                        <strong style="color:var(--ink-800);">${o.code || ''}</strong> — ${o.offense_name || ''}
+                      </div>
+                      <div style="font-size:.7rem;color:var(--ink-400);">${o.date_committed || ''}</div>
+                    </div>
+                  `;
+                });
+              }
+
+              document.getElementById('qcmBody').innerHTML = triggerBadge + statusSection + offensesListHtml;
+              document.getElementById('quickCaseModal').classList.add('open');
+            }
+
+            function closeQuickCaseModal() {
+              document.getElementById('quickCaseModal').classList.remove('open');
             }
             </script>
           </div>
