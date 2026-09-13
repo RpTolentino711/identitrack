@@ -549,10 +549,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         var val = (usernameInput ? usernameInput.value : '').trim();
         if (!val) {
           hidePassword();
-          if (inlineErr) {
-            inlineErr.textContent = '• Please enter a username.';
-            inlineErr.style.display = 'block';
-          }
+          if (inlineErr) inlineErr.style.display = 'none';
           if (onComplete) onComplete(false);
           return;
         }
@@ -571,10 +568,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               if (onComplete) onComplete(true);
             } else {
               hidePassword();
-              if (inlineErr) {
-                inlineErr.textContent = '• Username not registered in system.';
-                inlineErr.style.display = 'block';
-              }
+              if (inlineErr) inlineErr.style.display = 'none';
               if (onComplete) onComplete(false);
             }
           })
