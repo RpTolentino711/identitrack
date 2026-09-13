@@ -92,15 +92,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['login_otp_attempts'] = $attempts;
 
         if ($attempts >= 4) {
-            // Lock out session for 2 minutes (120 seconds) and return user to login field
+            // Lock out session for 3 minutes (180 seconds) and return user to login field
             unset($_SESSION['admin_pre_2fa']);
             unset($_SESSION['login_otp']);
             unset($_SESSION['login_otp_attempts']);
 
-            $lockoutUntil = time() + 120; // 2-minute cooldown lockout
+            $lockoutUntil = time() + 180; // 3-minute cooldown lockout
             $_SESSION['admin_lockout_until'] = $lockoutUntil;
 
-            $_SESSION['login_otp_locked_error'] = "LOCKOUT_ERR::Security Lockout: Exceeded maximum 4 invalid OTP attempts. (Try again in <span id=\"lockoutTimer\">2:00</span>)";
+            $_SESSION['login_otp_locked_error'] = "LOCKOUT_ERR::Security Lockout: Exceeded maximum 4 invalid OTP attempts. (Try again in <span id=\"lockoutTimer\">3:00</span>)";
             redirect('login.php?error=otp_locked');
             exit;
         } else {

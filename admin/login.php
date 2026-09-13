@@ -71,7 +71,7 @@ if ($isLocked) {
     if (!empty($_SESSION['login_otp_locked_error'])) {
         $min = floor($remainingSeconds / 60);
         $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
-        $errors[] = str_replace('2:00', "{$min}:{$sec}", $_SESSION['login_otp_locked_error']);
+        $errors[] = str_replace('3:00', "{$min}:{$sec}", $_SESSION['login_otp_locked_error']);
         unset($_SESSION['login_otp_locked_error']);
     } elseif (isset($_GET['error']) && $_GET['error'] === 'otp_locked') {
         $min = floor($remainingSeconds / 60);
