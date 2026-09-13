@@ -9,21 +9,22 @@ if (!isset($_SESSION['upcc_otp_val'], $_SESSION['upcc_otp_user'], $_SESSION['upc
 }
 
 // Check lock state
-if (isset($_SESSION['upcc_otp_locked_until'])) {
-    $diff = $_SESSION['upcc_otp_locked_until'] - time();
-    if ($diff > 0) {
-        $_SESSION['otp_error'] = 'Too many failed attempts. Locked for ' . ceil($diff / 60) . ' minutes.';
-        header('Location: send_otp.php');
-        exit;
-    } else {
-        unset($_SESSION['upcc_otp_locked_until'], $_SESSION['upcc_otp_failures']);
-    }
+if (isset($_SESSION['upcc_username_locked_until']) && $_SESSION['upcc_username_locked_until'] > time()) {
+    unset(
+        $_SESSION['upcc_otp_val'],
+        $_SESSION['upcc_otp_user'],
+        $_SESSION['upcc_otp_time'],
+        $_SESSION['upcc_pending_otp'],
+        $_SESSION['upcc_otp_failures']
+    );
+    header('Location: upccpanel.php');
+    exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $submitted = trim($_POST['otp'] ?? '');
-    $stored    = (string) $_SESSION['upcc_otp_val'];
-    $elapsed   = time() - (int) $_SESSION['upcc_otp_time'];
+    $stored    = (string) ($_SESSION['upcc_otp_val'] ?? '');
+    $elapsed   = time() - (int) ($_SESSION['upcc_otp_time'] ?? 0);
 
     // OTP expired (5 minutes)
     if ($elapsed > 300) {
@@ -32,15 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['upcc_otp_user'],
             $_SESSION['upcc_otp_time'],
             $_SESSION['upcc_pending_otp'],
-            $_SESSION['upcc_otp_failures'],
-            $_SESSION['upcc_otp_locked_until']
+            $_SESSION['upcc_otp_failures']
         );
-        $_SESSION['login_error'] = 'OTP expired. Please log in again.';
+        $_SESSION['login_error'] = 'OTP code expired. Please log in again.';
         header('Location: upccpanel.php');
         exit;
     }
 
-    if ($submitted === $stored) {
+    if (!empty($stored) && $submitted === $stored) {
         // ✅ Correct OTP — fetch user and set authenticated session
         $username = $_SESSION['upcc_otp_user'];
         $user = upcc_find_by_username($username);
@@ -52,7 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['upcc_otp_time'],
             $_SESSION['upcc_pending_otp'],
             $_SESSION['upcc_otp_failures'],
-            $_SESSION['upcc_otp_locked_until']
+            $_SESSION['upcc_username_locked_until'],
+            $_SESSION['upcc_username_failures']
         );
 
         // Set the session keys that upcc_current() and upccdashboard.php check
@@ -78,14 +79,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // ❌ Wrong OTP — increment failure count
     $_SESSION['upcc_otp_failures'] = ($_SESSION['upcc_otp_failures'] ?? 0) + 1;
     if ($_SESSION['upcc_otp_failures'] >= 4) {
-        $_SESSION['upcc_otp_locked_until'] = time() + 300; // Lock for 5 minutes
-        $_SESSION['otp_error'] = 'Too many failed attempts. Locked for 5 minutes.';
+        unset(
+            $_SESSION['upcc_otp_val'],
+            $_SESSION['upcc_otp_user'],
+            $_SESSION['upcc_otp_time'],
+            $_SESSION['upcc_pending_otp'],
+            $_SESSION['upcc_otp_failures']
+        );
+
+        $_SESSION['upcc_username_locked_until'] = time() + 180; // 3 minutes lockout (180s)
+        $_SESSION['login_error'] = 'LOCKOUT_ERR::Security Lockout: Exceeded maximum 4 invalid OTP attempts. (Try again in <span id="lockoutTimer">3:00</span>)';
+        header('Location: upccpanel.php?error=otp_locked');
+        exit;
     } else {
         $left = 4 - $_SESSION['upcc_otp_failures'];
-        $_SESSION['otp_error'] = "Incorrect OTP. Please try again. ({$left} attempts remaining)";
+        $_SESSION['otp_error'] = "Incorrect verification code. Please check your email. ({$_SESSION['upcc_otp_failures']}/4 invalid attempts)";
+        header('Location: send_otp.php');
+        exit;
     }
-    header('Location: send_otp.php');
-    exit;
 }
 
 // GET request with no POST — just redirect back to OTP page

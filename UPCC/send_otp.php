@@ -2,6 +2,12 @@
 session_start();
 require_once __DIR__ . '/../database/database.php';
 
+// Check active lockout status first
+if (isset($_SESSION['upcc_username_locked_until']) && $_SESSION['upcc_username_locked_until'] > time()) {
+    header('Location: upccpanel.php?error=otp_locked');
+    exit;
+}
+
 // Must have come from a successful password check
 if (!isset($_SESSION['upcc_pending_otp'])) {
     header('Location: upccpanel.php');
@@ -17,17 +23,8 @@ if (!$user) {
 
 $isLocked = false;
 $lockTimeRemaining = 0;
-if (isset($_SESSION['upcc_otp_locked_until'])) {
-    $diff = $_SESSION['upcc_otp_locked_until'] - time();
-    if ($diff > 0) {
-        $isLocked = true;
-        $lockTimeRemaining = $diff;
-    } else {
-        unset($_SESSION['upcc_otp_locked_until'], $_SESSION['upcc_otp_failures']);
-    }
-}
-
 $mailError = '';
+
 if (!$isLocked) {
     // Generate a fresh OTP
     $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);

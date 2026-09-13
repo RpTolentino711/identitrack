@@ -308,10 +308,15 @@ if (isset($_POST['action'])) {
 $error = '';
 $username_checked = false;
 
+$sessionLoginErr = $_SESSION['login_error'] ?? '';
 if ($isLocked) {
     $min = floor($secondsLeft / 60);
     $sec = str_pad((string)($secondsLeft % 60), 2, '0', STR_PAD_LEFT);
-    $error = "Too many invalid attempts (5/5). (Try again in {$min}:{$sec})";
+    if ((isset($_GET['error']) && $_GET['error'] === 'otp_locked') || strpos($sessionLoginErr, 'OTP attempts') !== false || strpos($sessionLoginErr, '4 invalid OTP') !== false) {
+        $error = "LOCKOUT_ERR::Security Lockout: Exceeded maximum 4 invalid OTP attempts. (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
+    } else {
+        $error = "LOCKOUT_ERR::Too many invalid attempts (5/5). (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
+    }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
@@ -657,7 +662,13 @@ $showRecoveryLink = ($currentFailures >= 3);
                 <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             <div style="flex:1;">
-                <span id="alertText"><?= htmlspecialchars($error) ?></span>
+                <span id="alertText"><?php
+                    if (strpos($error, 'LOCKOUT_ERR::') === 0) {
+                        echo str_replace('LOCKOUT_ERR::', '', $error);
+                    } else {
+                        echo htmlspecialchars($error);
+                    }
+                ?></span>
                 <div id="recoveryLinkBox" style="<?= $showRecoveryLink ? 'display:block;' : 'display:none;' ?>">
                     <button type="button" class="btn-recovery-link" onclick="openRecoveryModal()">
                         🔍 Forgot Username / Account Recovery?
@@ -1029,14 +1040,14 @@ function startLockoutCountdown(seconds) {
     const recoveryBox = document.getElementById('recoveryLinkBox');
 
     // HIDE username field and button during countdown!
-    usernameField.style.display = 'none';
-    passwordField.style.display = 'none';
-    forgotFooter.style.display = 'none';
-    btnSubmit.style.display = 'none';
+    if (usernameField) usernameField.style.display = 'none';
+    if (passwordField) passwordField.style.display = 'none';
+    if (forgotFooter) forgotFooter.style.display = 'none';
+    if (btnSubmit) btnSubmit.style.display = 'none';
 
     // SHOW recovery link during lockout
-    recoveryBox.style.display = 'block';
-    alertBox.style.display = 'flex';
+    if (recoveryBox) recoveryBox.style.display = 'block';
+    if (alertBox) alertBox.style.display = 'flex';
 
     if (lockoutTimer) clearInterval(lockoutTimer);
 
@@ -1046,24 +1057,40 @@ function startLockoutCountdown(seconds) {
             clearInterval(lockoutTimer);
             
             // Re-appear username field & button after countdown
-            usernameField.style.display = 'block';
-            const usernameInput = usernameField.querySelector('input');
-            usernameInput.value = '';
-            usernameInput.disabled = false;
+            if (usernameField) {
+                usernameField.style.display = 'block';
+                const usernameInput = usernameField.querySelector('input');
+                if (usernameInput) {
+                    usernameInput.value = '';
+                    usernameInput.disabled = false;
+                }
+            }
 
-            btnSubmit.style.display = 'flex';
-            btnSubmit.disabled = false;
-            btnSubmit.innerHTML = 'Continue &rarr;';
+            if (btnSubmit) {
+                btnSubmit.style.display = 'flex';
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = 'Continue &rarr;';
+            }
             step = 1;
 
-            alertBox.style.display = 'none';
-            recoveryBox.style.display = 'none';
+            if (alertBox) alertBox.style.display = 'none';
+            if (recoveryBox) recoveryBox.style.display = 'none';
+            if (window.history && window.history.replaceState) {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('error');
+                window.history.replaceState(null, '', url.pathname + url.search);
+            }
             return;
         }
         const m = Math.floor(remaining / 60);
         const s = remaining % 60;
         const timeStr = `${m}:${s < 10 ? '0' : ''}${s}`;
-        alertText.innerHTML = `Too many invalid attempts (8/8). Account search is locked. <strong>(Try again in ${timeStr})</strong>`;
+        const timerEl = document.getElementById('lockoutTimer');
+        if (timerEl) {
+            timerEl.textContent = timeStr;
+        } else {
+            alertText.innerHTML = `Security Lockout: Exceeded maximum 4 invalid OTP attempts. (Try again in <span id="lockoutTimer">${timeStr}</span>)`;
+        }
         remaining--;
     };
 
