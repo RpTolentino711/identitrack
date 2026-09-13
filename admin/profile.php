@@ -249,6 +249,194 @@ if (($_GET['action'] ?? '') === 'guard_status') {
   exit;
 }
 
+require_once __DIR__ . '/otp_mailer.php';
+
+if (($_GET['action'] ?? '') === 'init_create_admin') {
+  header('Content-Type: application/json; charset=utf-8');
+
+  $raw = file_get_contents('php://input');
+  $data = json_decode($raw ?: '{}', true);
+  if (!is_array($data)) {
+    echo json_encode(['ok' => false, 'message' => 'Invalid request body.']);
+    exit;
+  }
+
+  $fullName = trim((string)($data['full_name'] ?? ''));
+  $username = strtolower(trim((string)($data['username'] ?? '')));
+  $email = strtolower(trim((string)($data['email'] ?? '')));
+
+  if ($fullName === '') {
+    echo json_encode(['ok' => false, 'message' => 'Full name is required.']);
+    exit;
+  }
+  if ($username === '') {
+    echo json_encode(['ok' => false, 'message' => 'Username is required.']);
+    exit;
+  }
+  if (!preg_match('/^[a-z0-9._-]{3,50}$/', $username)) {
+    echo json_encode(['ok' => false, 'message' => 'Username must be 3-50 characters containing only letters, numbers, dot, underscore, or hyphen.']);
+    exit;
+  }
+  if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    echo json_encode(['ok' => false, 'message' => 'A valid email address is required.']);
+    exit;
+  }
+
+  $dupUser = admin_find_by_username($username);
+  if ($dupUser) {
+    echo json_encode(['ok' => false, 'message' => 'Username is already taken by an Admin account.']);
+    exit;
+  }
+  $dupGuard = db_one("SELECT guard_id FROM security_guard WHERE username = ? LIMIT 1", [$username]);
+  if ($dupGuard) {
+    echo json_encode(['ok' => false, 'message' => 'Username is already taken by a Security Guard account.']);
+    exit;
+  }
+  $dupEmail = admin_find_by_email($email);
+  if ($dupEmail) {
+    echo json_encode(['ok' => false, 'message' => 'Email address is already registered to another Admin account.']);
+    exit;
+  }
+
+  $currentAdmin = admin_current();
+  $currAdminEmail = (string)($currentAdmin['email'] ?? '');
+  $currAdminName = (string)($currentAdmin['full_name'] ?? 'Admin');
+
+  if (empty($currAdminEmail)) {
+    echo json_encode(['ok' => false, 'message' => 'Your admin account does not have an email address configured. Please update your profile email first.']);
+    exit;
+  }
+
+  $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+  $_SESSION['create_admin_pending'] = [
+    'full_name' => $fullName,
+    'username' => $username,
+    'email' => $email,
+    'otp' => $otp,
+    'expires' => time() + 600,
+    'attempts' => 0,
+    'otp_verified' => false
+  ];
+
+  $mailSent = send_admin_otp_email($currAdminEmail, $currAdminName, 'Create Admin Account Authorization', $otp);
+  if (!$mailSent) {
+    echo json_encode(['ok' => false, 'message' => 'Failed to send OTP email to your address (' . $currAdminEmail . '). Please check mail configuration.']);
+    exit;
+  }
+
+  echo json_encode([
+    'ok' => true,
+    'message' => 'Authorization code sent to your email (' . $currAdminEmail . ').',
+    'target_email' => $currAdminEmail
+  ]);
+  exit;
+}
+
+if (($_GET['action'] ?? '') === 'verify_create_admin_otp') {
+  header('Content-Type: application/json; charset=utf-8');
+
+  $raw = file_get_contents('php://input');
+  $data = json_decode($raw ?: '{}', true);
+  $otp = trim((string)($data['otp'] ?? ''));
+
+  $pending = $_SESSION['create_admin_pending'] ?? null;
+  if (!$pending || !is_array($pending)) {
+    echo json_encode(['ok' => false, 'message' => 'No active admin creation request found. Please try again.']);
+    exit;
+  }
+
+  if (time() > (int)($pending['expires'] ?? 0)) {
+    unset($_SESSION['create_admin_pending']);
+    echo json_encode(['ok' => false, 'message' => 'Verification code has expired. Please request a new code.']);
+    exit;
+  }
+
+  if (($pending['attempts'] ?? 0) >= 4) {
+    unset($_SESSION['create_admin_pending']);
+    echo json_encode(['ok' => false, 'message' => 'Too many invalid attempts. Verification reset.']);
+    exit;
+  }
+
+  if ($otp !== (string)($pending['otp'] ?? '')) {
+    $_SESSION['create_admin_pending']['attempts'] = ((int)$pending['attempts']) + 1;
+    echo json_encode(['ok' => false, 'message' => 'Incorrect verification code.']);
+    exit;
+  }
+
+  $_SESSION['create_admin_pending']['otp_verified'] = true;
+  echo json_encode(['ok' => true, 'message' => 'OTP verified. Please enter your admin password to finalize.']);
+  exit;
+}
+
+if (($_GET['action'] ?? '') === 'confirm_create_admin_password') {
+  header('Content-Type: application/json; charset=utf-8');
+
+  $raw = file_get_contents('php://input');
+  $data = json_decode($raw ?: '{}', true);
+  $password = (string)($data['password'] ?? '');
+
+  $pending = $_SESSION['create_admin_pending'] ?? null;
+  if (!$pending || !is_array($pending) || empty($pending['otp_verified'])) {
+    echo json_encode(['ok' => false, 'message' => 'Session expired or OTP verification incomplete. Please try again.']);
+    exit;
+  }
+
+  $currentAdmin = admin_current();
+  $currAdminId = (int)($currentAdmin['admin_id'] ?? 0);
+
+  if (!admin_verify_password($currAdminId, $password)) {
+    echo json_encode(['ok' => false, 'message' => 'Incorrect admin password. Final creation failed.']);
+    exit;
+  }
+
+  ensure_admin_schema();
+
+  try {
+    db_exec(
+      "INSERT INTO admin_user (full_name, username, email, role, is_active, setup_pending, created_at, updated_at)
+       VALUES (:fn, :u, :e, 'ADMIN', 0, 1, NOW(), NOW())",
+      [
+        ':fn' => $pending['full_name'],
+        ':u'  => $pending['username'],
+        ':e'  => $pending['email']
+      ]
+    );
+
+    unset($_SESSION['create_admin_pending']);
+
+    echo json_encode([
+      'ok' => true,
+      'message' => 'New Admin account successfully created for ' . $pending['username'] . '! (Status: Pending First-Time Setup)'
+    ]);
+  } catch (PDOException $e) {
+    if ((string)$e->getCode() === '23000') {
+      echo json_encode(['ok' => false, 'message' => 'Username or Email is already taken.']);
+      exit;
+    }
+    echo json_encode(['ok' => false, 'message' => 'Failed to create admin account: ' . $e->getMessage()]);
+  } catch (Exception $e) {
+    echo json_encode(['ok' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+  }
+  exit;
+}
+
+if (($_GET['action'] ?? '') === 'list_admins') {
+  header('Content-Type: application/json; charset=utf-8');
+  ensure_admin_schema();
+
+  try {
+    $admins = db_all(
+      "SELECT admin_id, full_name, username, email, role, is_active, COALESCE(setup_pending, 0) AS setup_pending, created_at
+       FROM admin_user
+       ORDER BY created_at DESC"
+    );
+    echo json_encode(['ok' => true, 'admins' => $admins ?: []]);
+  } catch (Exception $e) {
+    echo json_encode(['ok' => false, 'message' => 'Failed to fetch admin list.', 'admins' => []]);
+  }
+  exit;
+}
+
 $activeSidebar = 'profile';
 $reauthOk = !empty($_SESSION['profile_reauth_ok']);
 
@@ -1145,6 +1333,44 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
 
         </div><!-- /col-right -->
 
+        <!-- Admin Accounts Table — full width -->
+        <div class="col-full" style="margin-bottom: 20px;">
+          <div class="card">
+            <div class="card-top">
+              <div class="card-ico card-ico--blue">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <div class="card-meta">
+                <h2>Admin Management</h2>
+                <p>Create and view administrator accounts</p>
+              </div>
+              <button class="btn btn-primary btn-sm" type="button" id="btnOpenCreateAdminModal" style="margin-left:auto;">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Admin
+              </button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="guard-table">
+                <thead>
+                  <tr>
+                    <th>Admin Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Setup Status</th>
+                  </tr>
+                </thead>
+                <tbody id="adminsBody">
+                  <tr><td colspan="4">
+                    <div class="guard-empty">
+                      <p>Loading admin accounts...</p>
+                    </div>
+                  </td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- Guards Table — full width -->
         <div class="col-full">
           <div class="card">
@@ -1276,6 +1502,112 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
         <button class="btn btn-primary" type="button" id="btnCreate">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Create Guard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Step 1 - Create Admin Info ── -->
+  <div class="modal-bg" id="modalCreateAdmin">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-head-ico card-ico--blue">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+        </div>
+        <div class="modal-title">
+          <h3>Create New Admin Account</h3>
+          <p>Step 1 of 3: Provide account details</p>
+        </div>
+        <button class="modal-xbtn" data-close="#modalCreateAdmin">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Full Name</label>
+          <input type="text" id="admFullName" placeholder="e.g. Maria Santos" />
+        </div>
+        <div class="grid-2" style="margin-top:14px;">
+          <div class="field">
+            <label>Username</label>
+            <input type="text" id="admUsername" placeholder="e.g. mariasantos" />
+          </div>
+          <div class="field">
+            <label>Email Address</label>
+            <input type="email" id="admEmail" placeholder="e.g. maria@example.com" />
+            <div class="hint">The new admin will use this email to receive login setup OTPs.</div>
+          </div>
+        </div>
+        <div class="alert alert-danger" id="createAdminMsg"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="#modalCreateAdmin">Cancel</button>
+        <button class="btn btn-primary" type="button" id="btnInitCreateAdmin">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send Authorization Code
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Step 2 - Verify Authorization OTP ── -->
+  <div class="modal-bg" id="modalCreateAdminOtp">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-head-ico card-ico--green">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="modal-title">
+          <h3>Verify Authorization Code</h3>
+          <p id="admOtpSub">Step 2 of 3: Check your email inbox for the OTP</p>
+        </div>
+        <button class="modal-xbtn" data-close="#modalCreateAdminOtp">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>6-Digit Authorization Code</label>
+          <input type="text" id="admOtpInput" class="otp-input" placeholder="• • • • • •" inputmode="numeric" maxlength="6" />
+          <div class="hint">Sent to your registered email to authorize creating a new admin.</div>
+        </div>
+        <div class="alert alert-danger" id="createAdminOtpMsg"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="#modalCreateAdminOtp">Cancel</button>
+        <button class="btn btn-primary" type="button" id="btnVerifyCreateAdminOtp">
+          Verify Code
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Step 3 - Logged-in Admin Password Confirmation ── -->
+  <div class="modal-bg" id="modalCreateAdminPassword">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-head-ico card-ico--red">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div class="modal-title">
+          <h3>Final Authorization</h3>
+          <p>Step 3 of 3: Enter your admin password to finalize account creation</p>
+        </div>
+        <button class="modal-xbtn" data-close="#modalCreateAdminPassword">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Your Admin Password</label>
+          <div class="inp-wrap">
+            <input type="password" id="admConfirmPasswordInput" class="with-eye" placeholder="Enter your current password" />
+            <button class="eye-btn" type="button" id="toggleAdmConfirmPw">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="alert alert-danger" id="createAdminPwMsg"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="#modalCreateAdminPassword">Cancel</button>
+        <button class="btn btn-primary" type="button" id="btnFinalizeCreateAdmin">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg>
+          Confirm & Create Admin
         </button>
       </div>
     </div>
@@ -1830,7 +2162,144 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
       }
     });
 
+    // ── Admin Management JS ──
+    async function loadAdmins() {
+      const tbody = $('adminsBody');
+      if (!tbody) return;
+      const { ok, data } = await postJSON('profile.php?action=list_admins', {});
+      if (!ok || !data?.ok || !Array.isArray(data.admins)) {
+        tbody.innerHTML = `<tr><td colspan="4"><div class="guard-empty"><p>Failed to load admin list.</p></div></td></tr>`;
+        return;
+      }
+      if (data.admins.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4"><div class="guard-empty"><p>No admins found.</p></div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = data.admins.map(a => {
+        const isPending = Number(a.setup_pending) === 1;
+        const statusBadge = isPending 
+          ? `<span class="pill pill-inactive" style="background:#fef3c7;color:#d97706;border:1px solid #fde68a;">Pending Setup</span>`
+          : (Number(a.is_active) === 1 
+              ? `<span class="pill pill-active">Active</span>` 
+              : `<span class="pill pill-inactive">Inactive</span>`);
+        return `
+          <tr>
+            <td>
+              <div class="g-name">${a.full_name || 'Admin'}</div>
+              <div style="font-size:11px;color:var(--mist);">${a.role || 'ADMIN'}</div>
+            </td>
+            <td><span class="g-user">@${a.username}</span></td>
+            <td><span style="font-size:12.5px;color:var(--slate);">${a.email || '-'}</span></td>
+            <td>${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    $('btnOpenCreateAdminModal')?.addEventListener('click', () => {
+      $('admFullName').value = '';
+      $('admUsername').value = '';
+      $('admEmail').value = '';
+      hideAlert($('createAdminMsg'));
+      showModal('#modalCreateAdmin');
+    });
+
+    $('btnInitCreateAdmin')?.addEventListener('click', async () => {
+      const name = $('admFullName').value.trim();
+      const user = $('admUsername').value.trim().toLowerCase();
+      const email = $('admEmail').value.trim().toLowerCase();
+      const msgEl = $('createAdminMsg');
+      hideAlert(msgEl);
+
+      if (!name) { showAlert(msgEl, 'Full name is required.'); return; }
+      if (!user) { showAlert(msgEl, 'Username is required.'); return; }
+      if (!/^[a-z0-9._-]{3,50}$/.test(user)) {
+        showAlert(msgEl, 'Username: 3–50 chars, letters/numbers/._- only.'); return;
+      }
+      if (!email || !email.includes('@')) { showAlert(msgEl, 'A valid email address is required.'); return; }
+
+      const btn = $('btnInitCreateAdmin');
+      btn.disabled = true;
+      btn.textContent = 'Sending Code...';
+
+      const { ok, data } = await postJSON('profile.php?action=init_create_admin', {
+        full_name: name,
+        username: user,
+        email: email
+      });
+
+      btn.disabled = false;
+      btn.innerHTML = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Authorization Code`;
+
+      if (ok && data?.ok) {
+        hideModal('#modalCreateAdmin');
+        $('admOtpInput').value = '';
+        if ($('admOtpSub')) $('admOtpSub').textContent = `Step 2 of 3: Verification code sent to ${data.target_email || 'your email'}`;
+        hideAlert($('createAdminOtpMsg'));
+        showModal('#modalCreateAdminOtp');
+      } else {
+        showAlert(msgEl, data?.message || 'Failed to send authorization code.');
+      }
+    });
+
+    $('btnVerifyCreateAdminOtp')?.addEventListener('click', async () => {
+      const otp = $('admOtpInput').value.trim();
+      const msgEl = $('createAdminOtpMsg');
+      hideAlert(msgEl);
+
+      if (!otp || otp.length < 6) { showAlert(msgEl, 'Please enter the 6-digit verification code.'); return; }
+
+      const btn = $('btnVerifyCreateAdminOtp');
+      btn.disabled = true;
+      btn.textContent = 'Verifying...';
+
+      const { ok, data } = await postJSON('profile.php?action=verify_create_admin_otp', { otp: otp });
+
+      btn.disabled = false;
+      btn.textContent = 'Verify Code';
+
+      if (ok && data?.ok) {
+        hideModal('#modalCreateAdminOtp');
+        $('admConfirmPasswordInput').value = '';
+        hideAlert($('createAdminPwMsg'));
+        showModal('#modalCreateAdminPassword');
+      } else {
+        showAlert(msgEl, data?.message || 'Invalid verification code.');
+      }
+    });
+
+    $('toggleAdmConfirmPw')?.addEventListener('click', () => {
+      const inp = $('admConfirmPasswordInput');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    });
+
+    $('btnFinalizeCreateAdmin')?.addEventListener('click', async () => {
+      const pw = $('admConfirmPasswordInput').value;
+      const msgEl = $('createAdminPwMsg');
+      hideAlert(msgEl);
+
+      if (!pw) { showAlert(msgEl, 'Admin password is required to authorize creation.'); return; }
+
+      const btn = $('btnFinalizeCreateAdmin');
+      btn.disabled = true;
+      btn.textContent = 'Creating Admin...';
+
+      const { ok, data } = await postJSON('profile.php?action=confirm_create_admin_password', { password: pw });
+
+      btn.disabled = false;
+      btn.innerHTML = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg> Confirm & Create Admin`;
+
+      if (ok && data?.ok) {
+        hideModal('#modalCreateAdminPassword');
+        loadAdmins();
+        toast(data.message || 'New Admin account created successfully!', 'success');
+      } else {
+        showAlert(msgEl, data?.message || 'Incorrect password or creation failed.');
+      }
+    });
+
     loadGuards();
+    loadAdmins();
     checkPw();
   })();
   </script>

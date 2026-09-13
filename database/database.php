@@ -480,12 +480,23 @@ function redirect(string $url): void
 /* =========================
    ADMIN AUTH (USERNAME ONLY)
    ========================= */
+function ensure_admin_schema(): void
+{
+  static $checked = false;
+  if ($checked) return;
+  try {
+    db_exec("ALTER TABLE admin_user ADD COLUMN setup_pending TINYINT(1) NOT NULL DEFAULT 0");
+  } catch (Exception $e) {}
+  $checked = true;
+}
+
 function admin_find_by_username(string $username): ?array
 {
+  ensure_admin_schema();
   $username = trim(strtolower($username));
 
   return db_one(
-    "SELECT admin_id, full_name, username, email, role, is_active, password_hash, photo_path
+    "SELECT admin_id, full_name, username, email, role, is_active, COALESCE(setup_pending, 0) AS setup_pending, password_hash, photo_path
      FROM admin_user
      WHERE username = :username
      LIMIT 1",
@@ -495,10 +506,11 @@ function admin_find_by_username(string $username): ?array
 
 function admin_find_by_email(string $email): ?array
 {
+  ensure_admin_schema();
   $email = trim(strtolower($email));
 
   return db_one(
-    "SELECT admin_id, full_name, username, email, role, is_active, password_hash, photo_path
+    "SELECT admin_id, full_name, username, email, role, is_active, COALESCE(setup_pending, 0) AS setup_pending, password_hash, photo_path
      FROM admin_user
      WHERE LOWER(email) = :email
      LIMIT 1",
@@ -521,6 +533,9 @@ function admin_login(string $username, string $password): array
 
   if (!$admin) {
     return ['ok' => false, 'error' => 'Account not found.'];
+  }
+  if ((int)($admin['setup_pending'] ?? 0) === 1) {
+    return ['ok' => false, 'error' => 'Account setup pending. Please complete first-time setup with your registered email.'];
   }
   if ((int)$admin['is_active'] !== 1) {
     return ['ok' => false, 'error' => 'Account is inactive.'];

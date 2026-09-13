@@ -11,7 +11,9 @@ header("Expires: 0");
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-// AJAX check for registered admin username
+require_once __DIR__ . '/otp_mailer.php';
+
+// AJAX check for registered admin username & status
 if (isset($_GET['check_username'])) {
     header('Content-Type: application/json; charset=utf-8');
     $u = trim((string)($_GET['username'] ?? ''));
@@ -20,8 +22,179 @@ if (isset($_GET['check_username'])) {
         exit;
     }
     $admin = admin_find_by_username($u);
-    $exists = ($admin && (int)($admin['is_active'] ?? 1) === 1);
-    echo json_encode(['ok' => true, 'exists' => $exists]);
+    if (!$admin) {
+        echo json_encode(['ok' => true, 'exists' => false]);
+        exit;
+    }
+
+    $isPending = (int)($admin['setup_pending'] ?? 0) === 1 || ((int)($admin['is_active'] ?? 0) === 0 && empty($admin['password_hash']));
+    if ($isPending) {
+        echo json_encode(['ok' => true, 'exists' => true, 'status' => 'PENDING_SETUP']);
+        exit;
+    }
+
+    $isActive = (int)($admin['is_active'] ?? 0) === 1;
+    echo json_encode(['ok' => true, 'exists' => $isActive, 'status' => $isActive ? 'ACTIVE' : 'INACTIVE']);
+    exit;
+}
+
+if (($_GET['action'] ?? '') === 'request_setup_otp') {
+    header('Content-Type: application/json; charset=utf-8');
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw ?: '{}', true);
+    $u = trim((string)($data['username'] ?? ''));
+    $email = strtolower(trim((string)($data['email'] ?? '')));
+
+    if ($u === '' || $email === '') {
+        echo json_encode(['ok' => false, 'message' => 'Username and Email are required.']);
+        exit;
+    }
+
+    $admin = admin_find_by_username($u);
+    if (!$admin) {
+        echo json_encode(['ok' => false, 'message' => 'Admin username not found.']);
+        exit;
+    }
+
+    $isPending = (int)($admin['setup_pending'] ?? 0) === 1 || ((int)($admin['is_active'] ?? 0) === 0 && empty($admin['password_hash']));
+    if (!$isPending) {
+        echo json_encode(['ok' => false, 'message' => 'This account has already completed setup. Please log in with your password.']);
+        exit;
+    }
+
+    $registeredEmail = strtolower(trim((string)($admin['email'] ?? '')));
+    if ($email !== $registeredEmail) {
+        echo json_encode(['ok' => false, 'message' => 'Email address does not match the registered email for this account.']);
+        exit;
+    }
+
+    $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $_SESSION['new_admin_setup'] = [
+        'admin_id' => (int)$admin['admin_id'],
+        'username' => $admin['username'],
+        'full_name' => $admin['full_name'],
+        'email' => $registeredEmail,
+        'otp' => $otp,
+        'expires' => time() + 600,
+        'attempts' => 0,
+        'otp_verified' => false
+    ];
+
+    $mailSent = send_admin_otp_email($registeredEmail, $admin['full_name'] ?: 'Admin', 'Admin Account Setup OTP', $otp);
+    if (!$mailSent) {
+        echo json_encode(['ok' => false, 'message' => 'Failed to send OTP to ' . $registeredEmail . '. Please check SMTP configuration.']);
+        exit;
+    }
+
+    echo json_encode(['ok' => true, 'message' => 'Verification code sent to ' . $registeredEmail . '.']);
+    exit;
+}
+
+if (($_GET['action'] ?? '') === 'verify_setup_otp') {
+    header('Content-Type: application/json; charset=utf-8');
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw ?: '{}', true);
+    $otp = trim((string)($data['otp'] ?? ''));
+
+    $setup = $_SESSION['new_admin_setup'] ?? null;
+    if (!$setup || !is_array($setup)) {
+        echo json_encode(['ok' => false, 'message' => 'No active setup session found. Please start over.']);
+        exit;
+    }
+
+    if (time() > (int)($setup['expires'] ?? 0)) {
+        unset($_SESSION['new_admin_setup']);
+        echo json_encode(['ok' => false, 'message' => 'Verification code has expired. Please request a new code.']);
+        exit;
+    }
+
+    if (($setup['attempts'] ?? 0) >= 4) {
+        unset($_SESSION['new_admin_setup']);
+        echo json_encode(['ok' => false, 'message' => 'Too many invalid attempts. Verification reset.']);
+        exit;
+    }
+
+    if ($otp !== (string)($setup['otp'] ?? '')) {
+        $_SESSION['new_admin_setup']['attempts'] = ((int)$setup['attempts']) + 1;
+        echo json_encode(['ok' => false, 'message' => 'Incorrect verification code.']);
+        exit;
+    }
+
+    $_SESSION['new_admin_setup']['otp_verified'] = true;
+    echo json_encode(['ok' => true, 'message' => 'OTP verified successfully. Please set your new password.']);
+    exit;
+}
+
+if (($_GET['action'] ?? '') === 'submit_setup_password') {
+    header('Content-Type: application/json; charset=utf-8');
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw ?: '{}', true);
+    $newPw = (string)($data['new_password'] ?? '');
+    $confirmPw = (string)($data['confirm_password'] ?? '');
+
+    $setup = $_SESSION['new_admin_setup'] ?? null;
+    if (!$setup || !is_array($setup) || empty($setup['otp_verified'])) {
+        echo json_encode(['ok' => false, 'message' => 'Session expired or OTP not verified. Please start over.']);
+        exit;
+    }
+
+    if ($newPw !== $confirmPw) {
+        echo json_encode(['ok' => false, 'message' => 'Passwords do not match.']);
+        exit;
+    }
+    if (strlen($newPw) < 8) {
+        echo json_encode(['ok' => false, 'message' => 'Password must be at least 8 characters long.']);
+        exit;
+    }
+    if (!preg_match('/[A-Z]/', $newPw)) {
+        echo json_encode(['ok' => false, 'message' => 'Password must contain at least one uppercase letter (A-Z).']);
+        exit;
+    }
+    if (!preg_match('/[0-9]/', $newPw)) {
+        echo json_encode(['ok' => false, 'message' => 'Password must contain at least one number (0-9).']);
+        exit;
+    }
+    if (!preg_match('/[!@#$%^&*(),.?":{}|<>_+-]/', $newPw)) {
+        echo json_encode(['ok' => false, 'message' => 'Password must contain at least one special character (!@#$%^&*...).']);
+        exit;
+    }
+
+    $adminId = (int)$setup['admin_id'];
+    $hash = password_hash($newPw, PASSWORD_BCRYPT);
+
+    try {
+        db_exec(
+            "UPDATE admin_user
+             SET password_hash = :hash, is_active = 1, setup_pending = 0, updated_at = NOW()
+             WHERE admin_id = :id",
+            [':hash' => $hash, ':id' => $adminId]
+        );
+
+        $_SESSION['admin'] = [
+            'admin_id' => $adminId,
+            'full_name' => (string)($setup['full_name'] ?: $setup['username']),
+            'username' => (string)$setup['username'],
+            'email' => (string)$setup['email'],
+            'role' => 'ADMIN',
+            'photo_path' => ''
+        ];
+        $_SESSION['admin_session_token'] = bin2hex(random_bytes(16));
+        db_exec("UPDATE admin_user SET active_session_token = :t, active_session_ip = :ip, last_active = NOW() WHERE admin_id = :id", [
+            ':t' => $_SESSION['admin_session_token'],
+            ':ip' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
+            ':id' => $adminId
+        ]);
+
+        unset($_SESSION['new_admin_setup']);
+
+        echo json_encode([
+            'ok' => true,
+            'message' => 'Account setup complete! Logging you into Dashboard...',
+            'redirect' => 'dashboard.php'
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['ok' => false, 'message' => 'Failed to save password: ' . $e->getMessage()]);
+    }
     exit;
 }
 
@@ -447,6 +620,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="divider"></div>
       <a class="back-link" href="index.php">&larr; Back to SDO Landing</a>
     </form>
+
+    <!-- ── First-Time Admin Setup Container ── -->
+    <div id="setupContainer" style="display:none; margin-top: 15px;">
+      
+      <!-- Step 1: Email Input Step -->
+      <div id="setupStepEmail">
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:14px; padding:14px; margin-bottom:16px;">
+          <div style="font-size:12px; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.5px;">⚡ First-Time Account Setup</div>
+          <p style="margin:4px 0 0; font-size:13px; color:#1e3a8a; line-height:1.4;">
+            Please enter the email address provided to the administrator who created your account.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="setupEmailInput">Registered Email Address</label>
+          <input type="email" id="setupEmailInput" placeholder="e.g. yourname@example.com" />
+        </div>
+
+        <div id="setupEmailError" style="display:none; color: var(--danger); font-size: 13px; font-weight: 600; margin-bottom: 14px;"></div>
+
+        <button type="button" class="btn" id="btnRequestSetupOtp">
+          Send Setup Verification Code
+        </button>
+      </div>
+
+      <!-- Step 2: OTP Input Step -->
+      <div id="setupStepOtp" style="display:none;">
+        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:14px; padding:14px; margin-bottom:16px;">
+          <div style="font-size:12px; font-weight:800; color:#047857; text-transform:uppercase; letter-spacing:0.5px;">📧 Verification Code Sent</div>
+          <p id="setupOtpSubtext" style="margin:4px 0 0; font-size:13px; color:#064e3b; line-height:1.4;">
+            Check your email inbox for the 6-digit setup code.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="setupOtpInput">6-Digit Verification Code</label>
+          <input type="text" id="setupOtpInput" placeholder="• • • • • •" style="font-size:22px; letter-spacing:8px; text-align:center;" maxlength="6" inputmode="numeric" />
+        </div>
+
+        <div id="setupOtpError" style="display:none; color: var(--danger); font-size: 13px; font-weight: 600; margin-bottom: 14px;"></div>
+
+        <button type="button" class="btn" id="btnVerifySetupOtp">
+          Verify & Continue Setup
+        </button>
+      </div>
+
+      <!-- Step 3: Set Password Step -->
+      <div id="setupStepPassword" style="display:none;">
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:14px; padding:14px; margin-bottom:16px;">
+          <div style="font-size:12px; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.5px;">🔒 Set Your New Password</div>
+          <p style="margin:4px 0 0; font-size:13px; color:#1e3a8a; line-height:1.4;">
+            Create a secure password to complete your account activation.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="setupNewPassword">New Password</label>
+          <div class="password-wrap">
+            <input type="password" id="setupNewPassword" placeholder="Enter new password" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="setupConfirmPassword">Confirm Password</label>
+          <div class="password-wrap">
+            <input type="password" id="setupConfirmPassword" placeholder="Re-enter new password" />
+          </div>
+        </div>
+
+        <!-- Live Rules Checker Card -->
+        <div style="background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:16px;">
+          <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Password Requirements</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;">
+            <div id="supLen" style="color:#64748b; display:flex; align-items:center; gap:6px;"><span>🔴</span> 8+ characters</div>
+            <div id="supUp" style="color:#64748b; display:flex; align-items:center; gap:6px;"><span>🔴</span> Uppercase letter</div>
+            <div id="supNum" style="color:#64748b; display:flex; align-items:center; gap:6px;"><span>🔴</span> Number</div>
+            <div id="supSpc" style="color:#64748b; display:flex; align-items:center; gap:6px;"><span>🔴</span> Special character</div>
+            <div id="supMatch" style="grid-column:1/-1; color:#64748b; display:flex; align-items:center; gap:6px;"><span>🔴</span> Passwords match</div>
+          </div>
+        </div>
+
+        <div id="setupPasswordError" style="display:none; color: var(--danger); font-size: 13px; font-weight: 600; margin-bottom: 14px;"></div>
+
+        <button type="button" class="btn" id="btnSubmitSetupPassword" disabled style="opacity:0.5; cursor:not-allowed;">
+          Complete Setup & Log In
+        </button>
+      </div>
+
+    </div>
   </div>
 
   <script>
@@ -509,14 +771,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }, 1000);
       <?php else: ?>
 
-      var checkTimer = null;
-      var lastCheckedUser = '';
+      var setupContainer = document.getElementById('setupContainer');
+      var setupStepEmail = document.getElementById('setupStepEmail');
+      var setupStepOtp = document.getElementById('setupStepOtp');
+      var setupStepPassword = document.getElementById('setupStepPassword');
+
+      var setupEmailInput = document.getElementById('setupEmailInput');
+      var btnRequestSetupOtp = document.getElementById('btnRequestSetupOtp');
+      var setupEmailError = document.getElementById('setupEmailError');
+
+      var setupOtpInput = document.getElementById('setupOtpInput');
+      var btnVerifySetupOtp = document.getElementById('btnVerifySetupOtp');
+      var setupOtpError = document.getElementById('setupOtpError');
+      var setupOtpSubtext = document.getElementById('setupOtpSubtext');
+
+      var setupNewPassword = document.getElementById('setupNewPassword');
+      var setupConfirmPassword = document.getElementById('setupConfirmPassword');
+      var btnSubmitSetupPassword = document.getElementById('btnSubmitSetupPassword');
+      var setupPasswordError = document.getElementById('setupPasswordError');
+
+      var isPendingSetupState = false;
+
+      function hidePendingSetupState() {
+        if (!isPendingSetupState) return;
+        isPendingSetupState = false;
+        if (setupContainer) setupContainer.style.display = 'none';
+        if (submitBtn) submitBtn.style.display = 'block';
+      }
+
+      function showPendingSetupState() {
+        hidePassword();
+        isPendingSetupState = true;
+        if (userBadge) {
+          userBadge.style.display = 'inline-block';
+          userBadge.style.background = '#fef3c7';
+          userBadge.style.color = '#d97706';
+          userBadge.style.border = '1px solid #fde68a';
+          userBadge.style.padding = '2px 8px';
+          userBadge.style.borderRadius = '6px';
+          userBadge.textContent = '⚡ First-Time Setup Required';
+        }
+        if (passwordGroup) passwordGroup.style.display = 'none';
+        if (submitBtn) submitBtn.style.display = 'none';
+        if (inlineErr) inlineErr.style.display = 'none';
+
+        if (setupContainer) setupContainer.style.display = 'block';
+        if (setupStepEmail) setupStepEmail.style.display = 'block';
+        if (setupStepOtp) setupStepOtp.style.display = 'none';
+        if (setupStepPassword) setupStepPassword.style.display = 'none';
+      }
 
       function revealPassword() {
         if (isPasswordVisible) return;
         isPasswordVisible = true;
         if (inlineErr) inlineErr.style.display = 'none';
-        if (userBadge) userBadge.style.display = 'inline-block';
+        if (userBadge) {
+          userBadge.style.display = 'inline-block';
+          userBadge.style.background = 'transparent';
+          userBadge.style.color = '#15803d';
+          userBadge.style.border = 'none';
+          userBadge.style.padding = '0';
+          userBadge.textContent = '✓ Verified';
+        }
         
         passwordGroup.style.display = 'block';
         setTimeout(function() {
@@ -549,12 +865,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         var val = (usernameInput ? usernameInput.value : '').trim();
         if (!val) {
           hidePassword();
+          hidePendingSetupState();
           if (inlineErr) inlineErr.style.display = 'none';
           if (onComplete) onComplete(false);
           return;
         }
 
-        if (val === lastCheckedUser && isPasswordVisible) {
+        if (val === lastCheckedUser && (isPasswordVisible || isPendingSetupState)) {
           if (onComplete) onComplete(true);
           return;
         }
@@ -564,9 +881,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           .then(function(res) {
             lastCheckedUser = val;
             if (res && res.exists) {
-              revealPassword();
+              if (res.status === 'PENDING_SETUP') {
+                showPendingSetupState();
+              } else {
+                hidePendingSetupState();
+                revealPassword();
+              }
               if (onComplete) onComplete(true);
             } else {
+              hidePendingSetupState();
               hidePassword();
               if (inlineErr) inlineErr.style.display = 'none';
               if (onComplete) onComplete(false);
@@ -587,6 +910,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               verifyUsername();
             }, 350);
           } else {
+            hidePendingSetupState();
             hidePassword();
           }
         });
@@ -600,7 +924,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       if (loginForm) {
         loginForm.addEventListener('submit', function(e) {
-          if (!isPasswordVisible) {
+          if (!isPasswordVisible && !isPendingSetupState) {
             e.preventDefault();
             verifyUsername(function(isValid) {
               if (!isValid && usernameInput) {
@@ -608,6 +932,188 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               }
             });
           }
+        });
+      }
+
+      // Step 1: Request Setup OTP
+      if (btnRequestSetupOtp) {
+        btnRequestSetupOtp.addEventListener('click', function() {
+          var u = (usernameInput ? usernameInput.value : '').trim();
+          var email = (setupEmailInput ? setupEmailInput.value : '').trim();
+
+          if (setupEmailError) setupEmailError.style.display = 'none';
+
+          if (!email || !email.includes('@')) {
+            if (setupEmailError) {
+              setupEmailError.textContent = 'Please enter a valid email address.';
+              setupEmailError.style.display = 'block';
+            }
+            return;
+          }
+
+          btnRequestSetupOtp.disabled = true;
+          btnRequestSetupOtp.textContent = 'Sending Verification Code...';
+
+          fetch('login.php?action=request_setup_otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, email: email })
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            btnRequestSetupOtp.disabled = false;
+            btnRequestSetupOtp.textContent = 'Send Setup Verification Code';
+
+            if (res && res.ok) {
+              if (setupStepEmail) setupStepEmail.style.display = 'none';
+              if (setupStepOtp) setupStepOtp.style.display = 'block';
+              if (setupOtpSubtext) setupOtpSubtext.textContent = 'Check ' + email + ' for the 6-digit verification code.';
+            } else {
+              if (setupEmailError) {
+                setupEmailError.textContent = (res && res.message) ? res.message : 'Verification failed.';
+                setupEmailError.style.display = 'block';
+              }
+            }
+          })
+          .catch(function() {
+            btnRequestSetupOtp.disabled = false;
+            btnRequestSetupOtp.textContent = 'Send Setup Verification Code';
+            if (setupEmailError) {
+              setupEmailError.textContent = 'Network or server error occurred.';
+              setupEmailError.style.display = 'block';
+            }
+          });
+        });
+      }
+
+      // Step 2: Verify Setup OTP
+      if (btnVerifySetupOtp) {
+        btnVerifySetupOtp.addEventListener('click', function() {
+          var otp = (setupOtpInput ? setupOtpInput.value : '').trim();
+          if (setupOtpError) setupOtpError.style.display = 'none';
+
+          if (!otp || otp.length < 6) {
+            if (setupOtpError) {
+              setupOtpError.textContent = 'Please enter the 6-digit verification code.';
+              setupOtpError.style.display = 'block';
+            }
+            return;
+          }
+
+          btnVerifySetupOtp.disabled = true;
+          btnVerifySetupOtp.textContent = 'Verifying Code...';
+
+          fetch('login.php?action=verify_setup_otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ otp: otp })
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            btnVerifySetupOtp.disabled = false;
+            btnVerifySetupOtp.textContent = 'Verify & Continue Setup';
+
+            if (res && res.ok) {
+              if (setupStepOtp) setupStepOtp.style.display = 'none';
+              if (setupStepPassword) setupStepPassword.style.display = 'block';
+            } else {
+              if (setupOtpError) {
+                setupOtpError.textContent = (res && res.message) ? res.message : 'Invalid code.';
+                setupOtpError.style.display = 'block';
+              }
+            }
+          })
+          .catch(function() {
+            btnVerifySetupOtp.disabled = false;
+            btnVerifySetupOtp.textContent = 'Verify & Continue Setup';
+            if (setupOtpError) {
+              setupOtpError.textContent = 'Network error occurred.';
+              setupOtpError.style.display = 'block';
+            }
+          });
+        });
+      }
+
+      // Live Password Checker
+      function updateRuleUI(el, ok) {
+        if (!el) return;
+        var icon = el.querySelector('span');
+        if (ok) {
+          el.style.color = '#15803d';
+          el.style.fontWeight = '600';
+          if (icon) icon.textContent = '🟢';
+        } else {
+          el.style.color = '#64748b';
+          el.style.fontWeight = '400';
+          if (icon) icon.textContent = '🔴';
+        }
+      }
+
+      function checkSetupPwRules() {
+        var pw = (setupNewPassword ? setupNewPassword.value : '');
+        var confirmPw = (setupConfirmPassword ? setupConfirmPassword.value : '');
+
+        var isLen = pw.length >= 8;
+        var isUp = /[A-Z]/.test(pw);
+        var isNum = /[0-9]/.test(pw);
+        var isSpc = /[!@#$%^&*(),.?":{}|<>_+-]/.test(pw);
+        var isMatch = pw.length > 0 && pw === confirmPw;
+
+        updateRuleUI(document.getElementById('supLen'), isLen);
+        updateRuleUI(document.getElementById('supUp'), isUp);
+        updateRuleUI(document.getElementById('supNum'), isNum);
+        updateRuleUI(document.getElementById('supSpc'), isSpc);
+        updateRuleUI(document.getElementById('supMatch'), isMatch);
+
+        var allValid = isLen && isUp && isNum && isSpc && isMatch;
+        if (btnSubmitSetupPassword) {
+          btnSubmitSetupPassword.disabled = !allValid;
+          btnSubmitSetupPassword.style.opacity = allValid ? '1' : '0.5';
+          btnSubmitSetupPassword.style.cursor = allValid ? 'pointer' : 'not-allowed';
+        }
+      }
+
+      if (setupNewPassword) setupNewPassword.addEventListener('input', checkSetupPwRules);
+      if (setupConfirmPassword) setupConfirmPassword.addEventListener('input', checkSetupPwRules);
+
+      // Step 3: Submit Setup Password
+      if (btnSubmitSetupPassword) {
+        btnSubmitSetupPassword.addEventListener('click', function() {
+          var pw = (setupNewPassword ? setupNewPassword.value : '');
+          var confirmPw = (setupConfirmPassword ? setupConfirmPassword.value : '');
+
+          if (setupPasswordError) setupPasswordError.style.display = 'none';
+
+          btnSubmitSetupPassword.disabled = true;
+          btnSubmitSetupPassword.textContent = 'Finalizing Setup...';
+
+          fetch('login.php?action=submit_setup_password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_password: pw, confirm_password: confirmPw })
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            btnSubmitSetupPassword.disabled = false;
+            btnSubmitSetupPassword.textContent = 'Complete Setup & Log In';
+
+            if (res && res.ok) {
+              window.location.href = res.redirect || 'dashboard.php';
+            } else {
+              if (setupPasswordError) {
+                setupPasswordError.textContent = (res && res.message) ? res.message : 'Setup failed.';
+                setupPasswordError.style.display = 'block';
+              }
+            }
+          })
+          .catch(function() {
+            btnSubmitSetupPassword.disabled = false;
+            btnSubmitSetupPassword.textContent = 'Complete Setup & Log In';
+            if (setupPasswordError) {
+              setupPasswordError.textContent = 'Network error occurred.';
+              setupPasswordError.style.display = 'block';
+            }
+          });
         });
       }
       <?php endif; ?>
