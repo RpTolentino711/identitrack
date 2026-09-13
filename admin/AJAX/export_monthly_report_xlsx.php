@@ -263,6 +263,33 @@ arsort($breakdownMap);
 arsort($coursesMap);
 
 /**
+ * Shortens long offense descriptions to concise labels for Excel chart legends
+ */
+function shorten_offense_name_for_chart(string $fullName): string {
+    $clean = preg_replace('/\s*\((Minor|Major Category \d|Major Cat \d|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed|Pending Category Assignment)\)$/i', '', $fullName);
+    $clean = trim($clean);
+
+    $tag = '';
+    if (preg_match('/\((Minor|Major Cat \d+|Pending Category Assignment|Dismissed Case|Dismissed Offense)\)$/i', $fullName, $m)) {
+        $tag = ' (' . $m[1] . ')';
+    }
+
+    if (stripos($clean, 'Non-wearing of the prescribed uniform') !== false) {
+        $short = 'Uniform Violation';
+    } elseif (stripos($clean, 'policies on the use of lockers') !== false) {
+        $short = 'Locker Policy Violation';
+    } elseif (stripos($clean, 'Section 4 Minor Offense Escalation') !== false) {
+        $short = 'Sec 4 Minor Escalation';
+    } elseif (strlen($clean) > 28) {
+        $short = substr($clean, 0, 25) . '...';
+    } else {
+        $short = $clean;
+    }
+
+    return $short . $tag;
+}
+
+/**
  * Formats community service hours into clean human-readable text (e.g. "20 Minutes", "1 Hour", "150 Hours")
  */
 function format_community_service_hours_display(float $hoursVal): string {
@@ -509,8 +536,25 @@ try {
   $sheet1->setCellValue('AE4', 'Degree Program');
   $sheet1->setCellValue('AF4', 'Cases Count');
 
-  $bRow = 5;
+  // Build top 5 + Other for Chart Legend
+  $chartBreakdownMap = [];
+  $topCount = 0;
+  $otherSum = 0;
   foreach ($breakdownMap as $name => $count) {
+      $shortName = shorten_offense_name_for_chart($name);
+      if ($topCount < 5) {
+          $chartBreakdownMap[$shortName] = ($chartBreakdownMap[$shortName] ?? 0) + $count;
+          $topCount++;
+      } else {
+          $otherSum += $count;
+      }
+  }
+  if ($otherSum > 0) {
+      $chartBreakdownMap['Other Offenses'] = ($chartBreakdownMap['Other Offenses'] ?? 0) + $otherSum;
+  }
+
+  $bRow = 5;
+  foreach ($chartBreakdownMap as $name => $count) {
       $sheet1->setCellValue('AA' . $bRow, $name);
       $sheet1->setCellValue('AB' . $bRow, $count);
       $bRow++;
@@ -528,10 +572,10 @@ try {
   $cEndRow = max(5, $cRow - 1);
 
   // Create Doughnut / Pie Chart (A7:F24)
-  if (!empty($breakdownMap)) {
+  if (!empty($chartBreakdownMap)) {
       $dataSeriesLabels = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheet1Title}'!\$AB\$4", null, 1)];
-      $xAxisTickValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheet1Title}'!\$AA\$5:\$AA\${$bEndRow}", null, count($breakdownMap))];
-      $dataSeriesValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'{$sheet1Title}'!\$AB\$5:\$AB\${$bEndRow}", null, count($breakdownMap))];
+      $xAxisTickValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheet1Title}'!\$AA\$5:\$AA\${$bEndRow}", null, count($chartBreakdownMap))];
+      $dataSeriesValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'{$sheet1Title}'!\$AB\$5:\$AB\${$bEndRow}", null, count($chartBreakdownMap))];
 
       $series = new DataSeries(
           DataSeries::TYPE_DOUGHNUTCHART,
@@ -543,11 +587,11 @@ try {
       );
       
       $layout = new \PhpOffice\PhpSpreadsheet\Chart\Layout();
-      $layout->setShowVal(true);
+      $layout->setShowVal(false);
       $layout->setShowPercent(true);
       
       $plotArea = new PlotArea($layout, [$series]);
-      $legend = new Legend(Legend::POSITION_BOTTOM, null, false);
+      $legend = new Legend(Legend::POSITION_RIGHT, null, false);
       $chartTitle = new Title('Offense Breakdown Distribution');
 
       $chart = new Chart('chart1', $chartTitle, $legend, $plotArea, true, 0, null, null);
