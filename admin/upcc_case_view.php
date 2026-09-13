@@ -2041,60 +2041,70 @@ body {
             <hr class="divider">
             <div class="section-label">Case Summary</div>
             <div class="summary-box"><?= nl2br(htmlspecialchars($case['case_summary'] ?? 'No summary provided.')) ?></div>
-            <?php if (!empty($offenses)): ?>
-              <hr class="divider">
-              <div class="section-label">Offenses in this Case</div>
-              <?php foreach ($offenses as $off): ?>
-                <div class="offense-item <?= ($off['level'] ?? '') === 'MAJOR' ? 'major' : '' ?>">
-                  <div class="offense-top">
-                    <span class="stag <?= ($off['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>"><?= htmlspecialchars($off['level'] ?? 'MINOR') ?></span>
-                    <span class="offense-code"><?= htmlspecialchars($off['code'] ?? '') ?></span>
-                    <span class="offense-name"><?= htmlspecialchars($off['offense_name'] ?? '') ?></span>
-                  </div>
-                  <div class="offense-meta">
-                    <?php if (!empty($off['date_committed'])): ?><span>📅 <?= fmtd($off['date_committed']) ?></span><?php endif; ?>
-                    <?php if (!empty($off['intervention_first'])): ?><span>1st: <?= htmlspecialchars($off['intervention_first']) ?></span><?php endif; ?>
-                  </div>
-                </div>
-              <?php endforeach; ?>
-            <?php endif; ?>
+            <?php
+              $pendingList = array_values(array_filter($otherStudentCases, static fn($c) => !$c['is_resolved']));
+              $resolvedList = array_values(array_filter($otherStudentCases, static fn($c) => $c['is_resolved']));
+            ?>
 
-            <!-- OTHER STUDENT CASES SECTION (Pending & Resolved) -->
+            <!-- TAB NAVIGATION -->
             <hr class="divider">
-            <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
-              <span>Student Disciplinary History &amp; Other Cases</span>
-              <?php if (!empty($otherStudentCases)): ?>
-                <span class="pill pill-warning" style="font-size:.63rem"><?= count($otherStudentCases) ?> other case<?= count($otherStudentCases) !== 1 ? 's' : '' ?></span>
+            <div class="case-tabs-nav" style="display:flex;gap:6px;border-bottom:2px solid var(--border-light);margin:1.2rem 0 1rem 0;padding-bottom:2px;overflow-x:auto;">
+              <button type="button" class="case-tab-btn active" id="tabBtnCurrent" onclick="switchCaseTab('current')"
+                      style="padding:8px 14px;font-size:.78rem;font-weight:700;border-radius:8px 8px 0 0;border:1px solid #2563eb;background:#2563eb;color:#ffffff;cursor:pointer;transition:all .15s;white-space:nowrap;">
+                📋 Current Case (<?= count($offenses) ?>)
+              </button>
+
+              <button type="button" class="case-tab-btn" id="tabBtnPending" onclick="switchCaseTab('pending')"
+                      style="padding:8px 14px;font-size:.78rem;font-weight:700;border-radius:8px 8px 0 0;border:1px solid transparent;background:#f1f5f9;color:#64748b;cursor:pointer;transition:all .15s;white-space:nowrap;">
+                ⏳ Pending Cases (<?= count($pendingList) ?>)
+              </button>
+
+              <button type="button" class="case-tab-btn" id="tabBtnResolved" onclick="switchCaseTab('resolved')"
+                      style="padding:8px 14px;font-size:.78rem;font-weight:700;border-radius:8px 8px 0 0;border:1px solid transparent;background:#f1f5f9;color:#64748b;cursor:pointer;transition:all .15s;white-space:nowrap;">
+                ✅ Resolved Cases (<?= count($resolvedList) ?>)
+              </button>
+            </div>
+
+            <!-- TAB 1: CURRENT CASE OFFENSES -->
+            <div id="tabPaneCurrent">
+              <div class="section-label">Offenses in Current Case #<?= $case_id ?></div>
+              <?php if (empty($offenses)): ?>
+                <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;">No offenses recorded in this case.</div>
+              <?php else: ?>
+                <?php foreach ($offenses as $off): ?>
+                  <div class="offense-item <?= ($off['level'] ?? '') === 'MAJOR' ? 'major' : '' ?>">
+                    <div class="offense-top">
+                      <span class="stag <?= ($off['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>"><?= htmlspecialchars($off['level'] ?? 'MINOR') ?></span>
+                      <span class="offense-code"><?= htmlspecialchars($off['code'] ?? '') ?></span>
+                      <span class="offense-name"><?= htmlspecialchars($off['offense_name'] ?? '') ?></span>
+                    </div>
+                    <div class="offense-meta">
+                      <?php if (!empty($off['date_committed'])): ?><span>📅 <?= fmtd($off['date_committed']) ?></span><?php endif; ?>
+                      <?php if (!empty($off['intervention_first'])): ?><span>1st: <?= htmlspecialchars($off['intervention_first']) ?></span><?php endif; ?>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
               <?php endif; ?>
             </div>
 
-            <!-- Security Warning Box -->
-            <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;">
-              <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
-                🔒 Security &amp; Confidentiality Notice
-              </strong>
-              Access to student prior disciplinary records and other pending or resolved cases is strictly restricted for evaluation purposes only. All case access is logged for administrative compliance.
-            </div>
-
-            <?php if (empty($otherStudentCases)): ?>
-              <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;padding:.5rem 0;">
-                No other disciplinary cases recorded for this student.
+            <!-- TAB 2: PENDING CASES -->
+            <div id="tabPanePending" style="display:none;">
+              <!-- Security Warning Box -->
+              <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;">
+                <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
+                  🔒 Security &amp; Confidentiality Notice
+                </strong>
+                Access to student prior disciplinary records and other pending cases is strictly restricted for evaluation purposes only. All case access is logged for administrative compliance.
               </div>
-            <?php else: ?>
-              
-              <!-- Other Pending Cases -->
-              <?php
-                $pendingList = array_filter($otherStudentCases, static fn($c) => !$c['is_resolved']);
-                $resolvedList = array_filter($otherStudentCases, static fn($c) => $c['is_resolved']);
-              ?>
 
-              <?php if (!empty($pendingList)): ?>
-                <div style="font-size:.75rem;font-weight:700;color:var(--amber-700);text-transform:uppercase;letter-spacing:.05em;margin:.75rem 0 .5rem;">
-                  ⏳ Pending Cases (<?= count($pendingList) ?>)
+              <?php if (empty($pendingList)): ?>
+                <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;padding:.5rem 0;">
+                  No other pending disciplinary cases recorded for this student.
                 </div>
+              <?php else: ?>
                 <?php foreach ($pendingList as $oc): ?>
                   <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:.85rem;margin-bottom:.75rem;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:6px;">
                       <div>
                         <span style="font-weight:700;font-size:.85rem;color:var(--ink-800)">Case #<?= $oc['case_id'] ?></span>
                         <span class="pill pill-warning" style="font-size:.62rem;margin-left:6px;"><?= htmlspecialchars($oc['status']) ?></span>
@@ -2124,15 +2134,26 @@ body {
                   </div>
                 <?php endforeach; ?>
               <?php endif; ?>
+            </div>
 
-              <!-- Other Resolved Cases -->
-              <?php if (!empty($resolvedList)): ?>
-                <div style="font-size:.75rem;font-weight:700;color:var(--green-700);text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .5rem;">
-                  ✅ Resolved Cases (<?= count($resolvedList) ?>)
+            <!-- TAB 3: RESOLVED CASES -->
+            <div id="tabPaneResolved" style="display:none;">
+              <!-- Security Warning Box -->
+              <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;">
+                <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
+                  🔒 Security &amp; Confidentiality Notice
+                </strong>
+                Access to student prior resolved disciplinary cases is strictly restricted for evaluation purposes only. All case access is logged for administrative compliance.
+              </div>
+
+              <?php if (empty($resolvedList)): ?>
+                <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;padding:.5rem 0;">
+                  No resolved disciplinary cases recorded for this student.
                 </div>
+              <?php else: ?>
                 <?php foreach ($resolvedList as $oc): ?>
                   <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:.85rem;margin-bottom:.75rem;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:6px;">
                       <div>
                         <span style="font-weight:700;font-size:.85rem;color:var(--ink-800)">Case #<?= $oc['case_id'] ?></span>
                         <span class="pill pill-success" style="font-size:.62rem;margin-left:6px;">Closed</span>
@@ -2160,8 +2181,36 @@ body {
                   </div>
                 <?php endforeach; ?>
               <?php endif; ?>
+            </div>
 
-            <?php endif; ?>
+            <script>
+            function switchCaseTab(tabName) {
+              const panes = {
+                current: document.getElementById('tabPaneCurrent'),
+                pending: document.getElementById('tabPanePending'),
+                resolved: document.getElementById('tabPaneResolved')
+              };
+              const btns = {
+                current: document.getElementById('tabBtnCurrent'),
+                pending: document.getElementById('tabBtnPending'),
+                resolved: document.getElementById('tabBtnResolved')
+              };
+              Object.keys(panes).forEach(k => {
+                if (panes[k]) panes[k].style.display = (k === tabName) ? 'block' : 'none';
+                if (btns[k]) {
+                  if (k === tabName) {
+                    btns[k].style.background = '#2563eb';
+                    btns[k].style.color = '#ffffff';
+                    btns[k].style.borderColor = '#2563eb';
+                  } else {
+                    btns[k].style.background = '#f1f5f9';
+                    btns[k].style.color = '#64748b';
+                    btns[k].style.borderColor = 'transparent';
+                  }
+                }
+              });
+            }
+            </script>
           </div>
         </div>
 
