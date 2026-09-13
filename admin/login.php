@@ -44,6 +44,25 @@ if ($lockoutUntil > time()) {
   }
 }
 
+$infoMsg = '';
+
+// Automatically invalidate any active pre-2fa OTP session when arriving back on login.php
+if (isset($_SESSION['admin_pre_2fa']) || isset($_SESSION['login_otp'])) {
+    unset($_SESSION['admin_pre_2fa']);
+    unset($_SESSION['login_otp']);
+    unset($_SESSION['login_otp_attempts']);
+    if (empty($_SESSION['login_otp_cancelled_msg']) && empty($_SESSION['login_otp_locked_error'])) {
+        $_SESSION['login_otp_cancelled_msg'] = "Notice: Your previous verification code was automatically expired. Please log in with your username and password to request a new code.";
+    }
+}
+
+if (!empty($_SESSION['login_otp_cancelled_msg'])) {
+    $infoMsg = $_SESSION['login_otp_cancelled_msg'];
+    unset($_SESSION['login_otp_cancelled_msg']);
+} elseif (isset($_GET['otp_expired']) && $_GET['otp_expired'] === '1') {
+    $infoMsg = "Notice: Your previous verification code was automatically expired. Please log in with your username and password to request a new code.";
+}
+
 if (!empty($_SESSION['login_otp_locked_error'])) {
     $min = floor($remainingSeconds / 60);
     $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
@@ -342,6 +361,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <h1>SDO Web Portal</h1>
       <p>Student Discipline Office</p>
     </div>
+
+    <?php if (!empty($infoMsg) && empty($errors)): ?>
+      <div style="margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(54, 66, 154, 0.25); background: rgba(54, 66, 154, 0.08); color: #2d3788; font-size: 13px; font-weight: 600; line-height: 1.4; text-align: left;">
+        ⚠️ <?php echo htmlspecialchars($infoMsg); ?>
+      </div>
+    <?php endif; ?>
 
     <?php if (!empty($errors)): ?>
       <div class="errors" role="alert">

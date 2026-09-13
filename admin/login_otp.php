@@ -208,6 +208,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     .resend { margin-top: 20px; font-size: 13px; color: var(--muted); }
     .resend a { color: var(--nu-blue); text-decoration: none; font-weight: 700; }
+
+    .back-link-wrap { margin-top: 22px; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 16px; }
+    .back-link-wrap a { color: #4f5da5; text-decoration: none; font-weight: 600; font-size: 13.5px; transition: color 0.2s; }
+    .back-link-wrap a:hover { color: var(--nu-blue); text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -247,6 +251,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <a href="login_otp.php?resend=1" id="resendLink">Resend Verification Code</a>
       <?php endif; ?>
     </div>
+
+    <div class="back-link-wrap">
+      <a href="login_otp.php?cancel=1" id="cancelOtpLink">&larr; Back to Login Page</a>
+    </div>
   </div>
 
   <script>
@@ -254,6 +262,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (window.history.replaceState) {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
+
+        const cancelLink = document.getElementById('cancelOtpLink');
+        if (cancelLink) {
+            cancelLink.addEventListener('click', function(e) {
+                const confirmCancel = confirm("⚠️ Warning: Returning to the login page will automatically expire your current verification code. You will need to re-enter your username and password to request a new code.\n\nDo you want to proceed?");
+                if (!confirmCancel) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+        }
+
         let timeLeft = <?php echo $cooldown; ?>;
         const timerSpan = document.getElementById('timer');
         const topTimerSpan = document.getElementById('topTimer');
