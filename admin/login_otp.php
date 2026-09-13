@@ -3,6 +3,10 @@
 require_once __DIR__ . '/../database/database.php';
 require_once __DIR__ . '/otp_mailer.php';
 
+header("Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 // If admin is ALREADY logged in, redirect to dashboard immediately (do NOT send OTP)

@@ -5,6 +5,10 @@
 
 require_once __DIR__ . '/../database/database.php';
 
+header("Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 // AJAX check for registered admin username
@@ -362,7 +366,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <p>Student Discipline Office</p>
     </div>
 
-    <?php if (!empty($infoMsg) && empty($errors)): ?>
+    <?php if (!empty($infoMsg)): ?>
       <div style="margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(54, 66, 154, 0.25); background: rgba(54, 66, 154, 0.08); color: #2d3788; font-size: 13px; font-weight: 600; line-height: 1.4; text-align: left;">
         ⚠️ <?php echo htmlspecialchars($infoMsg); ?>
       </div>
@@ -443,6 +447,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <script>
     (function () {
+      window.addEventListener('pageshow', function (e) {
+        if (e.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {
+          window.location.reload();
+        }
+      });
+
       var passwordInput = document.getElementById('password');
       var toggleBtn = document.getElementById('togglePassword');
       var usernameInput = document.getElementById('username');
