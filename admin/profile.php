@@ -423,6 +423,8 @@ if (($_GET['action'] ?? '') === 'confirm_create_admin_password') {
 if (($_GET['action'] ?? '') === 'list_admins') {
   header('Content-Type: application/json; charset=utf-8');
   ensure_admin_schema();
+  $currentAdmin = admin_current();
+  $currAdminId = (int)($currentAdmin['admin_id'] ?? 0);
 
   try {
     $admins = db_all(
@@ -430,7 +432,7 @@ if (($_GET['action'] ?? '') === 'list_admins') {
        FROM admin_user
        ORDER BY created_at DESC"
     );
-    echo json_encode(['ok' => true, 'admins' => $admins ?: []]);
+    echo json_encode(['ok' => true, 'admins' => $admins ?: [], 'current_admin_id' => $currAdminId]);
   } catch (Exception $e) {
     echo json_encode(['ok' => false, 'message' => 'Failed to fetch admin list.', 'admins' => []]);
   }
@@ -2176,6 +2178,8 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
         return;
       }
       tbody.innerHTML = data.admins.map(a => {
+        const isMe = Number(a.admin_id) === Number(data.current_admin_id);
+        const youBadge = isMe ? `<span style="font-size:10px; font-weight:700; color:#2563eb; background:#dbeafe; border:1px solid #bfdbfe; padding:2px 7px; border-radius:99px; margin-left:6px; text-transform:none; display:inline-block; vertical-align:middle;">(You)</span>` : '';
         const isPending = Number(a.setup_pending) === 1;
         const statusBadge = isPending 
           ? `<span class="pill pill-inactive" style="background:#fef3c7;color:#d97706;border:1px solid #fde68a;">Pending Setup</span>`
@@ -2185,7 +2189,9 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
         return `
           <tr>
             <td>
-              <div class="g-name">${a.full_name || 'Admin'}</div>
+              <div class="g-name" style="display:flex; align-items:center; flex-wrap:wrap;">
+                <span>${a.full_name || 'Admin'}</span> ${youBadge}
+              </div>
               <div style="font-size:11px;color:var(--mist);">${a.role || 'ADMIN'}</div>
             </td>
             <td><span class="g-user">@${a.username}</span></td>
