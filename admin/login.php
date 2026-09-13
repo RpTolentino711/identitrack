@@ -7,6 +7,20 @@ require_once __DIR__ . '/../database/database.php';
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
+// AJAX check for registered admin username
+if (isset($_GET['check_username'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $u = trim((string)($_GET['username'] ?? ''));
+    if ($u === '') {
+        echo json_encode(['ok' => false, 'exists' => false]);
+        exit;
+    }
+    $admin = admin_find_by_username($u);
+    $exists = ($admin && (int)($admin['is_active'] ?? 1) === 1);
+    echo json_encode(['ok' => true, 'exists' => $exists]);
+    exit;
+}
+
 // If admin is ALREADY logged in, redirect to dashboard
 if (isset($_SESSION['admin_id']) && !empty($_SESSION['admin_id'])) {
     redirect('dashboard.php');
@@ -19,13 +33,6 @@ $remainingSeconds = 0;
 $lockoutAttempts = (int)($_SESSION['admin_login_attempts'] ?? 0);
 $lockoutUntil = (int)($_SESSION['admin_lockout_until'] ?? 0);
 
-if (!empty($_SESSION['login_otp_locked_error'])) {
-    $errors[] = $_SESSION['login_otp_locked_error'];
-    unset($_SESSION['login_otp_locked_error']);
-} elseif (isset($_GET['error']) && $_GET['error'] === 'otp_locked') {
-    $errors[] = "Security Lockout: Exceeded maximum 4 invalid OTP attempts. Please log in again.";
-}
-
 if ($lockoutUntil > time()) {
   $isLocked = true;
   $remainingSeconds = $lockoutUntil - time();
@@ -35,6 +42,30 @@ if ($lockoutUntil > time()) {
     $_SESSION['admin_login_attempts'] = 0;
     $lockoutAttempts = 0;
   }
+}
+
+if (!empty($_SESSION['login_otp_locked_error'])) {
+    $min = floor($remainingSeconds / 60);
+    $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
+    $errors[] = str_replace('2:00', "{$min}:{$sec}", $_SESSION['login_otp_locked_error']);
+    unset($_SESSION['login_otp_locked_error']);
+} elseif (isset($_GET['error']) && $_GET['error'] === 'otp_locked') {
+    $min = floor($remainingSeconds / 60);
+    $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
+    $errors[] = "LOCKOUT_ERR::Security Lockout: Exceeded maximum 4 invalid OTP attempts. (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
+}
+
+// Determine initial visibility of password field on page load
+$showPasswordField = false;
+$initialUsername = (string)($_POST['username'] ?? '');
+if (!empty($initialUsername)) {
+    $checkAdmin = admin_find_by_username($initialUsername);
+    if ($checkAdmin && (int)($checkAdmin['is_active'] ?? 1) === 1) {
+        $showPasswordField = true;
+    }
+}
+if (!empty($errors) && !empty($initialUsername)) {
+    $showPasswordField = true;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -99,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 } elseif ($isLocked) {
   $min = floor($remainingSeconds / 60);
   $sec = str_pad((string)($remainingSeconds % 60), 2, '0', STR_PAD_LEFT);
-  $errors[] = "LOCKOUT_ERR::Too many invalid attempts (5/5). (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
+  $errors[] = "LOCKOUT_ERR::Too many invalid attempts. (Try again in <span id=\"lockoutTimer\">{$min}:{$sec}</span>)";
 }
 ?>
 <!doctype html>
@@ -326,9 +357,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
     <?php endif; ?>
 
-    <form method="post" action="">
+    <form method="post" action="" id="loginForm">
       <div class="field">
-        <label for="username">Username</label>
+        <label for="username">
+          Username
+          <span id="userStatusBadge" style="<?php echo $showPasswordField ? 'display:inline-block;' : 'display:none;'; ?> font-size:12px; color:#15803d; font-weight:700; margin-left:8px;">✓ Verified</span>
+        </label>
         <input
           id="username"
           name="username"
@@ -341,7 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         />
       </div>
 
-      <div class="field">
+      <div class="field" id="passwordGroup" style="<?php echo $showPasswordField ? '' : 'display: none; opacity: 0; transform: translateY(-8px);'; ?> transition: opacity 0.3s ease, transform 0.3s ease;">
         <label for="password">Password</label>
         <div class="password-wrap">
           <input
@@ -349,8 +383,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             name="password"
             type="password"
             placeholder="Enter your password"
-            required
             autocomplete="current-password"
+            <?php echo $showPasswordField ? 'required' : ''; ?>
             <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>
           />
           <button
@@ -367,7 +401,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       </div>
 
-      <button class="btn" type="submit" <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>>Login to Dashboard</button>
+      <div id="usernameInlineError" style="display:none; color: var(--danger); font-size: 13px; font-weight: 600; margin-bottom: 14px;"></div>
+
+      <button class="btn" id="submitBtn" type="submit" <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>>
+        <?php echo $showPasswordField ? 'Login to Dashboard' : 'Next'; ?>
+      </button>
       
       <?php if (($_SESSION['admin_login_attempts'] ?? 0) >= 3): ?>
         <a class="forgot" id="forgotPasswordLink" href="<?php echo $isLocked ? 'javascript:void(0);' : 'forgot_password.php'; ?>" <?php echo $isLocked ? 'style="opacity:0.4; cursor:not-allowed; pointer-events:none;" onclick="return false;"' : ''; ?>>Forgot Password?</a>
@@ -382,6 +420,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     (function () {
       var passwordInput = document.getElementById('password');
       var toggleBtn = document.getElementById('togglePassword');
+      var usernameInput = document.getElementById('username');
+      var passwordGroup = document.getElementById('passwordGroup');
+      var submitBtn = document.getElementById('submitBtn');
+      var userBadge = document.getElementById('userStatusBadge');
+      var inlineErr = document.getElementById('usernameInlineError');
+      var loginForm = document.getElementById('loginForm');
+
+      var isPasswordVisible = <?php echo $showPasswordField ? 'true' : 'false'; ?>;
+      var isLocked = <?php echo $isLocked ? 'true' : 'false'; ?>;
 
       if (passwordInput && toggleBtn) {
         toggleBtn.addEventListener('click', function () {
@@ -396,8 +443,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <?php if ($isLocked && $remainingSeconds > 0): ?>
       var remaining = <?php echo (int)$remainingSeconds; ?>;
       var timerEl = document.getElementById('lockoutTimer');
-      var usernameInput = document.getElementById('username');
-      var submitBtn = document.querySelector('button[type="submit"]');
       var forgotLink = document.getElementById('forgotPasswordLink');
 
       if (usernameInput) { usernameInput.disabled = true; usernameInput.style.opacity = '0.5'; usernameInput.style.cursor = 'not-allowed'; }
@@ -418,9 +463,117 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           if (timerEl) timerEl.textContent = m + ':' + sStr;
         }
       }, 1000);
+      <?php else: ?>
+
+      var checkTimer = null;
+      var lastCheckedUser = '';
+
+      function revealPassword() {
+        if (isPasswordVisible) return;
+        isPasswordVisible = true;
+        if (inlineErr) inlineErr.style.display = 'none';
+        if (userBadge) userBadge.style.display = 'inline-block';
+        
+        passwordGroup.style.display = 'block';
+        setTimeout(function() {
+          passwordGroup.style.opacity = '1';
+          passwordGroup.style.transform = 'translateY(0)';
+        }, 20);
+        
+        if (passwordInput) passwordInput.setAttribute('required', 'required');
+        if (submitBtn) submitBtn.textContent = 'Login to Dashboard';
+        setTimeout(function() { if (passwordInput) passwordInput.focus(); }, 150);
+      }
+
+      function hidePassword() {
+        if (!isPasswordVisible) return;
+        isPasswordVisible = false;
+        if (userBadge) userBadge.style.display = 'none';
+        passwordGroup.style.opacity = '0';
+        passwordGroup.style.transform = 'translateY(-8px)';
+        setTimeout(function() {
+          if (!isPasswordVisible) passwordGroup.style.display = 'none';
+        }, 300);
+        if (passwordInput) {
+          passwordInput.removeAttribute('required');
+          passwordInput.value = '';
+        }
+        if (submitBtn) submitBtn.textContent = 'Next';
+      }
+
+      function verifyUsername(onComplete) {
+        var val = (usernameInput ? usernameInput.value : '').trim();
+        if (!val) {
+          hidePassword();
+          if (inlineErr) {
+            inlineErr.textContent = '• Please enter a username.';
+            inlineErr.style.display = 'block';
+          }
+          if (onComplete) onComplete(false);
+          return;
+        }
+
+        if (val === lastCheckedUser && isPasswordVisible) {
+          if (onComplete) onComplete(true);
+          return;
+        }
+
+        fetch('login.php?check_username=1&username=' + encodeURIComponent(val))
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            lastCheckedUser = val;
+            if (res && res.exists) {
+              revealPassword();
+              if (onComplete) onComplete(true);
+            } else {
+              hidePassword();
+              if (inlineErr) {
+                inlineErr.textContent = '• Username not registered in system.';
+                inlineErr.style.display = 'block';
+              }
+              if (onComplete) onComplete(false);
+            }
+          })
+          .catch(function() {
+            if (onComplete) onComplete(false);
+          });
+      }
+
+      if (usernameInput) {
+        usernameInput.addEventListener('input', function() {
+          clearTimeout(checkTimer);
+          if (inlineErr) inlineErr.style.display = 'none';
+          var val = (usernameInput.value || '').trim();
+          if (val.length >= 2) {
+            checkTimer = setTimeout(function() {
+              verifyUsername();
+            }, 350);
+          } else {
+            hidePassword();
+          }
+        });
+
+        usernameInput.addEventListener('blur', function() {
+          if (usernameInput.value.trim().length >= 2) {
+            verifyUsername();
+          }
+        });
+      }
+
+      if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+          if (!isPasswordVisible) {
+            e.preventDefault();
+            verifyUsername(function(isValid) {
+              if (!isValid && usernameInput) {
+                usernameInput.focus();
+              }
+            });
+          }
+        });
+      }
       <?php endif; ?>
     })();
   </script>
 </body>
 </html>
-
