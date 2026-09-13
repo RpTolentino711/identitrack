@@ -19,6 +19,13 @@ $remainingSeconds = 0;
 $lockoutAttempts = (int)($_SESSION['admin_login_attempts'] ?? 0);
 $lockoutUntil = (int)($_SESSION['admin_lockout_until'] ?? 0);
 
+if (!empty($_SESSION['login_otp_locked_error'])) {
+    $errors[] = $_SESSION['login_otp_locked_error'];
+    unset($_SESSION['login_otp_locked_error']);
+} elseif (isset($_GET['error']) && $_GET['error'] === 'otp_locked') {
+    $errors[] = "Security Lockout: Exceeded maximum 4 invalid OTP attempts. Please log in again.";
+}
+
 if ($lockoutUntil > time()) {
   $isLocked = true;
   $remainingSeconds = $lockoutUntil - time();

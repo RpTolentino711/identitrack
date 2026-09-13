@@ -17,6 +17,11 @@ if (!isset($_SESSION['admin_pre_2fa'])) {
     exit;
 }
 
+// Reset OTP attempts on fresh initialization from login page
+if (isset($_GET['init']) && $_GET['init'] === '1') {
+    $_SESSION['login_otp_attempts'] = 0;
+}
+
 $adminPre = $_SESSION['admin_pre_2fa'];
 $targetEmail = $adminPre['email'];
 $maskedEmail = substr($targetEmail, 0, 3) . "..." . substr($targetEmail, strpos($targetEmail, '@'));
@@ -28,11 +33,11 @@ $isResendRequest = isset($_GET['resend']) && $_GET['resend'] === '1';
 
 // Send new OTP email ONLY if no active OTP exists OR if explicitly requested via resend button
 if (!$hasActiveOtp || $isResendRequest) {
-    // 3-minute cooldown check (180 seconds) for resending
+    // 90-second cooldown check for resending
     if (isset($_SESSION['login_otp']['last_sent'])) {
         $elapsed = time() - $_SESSION['login_otp']['last_sent'];
-        if ($elapsed < 180) {
-            $wait = 180 - $elapsed;
+        if ($elapsed < 90) {
+            $wait = 90 - $elapsed;
             $error = "Please wait <strong id=\"topTimer\">{$wait}</strong> seconds before requesting a new code.";
             if ($hasActiveOtp) {
                 $success = "A verification code was previously sent to " . htmlspecialchars($maskedEmail);
@@ -71,7 +76,7 @@ render_page: // Label for skipping OTP generation during cooldown
 
 // Handle OTP Verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $enteredOtp = trim((string)$_POST['otp']);
+    $enteredOtp = trim((string)($_POST['otp'] ?? ''));
     $sessionOtp = $_SESSION['login_otp'] ?? null;
     
     if (!$sessionOtp) {
@@ -79,7 +84,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (time() > $sessionOtp['expires']) {
         $error = "Code expired. Please request a new one.";
     } elseif ($enteredOtp !== $sessionOtp['code']) {
-        $error = "Invalid verification code. Please check your email.";
+        $attempts = (int)($_SESSION['login_otp_attempts'] ?? 0) + 1;
+        $_SESSION['login_otp_attempts'] = $attempts;
+
+        if ($attempts >= 4) {
+            // Lock out session and return user to login field
+            unset($_SESSION['admin_pre_2fa']);
+            unset($_SESSION['login_otp']);
+            unset($_SESSION['login_otp_attempts']);
+
+            $_SESSION['login_otp_locked_error'] = "Security Lockout: Exceeded maximum 4 invalid OTP attempts. Please log in again.";
+            redirect('login.php?error=otp_locked');
+            exit;
+        } else {
+            $error = "Invalid verification code. Please check your email. ({$attempts}/4 invalid attempts)";
+        }
     } else {
         // Success! Finalize login and take over active session
         $newToken = bin2hex(random_bytes(16));
@@ -96,6 +115,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         unset($_SESSION['admin_pre_2fa']);
         unset($_SESSION['login_otp']);
+        unset($_SESSION['login_otp_attempts']);
+        unset($_SESSION['login_otp_locked_error']);
         
         redirect('login_success.php');
     }
@@ -210,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cooldown = 0;
     if (isset($_SESSION['login_otp']['last_sent'])) {
         $elapsed = time() - $_SESSION['login_otp']['last_sent'];
-        if ($elapsed < 180) $cooldown = 180 - $elapsed;
+        if ($elapsed < 90) $cooldown = 90 - $elapsed;
     }
     ?>
 
