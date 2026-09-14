@@ -51,6 +51,35 @@ if ($audience === 'SHS') {
 
 $category = strtoupper(trim((string)($_GET['category'] ?? 'ALL')));
 
+$showNamesParam = (int)($_GET['show_names'] ?? 0);
+$showNames = ($showNamesParam === 1);
+
+/**
+ * Mask student name for PII protection when show_names=0
+ */
+function mask_student_name(string $fullName): string {
+    $parts = explode(',', $fullName);
+    if (count($parts) === 2) {
+        $ln = trim($parts[0]);
+        $fn = trim($parts[1]);
+        $lnMasked = mb_substr($ln, 0, 1) . '***';
+        $fnMasked = mb_substr($fn, 0, 1) . '***';
+        return "{$lnMasked}, {$fnMasked} (PII Masked)";
+    }
+    $firstChar = mb_substr($fullName, 0, 1);
+    return "{$firstChar}*** (PII Masked)";
+}
+
+/**
+ * Mask student ID for PII protection when show_names=0
+ */
+function mask_student_id(string $sid): string {
+    if (strlen($sid) >= 6) {
+        return substr($sid, 0, 4) . '-****' . substr($sid, -2);
+    }
+    return '****-****';
+}
+
 $categoryClause = "";
 if ($category === 'MINOR') {
     $categoryClause = " AND ot.level = 'MINOR' ";
@@ -756,12 +785,18 @@ try {
         $hasSection4InGroup1 = true;
     }
 
+    $rawStudentName = (string)($r['student_name'] ?? '');
+    $rawStudentId   = (string)($r['student_id'] ?? '');
+
+    $studentNameDisplay = $showNames ? $rawStudentName : mask_student_name($rawStudentName);
+    $studentIdDisplay   = $showNames ? $rawStudentId   : mask_student_id($rawStudentId);
+
     $sanctionStr = format_full_sanction_penalty($r);
 
     $sheet1->setCellValueExplicit('A' . $s1Row, (string)($r['offense_id'] ?? ''), DataType::TYPE_STRING);
     $sheet1->setCellValue('B' . $s1Row, strtoupper((string)($r['segment'] ?? 'COLLEGE')));
-    $sheet1->setCellValueExplicit('C' . $s1Row, (string)($r['student_id'] ?? ''), DataType::TYPE_STRING);
-    $sheet1->setCellValue('D' . $s1Row, (string)($r['student_name'] ?? ''));
+    $sheet1->setCellValueExplicit('C' . $s1Row, $studentIdDisplay, DataType::TYPE_STRING);
+    $sheet1->setCellValue('D' . $s1Row, $studentNameDisplay);
     $sheet1->setCellValue('E' . $s1Row, (string)($r['program'] ?? ''));
     $sheet1->setCellValue('F' . $s1Row, (string)($r['section'] ?? ''));
     $sheet1->setCellValue('G' . $s1Row, $displayLevel);
@@ -895,12 +930,18 @@ try {
         $hasSection4InGroup2 = true;
     }
 
+    $rawStudentName = (string)($r['student_name'] ?? '');
+    $rawStudentId   = (string)($r['student_id'] ?? '');
+
+    $studentNameDisplay = $showNames ? $rawStudentName : mask_student_name($rawStudentName);
+    $studentIdDisplay   = $showNames ? $rawStudentId   : mask_student_id($rawStudentId);
+
     $sanctionStr = format_full_sanction_penalty($r);
 
     $sheet2->setCellValueExplicit('A' . $s2Row, (string)($r['offense_id'] ?? ''), DataType::TYPE_STRING);
     $sheet2->setCellValue('B' . $s2Row, strtoupper((string)($r['segment'] ?? 'COLLEGE')));
-    $sheet2->setCellValueExplicit('C' . $s2Row, (string)($r['student_id'] ?? ''), DataType::TYPE_STRING);
-    $sheet2->setCellValue('D' . $s2Row, (string)($r['student_name'] ?? ''));
+    $sheet2->setCellValueExplicit('C' . $s2Row, $studentIdDisplay, DataType::TYPE_STRING);
+    $sheet2->setCellValue('D' . $s2Row, $studentNameDisplay);
     $sheet2->setCellValue('E' . $s2Row, (string)($r['program'] ?? ''));
     $sheet2->setCellValue('F' . $s2Row, (string)($r['section'] ?? ''));
     $sheet2->setCellValue('G' . $s2Row, $displayLevel);

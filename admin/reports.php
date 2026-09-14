@@ -259,9 +259,48 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
   <?php require_once __DIR__ . '/header.php'; ?>
+
+  <style>
+    .btn-pii-toggle {
+      height: 34px;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: all 0.2s ease-in-out;
+      outline: none;
+      user-select: none;
+    }
+    .btn-pii-toggle.masked {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+    }
+    .btn-pii-toggle.masked:hover {
+      background: #e2e8f0;
+      color: #1e293b;
+      border-color: #94a3b8;
+    }
+    .btn-pii-toggle.unmasked {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+    }
+    .btn-pii-toggle.unmasked:hover {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+  </style>
 
   <div class="admin-shell">
     <?php require_once __DIR__ . '/sidebar.php'; ?>
@@ -341,10 +380,16 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
             </select>
 
             <!-- Download Excel for chosen month/year -->
-            <a class="btn-excel" id="exportBtn" href="AJAX/export_monthly_report_xlsx.php?month=<?php echo urlencode($selectedMonth); ?>&audience=<?php echo urlencode($selectedAudience); ?>&category=ALL">
+            <a class="btn-excel" id="exportBtn" href="AJAX/export_monthly_report_xlsx.php?month=<?php echo urlencode($selectedMonth); ?>&audience=<?php echo urlencode($selectedAudience); ?>&category=ALL&show_names=0">
               <span style="font-size:18px;">⬇</span>
               Export to Excel
             </a>
+
+            <!-- Eye Toggle for Student Name / PII Unmasking -->
+            <button type="button" class="btn-pii-toggle masked" id="piiToggleBtn" title="Toggle PII Masking (Student Names & IDs)">
+              <span id="piiIcon" style="font-size:16px;">🙈</span>
+              <span id="piiLabel">PII Masked</span>
+            </button>
           </div>
         </section>
 
@@ -794,6 +839,85 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       return selectedVal;
     }
 
+    let isPiiUnmasked = false;
+
+    function getExportUrl(month, audience, category) {
+      const m = month || monthSelect.value;
+      const aud = audience || audienceSelect.value;
+      const cat = category || (categorySelect ? categorySelect.value : 'ALL');
+      const showNames = isPiiUnmasked ? '1' : '0';
+      return `AJAX/export_monthly_report_xlsx.php?month=${encodeURIComponent(m)}&audience=${encodeURIComponent(aud)}&category=${encodeURIComponent(cat)}&show_names=${showNames}`;
+    }
+
+    function updateExportLink() {
+      if (exportBtn) {
+        exportBtn.href = getExportUrl();
+      }
+    }
+
+    const piiToggleBtn = document.getElementById('piiToggleBtn');
+    const piiIcon = document.getElementById('piiIcon');
+    const piiLabel = document.getElementById('piiLabel');
+
+    function setPiiState(unmask) {
+      isPiiUnmasked = unmask;
+      if (unmask) {
+        if (piiToggleBtn) {
+          piiToggleBtn.classList.remove('masked');
+          piiToggleBtn.classList.add('unmasked');
+        }
+        if (piiIcon) piiIcon.textContent = '👁️';
+        if (piiLabel) piiLabel.textContent = 'Names Unmasked';
+      } else {
+        if (piiToggleBtn) {
+          piiToggleBtn.classList.remove('unmasked');
+          piiToggleBtn.classList.add('masked');
+        }
+        if (piiIcon) piiIcon.textContent = '🙈';
+        if (piiLabel) piiLabel.textContent = 'PII Masked';
+      }
+      updateExportLink();
+    }
+
+    if (piiToggleBtn) {
+      piiToggleBtn.addEventListener('click', function() {
+        if (!isPiiUnmasked) {
+          // Turning ON: Prompt warning modal
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: '⚠️ Data Privacy & Security Warning',
+              html: `
+                <div style="text-align:left; font-size:13px; color:#334155; line-height:1.5;">
+                  <p style="margin-bottom:10px;">You are about to enable <b>Full Student Identity (PII)</b> in the exported Excel report. This will expose full student names and student IDs.</p>
+                  <div style="background:#fff1f2; border-left:4px solid #e11d48; padding:10px 12px; border-radius:6px; color:#9f1239; font-size:12px; font-weight:500;">
+                    <b>Security Requirement:</b> Ensure exported reports containing unmasked student names & IDs are handled securely for authorized disciplinary reviews only.
+                  </div>
+                </div>
+              `,
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonColor: '#dc2626',
+              cancelButtonColor: '#64748b',
+              confirmButtonText: 'Yes, Unmask Student Names & IDs',
+              cancelButtonText: 'Cancel & Keep Masked',
+              reverseButtons: true
+            }).then((result) => {
+              if (result.isConfirmed) {
+                setPiiState(true);
+              }
+            });
+          } else {
+            if (confirm("⚠️ SECURITY WARNING:\nYou are enabling full student names & IDs in the Excel report.\n\nDo you wish to proceed?")) {
+              setPiiState(true);
+            }
+          }
+        } else {
+          // Turning OFF: Re-mask PII directly
+          setPiiState(false);
+        }
+      });
+    }
+
     const categorySelect = document.getElementById('categorySelect');
 
     async function refresh(month, audience, category) {
@@ -811,9 +935,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
             renderBreakdown(newData.breakdown);
             renderCourses(newData.courses);
             renderTrend(newData.trend);
-            if (exportBtn) {
-              exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
-            }
+            updateExportLink();
             return;
           }
         }
@@ -822,10 +944,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
         renderBreakdown(data.breakdown);
         renderCourses(data.courses);
         renderTrend(data.trend);
-
-        if (exportBtn) {
-          exportBtn.href = 'AJAX/export_monthly_report_xlsx.php?month=' + encodeURIComponent(activeMonth) + '&audience=' + encodeURIComponent(audience) + '&category=' + encodeURIComponent(cat);
-        }
+        updateExportLink();
       } catch (e) {
         setLoading(false);
         alert('Failed to load report data.');
