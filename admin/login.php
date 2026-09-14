@@ -861,26 +861,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (submitBtn) submitBtn.textContent = 'Next';
       }
 
+      var checkTimer = null;
+      var lastCheckedUser = (usernameInput ? usernameInput.value : '').trim();
+      var isVerifying = false;
+
       function verifyUsername(onComplete) {
         var val = (usernameInput ? usernameInput.value : '').trim();
         if (!val) {
           hidePassword();
           hidePendingSetupState();
-          if (inlineErr) inlineErr.style.display = 'none';
+          if (inlineErr) {
+            inlineErr.textContent = '❌ Please enter a username.';
+            inlineErr.style.display = 'block';
+          }
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Next';
+          }
           if (onComplete) onComplete(false);
           return;
         }
 
-        if (val === lastCheckedUser && (isPasswordVisible || isPendingSetupState)) {
+        if (val === lastCheckedUser && isPasswordVisible) {
           if (onComplete) onComplete(true);
           return;
+        }
+
+        if (isVerifying) return;
+        isVerifying = true;
+
+        if (submitBtn && !isPasswordVisible && !isPendingSetupState) {
+          submitBtn.textContent = 'Checking...';
+          submitBtn.disabled = true;
         }
 
         fetch('login.php?check_username=1&username=' + encodeURIComponent(val))
           .then(function(r) { return r.json(); })
           .then(function(res) {
+            isVerifying = false;
+            if (submitBtn && !isPasswordVisible && !isPendingSetupState) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Next';
+            }
             lastCheckedUser = val;
             if (res && res.exists) {
+              if (inlineErr) inlineErr.style.display = 'none';
               if (res.status === 'PENDING_SETUP') {
                 showPendingSetupState();
               } else {
@@ -891,11 +916,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
               hidePendingSetupState();
               hidePassword();
-              if (inlineErr) inlineErr.style.display = 'none';
+              if (inlineErr) {
+                inlineErr.textContent = '❌ Admin username "' + val + '" not found. Please check your username.';
+                inlineErr.style.display = 'block';
+              }
               if (onComplete) onComplete(false);
             }
           })
           .catch(function() {
+            isVerifying = false;
+            if (submitBtn && !isPasswordVisible && !isPendingSetupState) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Next';
+            }
             if (onComplete) onComplete(false);
           });
       }
@@ -905,6 +938,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           clearTimeout(checkTimer);
           if (inlineErr) inlineErr.style.display = 'none';
           var val = (usernameInput.value || '').trim();
+          if (val !== lastCheckedUser) {
+            if (isPasswordVisible) hidePassword();
+            if (isPendingSetupState) hidePendingSetupState();
+          }
           if (val.length >= 2) {
             checkTimer = setTimeout(function() {
               verifyUsername();
@@ -916,7 +953,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
 
         usernameInput.addEventListener('blur', function() {
-          if (usernameInput.value.trim().length >= 2) {
+          if (usernameInput.value.trim().length >= 2 && !isPasswordVisible && !isPendingSetupState) {
             verifyUsername();
           }
         });
@@ -926,6 +963,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         loginForm.addEventListener('submit', function(e) {
           if (!isPasswordVisible && !isPendingSetupState) {
             e.preventDefault();
+            clearTimeout(checkTimer);
             verifyUsername(function(isValid) {
               if (!isValid && usernameInput) {
                 usernameInput.focus();
