@@ -515,14 +515,14 @@ try {
 
   $colWidths = [
       'A' => 18, 'B' => 16, 'C' => 16, 'D' => 28, 'E' => 18,
-      'F' => 24, 'G' => 28, 'H' => 34, 'I' => 16, 'J' => 32,
-      'K' => 15, 'L' => 20, 'M' => 45, 'N' => 48
+      'F' => 24, 'G' => 32, 'H' => 32, 'I' => 34, 'J' => 16,
+      'K' => 32, 'L' => 20, 'M' => 45, 'N' => 48
   ];
 
   $headers = [
     'Offense ID', 'Academic Level', 'Student ID', 'Student Name', 'Program & Section',
-    'Violation Category', 'Case Status & Classification', 'Level & Warning Stage', 'Offense Code',
-    'Offense / Case Name', 'Status', 'Date Committed', 'Description', 'Sanction / Penalty (NU Lipa Discipline Handbook)'
+    'Violation Category', 'Pending Cases', 'Resolved Cases', 'Warning Stage & Level',
+    'Offense Code', 'Offense / Case Name', 'Date Committed', 'Description', 'Sanction / Penalty (NU Lipa Discipline Handbook)'
   ];
 
   // Group rows by student_id
@@ -569,26 +569,31 @@ try {
 
               $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
               $isPending = in_array($caseStatus, ['PENDING', 'UNDER_INVESTIGATION', 'OPEN', 'UNDER_APPEAL', 'AWAITING_ADMIN_FINALIZATION'], true);
+              $isResolved = !$isPending && !$isDismissed;
 
               if ($isCaseRow) {
                   $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false);
                   if ($isDismissed) {
                       $rowCategory = 'DISMISSED CASE';
-                      $caseClassification = 'DISMISSED CASE';
+                      $pendingCol = 'N/A (Dismissed)';
+                      $resolvedCol = 'DISMISSED CASE';
                       $displayLevel = 'DISMISSED CASE';
                   } elseif ($isSec4Case || $hasSection4) {
                       $rowCategory = 'SECTION 4 ESCALATION';
-                      $caseClassification = $isPending ? 'PENDING SECTION 4 CASE' : 'RESOLVED SECTION 4 CASE';
-                      $displayLevel = ($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : "SECTION 4 MAJOR (PENDING UPCC HEARING)";
+                      $pendingCol = $isPending ? 'SECTION 4 MAJOR (PENDING UPCC)' : 'N/A (Resolved / Closed)';
+                      $resolvedCol = $isResolved ? (($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : "SECTION 4 MAJOR (RESOLVED)") : 'N/A (Pending Case)';
+                      $displayLevel = ($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "SECTION 4 MAJOR (PENDING UPCC)" : "SECTION 4 MAJOR (RESOLVED)");
                   } else {
                       $rowCategory = 'AUTOMATIC MAJOR';
-                      $caseClassification = $isPending ? 'PENDING AUTOMATIC MAJOR' : 'RESOLVED AUTOMATIC MAJOR';
-                      $displayLevel = ($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : "AUTOMATIC MAJOR (PENDING UPCC HEARING)";
+                      $pendingCol = $isPending ? 'AUTOMATIC MAJOR (PENDING UPCC)' : 'N/A (Resolved / Closed)';
+                      $resolvedCol = $isResolved ? (($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : "AUTOMATIC MAJOR (RESOLVED)") : 'N/A (Pending Case)';
+                      $displayLevel = ($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "AUTOMATIC MAJOR (PENDING UPCC)" : "AUTOMATIC MAJOR (RESOLVED)");
                   }
               } else {
                   if ($isDismissed) {
                       $rowCategory = 'DISMISSED OFFENSE';
-                      $caseClassification = 'DISMISSED OFFENSE';
+                      $pendingCol = 'N/A (Dismissed)';
+                      $resolvedCol = 'DISMISSED OFFENSE';
                       $displayLevel = 'DISMISSED OFFENSE';
                   } elseif ($offenseLevel === 'MINOR') {
                       $minorIdx++;
@@ -596,20 +601,24 @@ try {
 
                       if ($hasSection4 || $minorIdx % 3 === 0) {
                           $rowCategory = 'SECTION 4 ESCALATION';
-                          $caseClassification = 'MINOR OFFENSE (SECTION 4 ESCALATION)';
+                          $pendingCol = $isPending ? 'ACTIVE MINOR (SECTION 4 ESCALATION)' : 'N/A (Resolved)';
+                          $resolvedCol = $isResolved ? 'RESOLVED MINOR (SECTION 4 ESCALATION)' : 'N/A (Pending)';
                           $displayLevel = ($minorIdx % 3 === 0) ? "{$ordinal} MINOR WARNING (SECTION 4 TRIGGERED)" : "{$ordinal} MINOR WARNING";
                       } else {
                           $rowCategory = 'MINOR OFFENSE';
-                          $caseClassification = 'STANDALONE MINOR OFFENSE';
+                          $pendingCol = $isPending ? 'ACTIVE MINOR OFFENSE' : 'N/A (Resolved)';
+                          $resolvedCol = $isResolved ? 'RESOLVED MINOR OFFENSE' : 'N/A (Pending)';
                           $displayLevel = "{$ordinal} MINOR WARNING";
                       }
                   } elseif ($offenseLevel === 'MAJOR') {
                       $rowCategory = 'AUTOMATIC MAJOR';
-                      $caseClassification = 'AUTOMATIC MAJOR OFFENSE';
+                      $pendingCol = $isPending ? 'AUTOMATIC MAJOR OFFENSE (PENDING)' : 'N/A (Resolved)';
+                      $resolvedCol = $isResolved ? 'AUTOMATIC MAJOR OFFENSE (RESOLVED)' : 'N/A (Pending)';
                       $displayLevel = 'AUTOMATIC MAJOR OFFENSE';
                   } else {
                       $rowCategory = 'OTHER';
-                      $caseClassification = 'OTHER RECORD';
+                      $pendingCol = 'N/A';
+                      $resolvedCol = 'N/A';
                       $displayLevel = $offenseLevel;
                   }
               }
@@ -633,15 +642,16 @@ try {
               $sheet->setCellValue('D' . $rRow, $studentNameDisplay);
               $sheet->setCellValue('E' . $rRow, $progSec);
               $sheet->setCellValue('F' . $rRow, $rowCategory);
-              $sheet->setCellValue('G' . $rRow, $caseClassification);
-              $sheet->setCellValue('H' . $rRow, $displayLevel);
-              $sheet->setCellValue('I' . $rRow, (string)($r['offense_code'] ?? ''));
-              $sheet->setCellValue('J' . $rRow, (string)($r['offense_name'] ?? ''));
-              $sheet->setCellValue('K' . $rRow, (string)($r['status'] ?? ''));
+              $sheet->setCellValue('G' . $rRow, $pendingCol);
+              $sheet->setCellValue('H' . $rRow, $resolvedCol);
+              $sheet->setCellValue('I' . $rRow, $displayLevel);
+              $sheet->setCellValue('J' . $rRow, (string)($r['offense_code'] ?? ''));
+              $sheet->setCellValue('K' . $rRow, (string)($r['offense_name'] ?? ''));
               $sheet->setCellValue('L' . $rRow, (string)($r['date_committed'] ?? ''));
               $sheet->setCellValue('M' . $rRow, (string)($r['description'] ?? ''));
               $sheet->setCellValue('N' . $rRow, $sanctionStr);
 
+              // Styling per column
               if ($isDismissed) {
                   $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF475569']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]];
               } elseif (strpos($rowCategory, 'AUTOMATIC MAJOR') !== false) {
@@ -653,9 +663,14 @@ try {
               } else {
                   $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF854D0E']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF08A']]];
               }
+
+              $pendingStyle = $isPending ? ['font' => ['bold' => true, 'color' => ['argb' => 'FF6B21A8']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF3E8FF']]] : ['font' => ['color' => ['argb' => 'FF94A3B8']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF8FAFC']]];
+              $resolvedStyle = $isResolved ? ['font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]] : ['font' => ['color' => ['argb' => 'FF94A3B8']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF8FAFC']]];
+
               $sheet->getStyle('F' . $rRow)->applyFromArray($colorStyle);
-              $sheet->getStyle('G' . $rRow)->applyFromArray($colorStyle);
-              $sheet->getStyle('H' . $rRow)->applyFromArray($colorStyle);
+              $sheet->getStyle('G' . $rRow)->applyFromArray($pendingStyle);
+              $sheet->getStyle('H' . $rRow)->applyFromArray($resolvedStyle);
+              $sheet->getStyle('I' . $rRow)->applyFromArray($colorStyle);
               $sheet->getStyle('N' . $rRow)->applyFromArray($colorStyle);
 
               $currRow++;
