@@ -267,7 +267,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
   <style>
     .btn-eye-toggle {
       height: 34px;
-      width: 38px;
+      width: 34px;
       border-radius: 8px;
       padding: 0;
       display: inline-flex;
@@ -284,18 +284,17 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     }
     .btn-eye-toggle.masked:hover {
       background: #f1f5f9;
-      color: #334155;
+      color: #1e293b;
       border-color: #94a3b8;
     }
     .btn-eye-toggle.unmasked {
-      background: #fef2f2;
-      border-color: #fca5a5;
-      color: #dc2626;
-      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+      background: #dc2626;
+      border-color: #b91c1c;
+      color: #ffffff;
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.25);
     }
     .btn-eye-toggle.unmasked:hover {
-      background: #fee2e2;
-      color: #b91c1c;
+      background: #b91c1c;
     }
   </style>
 
@@ -857,6 +856,12 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
       if (exportBtn) {
         exportBtn.href = getExportUrl();
       }
+    }
+
+    if (exportBtn) {
+      exportBtn.addEventListener('click', function(e) {
+        this.href = getExportUrl();
+      });
     }
 
     const piiToggleBtn = document.getElementById('piiToggleBtn');
