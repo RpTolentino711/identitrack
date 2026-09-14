@@ -3005,9 +3005,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
             const res = await fetch('AJAX/guard_report_review.php', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
-            const data = await res.json();
+            const text = await res.text();
+            let data = null;
+            try {
+                data = JSON.parse(text);
+            } catch (jsonErr) {
+                console.error('Non-JSON response received:', text);
+            }
 
             closeRejectGuardModal();
 
@@ -3016,7 +3023,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 window.guardReportsList = (window.guardReportsList || []).filter(r => Number(r.report_id) !== Number(rejectedId));
 
                 // Always clear auto-filled form fields upon rejection
-                window.clearGuardReportAutoFill();
+                if (typeof window.clearGuardReportAutoFill === 'function') {
+                    window.clearGuardReportAutoFill();
+                }
 
                 if (window.guardReportsList.length > 0) {
                     if (window.currentReportIndex >= window.guardReportsList.length) {
@@ -3041,13 +3050,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                         setTimeout(() => stack.remove(), 400);
                     }
                 }
-
             } else {
-                alert('❌ Failed to reject report: ' + (data?.message || 'Error occurred'));
+                alert('❌ Failed to reject report: ' + (data?.message || 'Error occurred during rejection.'));
             }
         } catch (e) {
             closeRejectGuardModal();
-            alert('❌ Connection error while rejecting report.');
+            alert('❌ Network error while rejecting report.');
         } finally {
             if (btn) { btn.disabled = false; btn.textContent = 'Reject Report'; }
         }

@@ -2158,4 +2158,167 @@ ensure_dismissed_records_migrated();
 ensure_notice_to_explain_table();
 ensure_hearing_photo_column();
 ensure_upcc_ai_schema();
+
+if (!function_exists('getOrdinal')) {
+    function getOrdinal(int $n): string {
+        $ends = ['th','st','nd','rd','th','th','th','th','th','th'];
+        if (($n % 100) >= 11 && ($n % 100) <= 13) return $n . 'th';
+        return $n . ($ends[$n % 10] ?? 'th');
+    }
+}
+
+if (!function_exists('getStudentActiveMinorCycle')) {
+    function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = null): array {
+        if (empty($studentId)) {
+            return [
+                'minors' => [],
+                'projected_minors' => [],
+                'active_count' => 0,
+                'existing_count' => 0,
+                'projected_count' => 0,
+                'completed_cycles' => 0,
+                'current_cycle_num' => 1,
+                'type_counts' => [],
+                'max_same_type_count' => 0,
+                'max_same_type_id' => 0,
+                'max_same_type_name' => 'Minor Offense',
+                'max_same_type_offense_ids' => [],
+                'distinct_types_count' => 0,
+                'is_same_type_target' => true,
+                'required_for_escalation' => 3,
+                'is_escalation_triggered' => false,
+                'trigger_reason' => 'NONE',
+                'selected_type_id' => 0,
+                'selected_type_code' => '',
+                'selected_type_name' => '',
+            ];
+        }
+
+        $completedRow = db_one(
+            "SELECT COUNT(*) AS cnt FROM upcc_case 
+             WHERE student_id = :sid 
+               AND case_kind = 'SECTION4_MINOR_ESCALATION' 
+               AND status NOT IN ('CANCELLED','VOID')",
+            [':sid' => $studentId]
+        );
+        $completedCyclesCount = (int)($completedRow['cnt'] ?? 0);
+
+        $lastSection4 = db_one(
+            "SELECT MAX(created_at) AS max_date FROM upcc_case 
+             WHERE student_id = :sid 
+               AND case_kind = 'SECTION4_MINOR_ESCALATION' 
+               AND status NOT IN ('CANCELLED','VOID')",
+            [':sid' => $studentId]
+        );
+        $startDate = $lastSection4['max_date'] ?? null;
+
+        if (!empty($startDate)) {
+            $existingMinors = db_all(
+                "SELECT o.offense_id, o.offense_type_id, o.date_committed, o.created_at, ot.code, ot.name
+                 FROM offense o
+                 JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+                 WHERE o.student_id = :sid 
+                   AND o.level = 'MINOR'
+                   AND o.status <> 'VOID'
+                   AND o.status <> 'DISMISSED'
+                   AND ot.level <> 'DISMISSED'
+                   AND o.created_at > :start_date
+                   AND o.offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
+                 ORDER BY o.date_committed ASC, o.offense_id ASC",
+                [':sid' => $studentId, ':start_date' => $startDate]
+            ) ?: [];
+        } else {
+            $existingMinors = db_all(
+                "SELECT o.offense_id, o.offense_type_id, o.date_committed, o.created_at, ot.code, ot.name
+                 FROM offense o
+                 JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+                 WHERE o.student_id = :sid 
+                   AND o.level = 'MINOR'
+                   AND o.status <> 'VOID'
+                   AND o.status <> 'DISMISSED'
+                   AND ot.level <> 'DISMISSED'
+                   AND o.offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
+                 ORDER BY o.date_committed ASC, o.offense_id ASC",
+                [':sid' => $studentId]
+            ) ?: [];
+        }
+
+        $existingCount = count($existingMinors);
+        $projectedMinors = $existingMinors;
+        $selectedTypeCode = '';
+        $selectedTypeName = '';
+
+        if ($includeNewTypeId !== null && $includeNewTypeId > 0) {
+            $otName = db_one("SELECT code, name FROM offense_type WHERE offense_type_id = ?", [$includeNewTypeId]);
+            $selectedTypeCode = $otName['code'] ?? '';
+            $selectedTypeName = $otName['name'] ?? '';
+            $projectedMinors[] = [
+                'offense_id' => 0,
+                'offense_type_id' => $includeNewTypeId,
+                'date_committed' => date('Y-m-d H:i:s'),
+                'code' => $selectedTypeCode ?: 'CUSTOM',
+                'name' => $selectedTypeName ?: 'Minor Offense',
+                'is_new' => true,
+            ];
+        }
+
+        $typeCounts = [];
+        $typeNames = [];
+        $typeOffenseIds = [];
+        foreach ($projectedMinors as $m) {
+            $tid = (int)$m['offense_type_id'];
+            $typeCounts[$tid] = ($typeCounts[$tid] ?? 0) + 1;
+            $typeNames[$tid] = $m['name'];
+            $typeOffenseIds[$tid][] = (int)$m['offense_id'];
+        }
+
+        $projectedCount = count($projectedMinors);
+        $maxSameTypeCount = !empty($typeCounts) ? max($typeCounts) : 0;
+        $maxSameTypeId = 0;
+        foreach ($typeCounts as $tid => $c) {
+            if ($c === $maxSameTypeCount) {
+                $maxSameTypeId = $tid;
+                break;
+            }
+        }
+
+        $distinctTypesCount = count($typeCounts);
+        $isSameTypeTarget = ($maxSameTypeCount >= 3);
+        $requiredForEscalation = $isSameTypeTarget ? 3 : 4;
+
+        $isEscalationTriggered = false;
+        $triggerReason = 'NONE';
+
+        if ($maxSameTypeCount >= 3) {
+            $isEscalationTriggered = true;
+            $triggerReason = 'SAME_TYPE_3';
+        } elseif ($projectedCount >= 4) {
+            $isEscalationTriggered = true;
+            $triggerReason = 'DIFF_TYPES_4';
+        }
+
+        return [
+            'minors' => $existingMinors,
+            'projected_minors' => $projectedMinors,
+            'active_count' => $existingCount,
+            'existing_count' => $existingCount,
+            'projected_count' => $projectedCount,
+            'completed_cycles' => $completedCyclesCount,
+            'current_cycle_num' => $completedCyclesCount + 1,
+            'type_counts' => $typeCounts,
+            'max_same_type_count' => $maxSameTypeCount,
+            'max_same_type_id' => $maxSameTypeId,
+            'max_same_type_name' => $typeNames[$maxSameTypeId] ?? 'Minor Offense',
+            'max_same_type_offense_ids' => $typeOffenseIds[$maxSameTypeId] ?? [],
+            'distinct_types_count' => $distinctTypesCount,
+            'is_same_type_target' => $isSameTypeTarget,
+            'required_for_escalation' => $requiredForEscalation,
+            'is_escalation_triggered' => $isEscalationTriggered,
+            'trigger_reason' => $triggerReason,
+            'selected_type_id' => (int)($includeNewTypeId ?? 0),
+            'selected_type_code' => $selectedTypeCode,
+            'selected_type_name' => $selectedTypeName,
+        ];
+    }
+}
 ?>

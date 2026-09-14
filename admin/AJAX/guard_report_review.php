@@ -1,8 +1,9 @@
 <?php
+ob_start();
 require_once __DIR__ . '/../../database/database.php';
-require_once __DIR__ . '/../offense_new.php';
 require_admin();
 
+if (ob_get_length()) ob_clean();
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../class.phpmailer.php';
