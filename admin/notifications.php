@@ -10,7 +10,6 @@
 
 require_once __DIR__ . '/../database/database.php';
 require_admin();
-require_once __DIR__ . '/offense_new.php';
 
 $activeSidebar = 'notifications';
 
