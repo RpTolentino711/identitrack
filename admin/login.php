@@ -14,9 +14,9 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/otp_mailer.php';
 
 // AJAX check for registered admin username & status
-if (isset($_GET['check_username'])) {
+if (isset($_REQUEST['check_username'])) {
     header('Content-Type: application/json; charset=utf-8');
-    $u = trim((string)($_GET['username'] ?? ''));
+    $u = trim((string)($_REQUEST['username'] ?? ''));
     if ($u === '') {
         echo json_encode(['ok' => false, 'exists' => false]);
         exit;
@@ -918,7 +918,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           fetchSignal = activeFetchController.signal;
         }
 
-        fetch('login.php?check_username=1&username=' + encodeURIComponent(val), { signal: fetchSignal })
+        fetch(window.location.pathname, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'check_username=1&username=' + encodeURIComponent(val),
+          signal: fetchSignal
+        })
           .then(function(r) { return r.json(); })
           .then(function(res) {
             activeFetchController = null;
@@ -970,6 +975,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           if (val !== lastCheckedUser) {
             if (isPasswordVisible) hidePassword();
             if (isPendingSetupState) hidePendingSetupState();
+          }
+        });
+      }
+
+      if (submitBtn) {
+        submitBtn.addEventListener('click', function(e) {
+          if (!isPasswordVisible && !isPendingSetupState) {
+            e.preventDefault();
+            verifyUsername(function(isValid) {
+              if (!isValid && usernameInput) {
+                usernameInput.focus();
+              }
+            });
           }
         });
       }
