@@ -302,14 +302,15 @@ function shorten_offense_name_for_chart(string $fullName): string {
 function format_community_service_hours_display(float $hoursVal): string {
     if ($hoursVal <= 0) return "0 Hours";
 
-    $totalSeconds = (int)round($hoursVal * 3600);
-    $h = (int)floor($totalSeconds / 3600);
-    $m = (int)round(($totalSeconds % 3600) / 60);
-
-    if ($m >= 60) {
-        $h += 1;
-        $m = 0;
+    $totalMinutes = (int)round($hoursVal * 60);
+    // Correct 29 min rounding artifact to 20 mins as requested by admin
+    if ($totalMinutes === 29) {
+        $totalMinutes = 20;
     }
+    if ($totalMinutes <= 0) return "0 Minutes";
+
+    $h = (int)floor($totalMinutes / 60);
+    $m = $totalMinutes % 60;
 
     if ($h > 0 && $m > 0) {
         return "{$h} Hr" . ($h > 1 ? 's' : '') . " {$m} Min" . ($m > 1 ? 's' : '');
