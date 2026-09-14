@@ -10,6 +10,7 @@
 
 require_once __DIR__ . '/../database/database.php';
 require_admin();
+require_once __DIR__ . '/offense_new.php';
 
 $activeSidebar = 'notifications';
 
@@ -47,23 +48,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       if ($report && strtoupper((string)$report['status']) === 'PENDING') {
         $offenseType = db_one(
-          "SELECT level FROM offense_type WHERE offense_type_id = :oid LIMIT 1",
+          "SELECT level, major_category FROM offense_type WHERE offense_type_id = :oid LIMIT 1",
           [':oid' => (int)$report['offense_type_id']]
         );
 
         if ($offenseType) {
+          $level = strtoupper((string)$offenseType['level']);
+          $majorCategory = (int)($offenseType['major_category'] ?? 0);
+          $studentId = (string)$report['student_id'];
+
           db_exec(
             "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, date_committed, status, created_at, updated_at)
              VALUES (:sid, :admin, :tid, :lvl, :descr, :dt, 'OPEN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
             [
-              ':sid' => (string)$report['student_id'],
+              ':sid' => $studentId,
               ':admin' => $adminId,
               ':tid' => (int)$report['offense_type_id'],
-              ':lvl' => strtoupper((string)$offenseType['level']),
+              ':lvl' => $level,
               ':descr' => ($report['description'] === '' ? null : $report['description']),
               ':dt' => (string)$report['date_committed'],
             ]
           );
+          $newOffenseId = (int)db_last_id();
+
+          $isEsc = false;
+          if ($level === 'MAJOR') {
+              db_exec(
+                "INSERT INTO upcc_case (student_id, created_by, status, case_kind, case_summary, created_at, updated_at)
+                 VALUES (:sid, :aid, 'UNDER_INVESTIGATION', 'MAJOR_OFFENSE', :summary, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                [
+                  ':sid'     => $studentId,
+                  ':aid'     => $adminId,
+                  ':summary' => 'Major Offense - Category ' . $majorCategory . ' - UPCC investigation required',
+                ]
+              );
+              $caseId = (int)db_last_id();
+              db_exec(
+                "INSERT INTO upcc_case_offense (case_id, offense_id) VALUES (:case_id, :offense_id)",
+                [':case_id' => $caseId, ':offense_id' => $newOffenseId]
+              );
+          } elseif ($level === 'MINOR') {
+              $cycleInfo = getStudentActiveMinorCycle($studentId);
+              $afterMinor = (int)($cycleInfo['existing_count'] ?? $cycleInfo['active_count'] ?? 0);
+              $maxSameCount = (int)($cycleInfo['max_same_type_count'] ?? 0);
+              $isEsc = ($maxSameCount >= 3 || $afterMinor >= 4) && (bool)($cycleInfo['is_escalation_triggered'] ?? false);
+
+              $existingSection4Case = db_one(
+                "SELECT case_id FROM upcc_case
+                 WHERE student_id = :sid
+                   AND status IN ('PENDING','UNDER_INVESTIGATION','UNDER_APPEAL')
+                   AND case_kind = 'SECTION4_MINOR_ESCALATION'
+                 LIMIT 1",
+                [':sid' => $studentId]
+              );
+
+              if (!$existingSection4Case && $isEsc) {
+                $reason = $cycleInfo['trigger_reason'] ?? 'NONE';
+                $cycleNum = $cycleInfo['current_cycle_num'] ?? 1;
+                $ordStr = getOrdinal($cycleNum);
+
+                if ($reason === 'SAME_TYPE_3') {
+                    $typeName = $cycleInfo['max_same_type_name'];
+                    $summaryStr = 'Section 4 Major (' . $ordStr . ' Escalation - 3 Same Minor Offenses: ' . $typeName . ') → Referred to UPCC panel for investigation and category assignment (1‑5).';
+                } else {
+                    $summaryStr = 'Section 4 Major (' . $ordStr . ' Escalation - 4 Different Minor Offenses) → Referred to UPCC panel for investigation and category assignment (1‑5).';
+                }
+
+                db_exec(
+                  "INSERT INTO upcc_case (student_id, created_by, status, case_kind, case_summary, created_at, updated_at)
+                   VALUES (:sid, :aid, 'PENDING', 'SECTION4_MINOR_ESCALATION', :summary, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                  [
+                    ':sid'     => $studentId,
+                    ':aid'     => $adminId,
+                    ':summary' => $summaryStr,
+                  ]
+                );
+                $caseId = (int)db_last_id();
+
+                $triggerMinors = $cycleInfo['minors'] ?? [];
+                if ($reason === 'SAME_TYPE_3') {
+                    $targetTypeId = $cycleInfo['max_same_type_id'];
+                    $triggerMinors = array_values(array_filter($triggerMinors, function($m) use ($targetTypeId) {
+                        return (int)$m['offense_type_id'] === $targetTypeId;
+                    }));
+                }
+                foreach ($triggerMinors as $minor) {
+                  if (!empty($minor['offense_id'])) {
+                    db_exec(
+                      "INSERT INTO upcc_case_offense (case_id, offense_id) VALUES (:case_id, :offense_id)",
+                      [':case_id' => $caseId, ':offense_id' => (int)$minor['offense_id']]
+                    );
+                  }
+                }
+              }
+          }
 
           db_exec(
             "UPDATE guard_violation_report
@@ -72,7 +150,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             [':admin' => $adminId, ':note' => 'Approved by admin via notifications.', ':rid' => $reportId]
           );
 
-          // We no longer auto-delete the notification; the user requested it stay in the audit so it can be logged and manually deleted.
           db_exec(
             "UPDATE notification
              SET is_read = 1
@@ -81,6 +158,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                AND related_id = :rid",
             [':rid' => $reportId]
           );
+
+          if (!empty($level) && $level === 'MAJOR') {
+              redirect('offense_new.php?level=MAJOR&student_id=' . urlencode($studentId) . '&letter=1&offense_id=' . $newOffenseId . '&type=major&success=1');
+          } elseif (!empty($isEsc) && $isEsc) {
+              redirect('offense_new.php?level=MINOR&student_id=' . urlencode($studentId) . '&letter=1&offense_id=' . $newOffenseId . '&type=escalation&success=1');
+          } elseif (isset($afterMinor) && $afterMinor === 2) {
+              redirect('offense_new.php?level=MINOR&student_id=' . urlencode($studentId) . '&letter=1&offense_id=' . $newOffenseId . '&type=letter&minor_no=2&success=1');
+          }
 
           redirect('notifications.php?msg=guard_report_approved');
         }
