@@ -496,6 +496,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       transform: translateY(-1px);
     }
 
+    .btn-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2.5px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+      vertical-align: -2px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     .forgot {
       display: block;
       text-align: center;
@@ -861,7 +877,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (submitBtn) submitBtn.textContent = 'Next';
       }
 
-      var checkTimer = null;
       var lastCheckedUser = (usernameInput ? usernameInput.value : '').trim();
       var activeFetchController = null;
 
@@ -876,7 +891,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           }
           if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Next';
+            submitBtn.innerHTML = 'Next';
           }
           if (onComplete) onComplete(false);
           return;
@@ -892,9 +907,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           activeFetchController = null;
         }
 
-        if (submitBtn && !isPasswordVisible && !isPendingSetupState) {
-          submitBtn.textContent = 'Checking...';
+        if (submitBtn) {
           submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="btn-spinner"></span> Checking...';
         }
 
         var fetchSignal = null;
@@ -909,7 +924,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             activeFetchController = null;
             if (submitBtn && !isPasswordVisible && !isPendingSetupState) {
               submitBtn.disabled = false;
-              submitBtn.textContent = 'Next';
+              submitBtn.innerHTML = 'Next';
             }
             lastCheckedUser = val;
             if (res && res.exists) {
@@ -925,7 +940,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               hidePendingSetupState();
               hidePassword();
               if (inlineErr) {
-                inlineErr.textContent = '❌ Admin username "' + val + '" not found. Please check your username.';
+                inlineErr.textContent = '❌ Admin account "' + val + '" not found. Please check your username.';
                 inlineErr.style.display = 'block';
               }
               if (onComplete) onComplete(false);
@@ -936,7 +951,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             activeFetchController = null;
             if (submitBtn && !isPasswordVisible && !isPendingSetupState) {
               submitBtn.disabled = false;
-              submitBtn.textContent = 'Next';
+              submitBtn.innerHTML = 'Next';
             }
             hidePendingSetupState();
             hidePassword();
@@ -950,26 +965,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       if (usernameInput) {
         usernameInput.addEventListener('input', function() {
-          clearTimeout(checkTimer);
           if (inlineErr) inlineErr.style.display = 'none';
           var val = (usernameInput.value || '').trim();
           if (val !== lastCheckedUser) {
             if (isPasswordVisible) hidePassword();
             if (isPendingSetupState) hidePendingSetupState();
-          }
-          if (val.length >= 2) {
-            checkTimer = setTimeout(function() {
-              verifyUsername();
-            }, 350);
-          } else {
-            hidePendingSetupState();
-            hidePassword();
-          }
-        });
-
-        usernameInput.addEventListener('blur', function() {
-          if (usernameInput.value.trim().length >= 2 && !isPasswordVisible && !isPendingSetupState) {
-            verifyUsername();
           }
         });
       }
@@ -978,7 +978,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         loginForm.addEventListener('submit', function(e) {
           if (!isPasswordVisible && !isPendingSetupState) {
             e.preventDefault();
-            clearTimeout(checkTimer);
             verifyUsername(function(isValid) {
               if (!isValid && usernameInput) {
                 usernameInput.focus();
