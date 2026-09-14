@@ -40,13 +40,13 @@ if (!$isLocked) {
         $mail = new PHPMailer(true);
         $mail->CharSet   = 'UTF-8';
         $mail->isSMTP();
-        $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
-        $mail->Port      = 587;
+        $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+        $mail->Port      = (int)get_env_var('SMTP_PORT', 587);
         $mail->SMTPAuth  = true;
-        $mail->SMTPSecure = 'tls';
+        $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'tls');
         $mail->Username = db_smtp_user();
         $mail->Password = db_smtp_pass();
-        $mail->Timeout   = 15;
+        $mail->Timeout   = 20;
 
         $mail->setFrom(db_smtp_user(), 'UPCC Panel');
         $mail->addAddress($user['email'], $user['full_name']);
@@ -114,9 +114,24 @@ if (!$isLocked) {
 
         $mail->AltBody = "Your UPCC login OTP is: {$otp}\n\nExpires in 5 minutes. Do not share it with anyone.\nRequested at: {$requestedAt}";
 
-        $mail->send();
+        try {
+            $mail->send();
+        } catch (Exception $e1) {
+            try {
+                $mail->Port = ($mail->Port == 465) ? 587 : 465;
+                $mail->SMTPSecure = ($mail->Port == 465) ? 'ssl' : 'tls';
+                $mail->send();
+            } catch (Exception $e2) {
+                $headers  = "MIME-Version: 1.0\r\n";
+                $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+                $headers .= "From: UPCC Panel <" . db_smtp_user() . ">\r\n";
+                if (!@mail($user['email'], 'Your UPCC Login Code', $mail->Body, $headers)) {
+                    $mailError = "SMTP Error: " . $e1->getMessage();
+                }
+            }
+        }
     } catch (Exception $e) {
-        $mailError = $e->getMessage();
+        $mailError = "SMTP Error: " . $e->getMessage();
     }
 }
 

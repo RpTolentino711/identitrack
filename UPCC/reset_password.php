@@ -52,15 +52,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $mail = new PHPMailer(true);
                     $mail->CharSet   = 'UTF-8';
                     $mail->isSMTP();
-                    $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
-                    $mail->Port      = 587;
+                    $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+                    $mail->Port      = (int)get_env_var('SMTP_PORT', 587);
                     $mail->SMTPAuth  = true;
-                    $mail->SMTPSecure = 'tls';
+                    $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'tls');
                     $mail->Username = db_smtp_user();
                     $mail->Password = db_smtp_pass();
-                    $mail->Timeout   = 15;
+                    $mail->Timeout   = 20;
 
-                    $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'UPCC Panel');
+                    $mail->setFrom(db_smtp_user(), 'UPCC Panel');
                     $mail->addAddress($user['email'], $user['full_name']);
                     $mail->addReplyTo('no-reply@identitrack.site', 'UPCC Panel');
                     
@@ -126,7 +126,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $mail->AltBody = "Your UPCC password reset code is: {$otp}\n\nExpires in 5 minutes.\nRequested at: {$requestedAt}";
 
-                    if ($mail->send()) {
+                    $sent = false;
+                    try {
+                        $sent = $mail->send();
+                    } catch (Exception $e1) {
+                        try {
+                            $mail->Port = ($mail->Port == 465) ? 587 : 465;
+                            $mail->SMTPSecure = ($mail->Port == 465) ? 'ssl' : 'tls';
+                            $sent = $mail->send();
+                        } catch (Exception $e2) {
+                            $headers  = "MIME-Version: 1.0\r\n";
+                            $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+                            $headers .= "From: UPCC Panel <" . db_smtp_user() . ">\r\n";
+                            $sent = @mail($user['email'], 'Reset Your UPCC Password', $mail->Body, $headers);
+                        }
+                    }
+
+                    if ($sent) {
                         $_SESSION['reset_step'] = 'otp';
                     } else {
                         $error = 'Failed to send verification email. Please try again.';
