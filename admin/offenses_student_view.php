@@ -493,37 +493,45 @@ foreach ($nteRows as $nte) {
     }
 }
 
-// Create escalation groups: every 3 minors (in order) becomes one major escalation card
+// Fetch real Section 4 Escalation cases for this student from upcc_case
+$sec4Cases = db_all("
+    SELECT uc.case_id, uc.status, uc.case_summary, uc.decided_category, uc.resolution_date, uc.probation_until, uc.incident_photo,
+           " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ",
+           (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
+    FROM upcc_case uc
+    WHERE uc.student_id = :sid 
+      AND uc.case_kind = 'SECTION4_MINOR_ESCALATION'
+      AND uc.status NOT IN ('CANCELLED','VOID')
+    ORDER BY uc.created_at ASC
+", [':sid' => $studentId]) ?: [];
+
 $escalationGroups = [];
-for ($i = 0; $i < count($allMinors); $i += 3) {
-    $group = array_slice($allMinors, $i, 3);
-    if (count($group) === 3) {
-        $lastMinorId = $group[2]['offense_id'];
-        $escParams = [':oid' => $lastMinorId];
-        db_add_encryption_key($escParams);
-        $caseRow = db_one(
-            "SELECT uc.case_id, uc.status, uc.decided_category, uc.resolution_date, uc.probation_until, uc.incident_photo,
-                    " . db_decrypt_cols(['final_decision', 'punishment_details'], 'uc') . ",
-                    (SELECT csr.status FROM community_service_requirement csr WHERE csr.related_case_id = uc.case_id LIMIT 1) AS csr_status
-             FROM upcc_case uc
-             JOIN upcc_case_offense uco ON uc.case_id = uco.case_id
-             WHERE uco.offense_id = :oid
-             LIMIT 1",
-            $escParams
-        );
-        $escalationGroups[] = [
-            'minors' => $group,
-            'case_id' => $caseRow ? (int)$caseRow['case_id'] : 0,
-            'case_status' => $caseRow ? strtoupper((string)$caseRow['status']) : 'PENDING',
-            'case_category' => $caseRow ? $caseRow['decided_category'] : null,
-            'case_decision' => $caseRow ? $caseRow['final_decision'] : null,
-            'case_punishment' => $caseRow ? $caseRow['punishment_details'] : null,
-            'case_resolution_date' => $caseRow ? $caseRow['resolution_date'] : null,
-            'case_probation_until' => $caseRow ? $caseRow['probation_until'] : null,
-            'csr_status' => $caseRow ? $caseRow['csr_status'] : null,
-            'case_photo' => $caseRow ? $caseRow['incident_photo'] : null
-        ];
-    }
+foreach ($sec4Cases as $c) {
+    $caseId = (int)$c['case_id'];
+    $escParams = [':cid' => $caseId];
+    db_add_encryption_key($escParams);
+    $linkedMinors = db_all("
+        SELECT o.offense_id, o.date_committed, " . db_decrypt_col('description', 'o') . " AS description, ot.code, ot.name
+        FROM upcc_case_offense uco
+        JOIN offense o ON o.offense_id = uco.offense_id
+        JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+        WHERE uco.case_id = :cid
+        ORDER BY o.date_committed ASC, o.offense_id ASC
+    ", $escParams) ?: [];
+
+    $escalationGroups[] = [
+        'minors'               => $linkedMinors,
+        'case_id'              => $caseId,
+        'case_summary'         => $c['case_summary'] ?? '',
+        'case_status'          => strtoupper((string)($c['status'] ?? 'PENDING')),
+        'case_category'        => $c['decided_category'] ?? null,
+        'case_decision'        => $c['final_decision'] ?? null,
+        'case_punishment'      => $c['punishment_details'] ?? null,
+        'case_resolution_date' => $c['resolution_date'] ?? null,
+        'case_probation_until' => $c['probation_until'] ?? null,
+        'csr_status'           => $c['csr_status'] ?? null,
+        'case_photo'           => $c['incident_photo'] ?? null,
+    ];
 }
 
 // Major count = explicit majors + number of escalation groups
@@ -1713,9 +1721,11 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                       
                       $isFirst = ($groupIndex === 0);
                       $title = $isFirst ? 'Section 4 Escalation' : 'Batch ' . ($groupIndex + 1) . ' Escalation';
-                      $desc = $isFirst
-                        ? 'This student has reached <strong>3 minor offenses</strong>, triggering a Section 4 escalation. The panel must investigate and assign a Category <strong>1-5</strong> before a final sanction can be issued.'
-                        : 'This student has accumulated another batch of <strong>3 minor offenses</strong>. This also constitutes a major offense and should be reviewed by the panel.';
+                      $desc = !empty($groupData['case_summary'])
+                        ? htmlspecialchars($groupData['case_summary'])
+                        : ($isFirst
+                            ? 'This student has accumulated minor offenses triggering a Section 4 escalation (3 of SAME type or 4 of MIXED types). The panel must investigate and assign a Category <strong>1-5</strong>.'
+                            : 'This student has accumulated another Section 4 escalation cycle. This constitutes a major offense and should be reviewed by the panel.');
                         
                       if ($caseStatus === 'RESOLVED' || $caseStatus === 'CLOSED') {
                           $badgeLabel = 'Panel Decision Finalized';
