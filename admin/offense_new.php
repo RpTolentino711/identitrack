@@ -594,18 +594,17 @@ if ($letterOffenseId <= 0 && $hasActiveWorkflowRequest && !empty($studentIdPrefi
         [':sid' => $studentIdPrefill]
     );
     if ($unsentOffense) {
-        $mCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND level = 'MINOR' AND offense_id <= :oid", [':sid' => $studentIdPrefill, ':oid' => $unsentOffense['offense_id']]);
-        $mCount = (int)($mCountRow['cnt'] ?? 0);
+        $cycleInfo = getStudentActiveMinorCycle($studentIdPrefill);
         $offLevel = strtoupper((string)$unsentOffense['level']);
         $isSec4 = ((int)($unsentOffense['is_section4_case'] ?? 0) > 0) || ((string)($_GET['type'] ?? '') === 'escalation');
 
         if ($offLevel === 'MAJOR' && $level === 'MAJOR') {
             $letterOffenseId = (int)$unsentOffense['offense_id'];
             $letterType = 'major';
-        } elseif ($isSec4 || ($mCount % 3 === 0 && $mCount >= 3)) {
+        } elseif ($isSec4 || (bool)($cycleInfo['is_escalation_triggered'] ?? false)) {
             $letterOffenseId = (int)$unsentOffense['offense_id'];
             $letterType = 'escalation';
-        } elseif ($mCount % 3 === 2) {
+        } elseif (($cycleInfo['existing_count'] ?? 0) === 2 && !(bool)($cycleInfo['is_escalation_triggered'] ?? false)) {
             $letterOffenseId = (int)$unsentOffense['offense_id'];
             $letterType = 'letter';
         }
@@ -627,32 +626,37 @@ if ($targetOffenseId > 0) {
         [':oid' => $targetOffenseId]
     );
     if ($offCheck) {
-        $mCountRow = db_one("SELECT COUNT(*) as cnt FROM offense WHERE student_id = :sid AND level = 'MINOR' AND offense_id <= :oid", [':sid' => $offCheck['student_id'], ':oid' => $targetOffenseId]);
-        $mCount = (int)($mCountRow['cnt'] ?? 0);
+        $cycleInfo = getStudentActiveMinorCycle($offCheck['student_id']);
 
         $isSection4Linked = ((int)($offCheck['is_section4_case'] ?? 0) > 0);
         $urlTypeIsEsc = ((string)($_GET['type'] ?? '') === 'escalation');
+        $isEscalationTriggeredInCycle = (bool)($cycleInfo['is_escalation_triggered'] ?? false);
 
-        $isEsc = (strtoupper((string)$offCheck['level']) === 'MAJOR') || $isSection4Linked || $urlTypeIsEsc || ($mCount % 3 === 0 && $mCount >= 3);
-        $isTriggerOffense = (strtoupper((string)$offCheck['level']) === 'MAJOR') || $isSection4Linked || $urlTypeIsEsc || ($mCount % 3 === 2) || ($mCount % 3 === 0 && $mCount >= 3);
+        $isEsc = (strtoupper((string)$offCheck['level']) === 'MAJOR') || $isSection4Linked || $urlTypeIsEsc || $isEscalationTriggeredInCycle;
+        
+        $isTriggerOffense = (strtoupper((string)$offCheck['level']) === 'MAJOR') 
+                         || $isSection4Linked 
+                         || $urlTypeIsEsc 
+                         || $isEscalationTriggeredInCycle 
+                         || (($cycleInfo['existing_count'] ?? 0) === 2 && !$isEscalationTriggeredInCycle);
         
         if ($isEsc) {
             $isSection4EscalationOffense = true;
         }
 
-        // STAGE 1: Guardian Email Notification (Only for 2nd Minor, 3rd Minor Escalation, 4th Mixed Minor Escalation, or Major!)
+        // STAGE 1: Guardian Email Notification (Only for 2nd Minor Warning, Section 4 Escalation, or Major!)
         if ((empty($offCheck['guardian_notified_at']) || $offCheck['guardian_notified_at'] === '0000-00-00 00:00:00') && $isTriggerOffense) {
             $letterMode = true;
             $letterOffenseId = $targetOffenseId;
-            $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : (($isSection4Linked || $urlTypeIsEsc || ($mCount % 3 === 0 && $mCount >= 3)) ? 'escalation' : 'letter');
+            $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : (($isSection4Linked || $urlTypeIsEsc || $isEscalationTriggeredInCycle) ? 'escalation' : 'letter');
         } 
-        // STAGE 2: Form F-005 Notice to Explain (for Escalation / Major)
+        // STAGE 2: Form F-005 Notice to Explain (ONLY for Section 4 Escalation / Major)
         elseif ($isEsc && empty($_SESSION['nte_done_' . $targetOffenseId])) {
             $ntePendingMode = true;
             $letterOffenseId = $targetOffenseId;
             $letterType = (strtoupper((string)$offCheck['level']) === 'MAJOR') ? 'major' : 'escalation';
         } 
-        // STAGE 3: Incident Photo Evidence (for Escalation / Major)
+        // STAGE 3: Incident Photo Evidence (ONLY for Section 4 Escalation / Major)
         elseif ($isEsc && empty($_SESSION['evidence_done_' . $targetOffenseId])) {
             $evidencePendingMode = true;
             $letterOffenseId = $targetOffenseId;
@@ -660,11 +664,8 @@ if ($targetOffenseId > 0) {
     }
 }
 $letterMinorNo = (int)($_GET['minor_no'] ?? 0);
-if ($letterMinorNo <= 0 && isset($mCount) && $mCount > 0) {
-    $letterMinorNo = $mCount;
-}
 if ($letterMinorNo <= 0 && !empty($studentIdPrefill)) {
-    $mRowCalc = db_one("SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MINOR'", [':sid' => $studentIdPrefill]);
+    $mRowCalc = db_one("SELECT COUNT(*) AS cnt FROM offense WHERE student_id = :sid AND level = 'MINOR' AND status <> 'DISMISSED' AND status <> 'VOID'", [':sid' => $studentIdPrefill]);
     $letterMinorNo = (int)($mRowCalc['cnt'] ?? 0);
 }
 $letterEscNum = max(1, (int)ceil($letterMinorNo / 3));
@@ -864,6 +865,8 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
              WHERE o.student_id = :sid 
                AND o.level = 'MINOR'
                AND o.status <> 'VOID'
+               AND o.status <> 'DISMISSED'
+               AND ot.level <> 'DISMISSED'
                AND o.created_at > :start_date
                AND o.offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
              ORDER BY o.date_committed ASC, o.offense_id ASC",
@@ -877,6 +880,8 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
              WHERE o.student_id = :sid 
                AND o.level = 'MINOR'
                AND o.status <> 'VOID'
+               AND o.status <> 'DISMISSED'
+               AND ot.level <> 'DISMISSED'
                AND o.offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
              ORDER BY o.date_committed ASC, o.offense_id ASC",
             [':sid' => $studentId]

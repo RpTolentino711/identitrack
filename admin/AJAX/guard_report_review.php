@@ -266,7 +266,10 @@ if ($action === 'approve_guard_report') {
   } elseif ($level === 'MINOR') {
       $cycleInfo = getStudentActiveMinorCycle($studentId);
       $afterMinor = (int)($cycleInfo['existing_count'] ?? $cycleInfo['active_count'] ?? 0);
-      $isEsc = (bool)($cycleInfo['is_escalation_triggered'] ?? false);
+      $maxSameCount = (int)($cycleInfo['max_same_type_count'] ?? 0);
+
+      // Strict Guard: Section 4 ONLY triggers if 3+ of SAME type OR 4+ total active minors
+      $isEsc = ($maxSameCount >= 3 || $afterMinor >= 4) && (bool)($cycleInfo['is_escalation_triggered'] ?? false);
 
       $escalationType = null;
       $defaultSubject = '';
@@ -281,7 +284,7 @@ if ($action === 'approve_guard_report') {
       $guardianRow = db_one("SELECT guardian_email FROM guardian WHERE student_id = :sid LIMIT 1", [':sid' => $studentId]);
       $guardianEmail = trim($guardianRow['guardian_email'] ?? '');
 
-      if ($afterMinor === 2) {
+      if ($afterMinor === 2 && !$isEsc) {
           $escalationMsg = "This is the student's 2nd Minor Offense. Please review and send the warning email to their guardian.";
           $escalationType = 'letter';
           $defaultSubject = 'Student Conduct Notice — 2nd Minor Offense Warning';
@@ -317,6 +320,19 @@ if ($action === 'approve_guard_report') {
               }
           }
           $defaultBody .= "\n\nPlease be reminded that accumulating minor offenses under Section 4 will trigger automatic escalation and referral to the UPCC Panel.\n\nWe encourage you to support your student in maintaining proper conduct within our institution.\n\nSincerely,\nStudent Discipline Office";
+      } elseif ($afterMinor === 3 && $maxSameCount < 3 && !$isEsc) {
+          // 3rd minor of DIFFERENT types -> Student App Warning Alert
+          try {
+            db_exec(
+              "INSERT INTO notification (type, title, message, student_id, admin_id, related_table, related_id, is_read, is_deleted, created_at)
+               VALUES ('STUDENT_MINOR_WARNING', '⚠️ Warning: 3rd Minor Offense Recorded (Different Types)', 'You have accumulated 3 minor offenses of different types. Note: 1 more minor offense of any type will trigger Section 4 Escalation to the UPCC Panel!', :sid, :aid, 'offense', :oid, 0, 0, CURRENT_TIMESTAMP)",
+              [
+                ':sid' => $studentId,
+                ':aid' => $adminId,
+                ':oid' => $newOffenseId
+              ]
+            );
+          } catch (\Throwable $ex) {}
       }
 
       $existingSection4Case = db_one(
@@ -423,8 +439,8 @@ if ($action === 'approve_guard_report') {
   );
 
   // Store the pending letter in session so it pops up persistently if not sent
-  if (isset($escalationType)) {
-      if (session_status() === PHP_SESSION_NONE) session_start();
+  if (session_status() === PHP_SESSION_NONE) session_start();
+  if (!empty($escalationType)) {
       $_SESSION['pending_letter'] = [
           'offense_id'      => $newOffenseId,
           'escalation_type' => $escalationType,
@@ -432,6 +448,10 @@ if ($action === 'approve_guard_report') {
           'default_subject' => $defaultSubject ?? '',
           'default_body'    => $defaultBody ?? ''
       ];
+      $_SESSION['pending_letter_offense_id'] = $newOffenseId;
+      $_SESSION['pending_letter_type']       = $escalationType;
+  } else {
+      unset($_SESSION['pending_letter'], $_SESSION['pending_letter_offense_id'], $_SESSION['pending_letter_type'], $_SESSION['pending_nte_offense_id'], $_SESSION['pending_evidence_offense_id']);
   }
 
   echo json_encode([
