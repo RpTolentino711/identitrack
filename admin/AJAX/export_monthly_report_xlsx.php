@@ -738,51 +738,55 @@ try {
   $hasSection4InGroup1 = false;
 
   foreach ($rows as $index => $r) {
+    $isCaseRow = !empty($r['case_id']) || strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0;
     $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
     $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
     $offenseStatus = strtoupper((string)($r['status'] ?? ''));
     $decidedCat = (int)($r['decided_category'] ?? 0);
     $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
 
-    $seqCount = 0;
-    if ($offenseLevel === 'MINOR') {
-        $seqCount = (int)(db_one(
-            "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = ? AND date_committed <= ? AND status <> 'VOID'",
-            [$r['student_id'], $r['date_committed']]
-        )['cnt'] ?? 1);
-    }
-
     $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
-    $isSec4 = ($seqCount >= 3 || strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false);
 
-    if ($isDismissed) {
-        $displayLevel = 'DISMISSED';
-    } elseif ($isSec4) {
-        if ($decidedCat > 0) {
-            $displayLevel = "SECTION 4 MAJOR (CATEGORY {$decidedCat})";
+    if ($isCaseRow) {
+        $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false);
+        if ($isDismissed) {
+            $displayLevel = 'DISMISSED CASE';
+        } elseif ($isSec4Case) {
+            if ($decidedCat > 0) {
+                $displayLevel = "SECTION 4 MAJOR (CATEGORY {$decidedCat})";
+            } else {
+                $displayLevel = 'SECTION 4 MAJOR (PENDING)';
+            }
+            $hasSection4InGroup1 = true;
         } else {
-            $displayLevel = 'SECTION 4 MAJOR';
-        }
-    } elseif ($offenseLevel === 'MAJOR' || strpos((string)($r['offense_code'] ?? ''), 'MAJ-') !== false) {
-        if ($decidedCat > 0) {
-            $displayLevel = "AUTOMATIC MAJOR (CATEGORY {$decidedCat})";
-        } else {
-            $displayLevel = 'AUTOMATIC MAJOR';
-        }
-    } elseif ($offenseLevel === 'MINOR') {
-        if ($seqCount === 2) {
-            $displayLevel = '2ND MINOR WARNING';
-        } elseif ($seqCount === 1) {
-            $displayLevel = '1ST MINOR WARNING';
-        } else {
-            $displayLevel = 'MINOR WARNING';
+            if ($decidedCat > 0) {
+                $displayLevel = "AUTOMATIC MAJOR (CATEGORY {$decidedCat})";
+            } else {
+                $displayLevel = 'AUTOMATIC MAJOR (PENDING)';
+            }
         }
     } else {
-        $displayLevel = $offenseLevel;
-    }
+        if ($isDismissed) {
+            $displayLevel = 'DISMISSED OFFENSE';
+        } elseif ($offenseLevel === 'MINOR') {
+            $seqCount = (int)(db_one(
+                "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = ? AND date_committed <= ? AND status <> 'VOID'",
+                [$r['student_id'], $r['date_committed']]
+            )['cnt'] ?? 1);
 
-    if ($isSec4) {
-        $hasSection4InGroup1 = true;
+            $ordinal = ($seqCount === 1) ? '1ST' : (($seqCount === 2) ? '2ND' : (($seqCount === 3) ? '3RD' : "{$seqCount}TH"));
+
+            if ($seqCount % 3 === 0) {
+                $displayLevel = "{$ordinal} MINOR WARNING (SECTION 4 ESCALATION)";
+                $hasSection4InGroup1 = true;
+            } else {
+                $displayLevel = "{$ordinal} MINOR WARNING";
+            }
+        } elseif ($offenseLevel === 'MAJOR') {
+            $displayLevel = 'AUTOMATIC MAJOR OFFENSE';
+        } else {
+            $displayLevel = $offenseLevel;
+        }
     }
 
     $rawStudentName = (string)($r['student_name'] ?? '');
@@ -811,7 +815,7 @@ try {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF475569']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]];
     } elseif (strpos($displayLevel, 'AUTOMATIC MAJOR') !== false) {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]];
-    } elseif ($isSec4) {
+    } elseif (strpos($displayLevel, 'SECTION 4') !== false) {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FFC2410C']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFEDD5']]];
     } elseif ($decidedCat > 0 || !empty($r['final_decision'])) {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]];
@@ -883,51 +887,55 @@ try {
   $hasSection4InGroup2 = false;
 
   foreach ($rows as $index => $r) {
+    $isCaseRow = !empty($r['case_id']) || strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0;
     $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
     $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
     $offenseStatus = strtoupper((string)($r['status'] ?? ''));
     $decidedCat = (int)($r['decided_category'] ?? 0);
     $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
 
-    $seqCount = 0;
-    if ($offenseLevel === 'MINOR') {
-        $seqCount = (int)(db_one(
-            "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = ? AND date_committed <= ? AND status <> 'VOID'",
-            [$r['student_id'], $r['date_committed']]
-        )['cnt'] ?? 1);
-    }
-
     $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
-    $isSec4 = ($seqCount >= 3 || strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false);
 
-    if ($isDismissed) {
-        $displayLevel = 'DISMISSED';
-    } elseif ($isSec4) {
-        if ($decidedCat > 0) {
-            $displayLevel = "SECTION 4 MAJOR (CATEGORY {$decidedCat})";
+    if ($isCaseRow) {
+        $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false);
+        if ($isDismissed) {
+            $displayLevel = 'DISMISSED CASE';
+        } elseif ($isSec4Case) {
+            if ($decidedCat > 0) {
+                $displayLevel = "SECTION 4 MAJOR (CATEGORY {$decidedCat})";
+            } else {
+                $displayLevel = 'SECTION 4 MAJOR (PENDING)';
+            }
+            $hasSection4InGroup2 = true;
         } else {
-            $displayLevel = 'SECTION 4 MAJOR';
-        }
-    } elseif ($offenseLevel === 'MAJOR' || strpos((string)($r['offense_code'] ?? ''), 'MAJ-') !== false) {
-        if ($decidedCat > 0) {
-            $displayLevel = "AUTOMATIC MAJOR (CATEGORY {$decidedCat})";
-        } else {
-            $displayLevel = 'AUTOMATIC MAJOR';
-        }
-    } elseif ($offenseLevel === 'MINOR') {
-        if ($seqCount === 2) {
-            $displayLevel = '2ND MINOR WARNING';
-        } elseif ($seqCount === 1) {
-            $displayLevel = '1ST MINOR WARNING';
-        } else {
-            $displayLevel = 'MINOR WARNING';
+            if ($decidedCat > 0) {
+                $displayLevel = "AUTOMATIC MAJOR (CATEGORY {$decidedCat})";
+            } else {
+                $displayLevel = 'AUTOMATIC MAJOR (PENDING)';
+            }
         }
     } else {
-        $displayLevel = $offenseLevel;
-    }
+        if ($isDismissed) {
+            $displayLevel = 'DISMISSED OFFENSE';
+        } elseif ($offenseLevel === 'MINOR') {
+            $seqCount = (int)(db_one(
+                "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = ? AND date_committed <= ? AND status <> 'VOID'",
+                [$r['student_id'], $r['date_committed']]
+            )['cnt'] ?? 1);
 
-    if ($isSec4) {
-        $hasSection4InGroup2 = true;
+            $ordinal = ($seqCount === 1) ? '1ST' : (($seqCount === 2) ? '2ND' : (($seqCount === 3) ? '3RD' : "{$seqCount}TH"));
+
+            if ($seqCount % 3 === 0) {
+                $displayLevel = "{$ordinal} MINOR WARNING (SECTION 4 ESCALATION)";
+                $hasSection4InGroup2 = true;
+            } else {
+                $displayLevel = "{$ordinal} MINOR WARNING";
+            }
+        } elseif ($offenseLevel === 'MAJOR') {
+            $displayLevel = 'AUTOMATIC MAJOR OFFENSE';
+        } else {
+            $displayLevel = $offenseLevel;
+        }
     }
 
     $rawStudentName = (string)($r['student_name'] ?? '');
@@ -956,7 +964,7 @@ try {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF475569']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]];
     } elseif (strpos($displayLevel, 'AUTOMATIC MAJOR') !== false) {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]];
-    } elseif ($isSec4) {
+    } elseif (strpos($displayLevel, 'SECTION 4') !== false) {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FFC2410C']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFEDD5']]];
     } elseif ($decidedCat > 0 || !empty($r['final_decision'])) {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]];
