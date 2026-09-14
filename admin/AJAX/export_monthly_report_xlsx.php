@@ -515,14 +515,14 @@ try {
 
   $colWidths = [
       'A' => 18, 'B' => 16, 'C' => 16, 'D' => 28, 'E' => 18,
-      'F' => 24, 'G' => 34, 'H' => 16, 'I' => 32, 'J' => 15,
-      'K' => 20, 'L' => 45, 'M' => 48
+      'F' => 24, 'G' => 28, 'H' => 34, 'I' => 16, 'J' => 32,
+      'K' => 15, 'L' => 20, 'M' => 45, 'N' => 48
   ];
 
   $headers = [
     'Offense ID', 'Academic Level', 'Student ID', 'Student Name', 'Program & Section',
-    'Violation Category', 'Level & Warning Stage', 'Offense Code', 'Offense Name',
-    'Status', 'Date Committed', 'Description', 'Sanction / Penalty (NU Lipa Discipline Handbook)'
+    'Violation Category', 'Case Status & Classification', 'Level & Warning Stage', 'Offense Code',
+    'Offense / Case Name', 'Status', 'Date Committed', 'Description', 'Sanction / Penalty (NU Lipa Discipline Handbook)'
   ];
 
   // Group rows by student_id
@@ -568,44 +568,48 @@ try {
               $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
 
               $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
+              $isPending = in_array($caseStatus, ['PENDING', 'UNDER_INVESTIGATION', 'OPEN', 'UNDER_APPEAL', 'AWAITING_ADMIN_FINALIZATION'], true);
 
               if ($isCaseRow) {
                   $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false);
                   if ($isDismissed) {
                       $rowCategory = 'DISMISSED CASE';
+                      $caseClassification = 'DISMISSED CASE';
                       $displayLevel = 'DISMISSED CASE';
                   } elseif ($isSec4Case || $hasSection4) {
                       $rowCategory = 'SECTION 4 ESCALATION';
-                      $displayLevel = ($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : "SECTION 4 MAJOR (PENDING UPCC)";
+                      $caseClassification = $isPending ? 'PENDING SECTION 4 CASE' : 'RESOLVED SECTION 4 CASE';
+                      $displayLevel = ($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : "SECTION 4 MAJOR (PENDING UPCC HEARING)";
                   } else {
                       $rowCategory = 'AUTOMATIC MAJOR';
-                      $displayLevel = ($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : "AUTOMATIC MAJOR (PENDING UPCC)";
+                      $caseClassification = $isPending ? 'PENDING AUTOMATIC MAJOR' : 'RESOLVED AUTOMATIC MAJOR';
+                      $displayLevel = ($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : "AUTOMATIC MAJOR (PENDING UPCC HEARING)";
                   }
               } else {
                   if ($isDismissed) {
                       $rowCategory = 'DISMISSED OFFENSE';
+                      $caseClassification = 'DISMISSED OFFENSE';
                       $displayLevel = 'DISMISSED OFFENSE';
                   } elseif ($offenseLevel === 'MINOR') {
                       $minorIdx++;
-                      $seqCount = (int)(db_one(
-                          "SELECT COUNT(*) AS cnt FROM offense WHERE student_id = ? AND date_committed <= ? AND status <> 'VOID'",
-                          [$r['student_id'], $r['date_committed']]
-                      )['cnt'] ?? $minorIdx);
+                      $ordinal = ($minorIdx === 1) ? '1ST' : (($minorIdx === 2) ? '2ND' : (($minorIdx === 3) ? '3RD' : (($minorIdx === 4) ? '4TH' : (($minorIdx === 5) ? '5TH' : "{$minorIdx}TH"))));
 
-                      $ordinal = ($seqCount === 1) ? '1ST' : (($seqCount === 2) ? '2ND' : (($seqCount === 3) ? '3RD' : "{$seqCount}TH"));
-
-                      if ($hasSection4 || $seqCount % 3 === 0) {
+                      if ($hasSection4 || $minorIdx % 3 === 0) {
                           $rowCategory = 'SECTION 4 ESCALATION';
-                          $displayLevel = "{$ordinal} MINOR WARNING (SECTION 4 ESCALATION TRIGGERED)";
+                          $caseClassification = 'MINOR OFFENSE (SECTION 4 ESCALATION)';
+                          $displayLevel = ($minorIdx % 3 === 0) ? "{$ordinal} MINOR WARNING (SECTION 4 TRIGGERED)" : "{$ordinal} MINOR WARNING";
                       } else {
                           $rowCategory = 'MINOR OFFENSE';
+                          $caseClassification = 'STANDALONE MINOR OFFENSE';
                           $displayLevel = "{$ordinal} MINOR WARNING";
                       }
                   } elseif ($offenseLevel === 'MAJOR') {
                       $rowCategory = 'AUTOMATIC MAJOR';
+                      $caseClassification = 'AUTOMATIC MAJOR OFFENSE';
                       $displayLevel = 'AUTOMATIC MAJOR OFFENSE';
                   } else {
                       $rowCategory = 'OTHER';
+                      $caseClassification = 'OTHER RECORD';
                       $displayLevel = $offenseLevel;
                   }
               }
@@ -629,13 +633,14 @@ try {
               $sheet->setCellValue('D' . $rRow, $studentNameDisplay);
               $sheet->setCellValue('E' . $rRow, $progSec);
               $sheet->setCellValue('F' . $rRow, $rowCategory);
-              $sheet->setCellValue('G' . $rRow, $displayLevel);
-              $sheet->setCellValue('H' . $rRow, (string)($r['offense_code'] ?? ''));
-              $sheet->setCellValue('I' . $rRow, (string)($r['offense_name'] ?? ''));
-              $sheet->setCellValue('J' . $rRow, (string)($r['status'] ?? ''));
-              $sheet->setCellValue('K' . $rRow, (string)($r['date_committed'] ?? ''));
-              $sheet->setCellValue('L' . $rRow, (string)($r['description'] ?? ''));
-              $sheet->setCellValue('M' . $rRow, $sanctionStr);
+              $sheet->setCellValue('G' . $rRow, $caseClassification);
+              $sheet->setCellValue('H' . $rRow, $displayLevel);
+              $sheet->setCellValue('I' . $rRow, (string)($r['offense_code'] ?? ''));
+              $sheet->setCellValue('J' . $rRow, (string)($r['offense_name'] ?? ''));
+              $sheet->setCellValue('K' . $rRow, (string)($r['status'] ?? ''));
+              $sheet->setCellValue('L' . $rRow, (string)($r['date_committed'] ?? ''));
+              $sheet->setCellValue('M' . $rRow, (string)($r['description'] ?? ''));
+              $sheet->setCellValue('N' . $rRow, $sanctionStr);
 
               if ($isDismissed) {
                   $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF475569']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]];
@@ -650,7 +655,8 @@ try {
               }
               $sheet->getStyle('F' . $rRow)->applyFromArray($colorStyle);
               $sheet->getStyle('G' . $rRow)->applyFromArray($colorStyle);
-              $sheet->getStyle('M' . $rRow)->applyFromArray($colorStyle);
+              $sheet->getStyle('H' . $rRow)->applyFromArray($colorStyle);
+              $sheet->getStyle('N' . $rRow)->applyFromArray($colorStyle);
 
               $currRow++;
           }
@@ -678,23 +684,23 @@ try {
 
   // Header Banner
   $sheet1->setCellValue('A1', 'NATIONAL UNIVERSITY LIPA — MONTHLY DISCIPLINE REPORT (' . $titleMonthStr . ')');
-  $sheet1->mergeCells('A1:M1');
-  $sheet1->getStyle('A1:M1')->applyFromArray($styleTitleHeader);
+  $sheet1->mergeCells('A1:N1');
+  $sheet1->getStyle('A1:N1')->applyFromArray($styleTitleHeader);
   $sheet1->getRowDimension(1)->setRowHeight(32);
 
   $sheet1->setCellValue('A2', 'Student Discipline Office • Generated: ' . date('F j, Y g:i A') . ' • Target Audience: ' . $audience);
-  $sheet1->mergeCells('A2:M2');
-  $sheet1->getStyle('A2:M2')->applyFromArray($styleSubHeader);
+  $sheet1->mergeCells('A2:N2');
+  $sheet1->getStyle('A2:N2')->applyFromArray($styleSubHeader);
   $sheet1->getRowDimension(2)->setRowHeight(20);
 
-  // Summary Metrics (Dashboard Cards A4:M5)
+  // Summary Metrics (Dashboard Cards A4:N5)
   $cards = [
       'A' => ['label' => 'TOTAL OFFENSES', 'val' => $total, 'hdrColor' => 'FF1B2B6B', 'valColor' => 'FF1B2B6B', 'bgColor' => 'FFF8FAFC', 'span' => 'A4:B4', 'vSpan' => 'A5:B5'],
       'C' => ['label' => 'MINOR OFFENSES', 'val' => $minorVal, 'hdrColor' => 'FFB45309', 'valColor' => 'FFB45309', 'bgColor' => 'FFFEF3C7', 'span' => 'C4:D4', 'vSpan' => 'C5:D5'],
       'E' => ['label' => 'MAJOR OFFENSES', 'val' => $majorVal, 'hdrColor' => 'FF991B1B', 'valColor' => 'FF991B1B', 'bgColor' => 'FFFEE2E2', 'span' => 'E4:F4', 'vSpan' => 'E5:F5'],
       'G' => ['label' => 'ACTIVE CASES', 'val' => $activeCases, 'hdrColor' => 'FF6B21A8', 'valColor' => 'FF6B21A8', 'bgColor' => 'FFF3E8FF', 'span' => 'G4:H4', 'vSpan' => 'G5:H5'],
       'I' => ['label' => 'DISMISSED OFFENSES', 'val' => $dismissedOffensesVal, 'hdrColor' => 'FF475569', 'valColor' => 'FF475569', 'bgColor' => 'FFF1F5F9', 'span' => 'I4:J4', 'vSpan' => 'I5:J5'],
-      'K' => ['label' => 'DISMISSED CASES', 'val' => $dismissedCasesVal, 'hdrColor' => 'FF334155', 'valColor' => 'FF334155', 'bgColor' => 'FFE2E8F0', 'span' => 'K4:M4', 'vSpan' => 'K5:M5'],
+      'K' => ['label' => 'DISMISSED CASES', 'val' => $dismissedCasesVal, 'hdrColor' => 'FF334155', 'valColor' => 'FF334155', 'bgColor' => 'FFE2E8F0', 'span' => 'K4:N4', 'vSpan' => 'K5:N5'],
   ];
 
   foreach ($cards as $colKey => $c) {
@@ -788,7 +794,7 @@ try {
       $sheet1->addChart($chart);
   }
 
-  // Create Column Bar Chart (G7:M24)
+  // Create Column Bar Chart (G7:N24)
   if (!empty($coursesMap)) {
       $dataSeriesLabels2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheet1Title}'!\$AF\$4", null, 1)];
       $xAxisTickValues2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheet1Title}'!\$AE\$5:\$AE\${$cEndRow}", null, count($coursesMap))];
@@ -812,7 +818,7 @@ try {
 
       $chart2 = new Chart('chart2', $chartTitle2, null, $plotArea2, true, 0, null, null);
       $chart2->setTopLeftPosition('G7');
-      $chart2->setBottomRightPosition('M24');
+      $chart2->setBottomRightPosition('N24');
       $sheet1->addChart($chart2);
   }
 
@@ -822,8 +828,8 @@ try {
   $sheet1->getStyle('A26:F26')->applyFromArray($styleSectionBanner);
 
   $sheet1->setCellValue('G26', 'ACADEMIC PROGRAM / COURSE SUMMARY');
-  $sheet1->mergeCells('G26:M26');
-  $sheet1->getStyle('G26:M26')->applyFromArray($styleSectionBanner);
+  $sheet1->mergeCells('G26:N26');
+  $sheet1->getStyle('G26:N26')->applyFromArray($styleSectionBanner);
   $sheet1->getRowDimension(26)->setRowHeight(24);
 
   // Sub-headers Row 27
@@ -834,10 +840,10 @@ try {
   $sheet1->getStyle('A27:F27')->applyFromArray($styleTableHeader);
 
   $sheet1->setCellValue('G27', 'Degree Program / Strand');
-  $sheet1->mergeCells('G27:K27');
-  $sheet1->setCellValue('L27', 'Count');
-  $sheet1->setCellValue('M27', '% Share');
-  $sheet1->getStyle('G27:M27')->applyFromArray($styleTableHeader);
+  $sheet1->mergeCells('G27:L27');
+  $sheet1->setCellValue('M27', 'Count');
+  $sheet1->setCellValue('N27', '% Share');
+  $sheet1->getStyle('G27:N27')->applyFromArray($styleTableHeader);
   $sheet1->getRowDimension(27)->setRowHeight(22);
 
   // Fill Summary Tables
@@ -858,42 +864,42 @@ try {
   foreach ($coursesMap as $prog => $count) {
       $pct = $cTotal > 0 ? sprintf('%.1f%%', ($count / $cTotal) * 100) : '0.0%';
       $sheet1->setCellValue('G' . $sumRow2, $prog);
-      $sheet1->mergeCells("G{$sumRow2}:K{$sumRow2}");
-      $sheet1->setCellValue('L' . $sumRow2, $count);
-      $sheet1->setCellValue('M' . $sumRow2, $pct);
-      $sheet1->getStyle("L{$sumRow2}:M{$sumRow2}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+      $sheet1->mergeCells("G{$sumRow2}:L{$sumRow2}");
+      $sheet1->setCellValue('M' . $sumRow2, $count);
+      $sheet1->setCellValue('N' . $sumRow2, $pct);
+      $sheet1->getStyle("M{$sumRow2}:N{$sumRow2}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
       $sumRow2++;
   }
 
   $maxSumRow = max($sumRow1, $sumRow2);
   if ($maxSumRow > 28) {
-      $sheet1->getStyle('A28:M' . ($maxSumRow - 1))->applyFromArray($styleTableBody);
+      $sheet1->getStyle('A28:N' . ($maxSumRow - 1))->applyFromArray($styleTableBody);
   }
 
   // Raw Data Section Header in Sheet 1
   $logsHeaderRow = $maxSumRow + 2;
   $sheet1->setCellValue('A' . $logsHeaderRow, 'DETAILED DISCIPLINARY LOGS & CASE RECORDS');
-  $sheet1->mergeCells("A{$logsHeaderRow}:M{$logsHeaderRow}");
-  $sheet1->getStyle("A{$logsHeaderRow}:M{$logsHeaderRow}")->applyFromArray($styleSectionBanner);
+  $sheet1->mergeCells("A{$logsHeaderRow}:N{$logsHeaderRow}");
+  $sheet1->getStyle("A{$logsHeaderRow}:N{$logsHeaderRow}")->applyFromArray($styleSectionBanner);
   $sheet1->getRowDimension($logsHeaderRow)->setRowHeight(26);
 
   $dataStartRow1 = $logsHeaderRow + 1;
   $sheet1->fromArray($headers, null, 'A' . $dataStartRow1);
-  $sheet1->getStyle('A'.$dataStartRow1.':M'.$dataStartRow1)->applyFromArray($styleTableHeader);
+  $sheet1->getStyle('A'.$dataStartRow1.':N'.$dataStartRow1)->applyFromArray($styleTableHeader);
   $sheet1->getRowDimension($dataStartRow1)->setRowHeight(24);
 
   // Populate Sheet 1 Data Rows
   $s1EndRow = populate_sheet_data_rows($sheet1, $studentGroups, $dataStartRow1 + 1, $showNames, $styleTableBody);
 
   if ($s1EndRow > $dataStartRow1 + 1) {
-      $sheet1->getStyle('A'.($dataStartRow1 + 1).':M'.($s1EndRow - 1))->applyFromArray($styleTableBody);
+      $sheet1->getStyle('A'.($dataStartRow1 + 1).':N'.($s1EndRow - 1))->applyFromArray($styleTableBody);
   }
 
   foreach ($colWidths as $col => $w) {
       $sheet1->getColumnDimension($col)->setWidth($w);
   }
-  $sheet1->getStyle("I{$dataStartRow1}:M{$s1EndRow}")->getAlignment()->setWrapText(true);
-  $sheet1->getStyle("A{$dataStartRow1}:M{$s1EndRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+  $sheet1->getStyle("J{$dataStartRow1}:N{$s1EndRow}")->getAlignment()->setWrapText(true);
+  $sheet1->getStyle("A{$dataStartRow1}:N{$s1EndRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
 
   // =========================================================================
   // SHEET 2: DETAILED DISCIPLINARY LOGS (DEDICATED TABLE WITH FROZEN HEADERS)
@@ -904,33 +910,33 @@ try {
 
   // Banner
   $sheet2->setCellValue('A1', 'NATIONAL UNIVERSITY LIPA — DETAILED DISCIPLINARY & CASE LOGS');
-  $sheet2->mergeCells('A1:M1');
-  $sheet2->getStyle('A1:M1')->applyFromArray($styleTitleHeader);
+  $sheet2->mergeCells('A1:N1');
+  $sheet2->getStyle('A1:N1')->applyFromArray($styleTitleHeader);
   $sheet2->getRowDimension(1)->setRowHeight(30);
 
   $sheet2->setCellValue('A2', 'Generated: ' . date('F j, Y g:i A') . ' • Target Audience: ' . $audience . ' • Month: ' . $titleMonthStr);
-  $sheet2->mergeCells('A2:M2');
-  $sheet2->getStyle('A2:M2')->applyFromArray($styleSubHeader);
+  $sheet2->mergeCells('A2:N2');
+  $sheet2->getStyle('A2:N2')->applyFromArray($styleSubHeader);
   $sheet2->getRowDimension(2)->setRowHeight(18);
 
   // Table Headers at Row 3
   $sheet2->fromArray($headers, null, 'A3');
-  $sheet2->getStyle('A3:M3')->applyFromArray($styleTableHeader);
+  $sheet2->getStyle('A3:N3')->applyFromArray($styleTableHeader);
   $sheet2->getRowDimension(3)->setRowHeight(24);
 
   // Populate Sheet 2 Data Rows
   $s2EndRow = populate_sheet_data_rows($sheet2, $studentGroups, 4, $showNames, $styleTableBody);
 
   if ($s2EndRow > 4) {
-      $sheet2->getStyle('A4:M' . ($s2EndRow - 1))->applyFromArray($styleTableBody);
-      $sheet2->setAutoFilter('A3:M' . ($s2EndRow - 1));
+      $sheet2->getStyle('A4:N' . ($s2EndRow - 1))->applyFromArray($styleTableBody);
+      $sheet2->setAutoFilter('A3:N' . ($s2EndRow - 1));
   }
 
   foreach ($colWidths as $col => $w) {
       $sheet2->getColumnDimension($col)->setWidth($w);
   }
-  $sheet2->getStyle("I3:M{$s2EndRow}")->getAlignment()->setWrapText(true);
-  $sheet2->getStyle("A3:M{$s2EndRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+  $sheet2->getStyle("J3:N{$s2EndRow}")->getAlignment()->setWrapText(true);
+  $sheet2->getStyle("A3:N{$s2EndRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
 
   // Freeze top 3 rows on Sheet 2 so header row stays visible when scrolling down!
   $sheet2->freezePane('A4');
