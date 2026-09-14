@@ -3019,37 +3019,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             closeRejectGuardModal();
 
             if (data && data.ok) {
-                const rejectedId = window.activeRejectReportId;
-                window.guardReportsList = (window.guardReportsList || []).filter(r => Number(r.report_id) !== Number(rejectedId));
-
-                // Always clear auto-filled form fields upon rejection
-                if (typeof window.clearGuardReportAutoFill === 'function') {
-                    window.clearGuardReportAutoFill();
-                }
-
-                if (window.guardReportsList.length > 0) {
-                    if (window.currentReportIndex >= window.guardReportsList.length) {
-                        window.currentReportIndex = window.guardReportsList.length - 1;
-                    }
-                    window.selectGuardReportIndex(window.currentReportIndex);
-
-                    // Update stacked layer cards
-                    const layer1 = document.getElementById('cardStackLayer1');
-                    const layer2 = document.getElementById('cardStackLayer2');
-                    if (layer1) layer1.style.display = window.guardReportsList.length > 1 ? 'block' : 'none';
-                    if (layer2) layer2.style.display = window.guardReportsList.length > 2 ? 'block' : 'none';
-
-                    const header = document.getElementById('guardCarouselHeader');
-                    if (header) header.style.display = window.guardReportsList.length > 1 ? 'flex' : 'none';
-                } else {
-                    const stack = document.getElementById('pendingGuardReportStackContainer');
-                    if (stack) {
-                        stack.style.transition = 'all 0.4s ease';
-                        stack.style.opacity = '0';
-                        stack.style.transform = 'translateY(-10px)';
-                        setTimeout(() => stack.remove(), 400);
-                    }
-                }
+                // Refresh the web page upon rejection as requested
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('pending_report_id');
+                cleanUrl.searchParams.delete('report_id');
+                cleanUrl.searchParams.delete('rid');
+                window.location.href = cleanUrl.toString();
+                return;
             } else {
                 alert('❌ Failed to reject report: ' + (data?.message || 'Error occurred during rejection.'));
             }
