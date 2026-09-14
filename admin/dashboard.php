@@ -1412,7 +1412,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                       if (data.escalation_type === 'letter') {
                           title.textContent = '2nd Minor Offense Recorded';
                           title.style.color = '#92400e';
-                          desc.innerHTML = 'This is the student\'s <strong>2nd Minor Offense</strong>.<br>A guardian notification is required.';
+                          desc.innerHTML = data.escalation_msg ? data.escalation_msg.replace(/\n/g, '<br>') : 'This is the student\'s <strong>2nd Minor Offense</strong>.<br>A guardian notification is required.';
                           btn.textContent = 'Proceed to Notification ➔';
                           btn.className = 'gm-btn';
                           btn.style.background = '#fffbeb';
@@ -1421,7 +1421,7 @@ if ($guardMsgKey === 'reject_failed')  $guardFlash = 'Unable to reject guard sub
                       } else if (data.escalation_type === 'escalation') {
                           title.textContent = 'Section 4 Escalation';
                           title.style.color = '#b91c1c';
-                          desc.innerHTML = 'This is the student\'s <strong>3rd Minor Offense</strong>.<br>It has been escalated to Section 4 (Major Level).<br>A guardian notification is required.';
+                          desc.innerHTML = data.escalation_msg ? data.escalation_msg.replace(/\n/g, '<br>') : 'This is the student\'s <strong>3rd Minor Offense</strong>.<br>It has been escalated to Section 4 (Major Level).<br>A guardian notification is required.';
                           btn.textContent = 'Proceed to Notification ➔';
                           btn.className = 'gm-btn';
                           btn.style.background = '#fef2f2';
