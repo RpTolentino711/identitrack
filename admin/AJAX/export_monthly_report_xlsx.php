@@ -712,6 +712,7 @@ try {
     $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
     $offenseStatus = strtoupper((string)($r['status'] ?? ''));
     $decidedCat = (int)($r['decided_category'] ?? 0);
+    $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
 
     $seqCount = 0;
     if ($offenseLevel === 'MINOR') {
@@ -722,14 +723,22 @@ try {
     }
 
     $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
+    $isSec4 = ($seqCount >= 3 || strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false);
 
-    $displayLevel = $offenseLevel;
     if ($isDismissed) {
         $displayLevel = 'DISMISSED';
-    } elseif ($decidedCat > 0) {
-        $displayLevel = "MAJOR (CATEGORY {$decidedCat})";
-    } elseif ($offenseLevel === 'MAJOR' || $seqCount >= 3) {
-        $displayLevel = ($seqCount >= 3) ? 'SECTION 4 MAJOR' : 'MAJOR';
+    } elseif ($isSec4) {
+        if ($decidedCat > 0) {
+            $displayLevel = "SECTION 4 MAJOR (CATEGORY {$decidedCat})";
+        } else {
+            $displayLevel = 'SECTION 4 MAJOR';
+        }
+    } elseif ($offenseLevel === 'MAJOR' || strpos((string)($r['offense_code'] ?? ''), 'MAJ-') !== false) {
+        if ($decidedCat > 0) {
+            $displayLevel = "AUTOMATIC MAJOR (CATEGORY {$decidedCat})";
+        } else {
+            $displayLevel = 'AUTOMATIC MAJOR';
+        }
     } elseif ($offenseLevel === 'MINOR') {
         if ($seqCount === 2) {
             $displayLevel = '2ND MINOR WARNING';
@@ -738,9 +747,11 @@ try {
         } else {
             $displayLevel = 'MINOR WARNING';
         }
+    } else {
+        $displayLevel = $offenseLevel;
     }
 
-    if ($seqCount >= 3 || strpos($displayLevel, 'SECTION 4') !== false || strpos(strtoupper((string)($r['offense_name'] ?? '')), 'SECTION 4') !== false || strpos(strtoupper((string)($r['offense_name'] ?? '')), 'SECTION4') !== false) {
+    if ($isSec4) {
         $hasSection4InGroup1 = true;
     }
 
@@ -762,10 +773,12 @@ try {
 
     if ($isDismissed) {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF475569']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]];
+    } elseif (strpos($displayLevel, 'AUTOMATIC MAJOR') !== false) {
+        $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]];
+    } elseif ($isSec4) {
+        $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FFC2410C']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFEDD5']]];
     } elseif ($decidedCat > 0 || !empty($r['final_decision'])) {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]];
-    } elseif ($offenseLevel === 'MAJOR' || strpos($displayLevel, 'SECTION 4') !== false || $seqCount >= 3) {
-        $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]];
     } else {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF854D0E']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF08A']]];
     }
@@ -838,6 +851,7 @@ try {
     $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
     $offenseStatus = strtoupper((string)($r['status'] ?? ''));
     $decidedCat = (int)($r['decided_category'] ?? 0);
+    $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
 
     $seqCount = 0;
     if ($offenseLevel === 'MINOR') {
@@ -848,14 +862,22 @@ try {
     }
 
     $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
+    $isSec4 = ($seqCount >= 3 || strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false);
 
-    $displayLevel = $offenseLevel;
     if ($isDismissed) {
         $displayLevel = 'DISMISSED';
-    } elseif ($decidedCat > 0) {
-        $displayLevel = "MAJOR (CATEGORY {$decidedCat})";
-    } elseif ($offenseLevel === 'MAJOR' || $seqCount >= 3) {
-        $displayLevel = ($seqCount >= 3) ? 'SECTION 4 MAJOR' : 'MAJOR';
+    } elseif ($isSec4) {
+        if ($decidedCat > 0) {
+            $displayLevel = "SECTION 4 MAJOR (CATEGORY {$decidedCat})";
+        } else {
+            $displayLevel = 'SECTION 4 MAJOR';
+        }
+    } elseif ($offenseLevel === 'MAJOR' || strpos((string)($r['offense_code'] ?? ''), 'MAJ-') !== false) {
+        if ($decidedCat > 0) {
+            $displayLevel = "AUTOMATIC MAJOR (CATEGORY {$decidedCat})";
+        } else {
+            $displayLevel = 'AUTOMATIC MAJOR';
+        }
     } elseif ($offenseLevel === 'MINOR') {
         if ($seqCount === 2) {
             $displayLevel = '2ND MINOR WARNING';
@@ -864,9 +886,11 @@ try {
         } else {
             $displayLevel = 'MINOR WARNING';
         }
+    } else {
+        $displayLevel = $offenseLevel;
     }
 
-    if ($seqCount >= 3 || strpos($displayLevel, 'SECTION 4') !== false || strpos(strtoupper((string)($r['offense_name'] ?? '')), 'SECTION 4') !== false || strpos(strtoupper((string)($r['offense_name'] ?? '')), 'SECTION4') !== false) {
+    if ($isSec4) {
         $hasSection4InGroup2 = true;
     }
 
@@ -888,10 +912,12 @@ try {
 
     if ($isDismissed) {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF475569']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]];
+    } elseif (strpos($displayLevel, 'AUTOMATIC MAJOR') !== false) {
+        $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]];
+    } elseif ($isSec4) {
+        $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FFC2410C']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFEDD5']]];
     } elseif ($decidedCat > 0 || !empty($r['final_decision'])) {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]];
-    } elseif ($offenseLevel === 'MAJOR' || strpos($displayLevel, 'SECTION 4') !== false || $seqCount >= 3) {
-        $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]];
     } else {
         $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF854D0E']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF08A']]];
     }
