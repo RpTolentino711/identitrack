@@ -607,7 +607,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       </div>
 
-      <div id="usernameInlineError" style="display:none; color: var(--danger); font-size: 13px; font-weight: 600; margin-bottom: 14px;"></div>
+      <div id="usernameInlineError" style="display:none; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 14px;"></div>
 
       <button class="btn" id="submitBtn" type="submit" <?php echo $isLocked ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed;"' : ''; ?>>
         <?php echo $showPasswordField ? 'Login to Dashboard' : 'Next'; ?>
@@ -863,7 +863,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       var checkTimer = null;
       var lastCheckedUser = (usernameInput ? usernameInput.value : '').trim();
-      var isVerifying = false;
+      var activeFetchController = null;
 
       function verifyUsername(onComplete) {
         var val = (usernameInput ? usernameInput.value : '').trim();
@@ -887,18 +887,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           return;
         }
 
-        if (isVerifying) return;
-        isVerifying = true;
+        if (activeFetchController) {
+          try { activeFetchController.abort(); } catch (err) {}
+          activeFetchController = null;
+        }
 
         if (submitBtn && !isPasswordVisible && !isPendingSetupState) {
           submitBtn.textContent = 'Checking...';
           submitBtn.disabled = true;
         }
 
-        fetch('login.php?check_username=1&username=' + encodeURIComponent(val))
+        var fetchSignal = null;
+        if (window.AbortController) {
+          activeFetchController = new AbortController();
+          fetchSignal = activeFetchController.signal;
+        }
+
+        fetch('login.php?check_username=1&username=' + encodeURIComponent(val), { signal: fetchSignal })
           .then(function(r) { return r.json(); })
           .then(function(res) {
-            isVerifying = false;
+            activeFetchController = null;
             if (submitBtn && !isPasswordVisible && !isPendingSetupState) {
               submitBtn.disabled = false;
               submitBtn.textContent = 'Next';
@@ -923,11 +931,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               if (onComplete) onComplete(false);
             }
           })
-          .catch(function() {
-            isVerifying = false;
+          .catch(function(err) {
+            if (err && err.name === 'AbortError') return;
+            activeFetchController = null;
             if (submitBtn && !isPasswordVisible && !isPendingSetupState) {
               submitBtn.disabled = false;
               submitBtn.textContent = 'Next';
+            }
+            hidePendingSetupState();
+            hidePassword();
+            if (inlineErr) {
+              inlineErr.textContent = '❌ Unable to check username. Please try again.';
+              inlineErr.style.display = 'block';
             }
             if (onComplete) onComplete(false);
           });
