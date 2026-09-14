@@ -278,9 +278,23 @@ if (isset($_FILES['letter_image']) && $_FILES['letter_image']['error'] === UPLOA
     $mail->addAttachment($_FILES['letter_image']['tmp_name'], $_FILES['letter_image']['name']);
 }
 
+$sent = false;
 try {
-  $mail->send();
-  
+    $sent = $mail->send();
+} catch (Exception $e1) {
+    try {
+        $mail->Port = ($mail->Port == 465) ? 587 : 465;
+        $mail->SMTPSecure = ($mail->Port == 465) ? 'ssl' : 'tls';
+        $sent = $mail->send();
+    } catch (Exception $e2) {
+        $headers  = "MIME-Version: 1.0\r\n";
+        $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+        $headers .= "From: IdentiTrack Admin <" . db_smtp_user() . ">\r\n";
+        $sent = @mail($guardianEmail, $subject, $mail->Body, $headers);
+    }
+}
+
+if ($sent) {
   // Mark the offense as having notified the guardian
   db_exec(
     "UPDATE offense SET guardian_notified_at = CURRENT_TIMESTAMP WHERE offense_id = :oid",
@@ -340,10 +354,8 @@ try {
   
   echo json_encode(['ok' => true, 'message' => 'Email sent and official notice recorded for student.']);
   exit;
-} catch (Exception $e) {
-  error_log('Offense letter mail error: ' . $e->getMessage());
-  http_response_code(500);
-  echo json_encode(['ok' => false, 'message' => 'Failed to send email: ' . $e->getMessage()]);
+} else {
+  echo json_encode(['ok' => false, 'message' => 'Failed to send email. Please check server mail configuration.']);
   exit;
 }
 

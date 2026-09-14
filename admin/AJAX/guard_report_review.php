@@ -98,8 +98,20 @@ function send_guardian_notice(string $studentId, string $subject, string $letter
         </html>
         ";
         
-        $mail->AltBody = "Dear Parent/Guardian,\n\nPlease review the attached official notice letter regarding the disciplinary record of {$studentName}.\n\nStudent Discipline Office";
-        $mail->send();
+        try {
+            $mail->send();
+        } catch (Exception $e1) {
+            try {
+                $mail->Port = ($mail->Port == 465) ? 587 : 465;
+                $mail->SMTPSecure = ($mail->Port == 465) ? 'ssl' : 'tls';
+                $mail->send();
+            } catch (Exception $e2) {
+                $headers  = "MIME-Version: 1.0\r\n";
+                $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+                $headers .= "From: IdentiTrack Admin <" . db_smtp_user() . ">\r\n";
+                @mail($guardianEmail, $subject, $mail->Body, $headers);
+            }
+        }
     } catch (Exception $e) {
         error_log('Guard report mail error: ' . $e->getMessage());
     }
