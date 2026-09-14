@@ -705,6 +705,7 @@ try {
   $s1Row = $dataStartRow1 + 1;
   $studentStartRow1 = $s1Row;
   $totalRows1 = count($rows);
+  $hasSection4InGroup1 = false;
 
   foreach ($rows as $index => $r) {
     $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
@@ -739,6 +740,10 @@ try {
         }
     }
 
+    if ($seqCount >= 3 || strpos($displayLevel, 'SECTION 4') !== false || strpos(strtoupper((string)($r['offense_name'] ?? '')), 'SECTION 4') !== false || strpos(strtoupper((string)($r['offense_name'] ?? '')), 'SECTION4') !== false) {
+        $hasSection4InGroup1 = true;
+    }
+
     $sanctionStr = format_full_sanction_penalty($r);
 
     $sheet1->setCellValueExplicit('A' . $s1Row, (string)($r['offense_id'] ?? ''), DataType::TYPE_STRING);
@@ -767,12 +772,12 @@ try {
     $sheet1->getStyle('G' . $s1Row)->applyFromArray($colorStyle);
     $sheet1->getStyle('M' . $s1Row)->applyFromArray($colorStyle);
 
-    // Merge student info columns B, C, D, E, F if student changes or is last row
+    // Merge student info columns B, C, D, E, F ONLY for Section 4 escalations
     $currStudentId = (string)($r['student_id'] ?? '');
     $nextStudentId = ($index + 1 < $totalRows1) ? (string)($rows[$index + 1]['student_id'] ?? '') : null;
 
     if ($currStudentId !== $nextStudentId) {
-        if ($s1Row > $studentStartRow1) {
+        if ($s1Row > $studentStartRow1 && $hasSection4InGroup1) {
             $sheet1->mergeCells("B{$studentStartRow1}:B{$s1Row}");
             $sheet1->mergeCells("C{$studentStartRow1}:C{$s1Row}");
             $sheet1->mergeCells("D{$studentStartRow1}:D{$s1Row}");
@@ -780,6 +785,7 @@ try {
             $sheet1->mergeCells("F{$studentStartRow1}:F{$s1Row}");
         }
         $studentStartRow1 = $s1Row + 1;
+        $hasSection4InGroup1 = false;
     }
 
     $s1Row++;
@@ -825,6 +831,7 @@ try {
   $s2Row = 4;
   $studentStartRow2 = $s2Row;
   $totalRows2 = count($rows);
+  $hasSection4InGroup2 = false;
 
   foreach ($rows as $index => $r) {
     $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
@@ -859,6 +866,10 @@ try {
         }
     }
 
+    if ($seqCount >= 3 || strpos($displayLevel, 'SECTION 4') !== false || strpos(strtoupper((string)($r['offense_name'] ?? '')), 'SECTION 4') !== false || strpos(strtoupper((string)($r['offense_name'] ?? '')), 'SECTION4') !== false) {
+        $hasSection4InGroup2 = true;
+    }
+
     $sanctionStr = format_full_sanction_penalty($r);
 
     $sheet2->setCellValueExplicit('A' . $s2Row, (string)($r['offense_id'] ?? ''), DataType::TYPE_STRING);
@@ -887,12 +898,12 @@ try {
     $sheet2->getStyle('G' . $s2Row)->applyFromArray($colorStyle);
     $sheet2->getStyle('M' . $s2Row)->applyFromArray($colorStyle);
 
-    // Merge student info columns B, C, D, E, F if student changes or is last row
+    // Merge student info columns B, C, D, E, F ONLY for Section 4 escalations
     $currStudentId = (string)($r['student_id'] ?? '');
     $nextStudentId = ($index + 1 < $totalRows2) ? (string)($rows[$index + 1]['student_id'] ?? '') : null;
 
     if ($currStudentId !== $nextStudentId) {
-        if ($s2Row > $studentStartRow2) {
+        if ($s2Row > $studentStartRow2 && $hasSection4InGroup2) {
             $sheet2->mergeCells("B{$studentStartRow2}:B{$s2Row}");
             $sheet2->mergeCells("C{$studentStartRow2}:C{$s2Row}");
             $sheet2->mergeCells("D{$studentStartRow2}:D{$s2Row}");
@@ -900,6 +911,7 @@ try {
             $sheet2->mergeCells("F{$studentStartRow2}:F{$s2Row}");
         }
         $studentStartRow2 = $s2Row + 1;
+        $hasSection4InGroup2 = false;
     }
 
     $s2Row++;
