@@ -265,40 +265,37 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
   <?php require_once __DIR__ . '/header.php'; ?>
 
   <style>
-    .btn-pii-toggle {
+    .btn-eye-toggle {
       height: 34px;
+      width: 38px;
       border-radius: 8px;
-      padding: 0 12px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
+      padding: 0;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      white-space: nowrap;
+      justify-content: center;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #64748b;
+      cursor: pointer;
       transition: all 0.2s ease-in-out;
       outline: none;
       user-select: none;
+      flex-shrink: 0;
     }
-    .btn-pii-toggle.masked {
+    .btn-eye-toggle.masked:hover {
       background: #f1f5f9;
-      border: 1px solid #cbd5e1;
-      color: #475569;
-    }
-    .btn-pii-toggle.masked:hover {
-      background: #e2e8f0;
-      color: #1e293b;
+      color: #334155;
       border-color: #94a3b8;
     }
-    .btn-pii-toggle.unmasked {
+    .btn-eye-toggle.unmasked {
       background: #fef2f2;
-      border: 1px solid #fca5a5;
-      color: #b91c1c;
-      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+      border-color: #fca5a5;
+      color: #dc2626;
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
     }
-    .btn-pii-toggle.unmasked:hover {
+    .btn-eye-toggle.unmasked:hover {
       background: #fee2e2;
-      color: #991b1b;
+      color: #b91c1c;
     }
   </style>
 
@@ -386,9 +383,16 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
             </a>
 
             <!-- Eye Toggle for Student Name / PII Unmasking -->
-            <button type="button" class="btn-pii-toggle masked" id="piiToggleBtn" title="Toggle PII Masking (Student Names & IDs)">
-              <span id="piiIcon" style="font-size:16px;">🙈</span>
-              <span id="piiLabel">PII Masked</span>
+            <button type="button" class="btn-eye-toggle masked" id="piiToggleBtn" title="Excel Export: Student Names Masked (Click to unmask for Excel)">
+              <svg id="eyeIconSlash" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/>
+                <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/>
+                <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8c.058.087.122.183.195.288.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.709.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"/>
+              </svg>
+              <svg id="eyeIconOpen" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" style="display:none;">
+                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+              </svg>
             </button>
           </div>
         </section>
@@ -856,8 +860,8 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
     }
 
     const piiToggleBtn = document.getElementById('piiToggleBtn');
-    const piiIcon = document.getElementById('piiIcon');
-    const piiLabel = document.getElementById('piiLabel');
+    const eyeIconSlash = document.getElementById('eyeIconSlash');
+    const eyeIconOpen  = document.getElementById('eyeIconOpen');
 
     function setPiiState(unmask) {
       isPiiUnmasked = unmask;
@@ -865,16 +869,18 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
         if (piiToggleBtn) {
           piiToggleBtn.classList.remove('masked');
           piiToggleBtn.classList.add('unmasked');
+          piiToggleBtn.title = "Excel Export: Student Names Unmasked (Click to re-mask PII)";
         }
-        if (piiIcon) piiIcon.textContent = '👁️';
-        if (piiLabel) piiLabel.textContent = 'Names Unmasked';
+        if (eyeIconSlash) eyeIconSlash.style.display = 'none';
+        if (eyeIconOpen)  eyeIconOpen.style.display  = 'inline-block';
       } else {
         if (piiToggleBtn) {
           piiToggleBtn.classList.remove('unmasked');
           piiToggleBtn.classList.add('masked');
+          piiToggleBtn.title = "Excel Export: Student Names Masked (Click to unmask for Excel)";
         }
-        if (piiIcon) piiIcon.textContent = '🙈';
-        if (piiLabel) piiLabel.textContent = 'PII Masked';
+        if (eyeIconSlash) eyeIconSlash.style.display = 'inline-block';
+        if (eyeIconOpen)  eyeIconOpen.style.display  = 'none';
       }
       updateExportLink();
     }
@@ -888,9 +894,9 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               title: '⚠️ Data Privacy & Security Warning',
               html: `
                 <div style="text-align:left; font-size:13px; color:#334155; line-height:1.5;">
-                  <p style="margin-bottom:10px;">You are about to enable <b>Full Student Identity (PII)</b> in the exported Excel report. This will expose full student names and student IDs.</p>
+                  <p style="margin-bottom:10px;">You are about to enable <b>Full Student Identity (PII)</b> in the exported Excel report. Student names & IDs will be included in the downloaded Excel file while remaining hidden on screen for privacy.</p>
                   <div style="background:#fff1f2; border-left:4px solid #e11d48; padding:10px 12px; border-radius:6px; color:#9f1239; font-size:12px; font-weight:500;">
-                    <b>Security Requirement:</b> Ensure exported reports containing unmasked student names & IDs are handled securely for authorized disciplinary reviews only.
+                    <b>Security Requirement:</b> Ensure exported Excel files containing student names are handled securely for authorized disciplinary reviews only.
                   </div>
                 </div>
               `,
@@ -898,7 +904,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               showCancelButton: true,
               confirmButtonColor: '#dc2626',
               cancelButtonColor: '#64748b',
-              confirmButtonText: 'Yes, Unmask Student Names & IDs',
+              confirmButtonText: 'Yes, Unmask Names for Excel',
               cancelButtonText: 'Cancel & Keep Masked',
               reverseButtons: true
             }).then((result) => {
