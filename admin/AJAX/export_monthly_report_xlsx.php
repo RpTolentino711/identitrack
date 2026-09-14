@@ -155,14 +155,21 @@ if ($category !== 'MINOR') {
 
 $rows = array_merge($offenseRows, $caseRows);
 
-// Group SHS students FIRST, College students SECOND when Audience is ALL
+// Group SHS students FIRST, College students SECOND when Audience is ALL, then group by Student Name
 usort($rows, function($a, $b) {
     $segA = strtoupper((string)($a['segment'] ?? 'COLLEGE'));
     $segB = strtoupper((string)($b['segment'] ?? 'COLLEGE'));
     if ($segA !== $segB) {
         return ($segA === 'SHS') ? -1 : 1;
     }
-    return strcmp((string)($b['date_committed'] ?? ''), (string)($a['date_committed'] ?? ''));
+
+    $nameA = (string)($a['student_name'] ?? '');
+    $nameB = (string)($b['student_name'] ?? '');
+    if ($nameA !== $nameB) {
+        return strcmp($nameA, $nameB);
+    }
+
+    return strcmp((string)($a['date_committed'] ?? ''), (string)($b['date_committed'] ?? ''));
 });
 
 // Calculate metrics
@@ -696,7 +703,10 @@ try {
 
   // Populate Data Rows in Sheet 1
   $s1Row = $dataStartRow1 + 1;
-  foreach ($rows as $r) {
+  $studentStartRow1 = $s1Row;
+  $totalRows1 = count($rows);
+
+  foreach ($rows as $index => $r) {
     $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
     $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
     $offenseStatus = strtoupper((string)($r['status'] ?? ''));
@@ -757,6 +767,21 @@ try {
     $sheet1->getStyle('G' . $s1Row)->applyFromArray($colorStyle);
     $sheet1->getStyle('M' . $s1Row)->applyFromArray($colorStyle);
 
+    // Merge student info columns B, C, D, E, F if student changes or is last row
+    $currStudentId = (string)($r['student_id'] ?? '');
+    $nextStudentId = ($index + 1 < $totalRows1) ? (string)($rows[$index + 1]['student_id'] ?? '') : null;
+
+    if ($currStudentId !== $nextStudentId) {
+        if ($s1Row > $studentStartRow1) {
+            $sheet1->mergeCells("B{$studentStartRow1}:B{$s1Row}");
+            $sheet1->mergeCells("C{$studentStartRow1}:C{$s1Row}");
+            $sheet1->mergeCells("D{$studentStartRow1}:D{$s1Row}");
+            $sheet1->mergeCells("E{$studentStartRow1}:E{$s1Row}");
+            $sheet1->mergeCells("F{$studentStartRow1}:F{$s1Row}");
+        }
+        $studentStartRow1 = $s1Row + 1;
+    }
+
     $s1Row++;
   }
 
@@ -798,7 +823,10 @@ try {
 
   // Populate Data Rows in Sheet 2
   $s2Row = 4;
-  foreach ($rows as $r) {
+  $studentStartRow2 = $s2Row;
+  $totalRows2 = count($rows);
+
+  foreach ($rows as $index => $r) {
     $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
     $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
     $offenseStatus = strtoupper((string)($r['status'] ?? ''));
@@ -858,6 +886,21 @@ try {
     }
     $sheet2->getStyle('G' . $s2Row)->applyFromArray($colorStyle);
     $sheet2->getStyle('M' . $s2Row)->applyFromArray($colorStyle);
+
+    // Merge student info columns B, C, D, E, F if student changes or is last row
+    $currStudentId = (string)($r['student_id'] ?? '');
+    $nextStudentId = ($index + 1 < $totalRows2) ? (string)($rows[$index + 1]['student_id'] ?? '') : null;
+
+    if ($currStudentId !== $nextStudentId) {
+        if ($s2Row > $studentStartRow2) {
+            $sheet2->mergeCells("B{$studentStartRow2}:B{$s2Row}");
+            $sheet2->mergeCells("C{$studentStartRow2}:C{$s2Row}");
+            $sheet2->mergeCells("D{$studentStartRow2}:D{$s2Row}");
+            $sheet2->mergeCells("E{$studentStartRow2}:E{$s2Row}");
+            $sheet2->mergeCells("F{$studentStartRow2}:F{$s2Row}");
+        }
+        $studentStartRow2 = $s2Row + 1;
+    }
 
     $s2Row++;
   }
