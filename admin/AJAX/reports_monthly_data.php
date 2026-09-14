@@ -255,16 +255,13 @@ $breakdownRows = db_all(
       ot.level,
       ot.major_category,
       o.status AS offense_status,
-      uc.status AS case_status,
-      COUNT(*) AS cnt
+      COUNT(DISTINCT o.offense_id) AS cnt
    FROM offense o
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    JOIN student s ON s.student_id = o.student_id
-   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
-   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN ? AND ?
    $audienceClause
-   GROUP BY ot.offense_type_id, ot.name, ot.code, ot.level, ot.major_category, o.status, uc.status
+   GROUP BY ot.offense_type_id, ot.name, ot.code, ot.level, ot.major_category, o.status
    ORDER BY cnt DESC, ot.name ASC",
   [$monthStart, $monthEnd]
 );
@@ -403,12 +400,12 @@ foreach ($combinedBreakdownMap as $labelName => $cnt) {
   }
 }
 
-$minorCount = $calcMinor;
-$majorCount = $calcMajor;
-$dismissedOffensesCount = $calcDismissedOffenses;
-$dismissedCasesCount = $calcDismissedCases;
-$dismissedTotalCount = $dismissedOffensesCount + $dismissedCasesCount;
-$totalCount = $calcTotal;
+$minorCount = $minorCountDb;
+$majorCount = $majorCountDb;
+$dismissedOffensesCount = (int)($dismissedOffensesRow['cnt'] ?? 0) + $hDismissedOffenses;
+$dismissedCasesCount    = (int)($dismissedCasesRow['cnt'] ?? 0) + $hDismissedCases;
+$dismissedTotalCount    = $dismissedOffensesCount + $dismissedCasesCount;
+$totalCount             = $minorCount + $majorCount + $dismissedOffensesCount + $dismissedCasesCount;
 
 if ($othersCount > 0) {
   $pieLabels[] = 'Others';
