@@ -32,17 +32,17 @@ function makeMailer(): PHPMailer {
     $mail = new PHPMailer(true);
     $mail->CharSet = 'UTF-8';
     $mail->isSMTP();
-    $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
+    $mail->Host = get_env_var('SMTP_HOST', 'smtp.hostinger.com');
     $mail->Port = 587;
     $mail->SMTPAuth = true;
 
     // PHPMailer 5.2.28 uses string 'tls' (not PHPMailer::ENCRYPTION_STARTTLS)
     $mail->SMTPSecure = 'tls';
 
-    $mail->Username = get_env_var('SMTP_USER', 'identitrack@identitrack.site');
-    $mail->Password = get_env_var('SMTP_PASS', '');
+    $mail->Username = db_smtp_user();
+    $mail->Password = db_smtp_pass();
 
-    $mail->Timeout = 30;
+    $mail->Timeout = 15;
     return $mail;
 }
 
@@ -172,7 +172,21 @@ function sendOTPEmail(string $toEmail, string $toName, string $action, string $o
         . "Requested at: {$requestedAt}\n\n"
         . "If you did not request this, ignore this email.\n";
 
-    return $mail->send();
+    try {
+        return $mail->send();
+    } catch (\Exception $e) {
+        try {
+            $mail->Port = 465;
+            $mail->SMTPSecure = 'ssl';
+            $mail->SMTPAutoTLS = false;
+            return $mail->send();
+        } catch (\Exception $e2) {
+            $headers  = "MIME-Version: 1.0\r\n";
+            $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+            $headers .= "From: IdentiTrack Admin <" . db_smtp_user() . ">\r\n";
+            return @mail($toEmail, "Your OTP Code - {$actionLabel}", $mail->Body, $headers);
+        }
+    }
 }
 
 // ---- main ----

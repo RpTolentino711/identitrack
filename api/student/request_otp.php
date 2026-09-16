@@ -31,17 +31,17 @@ function send_otp_email(string $toEmail, string $otp): array {
 
   try {
     $mail->isSMTP();
-    $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
+    $mail->Host = get_env_var('SMTP_HOST', 'smtp.hostinger.com');
     $mail->SMTPAuth = true;
-    $mail->Username = get_env_var('SMTP_USER', 'identitrack@identitrack.site');
-    $mail->Password = get_env_var('SMTP_PASS', '');
+    $mail->Username = db_smtp_user();
+    $mail->Password = db_smtp_pass();
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
     $mail->SMTPAutoTLS = true;
     $mail->Timeout = 10;
 
     $mail->CharSet = 'UTF-8';
-    $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack SDO');
+    $mail->setFrom(db_smtp_user(), 'IdentiTrack SDO');
     $mail->addAddress($toEmail);
     $mail->isHTML(true);
     $mail->Subject = $otp . ' is your IdentiTrack Verification Code';
@@ -175,7 +175,18 @@ function send_otp_email(string $toEmail, string $otp): array {
 
     return [$mail->send(), null];
   } catch (Exception $e) {
-    return [false, $e->getMessage()];
+    try {
+      $mail->Port = 465;
+      $mail->SMTPSecure = 'ssl';
+      $mail->SMTPAutoTLS = false;
+      return [$mail->send(), null];
+    } catch (Exception $e2) {
+      $headers  = "MIME-Version: 1.0\r\n";
+      $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+      $headers .= "From: IdentiTrack SDO <" . db_smtp_user() . ">\r\n";
+      $sentNative = @mail($toEmail, $otp . ' is your IdentiTrack Verification Code', $mail->Body, $headers);
+      return [$sentNative, $sentNative ? null : $e->getMessage()];
+    }
   }
 }
 

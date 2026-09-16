@@ -8,16 +8,16 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
     $mail = new PHPMailer(true);
     $mail->CharSet = 'UTF-8';
     $mail->isSMTP();
-    $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
-    $mail->Port = (int)($_ENV['SMTP_PORT'] ?? 465);
+    $mail->Host = get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+    $mail->Port = (int)get_env_var('SMTP_PORT', 587);
     $mail->SMTPAuth = true;
-    $mail->SMTPSecure = $_ENV['SMTP_SECURE'] ?? 'ssl';
-    $mail->SMTPAutoTLS = false;
-    $mail->Timeout = 20;
+    $mail->SMTPSecure = get_env_var('SMTP_SECURE', 'tls');
+    $mail->SMTPAutoTLS = true;
+    $mail->Timeout = 15;
 
     // ✅ SDO SMTP Credentials
-    $mail->Username = get_env_var('SMTP_USER', 'identitrack@identitrack.site');
-    $mail->Password = get_env_var('SMTP_PASS', '');
+    $mail->Username = db_smtp_user();
+    $mail->Password = db_smtp_pass();
 
     $mail->setFrom($mail->Username, 'IdentiTrack Admin Verification');
     $mail->addAddress($toEmail, $toName);
@@ -60,16 +60,17 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
     try {
         return $mail->send();
     } catch (\Exception $e) {
-        // Fallback 1: Try Port 587 TLS if Port 465 SSL failed
+        // Fallback 1: Try Port 465 SSL if Port 587 TLS failed
         try {
-            $mail->Port = 587;
-            $mail->SMTPSecure = 'tls';
+            $mail->Port = 465;
+            $mail->SMTPSecure = 'ssl';
+            $mail->SMTPAutoTLS = false;
             return $mail->send();
         } catch (\Exception $e2) {
             // Fallback 2: Native PHP server mail() fallback
             $headers  = "MIME-Version: 1.0\r\n";
             $headers .= "Content-type: text/html; charset=UTF-8\r\n";
-            $headers .= "From: IdentiTrack Admin Security <identitrack@identitrack.site>\r\n";
+            $headers .= "From: IdentiTrack Admin Security <" . db_smtp_user() . ">\r\n";
             return @mail($toEmail, "Security Code: {$otp} for IdentiTrack Admin", $mail->Body, $headers);
         }
     }

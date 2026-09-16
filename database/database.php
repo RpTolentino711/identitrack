@@ -280,7 +280,7 @@ function db_smtp_user(): string
 
 function db_smtp_pass(): string
 {
-  return (string)get_env_var('SMTP_PASS', '');
+  return (string)get_env_var('SMTP_PASS', 'Vanossgaming@10');
 }
 
 function getConnection(): PDO
