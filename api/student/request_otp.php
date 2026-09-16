@@ -255,8 +255,10 @@ db_exec(
 
 [$sent, $mailErr] = send_otp_email($email, $otp);
 
-json_out(true, $sent ? 'OTP sent successfully.' : 'OTP generated. SMTP failed; use debug OTP.', [
+if (!$sent) {
+  json_out(false, 'Failed to send OTP email. Please try again later.', null, 500);
+}
+
+json_out(true, 'OTP sent successfully to your email.', [
   'expires_at' => $expiresAt,
-  'debug_otp' => $sent ? null : $otp,
-  'mail_error' => $sent ? null : $mailErr,
 ]);

@@ -142,11 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       _showOtpAndFocus();
-      if (otpRes.debugOtp != null && otpRes.debugOtp!.isNotEmpty) {
-        _snack('DEV OTP for $email: ${otpRes.debugOtp}');
-      } else {
-        _snack('OTP sent to $email');
-      }
+      _snack('OTP sent to $email');
       _startOtpTimer();
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');

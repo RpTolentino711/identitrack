@@ -37,13 +37,7 @@ class AuthApi {
       throw Exception(msg);
     }
 
-    final dataRaw = decoded['data'];
-    String? debugOtp;
-    if (dataRaw is Map && dataRaw['debug_otp'] != null) {
-      debugOtp = dataRaw['debug_otp'].toString();
-    }
-
-    return RequestOtpResult(message: msg, debugOtp: debugOtp);
+    return RequestOtpResult(message: msg);
   }
 
   Future<VerifyResult> verifyOtp({required String email, required String otp}) async {
@@ -94,9 +88,8 @@ class AuthApi {
 
 class RequestOtpResult {
   final String message;
-  final String? debugOtp;
 
-  RequestOtpResult({required this.message, this.debugOtp});
+  RequestOtpResult({required this.message});
 }
 
 class VerifyResult {
