@@ -639,10 +639,6 @@ try {
                   }
               }
 
-              if ($hasSection4 && !$isDismissed && $rowCategory !== 'DISMISSED CASE' && $rowCategory !== 'DISMISSED OFFENSE') {
-                  $rowCategory = 'SECTION 4 ESCALATION';
-              }
-
               $rawStudentName = (string)($r['student_name'] ?? '');
               $rawStudentId   = (string)($r['student_id'] ?? '');
 
@@ -708,11 +704,10 @@ try {
 
           $groupEndRow = $currRow - 1;
 
-          if ($hasSection4 && $groupEndRow > $groupStartRow) {
+          if ($groupEndRow > $groupStartRow) {
               $sheet->mergeCells("C{$groupStartRow}:C{$groupEndRow}");
               $sheet->mergeCells("D{$groupStartRow}:D{$groupEndRow}");
               $sheet->mergeCells("E{$groupStartRow}:E{$groupEndRow}");
-              $sheet->mergeCells("F{$groupStartRow}:F{$groupEndRow}");
           }
       }
 
