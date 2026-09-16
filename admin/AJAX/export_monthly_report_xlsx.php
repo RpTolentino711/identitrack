@@ -568,6 +568,8 @@ try {
           }
 
           $minorIdx = 0;
+          $sec4CaseIdx = 0;
+
           foreach ($sRows as $rIndex => $r) {
               $rRow = $currRow;
               $isCaseRow = !empty($r['case_id']) || strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0;
@@ -595,10 +597,12 @@ try {
                       $resolvedCol = 'DISMISSED CASE';
                       $displayLevel = 'DISMISSED CASE';
                   } elseif ($isSec4Case || $hasSection4) {
+                      $sec4CaseIdx++;
+                      $cycleTag = "CYCLE {$sec4CaseIdx}";
                       $rowCategory = 'SECTION 4 ESCALATION';
-                      $pendingCol = $isPending ? 'SECTION 4 MAJOR (CATEGORY 1 TO 5 PENDING UPCC)' : 'N/A (Resolved / Closed)';
-                      $resolvedCol = $isResolved ? (($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : "SECTION 4 MAJOR (RESOLVED)") : 'N/A (Pending Case)';
-                      $displayLevel = ($isResolved && $decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "SECTION 4 MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "SECTION 4 MAJOR (RESOLVED)");
+                      $pendingCol = $isPending ? "SECTION 4 MAJOR ({$cycleTag} - CATEGORY 1 TO 5 PENDING UPCC)" : 'N/A (Resolved / Closed)';
+                      $resolvedCol = $isResolved ? (($decidedCat > 0) ? "SECTION 4 MAJOR ({$cycleTag} - CATEGORY {$decidedCat})" : "SECTION 4 MAJOR ({$cycleTag} - RESOLVED)") : 'N/A (Pending Case)';
+                      $displayLevel = ($isResolved && $decidedCat > 0) ? "SECTION 4 MAJOR ({$cycleTag} - CATEGORY {$decidedCat})" : ($isPending ? "SECTION 4 MAJOR ({$cycleTag} - CATEGORY 1 TO 5 PENDING UPCC)" : "SECTION 4 MAJOR ({$cycleTag} - RESOLVED)");
                   } else {
                       $rowCategory = 'AUTOMATIC MAJOR';
                       $pendingCol = $isPending ? 'AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)' : 'N/A (Resolved / Closed)';
