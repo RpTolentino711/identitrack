@@ -378,6 +378,16 @@ function format_full_sanction_penalty(array $r): string {
         return 'Case / Offense Dismissed (No Sanction Imposed)';
     }
 
+    $isPending = in_array($caseStatus, ['PENDING', 'UNDER_INVESTIGATION', 'OPEN', 'UNDER_APPEAL', 'AWAITING_ADMIN_FINALIZATION'], true)
+                 || ($caseId > 0 && $caseStatus !== 'CLOSED' && $caseStatus !== 'RESOLVED');
+
+    $isResolved = ($caseStatus === 'CLOSED' || $caseStatus === 'RESOLVED');
+
+    // If the case is pending UPCC panel decision, explicitly show Pending!
+    if ($isPending && ($offenseLevel === 'MAJOR' || $caseId > 0)) {
+        return 'Pending (Awaiting UPCC Panel Hearing & Decision)';
+    }
+
     $seqCount = 0;
     if ($offenseLevel === 'MINOR') {
         $seqCount = (int)(db_one(
@@ -393,7 +403,7 @@ function format_full_sanction_penalty(array $r): string {
         } catch (\Throwable $e) {}
     }
 
-    if ($decidedCat > 0 || !empty($finalDecision) || !empty($punishDetails)) {
+    if ($isResolved && ($decidedCat > 0 || !empty($finalDecision) || !empty($punishDetails))) {
         $catDescriptions = [
             1 => 'Category 1 (Formal Reprimand & Active Semester Probation - 0 Hours CS)',
             2 => 'Category 2 (Formative Intervention & Community Service 150-250 Hours)',
@@ -470,12 +480,12 @@ function format_full_sanction_penalty(array $r): string {
             $interv = !empty($r['intervention_second']) ? " — Intervention: " . $r['intervention_second'] : "";
             return "2nd Minor Offense (2nd Minor Warning & Guardian Notified / Conference Required{$interv})";
         } else {
-            return "3rd Minor Offense — Section 4 Escalation (UPCC Hearing & Committee Required)";
+            return "3rd Minor Offense — Section 4 Escalation (Pending UPCC Panel Hearing & Decision)";
         }
     }
 
-    if ($offenseLevel === 'MAJOR') {
-        return "Major Offense (Pending UPCC Committee Hearing & Sanction)";
+    if ($offenseLevel === 'MAJOR' || $caseId > 0) {
+        return "Pending (Awaiting UPCC Panel Hearing & Decision)";
     }
 
     return "Under Review";
@@ -580,14 +590,14 @@ try {
                       $displayLevel = 'DISMISSED CASE';
                   } elseif ($isSec4Case || $hasSection4) {
                       $rowCategory = 'SECTION 4 ESCALATION';
-                      $pendingCol = $isPending ? 'SECTION 4 MAJOR (PENDING UPCC)' : 'N/A (Resolved / Closed)';
+                      $pendingCol = $isPending ? 'SECTION 4 MAJOR (CATEGORY 1 TO 5 PENDING UPCC)' : 'N/A (Resolved / Closed)';
                       $resolvedCol = $isResolved ? (($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : "SECTION 4 MAJOR (RESOLVED)") : 'N/A (Pending Case)';
-                      $displayLevel = ($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "SECTION 4 MAJOR (PENDING UPCC)" : "SECTION 4 MAJOR (RESOLVED)");
+                      $displayLevel = ($isResolved && $decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "SECTION 4 MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "SECTION 4 MAJOR (RESOLVED)");
                   } else {
                       $rowCategory = 'AUTOMATIC MAJOR';
-                      $pendingCol = $isPending ? 'AUTOMATIC MAJOR (PENDING UPCC)' : 'N/A (Resolved / Closed)';
+                      $pendingCol = $isPending ? 'AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)' : 'N/A (Resolved / Closed)';
                       $resolvedCol = $isResolved ? (($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : "AUTOMATIC MAJOR (RESOLVED)") : 'N/A (Pending Case)';
-                      $displayLevel = ($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "AUTOMATIC MAJOR (PENDING UPCC)" : "AUTOMATIC MAJOR (RESOLVED)");
+                      $displayLevel = ($isResolved && $decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "AUTOMATIC MAJOR (RESOLVED)");
                   }
               } else {
                   if ($isDismissed) {
