@@ -578,8 +578,14 @@ try {
               $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
 
               $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
-              $isPending = in_array($caseStatus, ['PENDING', 'UNDER_INVESTIGATION', 'OPEN', 'UNDER_APPEAL', 'AWAITING_ADMIN_FINALIZATION'], true);
-              $isResolved = !$isPending && !$isDismissed;
+
+              if ($isCaseRow || $offenseLevel === 'MAJOR') {
+                  $isResolved = !$isDismissed && ($caseStatus === 'CLOSED' || $caseStatus === 'RESOLVED' || $offenseStatus === 'CLOSED' || $offenseStatus === 'RESOLVED');
+                  $isPending  = !$isDismissed && !$isResolved;
+              } else {
+                  $isResolved = !$isDismissed && ($offenseStatus === 'RESOLVED' || $offenseStatus === 'COMPLETED' || $offenseStatus === 'SERVED' || $caseStatus === 'CLOSED' || $caseStatus === 'RESOLVED');
+                  $isPending  = !$isDismissed && !$isResolved;
+              }
 
               if ($isCaseRow) {
                   $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false);
@@ -622,9 +628,9 @@ try {
                       }
                   } elseif ($offenseLevel === 'MAJOR') {
                       $rowCategory = 'AUTOMATIC MAJOR';
-                      $pendingCol = $isPending ? 'AUTOMATIC MAJOR OFFENSE (PENDING)' : 'N/A (Resolved)';
-                      $resolvedCol = $isResolved ? 'AUTOMATIC MAJOR OFFENSE (RESOLVED)' : 'N/A (Pending)';
-                      $displayLevel = 'AUTOMATIC MAJOR OFFENSE';
+                      $pendingCol = $isPending ? 'AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)' : 'N/A (Resolved / Closed)';
+                      $resolvedCol = $isResolved ? (($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : "AUTOMATIC MAJOR (RESOLVED)") : 'N/A (Pending Case)';
+                      $displayLevel = ($isResolved && $decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "AUTOMATIC MAJOR (RESOLVED)");
                   } else {
                       $rowCategory = 'OTHER';
                       $pendingCol = 'N/A';
