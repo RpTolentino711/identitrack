@@ -668,20 +668,34 @@ try {
               $sheet->setCellValue('N' . $rRow, $sanctionStr);
 
               // Styling per column
+              $styleRedMajor = ['font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]];
+              $styleYellowSec4 = ['font' => ['bold' => true, 'color' => ['argb' => 'FF854D0E']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF08A']]];
+              $styleGreenResolved = ['font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]];
+              $styleGrayDismissed = ['font' => ['bold' => true, 'color' => ['argb' => 'FF475569']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]];
+              $styleGrayInactive = ['font' => ['color' => ['argb' => 'FF94A3B8']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF8FAFC']]];
+
+              $isMajorType = (strpos($rowCategory, 'AUTOMATIC MAJOR') !== false || strpos($displayLevel, 'AUTOMATIC MAJOR') !== false || strpos($pendingCol, 'AUTOMATIC MAJOR') !== false || $offenseLevel === 'MAJOR');
+              $isSec4Type  = (strpos($rowCategory, 'SECTION 4') !== false || strpos($displayLevel, 'SECTION 4') !== false || strpos($pendingCol, 'SECTION 4') !== false || $hasSection4);
+
               if ($isDismissed) {
-                  $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF475569']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]];
-              } elseif (strpos($rowCategory, 'AUTOMATIC MAJOR') !== false) {
-                  $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF991B1B']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']]];
-              } elseif (strpos($rowCategory, 'SECTION 4') !== false) {
-                  $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FFC2410C']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFEDD5']]];
+                  $colorStyle = $styleGrayDismissed;
+              } elseif ($isMajorType) {
+                  $colorStyle = $styleRedMajor;
+              } elseif ($isSec4Type) {
+                  $colorStyle = $styleYellowSec4;
               } elseif ($decidedCat > 0 || !empty($r['final_decision'])) {
-                  $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]];
+                  $colorStyle = $styleGreenResolved;
               } else {
-                  $colorStyle = ['font' => ['bold' => true, 'color' => ['argb' => 'FF854D0E']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEF08A']]];
+                  $colorStyle = $styleYellowSec4;
               }
 
-              $pendingStyle = $isPending ? ['font' => ['bold' => true, 'color' => ['argb' => 'FF6B21A8']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF3E8FF']]] : ['font' => ['color' => ['argb' => 'FF94A3B8']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF8FAFC']]];
-              $resolvedStyle = $isResolved ? ['font' => ['bold' => true, 'color' => ['argb' => 'FF15803D']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCFCE7']]] : ['font' => ['color' => ['argb' => 'FF94A3B8']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF8FAFC']]];
+              if ($isPending) {
+                  $pendingStyle = $isMajorType ? $styleRedMajor : $styleYellowSec4;
+              } else {
+                  $pendingStyle = $styleGrayInactive;
+              }
+
+              $resolvedStyle = $isResolved ? $styleGreenResolved : $styleGrayInactive;
 
               $sheet->getStyle('F' . $rRow)->applyFromArray($colorStyle);
               $sheet->getStyle('G' . $rRow)->applyFromArray($pendingStyle);
