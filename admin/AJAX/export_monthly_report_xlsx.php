@@ -670,15 +670,15 @@ try {
               $styleGrayDismissed = ['font' => ['bold' => true, 'color' => ['argb' => 'FF475569']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']]];
               $styleGrayInactive = ['font' => ['color' => ['argb' => 'FF94A3B8']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF8FAFC']]];
 
-              $isMajorType = (strpos($rowCategory, 'AUTOMATIC MAJOR') !== false || strpos($displayLevel, 'AUTOMATIC MAJOR') !== false || strpos($pendingCol, 'AUTOMATIC MAJOR') !== false || $offenseLevel === 'MAJOR');
-              $isSec4Type  = (strpos($rowCategory, 'SECTION 4') !== false || strpos($displayLevel, 'SECTION 4') !== false || strpos($pendingCol, 'SECTION 4') !== false || $hasSection4);
+              $isSec4Type  = (strpos($rowCategory, 'SECTION 4') !== false || strpos($displayLevel, 'SECTION 4') !== false || strpos($pendingCol, 'SECTION 4') !== false);
+              $isMajorType = !$isSec4Type && (strpos($rowCategory, 'AUTOMATIC MAJOR') !== false || strpos($displayLevel, 'AUTOMATIC MAJOR') !== false || strpos($pendingCol, 'AUTOMATIC MAJOR') !== false || ($offenseLevel === 'MAJOR' && strpos($rowCategory, 'SECTION 4') === false));
 
               if ($isDismissed) {
                   $colorStyle = $styleGrayDismissed;
-              } elseif ($isMajorType) {
-                  $colorStyle = $styleRedMajor;
               } elseif ($isSec4Type) {
                   $colorStyle = $styleYellowSec4;
+              } elseif ($isMajorType) {
+                  $colorStyle = $styleRedMajor;
               } elseif ($decidedCat > 0 || !empty($r['final_decision'])) {
                   $colorStyle = $styleGreenResolved;
               } else {
