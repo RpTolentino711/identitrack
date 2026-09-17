@@ -508,6 +508,7 @@ function format_full_sanction_penalty(array $r): string {
 
 try {
   $spreadsheet = new Spreadsheet();
+  $spreadsheet->getCalculationEngine()->disableCalculationCache();
 
   // Common styling rules
   $styleTitleHeader = [
@@ -1099,6 +1100,7 @@ try {
   
   $writer = new Xlsx($spreadsheet);
   $writer->setIncludeCharts(true);
+  $writer->setPreCalculateFormulas(false);
   $writer->save('php://output');
   if (php_sapi_name() !== 'cli') {
     exit;
