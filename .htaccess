@@ -10,6 +10,9 @@ Options -Indexes
     RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
 
     # Redirect GET requests from /file.php to /file (Hides .php extension in browser address bar)
+    # Exclude internal AJAX, API, and export endpoints to prevent infinite 500 redirect loops
+    RewriteCond %{ENV:REDIRECT_STATUS} ^$
+    RewriteCond %{REQUEST_URI} !/(AJAX|api)/ [NC]
     RewriteCond %{THE_REQUEST} \s/+(.+?)\.php[\s?] [NC]
     RewriteCond %{REQUEST_METHOD} !POST
     RewriteRule ^ /%1 [R=301,L]
