@@ -605,14 +605,15 @@ try {
               $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
               $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
 
-              // Skip non-case offense rows created alongside upcc_case to prevent double Section 4 / Major entries
-              if (!$isCaseRow && $hasCaseRowInGroup && ($offenseLevel === 'MAJOR' || strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos($offenseNameUpper, 'ESCALAT') !== false)) {
+              // Skip administrative summary offense rows created alongside upcc_case for Section 4 to prevent duplicate Section 4 entries
+              $isSec4Text = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos($offenseNameUpper, 'ESCALAT') !== false);
+              if (!$isCaseRow && $hasCaseRowInGroup && $isSec4Text) {
                   continue;
               }
 
               // Skip duplicate Section 4 Major / Case rows if one has already been rendered for this student escalation
               $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos(strtoupper((string)($r['case_kind'] ?? '')), 'SECTION4') !== false);
-              if ($isCaseRow && ($isSec4Case || $hasSection4)) {
+              if ($isCaseRow && $isSec4Case) {
                   if ($renderedSec4Major) {
                       continue;
                   }
