@@ -589,83 +589,85 @@ try {
               $hasSection4 = true;
           }
 
-          // Sort rows within student's group:
-          // Section 4 Escalation & its Minors ALWAYS MERGED TOGETHER FIRST (Group 1),
-          // Automatic Major SECOND (Group 2), Standard Minors THIRD (Group 3), Dismissed LAST (Group 4).
-          usort($sRows, function($a, $b) use ($hasSection4) {
-              $isCaseA = !empty($a['case_id']) || strpos((string)($a['offense_id'] ?? ''), 'CASE-') === 0;
-              $isCaseB = !empty($b['case_id']) || strpos((string)($b['offense_id'] ?? ''), 'CASE-') === 0;
-
-              $offNameA = strtoupper((string)($a['offense_name'] ?? ''));
-              $offNameB = strtoupper((string)($b['offense_name'] ?? ''));
-
-              $kindA = strtoupper((string)($a['case_kind'] ?? ''));
-              $kindB = strtoupper((string)($b['case_kind'] ?? ''));
-
-              $lvlA = strtoupper((string)($a['offense_level'] ?? ''));
-              $lvlB = strtoupper((string)($b['offense_level'] ?? ''));
-
-              $statusA = strtoupper((string)($a['status'] ?? ''));
-              $statusB = strtoupper((string)($b['status'] ?? ''));
-
-              $isDismissedA = ($statusA === 'DISMISSED' || strtoupper((string)($a['case_status'] ?? '')) === 'DISMISSED');
-              $isDismissedB = ($statusB === 'DISMISSED' || strtoupper((string)($b['case_status'] ?? '')) === 'DISMISSED');
-
-              if ($isDismissedA !== $isDismissedB) {
-                  return $isDismissedA ? 1 : -1;
-              }
-
-              $isSec4A = (strpos($offNameA, 'SECTION 4') !== false || strpos($offNameA, 'SECTION4') !== false || strpos($kindA, 'SECTION4') !== false || ($hasSection4 && $lvlA === 'MINOR'));
-              $isSec4B = (strpos($offNameB, 'SECTION 4') !== false || strpos($offNameB, 'SECTION4') !== false || strpos($kindB, 'SECTION4') !== false || ($hasSection4 && $lvlB === 'MINOR'));
-
-              $grpA = $isSec4A ? 1 : (($isCaseA || $lvlA === 'MAJOR') ? 2 : 3);
-              $grpB = $isSec4B ? 1 : (($isCaseB || $lvlB === 'MAJOR') ? 2 : 3);
-
-              if ($grpA !== $grpB) {
-                  return $grpA - $grpB;
-              }
-
-              $subA = $isCaseA ? 0 : 1;
-              $subB = $isCaseB ? 0 : 1;
-
-              if ($subA !== $subB) {
-                  return $subA - $subB;
-              }
-
-              return strcmp((string)($a['date_committed'] ?? ''), (string)($b['date_committed'] ?? ''));
-          });
-
-          $minorIdx = 0;
-          $renderedSec4Major = false;
-          $hasCaseRowInGroup = false;
+          // Separate $sRows by type: Section 4 Cases, Minors, Auto Majors, Dismissed
+          $sec4Cases = [];
+          $minorOffenses = [];
+          $autoMajors = [];
+          $dismissedRows = [];
 
           foreach ($sRows as $sr) {
-              if (!empty($sr['case_id']) || strpos((string)($sr['offense_id'] ?? ''), 'CASE-') === 0) {
-                  $hasCaseRowInGroup = true;
-                  break;
-              }
-          }
+              $isCaseRow = !empty($sr['case_id']) || strpos((string)($sr['offense_id'] ?? ''), 'CASE-') === 0;
+              $offNameUpper = strtoupper((string)($sr['offense_name'] ?? ''));
+              $offLvl = strtoupper((string)($sr['offense_level'] ?? ''));
+              $caseKindUpper = strtoupper((string)($sr['case_kind'] ?? ''));
+              $statusUpper = strtoupper((string)($sr['status'] ?? ''));
+              $caseStatusUpper = strtoupper((string)($sr['case_status'] ?? ''));
 
-          foreach ($sRows as $rIndex => $r) {
-              $isCaseRow = !empty($r['case_id']) || strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0;
-              $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
-              $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
-
-              // Skip administrative summary offense rows created alongside upcc_case for Section 4 to prevent duplicate Section 4 entries
-              $isSec4Text = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos($offenseNameUpper, 'ESCALAT') !== false);
-              if (!$isCaseRow && $hasCaseRowInGroup && $isSec4Text) {
+              $isDismissed = ($statusUpper === 'DISMISSED' || $caseStatusUpper === 'DISMISSED');
+              if ($isDismissed) {
+                  $dismissedRows[] = $sr;
                   continue;
               }
 
-              // Skip duplicate Section 4 Major / Case rows if one has already been rendered for this student escalation
-              $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos(strtoupper((string)($r['case_kind'] ?? '')), 'SECTION4') !== false);
-              if ($isCaseRow && $isSec4Case) {
-                  if ($renderedSec4Major) {
-                      continue;
+              $isSec4Text = (strpos($offNameUpper, 'SECTION 4') !== false || strpos($offNameUpper, 'SECTION4') !== false || strpos($caseKindUpper, 'SECTION4') !== false || strpos($offNameUpper, 'ESCALAT') !== false);
+
+              if ($isCaseRow && $isSec4Text) {
+                  $sec4Cases[] = $sr;
+              } elseif ($offLvl === 'MINOR') {
+                  $minorOffenses[] = $sr;
+              } else {
+                  if (!$isCaseRow && $isSec4Text) {
+                      continue; // Skip admin summary offense row created alongside case
                   }
-                  $renderedSec4Major = true;
+                  $autoMajors[] = $sr;
+              }
+          }
+
+          // Sort cases and minor offenses chronologically
+          usort($sec4Cases, fn($a, $b) => strcmp((string)($a['date_committed'] ?? ''), (string)($b['date_committed'] ?? '')));
+          usort($minorOffenses, fn($a, $b) => strcmp((string)($a['date_committed'] ?? ''), (string)($b['date_committed'] ?? '')));
+
+          // Interleave into cycle groups: Cycle 1 Case + Minors 1-3, Cycle 2 Case + Minors 4-6, etc.
+          $orderedRows = [];
+          $totalMinors = count($minorOffenses);
+          $totalCases = count($sec4Cases);
+
+          $mIdx = 0;
+          $cIdx = 0;
+
+          while ($mIdx < $totalMinors || $cIdx < $totalCases) {
+              $currentCycle = (int)floor($mIdx / 3) + 1;
+
+              // Output Section 4 case for this cycle if available
+              if ($cIdx < $totalCases && $cIdx < $currentCycle) {
+                  $orderedRows[] = $sec4Cases[$cIdx];
+                  $cIdx++;
               }
 
+              // Output 1 minor offense
+              if ($mIdx < $totalMinors) {
+                  $orderedRows[] = $minorOffenses[$mIdx];
+                  $mIdx++;
+              }
+          }
+
+          while ($cIdx < $totalCases) {
+              $orderedRows[] = $sec4Cases[$cIdx];
+              $cIdx++;
+          }
+
+          foreach ($autoMajors as $am) {
+              $orderedRows[] = $am;
+          }
+          foreach ($dismissedRows as $dr) {
+              $orderedRows[] = $dr;
+          }
+
+          $sRows = $orderedRows;
+          $minorIdx = 0;
+
+          foreach ($sRows as $r) {
+              $isCaseRow = !empty($r['case_id']) || strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0;
               $rRow = $currRow;
               $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
               $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
