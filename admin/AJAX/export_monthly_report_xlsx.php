@@ -679,6 +679,7 @@ try {
 
           $sRows = $orderedRows;
           $minorIdx = 0;
+          $caseIdx = 0;
 
           foreach ($sRows as $r) {
               $isCaseRow = strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0 || strtoupper((string)($r['offense_code'] ?? '')) === 'UPCC-CASE';
@@ -707,10 +708,12 @@ try {
                       $resolvedCol = 'DISMISSED CASE';
                       $displayLevel = 'DISMISSED CASE';
                   } elseif ($isSec4Case) {
-                      $rowCategory = 'SECTION 4 ESCALATION';
+                      $caseIdx++;
+                      $cOrd = ($caseIdx === 1) ? '1ST' : (($caseIdx === 2) ? '2ND' : (($caseIdx === 3) ? '3RD' : "{$caseIdx}TH"));
+                      $rowCategory = "{$cOrd} CYCLE SECTION 4 ESCALATION";
                       $pendingCol = $isPending ? 'PENDING UPCC HEARING' : 'N/A (Resolved / Closed)';
                       $resolvedCol = $isResolved ? (($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : "SECTION 4 MAJOR (RESOLVED)") : 'N/A (Pending Case)';
-                      $displayLevel = ($isResolved && $decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "SECTION 4 MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "SECTION 4 MAJOR (RESOLVED)");
+                      $displayLevel = ($isResolved && $decidedCat > 0) ? "{$cOrd} CYCLE SECTION 4 MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "{$cOrd} CYCLE SECTION 4 MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "{$cOrd} CYCLE SECTION 4 MAJOR (RESOLVED)");
                   } else {
                       $rowCategory = 'AUTOMATIC MAJOR';
                       $pendingCol = $isPending ? 'PENDING UPCC HEARING' : 'N/A (Resolved / Closed)';
@@ -725,17 +728,19 @@ try {
                       $displayLevel = 'DISMISSED OFFENSE';
                   } elseif ($offenseLevel === 'MINOR') {
                       $minorIdx++;
+                      $cycleNum = (int)floor(($minorIdx - 1) / 3) + 1;
+                      $cOrd = ($cycleNum === 1) ? '1ST' : (($cycleNum === 2) ? '2ND' : (($cycleNum === 3) ? '3RD' : "{$cycleNum}TH"));
                       $ordinal = ($minorIdx === 1) ? '1ST' : (($minorIdx === 2) ? '2ND' : (($minorIdx === 3) ? '3RD' : (($minorIdx === 4) ? '4TH' : (($minorIdx === 5) ? '5TH' : "{$minorIdx}TH"))));
 
                       $rowCategory = 'MINOR OFFENSE';
                       if ($hasSection4) {
-                          $pendingCol = $isPending ? 'ACTIVE MINOR (SECTION 4 ESCALATION)' : 'N/A (Resolved)';
-                          $resolvedCol = $isResolved ? 'RESOLVED MINOR (SECTION 4 ESCALATION)' : 'N/A (Pending)';
+                          $pendingCol = $isPending ? "ACTIVE MINOR (CYCLE {$cycleNum})" : 'N/A (Resolved)';
+                          $resolvedCol = $isResolved ? "RESOLVED MINOR (CYCLE {$cycleNum})" : 'N/A (Pending)';
                       } else {
                           $pendingCol = $isPending ? 'ACTIVE MINOR OFFENSE' : 'N/A (Resolved)';
                           $resolvedCol = $isResolved ? 'RESOLVED MINOR OFFENSE' : 'N/A (Pending)';
                       }
-                      $displayLevel = ($minorIdx % 3 === 0) ? "{$ordinal} MINOR WARNING (SECTION 4 TRIGGERED)" : "{$ordinal} MINOR WARNING";
+                      $displayLevel = ($minorIdx % 3 === 0) ? "{$ordinal} MINOR WARNING (CYCLE {$cycleNum} - SECTION 4 TRIGGERED)" : "{$ordinal} MINOR WARNING (CYCLE {$cycleNum})";
                   } elseif ($offenseLevel === 'MAJOR') {
                       $rowCategory = 'AUTOMATIC MAJOR';
                       $pendingCol = $isPending ? 'PENDING UPCC HEARING' : 'N/A (Resolved / Closed)';
