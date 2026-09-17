@@ -833,23 +833,26 @@ try {
 
               if ($isDismissed) {
                   $colorStyle = $styleGrayDismissed;
+                  $pendingStyle = $styleGrayDismissed;
+                  $resolvedStyle = $styleGrayDismissed;
+              } elseif ($isResolved) {
+                  // IF SOLVED / RESOLVED: STYLE ALL COLUMNS GREEN!
+                  $colorStyle = $styleGreenResolved;
+                  $pendingStyle = $styleGreenResolved;
+                  $resolvedStyle = $styleGreenResolved;
               } elseif ($isSec4Type) {
                   $colorStyle = $styleYellowSec4;
+                  $pendingStyle = $styleYellowSec4;
+                  $resolvedStyle = $styleGrayInactive;
               } elseif ($isMajorType) {
                   $colorStyle = $styleRedMajor;
-              } elseif ($decidedCat > 0 || !empty($r['final_decision'])) {
-                  $colorStyle = $styleGreenResolved;
+                  $pendingStyle = $styleRedMajor;
+                  $resolvedStyle = $styleGrayInactive;
               } else {
                   $colorStyle = $styleYellowSec4;
+                  $pendingStyle = $styleYellowSec4;
+                  $resolvedStyle = $styleGrayInactive;
               }
-
-              if ($isPending) {
-                  $pendingStyle = $isMajorType ? $styleRedMajor : $styleYellowSec4;
-              } else {
-                  $pendingStyle = $styleGrayInactive;
-              }
-
-              $resolvedStyle = $isResolved ? $styleGreenResolved : $styleGrayInactive;
 
               $sheet->getStyle('F' . $rRow)->applyFromArray($colorStyle);
               $sheet->getStyle('G' . $rRow)->applyFromArray($pendingStyle);
