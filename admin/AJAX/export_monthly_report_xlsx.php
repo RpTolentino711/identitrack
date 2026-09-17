@@ -585,8 +585,15 @@ try {
           $minorIdx = 0;
 
           foreach ($sRows as $rIndex => $r) {
-              $rRow = $currRow;
               $isCaseRow = !empty($r['case_id']) || strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0;
+              $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
+
+              // Skip duplicate administrative summary offense rows created alongside upcc_case to prevent double Section 4 entries
+              if (!$isCaseRow && (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false)) {
+                  continue;
+              }
+
+              $rRow = $currRow;
               $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
               $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
               $offenseStatus = strtoupper((string)($r['status'] ?? ''));
