@@ -1149,18 +1149,14 @@ hr{border-color:var(--border-glass);margin:16px 0}
     100% { transform: rotate(360deg); }
 }
 
-/* Privacy Blur for Other Pending Cases */
+/* Permanent Privacy Blur for Other Pending Cases */
 .case-details-blur {
     filter: blur(6px);
     user-select: none;
-    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
+    pointer-events: none;
     border-radius: 6px;
     padding: 2px 4px;
     margin: -2px -4px;
-}
-.case-details-blur:hover, .case-details-blur:focus, .case-details-blur.revealed {
-    filter: blur(0);
 }
 </style>
 </head>
@@ -1453,7 +1449,7 @@ hr{border-color:var(--border-glass);margin:16px 0}
                                             <?= htmlspecialchars(str_replace('_', ' ', (string)$pc['status'])) ?>
                                         </span>
                                     </div>
-                                    <div class="case-details-blur" title="Hover or click to reveal details" onclick="this.classList.toggle('revealed')">
+                                    <div class="case-details-blur">
                                         <div style="font-weight: 700; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
                                             <?= htmlspecialchars((string)($pc['offense_names'] ?: 'General Violation')) ?>
                                         </div>
