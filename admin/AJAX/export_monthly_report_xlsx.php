@@ -611,8 +611,8 @@ try {
               }
 
               // Skip duplicate Section 4 Major / Case rows if one has already been rendered for this student escalation
-              $isSec4 = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || $hasSection4);
-              if (($isCaseRow || $offenseLevel === 'MAJOR') && $isSec4) {
+              $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos(strtoupper((string)($r['case_kind'] ?? '')), 'SECTION4') !== false);
+              if ($isCaseRow && ($isSec4Case || $hasSection4)) {
                   if ($renderedSec4Major) {
                       continue;
                   }
@@ -637,7 +637,7 @@ try {
               }
 
               if ($isCaseRow) {
-                  $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false);
+                  $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos(strtoupper((string)($r['case_kind'] ?? '')), 'SECTION4') !== false);
                   if ($isDismissed) {
                       $rowCategory = 'DISMISSED CASE';
                       $pendingCol = 'N/A (Dismissed)';
@@ -664,17 +664,15 @@ try {
                       $minorIdx++;
                       $ordinal = ($minorIdx === 1) ? '1ST' : (($minorIdx === 2) ? '2ND' : (($minorIdx === 3) ? '3RD' : (($minorIdx === 4) ? '4TH' : (($minorIdx === 5) ? '5TH' : "{$minorIdx}TH"))));
 
-                      if ($hasSection4 || $minorIdx % 3 === 0) {
-                          $rowCategory = 'SECTION 4 ESCALATION';
+                      $rowCategory = 'MINOR OFFENSE';
+                      if ($hasSection4) {
                           $pendingCol = $isPending ? 'ACTIVE MINOR (SECTION 4 ESCALATION)' : 'N/A (Resolved)';
                           $resolvedCol = $isResolved ? 'RESOLVED MINOR (SECTION 4 ESCALATION)' : 'N/A (Pending)';
-                          $displayLevel = ($minorIdx % 3 === 0) ? "{$ordinal} MINOR WARNING (SECTION 4 TRIGGERED)" : "{$ordinal} MINOR WARNING";
                       } else {
-                          $rowCategory = 'MINOR OFFENSE';
                           $pendingCol = $isPending ? 'ACTIVE MINOR OFFENSE' : 'N/A (Resolved)';
                           $resolvedCol = $isResolved ? 'RESOLVED MINOR OFFENSE' : 'N/A (Pending)';
-                          $displayLevel = "{$ordinal} MINOR WARNING";
                       }
+                      $displayLevel = ($minorIdx % 3 === 0) ? "{$ordinal} MINOR WARNING (SECTION 4 TRIGGERED)" : "{$ordinal} MINOR WARNING";
                   } elseif ($offenseLevel === 'MAJOR') {
                       $rowCategory = 'AUTOMATIC MAJOR';
                       $pendingCol = $isPending ? 'AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)' : 'N/A (Resolved / Closed)';
