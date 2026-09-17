@@ -637,44 +637,87 @@ try {
               }
           }
 
-          // Sort cases and minor offenses chronologically
+          // 1. Sort all raw rows chronologically
           usort($sec4Cases, fn($a, $b) => strcmp((string)($a['date_committed'] ?? ''), (string)($b['date_committed'] ?? '')));
           usort($minorOffenses, fn($a, $b) => strcmp((string)($a['date_committed'] ?? ''), (string)($b['date_committed'] ?? '')));
+          usort($autoMajors, fn($a, $b) => strcmp((string)($a['date_committed'] ?? ''), (string)($b['date_committed'] ?? '')));
+          usort($dismissedRows, fn($a, $b) => strcmp((string)($a['date_committed'] ?? ''), (string)($b['date_committed'] ?? '')));
 
-          // Interleave into cycle groups: Cycle 1 Case + Minors 1-3, Cycle 2 Case + Minors 4-6, etc.
-          $orderedRows = [];
+          // 2. Build Cycle Units and Individual Units with earliest timestamp
+          $timelineUnits = [];
+
           $totalMinors = count($minorOffenses);
           $totalCases = count($sec4Cases);
-
           $mIdx = 0;
           $cIdx = 0;
 
-          while ($mIdx < $totalMinors || $cIdx < $totalCases) {
-              $currentCycle = (int)floor($mIdx / 3) + 1;
+          while ($mIdx < $totalMinors) {
+              $cycleNum = (int)floor($mIdx / 3) + 1;
+              $unitRows = [];
 
-              // Output Section 4 case for this cycle if available
-              if ($cIdx < $totalCases && $cIdx < $currentCycle) {
-                  $orderedRows[] = $sec4Cases[$cIdx];
+              // Attach Cycle Section 4 Case if available for this cycle
+              if ($cIdx < $totalCases && $cIdx < $cycleNum) {
+                  $unitRows[] = $sec4Cases[$cIdx];
                   $cIdx++;
               }
 
-              // Output 1 minor offense
-              if ($mIdx < $totalMinors) {
-                  $orderedRows[] = $minorOffenses[$mIdx];
-                  $mIdx++;
+              // Take up to 3 minor offenses for this cycle
+              $cycleMinors = array_slice($minorOffenses, $mIdx, 3);
+              foreach ($cycleMinors as $cm) {
+                  $unitRows[] = $cm;
               }
+              $mIdx += count($cycleMinors);
+
+              // Get earliest timestamp in this cycle unit
+              $firstTs = '';
+              foreach ($unitRows as $ur) {
+                  $ts = (string)($ur['date_committed'] ?? '');
+                  if ($ts !== '' && ($firstTs === '' || $ts < $firstTs)) {
+                      $firstTs = $ts;
+                  }
+              }
+
+              $timelineUnits[] = [
+                  'ts' => $firstTs,
+                  'rows' => $unitRows
+              ];
           }
 
+          // Any remaining Section 4 cases without minor offenses
           while ($cIdx < $totalCases) {
-              $orderedRows[] = $sec4Cases[$cIdx];
+              $caseRow = $sec4Cases[$cIdx];
+              $timelineUnits[] = [
+                  'ts' => (string)($caseRow['date_committed'] ?? ''),
+                  'rows' => [$caseRow]
+              ];
               $cIdx++;
           }
 
+          // Individual Automatic Major units
           foreach ($autoMajors as $am) {
-              $orderedRows[] = $am;
+              $timelineUnits[] = [
+                  'ts' => (string)($am['date_committed'] ?? ''),
+                  'rows' => [$am]
+              ];
           }
+
+          // Individual Dismissed units
           foreach ($dismissedRows as $dr) {
-              $orderedRows[] = $dr;
+              $timelineUnits[] = [
+                  'ts' => (string)($dr['date_committed'] ?? ''),
+                  'rows' => [$dr]
+              ];
+          }
+
+          // 3. Sort all timeline units chronologically by timestamp
+          usort($timelineUnits, fn($a, $b) => strcmp((string)$a['ts'], (string)$b['ts']));
+
+          // 4. Flatten ordered rows
+          $orderedRows = [];
+          foreach ($timelineUnits as $tu) {
+              foreach ($tu['rows'] as $r) {
+                  $orderedRows[] = $r;
+              }
           }
 
           $sRows = $orderedRows;
