@@ -128,16 +128,18 @@ $offenseRows = db_all(
       o.status,
       o.date_committed,
       " . db_decrypt_col('description', 'o') . " AS description,
-      NULL AS case_id,
-      NULL AS case_kind,
-      0 AS decided_category,
-      NULL AS final_decision,
-      NULL AS punishment_details,
-      NULL AS decision_reason,
-      NULL AS case_status
+      uc.case_id,
+      uc.case_kind,
+      COALESCE(NULLIF(uc.decided_category,0), 0) AS decided_category,
+      " . db_decrypt_col('final_decision', 'uc') . " AS final_decision,
+      " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
+      COALESCE(" . db_decrypt_col('decision_reason', 'uc') . ", '') AS decision_reason,
+      uc.status AS case_status
    FROM offense o
    JOIN student s ON s.student_id = o.student_id
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+   LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+   LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id
    WHERE o.date_committed BETWEEN :start AND :end
    $offenseFilter
    ORDER BY o.date_committed DESC",
@@ -171,7 +173,7 @@ if ($category !== 'MINOR') {
         COALESCE(" . db_decrypt_col('case_summary', 'uc') . ", uc.case_kind, 'UPCC Case Record') AS description,
         uc.case_id,
         uc.case_kind,
-        COALESCE(NULLIF(uc.decided_category,0), 5) AS decided_category,
+        COALESCE(NULLIF(uc.decided_category,0), 0) AS decided_category,
         " . db_decrypt_col('final_decision', 'uc') . " AS final_decision,
         " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
         COALESCE(" . db_decrypt_col('decision_reason', 'uc') . ", '') AS decision_reason,
@@ -179,6 +181,7 @@ if ($category !== 'MINOR') {
      FROM upcc_case uc
      JOIN student s ON s.student_id = uc.student_id
      WHERE uc.created_at BETWEEN :start AND :end
+       AND UPPER(COALESCE(uc.case_kind,'')) = 'SECTION4_MINOR_ESCALATION'
      $caseFilter
      ORDER BY uc.created_at DESC",
     $params
