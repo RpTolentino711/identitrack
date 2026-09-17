@@ -1090,8 +1090,8 @@ try {
   // Make Sheet 1 active default
   $spreadsheet->setActiveSheetIndex(0);
 
-  if (ob_get_length()) {
-    @ob_end_clean();
+  if (ob_get_level() > 0 && ob_get_length() > 0) {
+    @ob_clean();
   }
 
   $filename = 'monthly_discipline_report_' . strtolower($audience) . '_' . $month . '.xlsx';
