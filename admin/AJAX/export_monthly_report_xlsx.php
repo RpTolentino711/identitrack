@@ -606,7 +606,7 @@ try {
           $dismissedRows = [];
 
           foreach ($sRows as $sr) {
-              $isCaseRow = !empty($sr['case_id']) || strpos((string)($sr['offense_id'] ?? ''), 'CASE-') === 0;
+              $isCaseRow = strpos((string)($sr['offense_id'] ?? ''), 'CASE-') === 0 || strtoupper((string)($sr['offense_code'] ?? '')) === 'UPCC-CASE';
               $offNameUpper = strtoupper((string)($sr['offense_name'] ?? ''));
               $offLvl = strtoupper((string)($sr['offense_level'] ?? ''));
               $caseKindUpper = strtoupper((string)($sr['case_kind'] ?? ''));
@@ -677,7 +677,7 @@ try {
           $minorIdx = 0;
 
           foreach ($sRows as $r) {
-              $isCaseRow = !empty($r['case_id']) || strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0;
+              $isCaseRow = strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0 || strtoupper((string)($r['offense_code'] ?? '')) === 'UPCC-CASE';
               $rRow = $currRow;
               $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
               $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
