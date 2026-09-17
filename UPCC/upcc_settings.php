@@ -277,6 +277,20 @@ input[type="file"]::file-selector-button:hover { background: rgba(255,255,255,0.
 .step-info { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; padding: 15px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border-glass); }
 .otp-box { font-family: monospace; font-size: 24px; letter-spacing: 4px; text-align: center; }
 
+/* Email Privacy Blur Effect */
+.email-blur {
+  filter: blur(6px);
+  user-select: none;
+  transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.email-blur:hover, .email-blur:focus, .email-blur.revealed {
+  filter: blur(0);
+}
+
 </style>
 </head>
 <body>
@@ -323,7 +337,7 @@ input[type="file"]::file-selector-button:hover { background: rgba(255,255,255,0.
         <div class="cred-label">Email Address</div>
         <div class="cred-val">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-          <?php echo htmlspecialchars($user['email']); ?>
+          <span class="email-blur" title="Hover or click to reveal email" onclick="this.classList.toggle('revealed')"><?php echo htmlspecialchars($user['email']); ?></span>
         </div>
       </div>
     </div>
@@ -383,7 +397,7 @@ input[type="file"]::file-selector-button:hover { background: rgba(255,255,255,0.
 
       <?php if ($step === ''): ?>
         <div class="step-info">
-          To protect your UPCC account, changing your password requires an email verification step. A One-Time Password (OTP) will be sent to your registered email address <b><?php echo htmlspecialchars($user['email']); ?></b>.
+          To protect your UPCC account, changing your password requires an email verification step. A One-Time Password (OTP) will be sent to your registered email address <b class="email-blur" title="Hover or click to reveal email" onclick="this.classList.toggle('revealed')"><?php echo htmlspecialchars($user['email']); ?></b>.
         </div>
         <form method="post">
           <input type="hidden" name="action" value="request_otp">
@@ -395,7 +409,7 @@ input[type="file"]::file-selector-button:hover { background: rgba(255,255,255,0.
 
       <?php elseif ($step === 'verify_otp'): ?>
         <div class="step-info">
-          An OTP has been sent to <b><?php echo htmlspecialchars($user['email']); ?></b>. Please check your inbox and enter the 6-digit code below to proceed. The code expires in 5 minutes.
+          An OTP has been sent to <b class="email-blur" title="Hover or click to reveal email" onclick="this.classList.toggle('revealed')"><?php echo htmlspecialchars($user['email']); ?></b>. Please check your inbox and enter the 6-digit code below to proceed. The code expires in 5 minutes.
         </div>
         <form method="post">
           <input type="hidden" name="action" value="verify_otp">

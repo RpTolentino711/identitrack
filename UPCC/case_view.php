@@ -1148,6 +1148,20 @@ hr{border-color:var(--border-glass);margin:16px 0}
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Privacy Blur for Other Pending Cases */
+.case-details-blur {
+    filter: blur(6px);
+    user-select: none;
+    transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+}
+.case-details-blur:hover, .case-details-blur:focus, .case-details-blur.revealed {
+    filter: blur(0);
+}
 </style>
 </head>
 <body>
@@ -1439,11 +1453,13 @@ hr{border-color:var(--border-glass);margin:16px 0}
                                             <?= htmlspecialchars(str_replace('_', ' ', (string)$pc['status'])) ?>
                                         </span>
                                     </div>
-                                    <div style="font-weight: 700; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
-                                        <?= htmlspecialchars((string)($pc['offense_names'] ?: 'General Violation')) ?>
-                                    </div>
-                                    <div style="font-size: 11px; color: var(--text-muted);">
-                                        Code: <?= htmlspecialchars((string)($pc['offense_codes'] ?: 'N/A')) ?> • Created <?= fmt_dt((string)$pc['created_at']) ?>
+                                    <div class="case-details-blur" title="Hover or click to reveal details" onclick="this.classList.toggle('revealed')">
+                                        <div style="font-weight: 700; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
+                                            <?= htmlspecialchars((string)($pc['offense_names'] ?: 'General Violation')) ?>
+                                        </div>
+                                        <div style="font-size: 11px; color: var(--text-muted);">
+                                            Code: <?= htmlspecialchars((string)($pc['offense_codes'] ?: 'N/A')) ?> • Created <?= fmt_dt((string)$pc['created_at']) ?>
+                                        </div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>

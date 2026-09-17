@@ -206,6 +206,13 @@ usort($rows, function($a, $b) {
         return strcmp($nameA, $nameB);
     }
 
+    // Within same student: Case rows / Major rows FIRST, then Minor offenses by date_committed ASC
+    $isCaseA = !empty($a['case_id']) || strpos((string)($a['offense_id'] ?? ''), 'CASE-') === 0 || strtoupper((string)($a['offense_level'] ?? '')) === 'MAJOR';
+    $isCaseB = !empty($b['case_id']) || strpos((string)($b['offense_id'] ?? ''), 'CASE-') === 0 || strtoupper((string)($b['offense_level'] ?? '')) === 'MAJOR';
+    if ($isCaseA !== $isCaseB) {
+        return $isCaseA ? -1 : 1;
+    }
+
     return strcmp((string)($a['date_committed'] ?? ''), (string)($b['date_committed'] ?? ''));
 });
 
@@ -583,14 +590,33 @@ try {
           }
 
           $minorIdx = 0;
+          $renderedSec4Major = false;
+          $hasCaseRowInGroup = false;
+
+          foreach ($sRows as $sr) {
+              if (!empty($sr['case_id']) || strpos((string)($sr['offense_id'] ?? ''), 'CASE-') === 0) {
+                  $hasCaseRowInGroup = true;
+                  break;
+              }
+          }
 
           foreach ($sRows as $rIndex => $r) {
               $isCaseRow = !empty($r['case_id']) || strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0;
               $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
+              $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
 
-              // Skip duplicate administrative summary offense rows created alongside upcc_case to prevent double Section 4 entries
-              if (!$isCaseRow && (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false)) {
+              // Skip non-case offense rows created alongside upcc_case to prevent double Section 4 / Major entries
+              if (!$isCaseRow && $hasCaseRowInGroup && ($offenseLevel === 'MAJOR' || strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos($offenseNameUpper, 'ESCALAT') !== false)) {
                   continue;
+              }
+
+              // Skip duplicate Section 4 Major / Case rows if one has already been rendered for this student escalation
+              $isSec4 = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || $hasSection4);
+              if (($isCaseRow || $offenseLevel === 'MAJOR') && $isSec4) {
+                  if ($renderedSec4Major) {
+                      continue;
+                  }
+                  $renderedSec4Major = true;
               }
 
               $rRow = $currRow;
