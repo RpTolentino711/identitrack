@@ -31,7 +31,9 @@ if (strtoupper($month) === 'ALL') {
   $titleMonthStr = 'ALL TIME';
 } else {
   if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
-    $month = date('Y-m');
+    $latestOffense = db_one("SELECT DATE_FORMAT(date_committed, '%Y-%m') AS ym FROM offense WHERE date_committed IS NOT NULL ORDER BY date_committed DESC LIMIT 1");
+    $latestCase = db_one("SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym FROM upcc_case WHERE created_at IS NOT NULL ORDER BY created_at DESC LIMIT 1");
+    $month = !empty($latestOffense['ym']) ? $latestOffense['ym'] : (!empty($latestCase['ym']) ? $latestCase['ym'] : date('Y-m'));
   }
   $monthStart = $month . '-01 00:00:00';
   $monthEnd = date('Y-m-t 23:59:59', strtotime($monthStart));
@@ -692,14 +694,14 @@ try {
                       $pendingCol = 'N/A (Dismissed)';
                       $resolvedCol = 'DISMISSED CASE';
                       $displayLevel = 'DISMISSED CASE';
-                  } elseif ($isSec4Case || $hasSection4) {
+                  } elseif ($isSec4Case) {
                       $rowCategory = 'SECTION 4 ESCALATION';
-                      $pendingCol = $isPending ? 'SECTION 4 MAJOR (CATEGORY 1 TO 5 PENDING UPCC)' : 'N/A (Resolved / Closed)';
+                      $pendingCol = $isPending ? 'PENDING UPCC HEARING' : 'N/A (Resolved / Closed)';
                       $resolvedCol = $isResolved ? (($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : "SECTION 4 MAJOR (RESOLVED)") : 'N/A (Pending Case)';
                       $displayLevel = ($isResolved && $decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "SECTION 4 MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "SECTION 4 MAJOR (RESOLVED)");
                   } else {
                       $rowCategory = 'AUTOMATIC MAJOR';
-                      $pendingCol = $isPending ? 'AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)' : 'N/A (Resolved / Closed)';
+                      $pendingCol = $isPending ? 'PENDING UPCC HEARING' : 'N/A (Resolved / Closed)';
                       $resolvedCol = $isResolved ? (($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : "AUTOMATIC MAJOR (RESOLVED)") : 'N/A (Pending Case)';
                       $displayLevel = ($isResolved && $decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "AUTOMATIC MAJOR (RESOLVED)");
                   }
@@ -724,7 +726,7 @@ try {
                       $displayLevel = ($minorIdx % 3 === 0) ? "{$ordinal} MINOR WARNING (SECTION 4 TRIGGERED)" : "{$ordinal} MINOR WARNING";
                   } elseif ($offenseLevel === 'MAJOR') {
                       $rowCategory = 'AUTOMATIC MAJOR';
-                      $pendingCol = $isPending ? 'AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)' : 'N/A (Resolved / Closed)';
+                      $pendingCol = $isPending ? 'PENDING UPCC HEARING' : 'N/A (Resolved / Closed)';
                       $resolvedCol = $isResolved ? (($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : "AUTOMATIC MAJOR (RESOLVED)") : 'N/A (Pending Case)';
                       $displayLevel = ($isResolved && $decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "AUTOMATIC MAJOR (RESOLVED)");
                   } else {
