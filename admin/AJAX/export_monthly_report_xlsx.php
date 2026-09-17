@@ -911,7 +911,7 @@ try {
   $cEndRow = max(5, $cRow - 1);
 
   // Create Doughnut / Pie Chart (A7:F24)
-  if (!empty($chartBreakdownMap)) {
+  if (!empty($chartBreakdownMap) && array_sum($chartBreakdownMap) > 0) {
       $dataSeriesLabels = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheet1Title}'!\$AB\$4", null, 1)];
       $xAxisTickValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheet1Title}'!\$AA\$5:\$AA\${$bEndRow}", null, count($chartBreakdownMap))];
       $dataSeriesValues = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'{$sheet1Title}'!\$AB\$5:\$AB\${$bEndRow}", null, count($chartBreakdownMap))];
@@ -940,7 +940,7 @@ try {
   }
 
   // Create Column Bar Chart (G7:N24)
-  if (!empty($coursesMap)) {
+  if (!empty($coursesMap) && array_sum($coursesMap) > 0) {
       $dataSeriesLabels2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheet1Title}'!\$AF\$4", null, 1)];
       $xAxisTickValues2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$sheet1Title}'!\$AE\$5:\$AE\${$cEndRow}", null, count($coursesMap))];
       $dataSeriesValues2 = [new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'{$sheet1Title}'!\$AF\$5:\$AF\${$cEndRow}", null, count($coursesMap))];
