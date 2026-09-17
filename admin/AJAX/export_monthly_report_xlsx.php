@@ -1100,7 +1100,6 @@ try {
   header('Cache-Control: max-age=0');
   
   $writer = new Xlsx($spreadsheet);
-  $writer->setIncludeCharts(true);
   $writer->setPreCalculateFormulas(false);
   $writer->save('php://output');
   if (php_sapi_name() !== 'cli') {
