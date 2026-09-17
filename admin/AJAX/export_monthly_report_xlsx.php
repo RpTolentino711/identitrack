@@ -137,7 +137,6 @@ $offenseRows = db_all(
    JOIN student s ON s.student_id = o.student_id
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
    WHERE o.date_committed BETWEEN :start AND :end
-     AND o.offense_id NOT IN (SELECT offense_id FROM upcc_case_offense WHERE offense_id IS NOT NULL)
    $offenseFilter
    ORDER BY o.date_committed DESC",
   $params
