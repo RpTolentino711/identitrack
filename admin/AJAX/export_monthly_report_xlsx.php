@@ -7,6 +7,7 @@
 
 require_once __DIR__ . '/../../database/database.php';
 require_admin();
+session_write_close();
 
 $autoload = __DIR__ . '/../../vendor/autoload.php';
 if (!file_exists($autoload)) {

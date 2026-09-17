@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/../database/database.php';
 require_admin();
+session_write_close();
 
 $activeSidebar = 'reports';
 
