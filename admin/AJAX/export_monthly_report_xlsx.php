@@ -299,11 +299,15 @@ foreach ($rows as $r) {
     $name = (string)($r['offense_name'] ?? 'Unknown');
     $cleanBase = preg_replace('/\s*\((Minor|Major Category \d|Major Cat \d|Major|Dismissed Offense|Dismissed Case|Dismissed|minor|major|dismissed)\)$/i', '', $name);
 
+    $isCaseRow = strpos((string)($r['offense_id'] ?? ''), 'CASE-') === 0 || strtoupper((string)($r['offense_code'] ?? '')) === 'UPCC-CASE';
+
     if ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED') {
         $tag = ($caseStatus === 'DISMISSED') ? '(Dismissed Case)' : '(Dismissed Offense)';
+    } elseif ($offenseLevel === 'MINOR' && !$isCaseRow) {
+        $tag = '(Minor)';
     } elseif ($decidedCat >= 1 && $decidedCat <= 5) {
         $tag = "(Major Cat {$decidedCat})";
-    } elseif ($offenseLevel === 'MAJOR' || strpos($r['offense_code'], 'MAJ-') !== false) {
+    } elseif ($offenseLevel === 'MAJOR' || strpos((string)($r['offense_code'] ?? ''), 'MAJ-') !== false || $isCaseRow) {
         $tag = "(Pending Category Assignment)";
     } else {
         $tag = '(Minor)';
@@ -1100,6 +1104,7 @@ try {
   header('Cache-Control: max-age=0');
   
   $writer = new Xlsx($spreadsheet);
+  $writer->setIncludeCharts(true);
   $writer->setPreCalculateFormulas(false);
   $writer->save('php://output');
   if (php_sapi_name() !== 'cli') {
