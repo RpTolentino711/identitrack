@@ -589,6 +589,52 @@ try {
               $hasSection4 = true;
           }
 
+          // Sort rows within student's group:
+          // Section 4 Escalation & its Minors ALWAYS MERGED TOGETHER FIRST (Group 1),
+          // Automatic Major SECOND (Group 2), Standard Minors THIRD (Group 3), Dismissed LAST (Group 4).
+          usort($sRows, function($a, $b) use ($hasSection4) {
+              $isCaseA = !empty($a['case_id']) || strpos((string)($a['offense_id'] ?? ''), 'CASE-') === 0;
+              $isCaseB = !empty($b['case_id']) || strpos((string)($b['offense_id'] ?? ''), 'CASE-') === 0;
+
+              $offNameA = strtoupper((string)($a['offense_name'] ?? ''));
+              $offNameB = strtoupper((string)($b['offense_name'] ?? ''));
+
+              $kindA = strtoupper((string)($a['case_kind'] ?? ''));
+              $kindB = strtoupper((string)($b['case_kind'] ?? ''));
+
+              $lvlA = strtoupper((string)($a['offense_level'] ?? ''));
+              $lvlB = strtoupper((string)($b['offense_level'] ?? ''));
+
+              $statusA = strtoupper((string)($a['status'] ?? ''));
+              $statusB = strtoupper((string)($b['status'] ?? ''));
+
+              $isDismissedA = ($statusA === 'DISMISSED' || strtoupper((string)($a['case_status'] ?? '')) === 'DISMISSED');
+              $isDismissedB = ($statusB === 'DISMISSED' || strtoupper((string)($b['case_status'] ?? '')) === 'DISMISSED');
+
+              if ($isDismissedA !== $isDismissedB) {
+                  return $isDismissedA ? 1 : -1;
+              }
+
+              $isSec4A = (strpos($offNameA, 'SECTION 4') !== false || strpos($offNameA, 'SECTION4') !== false || strpos($kindA, 'SECTION4') !== false || ($hasSection4 && $lvlA === 'MINOR'));
+              $isSec4B = (strpos($offNameB, 'SECTION 4') !== false || strpos($offNameB, 'SECTION4') !== false || strpos($kindB, 'SECTION4') !== false || ($hasSection4 && $lvlB === 'MINOR'));
+
+              $grpA = $isSec4A ? 1 : (($isCaseA || $lvlA === 'MAJOR') ? 2 : 3);
+              $grpB = $isSec4B ? 1 : (($isCaseB || $lvlB === 'MAJOR') ? 2 : 3);
+
+              if ($grpA !== $grpB) {
+                  return $grpA - $grpB;
+              }
+
+              $subA = $isCaseA ? 0 : 1;
+              $subB = $isCaseB ? 0 : 1;
+
+              if ($subA !== $subB) {
+                  return $subA - $subB;
+              }
+
+              return strcmp((string)($a['date_committed'] ?? ''), (string)($b['date_committed'] ?? ''));
+          });
+
           $minorIdx = 0;
           $renderedSec4Major = false;
           $hasCaseRowInGroup = false;
