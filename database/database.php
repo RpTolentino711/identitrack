@@ -598,20 +598,25 @@ function require_admin(): void
   static $schemaChecked = false;
   if (!$schemaChecked) {
       try {
-          db_exec("ALTER TABLE admin_user ADD COLUMN active_session_token VARCHAR(255) NULL, ADD COLUMN active_session_ip VARCHAR(255) NULL");
-      } catch (Exception $e) {}
+          db_exec("ALTER TABLE admin_user ADD COLUMN active_session_token VARCHAR(255) NULL");
+      } catch (\Throwable $e) {}
+      try {
+          db_exec("ALTER TABLE admin_user ADD COLUMN active_session_ip VARCHAR(255) NULL");
+      } catch (\Throwable $e) {}
       $schemaChecked = true;
   }
 
-  $dbRow = db_one("SELECT active_session_token FROM admin_user WHERE admin_id = :id", [':id' => $adminId]);
-  $dbToken = (string)($dbRow['active_session_token'] ?? '');
-  $myToken = (string)($_SESSION['admin_session_token'] ?? '');
+  try {
+      $dbRow = db_one("SELECT active_session_token FROM admin_user WHERE admin_id = :id", [':id' => $adminId]);
+      $dbToken = (string)($dbRow['active_session_token'] ?? '');
+      $myToken = (string)($_SESSION['admin_session_token'] ?? '');
 
-  if ($dbToken !== '' && $myToken !== '' && $dbToken !== $myToken) {
-      admin_logout();
-      redirect('login.php?msg=session_kicked');
-      exit;
-  }
+      if ($dbToken !== '' && $myToken !== '' && $dbToken !== $myToken) {
+          admin_logout();
+          redirect('login.php?msg=session_kicked');
+          exit;
+      }
+  } catch (\Throwable $e) {}
 
   static $updatedActive = false;
   if (!$updatedActive) {

@@ -2,6 +2,9 @@
 // File: C:\xampp\htdocs\identitrack\admin\AJAX\export_monthly_report_xlsx.php
 // Exports Monthly Discipline Report with Executive Summary (Charts & KPI cards) and Dedicated Detailed Records.
 
+@ini_set('memory_limit', '512M');
+@set_time_limit(120);
+
 require_once __DIR__ . '/../../database/database.php';
 require_admin();
 
@@ -1085,8 +1088,8 @@ try {
   // Make Sheet 1 active default
   $spreadsheet->setActiveSheetIndex(0);
 
-  while (ob_get_level() > 0) {
-    ob_end_clean();
+  if (ob_get_length()) {
+    @ob_end_clean();
   }
 
   $filename = 'monthly_discipline_report_' . strtolower($audience) . '_' . $month . '.xlsx';
@@ -1097,7 +1100,9 @@ try {
   $writer = new Xlsx($spreadsheet);
   $writer->setIncludeCharts(true);
   $writer->save('php://output');
-  exit;
+  if (php_sapi_name() !== 'cli') {
+    exit;
+  }
 } catch (\Throwable $e) {
   die("Error generating Excel with charts: " . $e->getMessage());
 }
