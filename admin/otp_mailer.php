@@ -9,9 +9,9 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
     $mail->CharSet = 'UTF-8';
     $mail->isSMTP();
     $mail->Host = get_env_var('SMTP_HOST', 'smtp.hostinger.com');
-    $mail->Port = (int)get_env_var('SMTP_PORT', 587);
+    $mail->Port = (int)get_env_var('SMTP_PORT', 465);
     $mail->SMTPAuth = true;
-    $mail->SMTPSecure = get_env_var('SMTP_SECURE', 'tls');
+    $mail->SMTPSecure = get_env_var('SMTP_SECURE', 'ssl');
     $mail->SMTPAutoTLS = true;
     $mail->Timeout = 15;
 

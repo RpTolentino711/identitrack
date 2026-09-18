@@ -31,12 +31,12 @@ function send_otp_email(string $toEmail, string $otp): array {
 
   try {
     $mail->isSMTP();
-    $mail->Host = get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+    $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+    $mail->Port = (int)get_env_var('SMTP_PORT', 465);
     $mail->SMTPAuth = true;
+    $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
     $mail->Username = db_smtp_user();
     $mail->Password = db_smtp_pass();
-    $mail->SMTPSecure = 'tls';
-    $mail->Port = 587;
     $mail->SMTPAutoTLS = true;
     $mail->Timeout = 10;
 

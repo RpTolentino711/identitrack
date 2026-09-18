@@ -112,12 +112,12 @@ if ($studentInfo && !empty($studentInfo['student_email'])) {
         $mail = new PHPMailer(true);
         $mail->CharSet = 'UTF-8';
         $mail->isSMTP();
-        $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
-        $mail->Port = 587;
+        $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+        $mail->Port = (int)get_env_var('SMTP_PORT', 465);
         $mail->SMTPAuth = true;
-        $mail->SMTPSecure = 'tls';
-        $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site';
-        $mail->Password = $_ENV['SMTP_PASS'] ?? '';
+        $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
+        $mail->Username = db_smtp_user();
+        $mail->Password = db_smtp_pass();
         $mail->Timeout = 20;
 
         $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack SDO');
