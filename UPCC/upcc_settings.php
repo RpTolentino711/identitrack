@@ -67,10 +67,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mail = new PHPMailer(true);
             $mail->CharSet   = 'UTF-8';
             $mail->isSMTP();
-            $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com';
-            $mail->Port      = 587;
+            $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+            $mail->Port      = (int)get_env_var('SMTP_PORT', 465);
             $mail->SMTPAuth  = true;
-            $mail->SMTPSecure = 'tls';
+            $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
             $mail->Username = db_smtp_user();
             $mail->Password = db_smtp_pass();
             $mail->Timeout   = 15;

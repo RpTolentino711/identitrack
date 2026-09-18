@@ -6,9 +6,9 @@ use PHPMailer\PHPMailer\Exception;
 $mail = new PHPMailer(true);
 $mail->isSMTP();
 $mail->Host = 'smtp.hostinger.com';
-$mail->Port = 587;
+$mail->Port = 465;
 $mail->SMTPAuth = true;
-$mail->SMTPSecure = 'tls';
+$mail->SMTPSecure = 'ssl';
 $mail->Username = get_env_var('SMTP_USER', 'identitrack@identitrack.site');
 $mail->Password = get_env_var('SMTP_PASS', '');
 $mail->SMTPDebug = 2; // Enable verbose debug output
