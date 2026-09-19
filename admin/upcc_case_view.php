@@ -1303,6 +1303,51 @@ body {
 
 
 
+                            <!-- Incident Report & Photo Evidence Attachment Card -->
+              <?php 
+                $caseEvidenceFile = $case['evidence_file'] ?? null;
+                if (!$caseEvidenceFile && !empty($offenses)) {
+                  foreach ($offenses as $off) {
+                    if (!empty($off['evidence_file'])) {
+                      $caseEvidenceFile = $off['evidence_file'];
+                      break;
+                    }
+                  }
+                }
+              ?>
+              <?php if (!empty($caseEvidenceFile)): ?>
+                <div style="margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                  <div style="background: #f8fafc; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 11px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+                      <span>📷</span> Official Incident Report & Photo Evidence Attachment
+                    </span>
+                    <span style="font-size: 11px; color: #94a3b8;">Attached during case registration</span>
+                  </div>
+                  <div style="padding: 16px; background: #fff;">
+                  <?php 
+                    $ext = strtolower(pathinfo($caseEvidenceFile, PATHINFO_EXTENSION));
+                    $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true);
+                  ?>
+                  <?php if ($isImg): ?>
+                    <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+                      <a href="../<?= htmlspecialchars($caseEvidenceFile) ?>" target="_blank" title="Click to view full resolution evidence photo" style="display: block; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: transform 0.2s;">
+                        <img src="../<?= htmlspecialchars($caseEvidenceFile) ?>" style="max-width: 240px; max-height: 160px; display: block; object-fit: cover;">
+                      </a>
+                      <div style="font-size: 12px; color: #1e293b; line-height: 1.5;">
+                        <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">Incident Report Photo</div>
+                      </div>
+                    </div>
+                  <?php else: ?>
+                    <div>
+                      <a href="../<?= htmlspecialchars($caseEvidenceFile) ?>" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; color: #334155; font-size: 12px; font-weight: 700;">
+                        <span>📄 View Attached Incident Report Document (PDF)</span>
+                      </a>
+                    </div>
+                  <?php endif; ?>
+                  </div>
+                </div>
+              <?php endif; ?>
+
               <!-- Student Explanation Section -->
               <div id="studentExplanationBlock" style="<?= !empty($case['student_explanation_at']) ? 'display:block' : 'display:none' ?>; margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
                 <div style="background: #f8fafc; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
