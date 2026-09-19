@@ -3878,7 +3878,9 @@ function toggleAiDrawer(forceState) {
         if (!hasAutoFetchedAiSanction) {
             hasAutoFetchedAiSanction = true;
             setTimeout(() => {
-                fetchInitialAiSanctionRecommendation();
+                if (typeof runComsicePrediction === 'function') {
+                    runComsicePrediction();
+                }
             }, 300);
         }
     } else {
@@ -4195,7 +4197,6 @@ async function runComsicePrediction() {
     }
 }
 
-<script>
 let currentTypingInterval = null;
 let isAiGenerating = false;
 
