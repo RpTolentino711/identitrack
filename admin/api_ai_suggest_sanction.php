@@ -266,103 +266,58 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $handbookCitation = 'NU Lipa Student Handbook Section 3.1';
 
     $upperOff = strtoupper($offenseName . ' ' . $description);
-    $isMajor = (strpos(strtoupper($category), 'MAJOR') !== false || strtoupper($offenseLevel) === 'MAJOR');
+    $upperCat = strtoupper($category . ' ' . $numOffenseStr);
+    $isSec4Cycle2 = (strpos($upperCat, 'CYCLE 2') !== false || strpos($upperCat, '6 MINOR') !== false);
+    $isSec4Cycle1 = (strpos($upperCat, 'CYCLE 1') !== false || strpos($upperCat, '3 MINOR') !== false || (strpos($upperCat, 'SECTION 4') !== false && !$isSec4Cycle2));
+    $isMajor = (strpos($upperCat, 'MAJOR') !== false || strtoupper($offenseLevel) === 'MAJOR') && !$isSec4Cycle1 && !$isSec4Cycle2;
 
-    if ($isMajor) {
-        if (strpos($upperOff, 'CHEATING') !== false || strpos($upperOff, 'ACADEMIC') !== false) {
-            if ($numOffense >= 2) {
-                $sanction = '1 Semester Suspension & Academic Probation';
-                $severity = 'Critical';
-                $confidence = 96.5;
-                $handbookCitation = 'Section 4 Major Offense - Academic Integrity Policy';
-            } else {
-                $sanction = 'Grade of 0.0 in Exam & Written SDO Reprimand';
-                $severity = 'High';
-                $confidence = 94.0;
-                $handbookCitation = 'Section 4 Major Offense - Academic Dishonesty';
-            }
-        } elseif (strpos($upperOff, 'FIGHTING') !== false || strpos($upperOff, 'ALTERCATION') !== false || strpos($upperOff, 'THEFT') !== false) {
-            if ($numOffense >= 2) {
+    if ($isSec4Cycle2) {
+        $sanction = '1 Semester Suspension & Disciplinary Probation (Section 4 Cycle 2)';
+        $severity = 'Critical';
+        $confidence = 96.5;
+        $handbookCitation = 'Section 4 Minor Offense Escalation - Cycle 2 (Accumulated 6 Minor Offenses)';
+    } elseif ($isSec4Cycle1) {
+        $sanction = 'Formative Community Service (150–250 Hours)';
+        $severity = 'High';
+        $confidence = 95.0;
+        $handbookCitation = 'Section 4 Minor Offense Escalation - Cycle 1 (Accumulated 3 Minor Offenses)';
+    } elseif ($isMajor) {
+        if (strpos($upperCat, '2ND') !== false || $numOffense >= 2) {
+            if (strpos($upperOff, 'FIGHTING') !== false || strpos($upperOff, 'THEFT') !== false || strpos($upperOff, 'SEVERE') !== false) {
                 $sanction = 'Summary Expulsion / Permanent Disqualification';
                 $severity = 'Critical';
                 $confidence = 98.0;
-                $handbookCitation = 'Section 4 Major Offense - Severe Student Misconduct';
+                $handbookCitation = 'Section 5 Major Penalty Matrix - 2nd Major Offense (Severe Violation)';
             } else {
-                $sanction = '1 Semester Suspension & Disciplinary Probation';
-                $severity = 'High';
-                $confidence = 93.5;
-                $handbookCitation = 'Section 4 Major Offense - Physical / Property Violation';
-            }
-        } else {
-            if ($numOffense >= 3) {
-                $sanction = 'Summary Expulsion / Permanent Disqualification';
+                $sanction = '1 Semester Suspension & Academic Probation';
                 $severity = 'Critical';
                 $confidence = 94.5;
-                $handbookCitation = 'Section 4 Major Offense - Repeated Major Violation';
-            } elseif ($numOffense >= 2) {
-                $sanction = '1 Semester Non-Readmission / Suspension';
-                $severity = 'High';
-                $confidence = 91.0;
-                $handbookCitation = 'Section 4 Major Offense - 2nd Attempt';
-            } else {
-                $sanction = 'Formative Community Service (150–250 Hours)';
-                $severity = 'Medium';
-                $confidence = 89.0;
-                $handbookCitation = 'Section 4 Cycle 1 Formative Intervention';
-            }
-        }
-    } else { // Minor Offenses
-        if (strpos($upperOff, 'LITTER') !== false || strpos($upperOff, 'WASTE') !== false) {
-            if ($numOffense >= 3) {
-                $sanction = 'Formative Community Service (150–250 Hours)';
-                $severity = 'High';
-                $confidence = 95.0;
-                $handbookCitation = 'Section 4 Cycle 1 Escalation (3rd Minor Offense)';
-            } elseif ($numOffense == 2) {
-                $sanction = 'SDO Warning & Campus Environmental Service (15 Hours)';
-                $severity = 'Medium';
-                $confidence = 91.0;
-                $handbookCitation = 'Section 3.1 Minor Offense (2nd Attempt)';
-            } else {
-                $sanction = 'Violation Slip Issued by SDO (First Warning)';
-                $severity = 'Low';
-                $confidence = 94.5;
-                $handbookCitation = 'Section 3.1 Minor Offense (1st Attempt)';
-            }
-        } elseif (strpos($upperOff, 'VAPING') !== false || strpos($upperOff, 'SMOKING') !== false) {
-            if ($numOffense >= 3) {
-                $sanction = 'Formative Community Service (150–250 Hours)';
-                $severity = 'High';
-                $confidence = 96.0;
-                $handbookCitation = 'Section 4 Cycle 1 Escalation (3rd Minor Offense)';
-            } elseif ($numOffense == 2) {
-                $sanction = 'Guardian Conference & 50 Hours Formative Service';
-                $severity = 'High';
-                $confidence = 92.5;
-                $handbookCitation = 'Section 3.1 Minor Offense - Vaping Escalation';
-            } else {
-                $sanction = 'Formal Reprimand & Health Awareness Seminar';
-                $severity = 'Medium';
-                $confidence = 91.0;
-                $handbookCitation = 'Section 3.1 Minor Offense - Vaping/Smoking';
+                $handbookCitation = 'Section 5 Major Penalty Matrix - 2nd Major Offense';
             }
         } else {
-            if ($numOffense >= 3) {
-                $sanction = 'Formative Community Service (150–250 Hours)';
+            if (strpos($upperOff, 'CHEATING') !== false || strpos($upperOff, 'ACADEMIC') !== false) {
+                $sanction = 'Grade of 0.0 in Exam & Written SDO Reprimand';
                 $severity = 'High';
-                $confidence = 92.0;
-                $handbookCitation = 'Section 4 Cycle 1 Escalation (3rd Minor Offense)';
-            } elseif ($numOffense == 2) {
-                $sanction = 'Guardian Warning & Formal SDO Counseling';
-                $severity = 'Medium';
-                $confidence = 88.5;
-                $handbookCitation = 'Section 3.1 Minor Offense (2nd Attempt)';
+                $confidence = 94.0;
+                $handbookCitation = 'Section 5 Major Penalty Matrix - Academic Dishonesty';
             } else {
-                $sanction = 'Violation Slip Issued by SDO (Student Warning)';
-                $severity = 'Low';
-                $confidence = 87.0;
-                $handbookCitation = 'Section 3.1 Minor Offense (1st Attempt)';
+                $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
+                $severity = 'High';
+                $confidence = 91.5;
+                $handbookCitation = 'Section 5 Major Penalty Matrix - 1st Major Offense';
             }
+        }
+    } else { // Minor Offenses (1st/2nd Attempt before Section 4)
+        if ($numOffense == 2) {
+            $sanction = 'Guardian Warning & Formal SDO Counseling';
+            $severity = 'Medium';
+            $confidence = 88.5;
+            $handbookCitation = 'Section 3.1 Minor Offense (2nd Attempt)';
+        } else {
+            $sanction = 'Violation Slip Issued by SDO (First Warning)';
+            $severity = 'Low';
+            $confidence = 87.0;
+            $handbookCitation = 'Section 3.1 Minor Offense (1st Attempt)';
         }
     }
 

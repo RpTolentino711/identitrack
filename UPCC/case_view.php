@@ -4056,11 +4056,29 @@ function toggleDrawerWhyPanel() {
   <?php
     $autoFirstOffense = $offenses[0] ?? null;
     $autoLevel = !empty($autoFirstOffense['level']) ? strtoupper($autoFirstOffense['level']) : 'MINOR';
-    $autoCategory = ($autoLevel === 'MAJOR') ? 'Major Offenses' : 'Minor Offenses';
-    $autoViolation = !empty($autoFirstOffense['offense_name']) ? $autoFirstOffense['offense_name'] : 'General Violation';
-    $autoPriorCount = count($priorResolvedCases ?? []);
-    $autoNumVal = $autoPriorCount + 1;
-    $autoNumOffenseStr = $autoNumVal . ($autoNumVal === 1 ? 'st Offense' : ($autoNumVal === 2 ? 'nd Offense' : ($autoNumVal === 3 ? 'rd Offense' : 'th Offense')));
+    $isSec4 = (string)($case['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION' || stripos((string)($case['case_summary'] ?? ''), 'Section 4') !== false;
+    
+    $priorSec4Count = 0;
+    $priorMajorCount = 0;
+    if (!empty($priorResolvedCases)) {
+        foreach ($priorResolvedCases as $prc) {
+            if (!empty($prc['major_count']) && (int)$prc['major_count'] > 0) {
+                $priorMajorCount++;
+            } else {
+                $priorSec4Count++;
+            }
+        }
+    }
+
+    if ($isSec4) {
+        $autoCategory = 'Section 4 Minor Escalation';
+        $autoCaseTypeStr = ($priorSec4Count >= 1) ? 'Section 4 - Cycle 2 (6 Minors Escalation)' : 'Section 4 - Cycle 1 (3 Minors Escalation)';
+    } else {
+        $autoCategory = 'Automatic Major Offenses';
+        $autoCaseTypeStr = ($priorMajorCount >= 1) ? 'Automatic Major - 2nd+ Offense' : 'Automatic Major - 1st Offense';
+    }
+
+    $autoViolation = !empty($autoFirstOffense['offense_name']) ? $autoFirstOffense['offense_name'] : 'General Handbook Violation';
     $autoDesc = !empty($autoFirstOffense['description']) ? $autoFirstOffense['description'] : (!empty($case['case_summary']) ? $case['case_summary'] : $autoViolation);
   ?>
   <div style="flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">
@@ -4076,20 +4094,17 @@ function toggleDrawerWhyPanel() {
         <div>
           <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Category *</label>
           <select id="comsiceCategory" style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;">
-            <option value="Minor Offenses" <?= $autoCategory === 'Minor Offenses' ? 'selected' : '' ?>>Minor Offenses</option>
-            <option value="Major Offenses" <?= $autoCategory === 'Major Offenses' ? 'selected' : '' ?>>Major Offenses</option>
+            <option value="Section 4 Minor Escalation" <?= $autoCategory === 'Section 4 Minor Escalation' ? 'selected' : '' ?>>Section 4 Minor Escalation</option>
+            <option value="Automatic Major Offenses" <?= $autoCategory === 'Automatic Major Offenses' ? 'selected' : '' ?>>Automatic Major Offenses</option>
           </select>
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Number of Offense *</label>
+          <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Hearing Case Type / Cycle *</label>
           <select id="comsiceNumOffense" style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;">
-            <option value="1st Offense" <?= $autoNumOffenseStr === '1st Offense' ? 'selected' : '' ?>>1st Offense</option>
-            <option value="2nd Offense" <?= $autoNumOffenseStr === '2nd Offense' ? 'selected' : '' ?>>2nd Offense</option>
-            <option value="3rd Offense" <?= $autoNumOffenseStr === '3rd Offense' ? 'selected' : '' ?>>3rd Offense</option>
-            <option value="4th Offense" <?= $autoNumOffenseStr === '4th Offense' ? 'selected' : '' ?>>4th Offense</option>
-            <?php if (!in_array($autoNumOffenseStr, ['1st Offense','2nd Offense','3rd Offense','4th Offense'], true)): ?>
-              <option value="<?= htmlspecialchars($autoNumOffenseStr) ?>" selected><?= htmlspecialchars($autoNumOffenseStr) ?></option>
-            <?php endif; ?>
+            <option value="Section 4 - Cycle 1 (3 Minors Escalation)" <?= $autoCaseTypeStr === 'Section 4 - Cycle 1 (3 Minors Escalation)' ? 'selected' : '' ?>>Section 4 - Cycle 1 (3 Minors)</option>
+            <option value="Section 4 - Cycle 2 (6 Minors Escalation)" <?= $autoCaseTypeStr === 'Section 4 - Cycle 2 (6 Minors Escalation)' ? 'selected' : '' ?>>Section 4 - Cycle 2 (6 Minors)</option>
+            <option value="Automatic Major - 1st Offense" <?= $autoCaseTypeStr === 'Automatic Major - 1st Offense' ? 'selected' : '' ?>>Automatic Major - 1st Offense</option>
+            <option value="Automatic Major - 2nd+ Offense" <?= $autoCaseTypeStr === 'Automatic Major - 2nd+ Offense' ? 'selected' : '' ?>>Automatic Major - 2nd+ Offense</option>
           </select>
         </div>
       </div>
