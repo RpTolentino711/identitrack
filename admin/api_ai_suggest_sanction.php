@@ -366,9 +366,23 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         }
     }
 
+    // Determine NU Lipa UPCC Sanction Category (Category 1 - Category 5)
+    $catNum = 1;
+    if (preg_match('/\b(EXPULSION|PERMANENT|DISQUALIFICATION)\b/i', $sanction)) {
+        $catNum = 4;
+    } elseif (preg_match('/\b(SUSPENSION|NON-READMISSION|PROBATION)\b/i', $sanction)) {
+        $catNum = 3;
+    } elseif (preg_match('/\b(COMMUNITY SERVICE|FORMATIVE|HOURS|INTERVENTION)\b/i', $sanction)) {
+        $catNum = 2;
+    } else {
+        $catNum = 1;
+    }
+    $catLabel = "Category {$catNum}";
+
     $whyReason = "Evaluated against 2,002 historical campus precedent records and NU Lipa Student Handbook ({$handbookCitation}). Offense: '{$offenseName}', Category: '{$category}', Attempt: '{$numOffenseStr}'.";
 
     $aiText = "🤖 **COMSICE XGBoost ML Model Recommendation**:\n\n"
+            . "• **Sanction Category**: **{$catLabel}**\n"
             . "• **Predicted Sanction**: **{$sanction}**\n"
             . "• **Confidence Score**: **{$confidence}%** (Severity: **{$severity}**)\n"
             . "• **Model Source**: SDO Historical Dataset (2,002 Training Records)\n\n"
@@ -377,6 +391,8 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     return [
         'text' => $aiText,
         'sanction' => $sanction,
+        'category_num' => $catNum,
+        'category_label' => $catLabel,
         'confidence' => $confidence,
         'severity' => $severity,
         'engine' => 'COMSICE XGBoost ML Model',
@@ -806,6 +822,8 @@ try {
             'ok' => true,
             'action' => 'predict',
             'sanction' => $aiEngineRes['sanction'] ?? 'Violation slip issued by the SDO',
+            'category_num' => $aiEngineRes['category_num'] ?? 1,
+            'category_label' => $aiEngineRes['category_label'] ?? 'Category 1',
             'confidence' => $aiEngineRes['confidence'] ?? 88.5,
             'severity' => $aiEngineRes['severity'] ?? 'Medium',
             'ai_explanation' => $aiEngineRes['text'],

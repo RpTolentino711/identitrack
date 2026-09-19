@@ -4134,14 +4134,18 @@ function toggleDrawerWhyPanel() {
         Violation slip issued by the SDO
       </div>
 
-      <div style="display:flex;gap:10px;margin-bottom:14px;">
-        <div style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:10px;border-radius:12px;">
-          <div style="font-size:10.5px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Confidence Score</div>
-          <div id="comsiceConfidenceScore" style="font-size:16px;font-weight:800;color:#4ade80;margin-top:2px;">88.5%</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 10px;border-radius:12px;">
+          <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Category</div>
+          <div id="comsiceSanctionCategory" style="font-size:13.5px;font-weight:800;color:#38bdf8;margin-top:2px;">Category 1</div>
         </div>
-        <div style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:10px;border-radius:12px;">
-          <div style="font-size:10.5px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Severity Level</div>
-          <div id="comsiceSeverityBadge" style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:13px;font-weight:800;margin-top:2px;background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4);">Medium</div>
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 10px;border-radius:12px;">
+          <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Confidence</div>
+          <div id="comsiceConfidenceScore" style="font-size:13.5px;font-weight:800;color:#4ade80;margin-top:2px;">88.5%</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 10px;border-radius:12px;">
+          <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Severity</div>
+          <div id="comsiceSeverityBadge" style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:12px;font-weight:800;margin-top:2px;background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4);">Medium</div>
         </div>
       </div>
 
@@ -4182,6 +4186,7 @@ async function runComsicePrediction() {
         if (data && data.ok) {
             document.getElementById('comsicePredictedSanction').textContent = data.sanction || 'Violation slip issued by the SDO';
             document.getElementById('comsiceConfidenceScore').textContent = (data.confidence || 88.5) + '%';
+            document.getElementById('comsiceSanctionCategory').textContent = data.category_label || (data.category_num ? `Category ${data.category_num}` : 'Category 1');
             
             const sevEl = document.getElementById('comsiceSeverityBadge');
             const sev = data.severity || 'Medium';
