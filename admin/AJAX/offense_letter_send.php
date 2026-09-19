@@ -197,14 +197,13 @@ $mail->isSMTP();
         return (string)($_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: $default);
     };
 
-    $mail->Host = $getEnv('SMTP_HOST', 'smtp.hostinger.com');
-    $mail->Port = 587;
+    $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+    $mail->Port = (int)get_env_var('SMTP_PORT', 465);
     $mail->SMTPAuth = true;
-    $mail->SMTPSecure = 'tls';
+    $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
 
-    // ✅ Set this to the Gmail you are using for SMTP in your project
-    $mail->Username = $getEnv('SMTP_USER', 'identitrack@identitrack.site');
-    $mail->Password = $getEnv('SMTP_PASS', '');
+    $mail->Username = db_smtp_user();
+    $mail->Password = db_smtp_pass();
 
 $mail->setFrom($mail->Username, 'IdentiTrack Admin');
 $mail->addAddress($guardianEmail, $guardianName);

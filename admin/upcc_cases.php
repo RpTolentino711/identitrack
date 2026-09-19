@@ -216,13 +216,12 @@ function send_case_dismissal_email_to_student(string $studentEmail, string $stud
         $mail = new PHPMailer(true);
         $mail->CharSet = 'UTF-8';
         $mail->isSMTP();
-        $getEnv = function($key, $default) { return (string)($_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: $default); };
-        $mail->Host = $getEnv('SMTP_HOST', 'smtp.hostinger.com');
-        $mail->Port = 587;
+        $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+        $mail->Port = (int)get_env_var('SMTP_PORT', 465);
         $mail->SMTPAuth = true;
-        $mail->SMTPSecure = 'tls';
-        $mail->Username = $getEnv('SMTP_USER', 'identitrack@identitrack.site');
-        $mail->Password = $getEnv('SMTP_PASS', '');
+        $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
+        $mail->Username = db_smtp_user();
+        $mail->Password = db_smtp_pass();
         $mail->setFrom($mail->Username, 'Student Discipline Office - NU Lipa');
         $mail->addAddress($studentEmail, $studentName);
         $mail->isHTML(true);
@@ -262,13 +261,12 @@ function send_case_dismissal_email_to_panel(string $panelEmail, string $panelNam
         $mail = new PHPMailer(true);
         $mail->CharSet = 'UTF-8';
         $mail->isSMTP();
-        $getEnv = function($key, $default) { return (string)($_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: $default); };
-        $mail->Host = $getEnv('SMTP_HOST', 'smtp.hostinger.com');
-        $mail->Port = 587;
+        $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+        $mail->Port = (int)get_env_var('SMTP_PORT', 465);
         $mail->SMTPAuth = true;
-        $mail->SMTPSecure = 'tls';
-        $mail->Username = $getEnv('SMTP_USER', 'identitrack@identitrack.site');
-        $mail->Password = $getEnv('SMTP_PASS', '');
+        $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
+        $mail->Username = db_smtp_user();
+        $mail->Password = db_smtp_pass();
         $mail->setFrom($mail->Username, 'Student Discipline Office - NU Lipa');
         $mail->addAddress($panelEmail, $panelName);
         $mail->isHTML(true);
@@ -370,8 +368,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         try {
             $mail = new PHPMailer(true);
             $mail->CharSet = 'UTF-8'; $mail->isSMTP();
-            $mail->Host = $_ENV['SMTP_HOST'] ?? 'smtp.hostinger.com'; $mail->Port = 587; $mail->SMTPAuth = true; $mail->SMTPSecure = 'tls';
-            $mail->Username = $_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site'; $mail->Password = $_ENV['SMTP_PASS'] ?? ''; $mail->Timeout = 30;
+            $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com'); $mail->Port = (int)get_env_var('SMTP_PORT', 465); $mail->SMTPAuth = true; $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
+            $mail->Username = db_smtp_user(); $mail->Password = db_smtp_pass(); $mail->Timeout = 30;
             $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack Admin');
             $mail->addAddress($admin['email'], $admin['full_name']);
             $mail->isHTML(true);
