@@ -9,6 +9,15 @@ header("Expires: 0");
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
+// Handle cancel/back to login: clear pre-2fa state and redirect
+if (isset($_GET['cancel']) && $_GET['cancel'] === '1') {
+    unset($_SESSION['admin_pre_2fa']);
+    unset($_SESSION['login_otp']);
+    unset($_SESSION['login_otp_attempts']);
+    header("Location: login.php");
+    exit;
+}
+
 // If admin is ALREADY logged in, redirect to dashboard immediately (do NOT send OTP)
 if (isset($_SESSION['admin_id']) && !empty($_SESSION['admin_id'])) {
     redirect('dashboard.php');
