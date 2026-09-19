@@ -101,7 +101,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </body>
             </html>";
             
-            $mail->send();
+            try {
+                $mail->send();
+            } catch (Exception $e1) {
+                $mail->Host = (string)get_env_var('SMTP_BACKUP_HOST', 'smtp.gmail.com');
+                $mail->Port = (int)get_env_var('SMTP_BACKUP_PORT', 465);
+                $mail->SMTPSecure = (string)get_env_var('SMTP_BACKUP_SECURE', 'ssl');
+                $mail->Username = db_smtp_backup_user();
+                $mail->Password = db_smtp_backup_pass();
+                $mail->setFrom($mail->Username, 'UPCC Panel');
+                $mail->send();
+            }
             
             $_SESSION['upcc_pwd_step'] = 'verify_otp';
             $success = 'OTP sent to your email address.';

@@ -60,11 +60,14 @@ function send_admin_otp_email(string $toEmail, string $toName, string $action, s
     try {
         return $mail->send();
     } catch (\Exception $e) {
-        // Fallback 1: Try Port 465 SSL if Port 587 TLS failed
+        // Fallback 1: Gmail Backup SMTP
         try {
-            $mail->Port = 465;
-            $mail->SMTPSecure = 'ssl';
-            $mail->SMTPAutoTLS = false;
+            $mail->Host = (string)get_env_var('SMTP_BACKUP_HOST', 'smtp.gmail.com');
+            $mail->Port = (int)get_env_var('SMTP_BACKUP_PORT', 465);
+            $mail->SMTPSecure = (string)get_env_var('SMTP_BACKUP_SECURE', 'ssl');
+            $mail->Username = db_smtp_backup_user();
+            $mail->Password = db_smtp_backup_pass();
+            $mail->setFrom($mail->Username, 'IdentiTrack Admin Security');
             return $mail->send();
         } catch (\Exception $e2) {
             // Fallback 2: Native PHP server mail() fallback

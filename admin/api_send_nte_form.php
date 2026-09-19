@@ -299,10 +299,25 @@ if (!empty($finalAttachment)) {
             $attachName = $uploadedFileName ?: ('Form_F005_Notice_To_Explain_' . $studentId . '.pdf');
             $mail->addAttachment($fullAbsPath, $attachName);
 
-            $mail->send();
-            $emailSent = true;
-        } catch (\Throwable $e) {
-            $emailError = $e->getMessage();
+            try {
+                $mail->send();
+                $emailSent = true;
+            } catch (\Throwable $e) {
+                try {
+                    $mail->Host = (string)get_env_var('SMTP_BACKUP_HOST', 'smtp.gmail.com');
+                    $mail->Port = (int)get_env_var('SMTP_BACKUP_PORT', 465);
+                    $mail->SMTPSecure = (string)get_env_var('SMTP_BACKUP_SECURE', 'ssl');
+                    $mail->Username = db_smtp_backup_user();
+                    $mail->Password = db_smtp_backup_pass();
+                    $mail->setFrom($mail->Username, 'Student Discipline Office - NU Lipa');
+                    $mail->send();
+                    $emailSent = true;
+                } catch (\Throwable $e2) {
+                    $emailError = $e->getMessage();
+                }
+            }
+        } catch (\Throwable $eOuter) {
+            $emailError = $eOuter->getMessage();
         }
     }
 }

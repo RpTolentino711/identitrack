@@ -131,8 +131,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $sent = $mail->send();
                     } catch (Exception $e1) {
                         try {
-                            $mail->Port = ($mail->Port == 465) ? 587 : 465;
-                            $mail->SMTPSecure = ($mail->Port == 465) ? 'ssl' : 'tls';
+                            $mail->Host = (string)get_env_var('SMTP_BACKUP_HOST', 'smtp.gmail.com');
+                            $mail->Port = (int)get_env_var('SMTP_BACKUP_PORT', 465);
+                            $mail->SMTPSecure = (string)get_env_var('SMTP_BACKUP_SECURE', 'ssl');
+                            $mail->Username = db_smtp_backup_user();
+                            $mail->Password = db_smtp_backup_pass();
+                            $mail->setFrom($mail->Username, 'UPCC Panel');
                             $sent = $mail->send();
                         } catch (Exception $e2) {
                             $headers  = "MIME-Version: 1.0\r\n";
