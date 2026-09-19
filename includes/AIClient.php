@@ -113,24 +113,51 @@ class AIClient
     }
 
     /**
-     * Offense Analysis Decision Support
+     * Offense Analysis Decision Support (COMSICE XGBoost ML Flask Service / Port 5000)
      */
     public function analyzeOffense(string $description, ?string $studentId = null, array $context = []): array
     {
         $requestId = 'req_' . bin2hex(random_bytes(12));
-        $sanitizedDesc = htmlspecialchars(trim($description), ENT_QUOTES, 'UTF-8');
+        $sanitizedDesc = trim($description);
+
+        $category = $context['category'] ?? $context['offense_category'] ?? '';
+        $violation = $context['violation'] ?? $context['offense_name'] ?? $context['offense_code'] ?? '';
+        $numOffense = $context['number_of_offense'] ?? $context['offense_attempt'] ?? '1st Offense';
 
         if ($this->enabled && in_array($this->provider, ['production', 'remote'], true) && !empty($this->apiUrl)) {
-            $remoteResult = $this->callRemoteApi('/analyze-offense', [
-                'offense_description' => $sanitizedDesc,
-                'student_id'          => $studentId,
-                'context'             => $context,
-                'request_id'          => $requestId
+            $remoteResult = $this->callRemoteApi('/predict', [
+                'description'       => $sanitizedDesc,
+                'category'          => $category,
+                'violation'         => $violation,
+                'number_of_offense' => $numOffense
             ]);
 
-            if ($remoteResult && !empty($remoteResult['success'])) {
-                $this->logAnalysis($requestId, null, $remoteResult);
-                return $remoteResult;
+            if ($remoteResult && (isset($remoteResult['sanction']) || isset($remoteResult['likelihood_percentage']))) {
+                $confidence = (float)($remoteResult['likelihood_percentage'] ?? $remoteResult['sanction_confidence'] ?? 85.0) / 100.0;
+                $formattedResult = [
+                    'success' => true,
+                    'request_id' => $requestId,
+                    'classification' => [
+                        'type' => $remoteResult['category'] ?? ($category ?: 'Disciplinary Infraction'),
+                        'category' => $remoteResult['category'] ?? 'General Conduct',
+                        'confidence' => round($confidence, 2)
+                    ],
+                    'handbook' => [
+                        'section' => 'COMSICE XGBoost Machine Learning Model',
+                        'rule' => $violation ?: $sanitizedDesc,
+                        'source' => 'SDO Historical Dataset (2,002 Records)'
+                    ],
+                    'recommendation' => [
+                        'intervention' => $remoteResult['sanction'] ?? 'Recommended Sanction Pending',
+                        'reason' => 'Predicted by COMSICE XGBoost ML Model with ' . ($remoteResult['likelihood_percentage'] ?? 85) . '% confidence (Severity: ' . ($remoteResult['severity'] ?? 'Medium') . ').'
+                    ],
+                    'ai_explanation' => 'COMSICE XGBoost Prediction (Severity: ' . ($remoteResult['severity'] ?? 'Medium') . ', Confidence: ' . ($remoteResult['likelihood_percentage'] ?? 85) . '%).',
+                    'uncertainty' => ($confidence < 0.5),
+                    'requires_human_review' => true
+                ];
+
+                $this->logAnalysis($requestId, null, $formattedResult);
+                return $formattedResult;
             }
         }
 
