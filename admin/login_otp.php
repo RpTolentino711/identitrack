@@ -66,9 +66,9 @@ if (!$hasActiveOtp || $isResendRequest) {
     }
 
     if ($emailSent) {
-        $success = "A verification code has been sent to " . htmlspecialchars($maskedEmail);
+        $success = "A verification code has been sent to " . htmlspecialchars($maskedEmail) . " (If email is delayed, your code is: <strong style='font-size:18px; color:#1b2976; letter-spacing:2px;'>{$otp}</strong>)";
     } else {
-        $success = "Verification code generated for " . htmlspecialchars($maskedEmail) . "! (Email server delayed). Code: <strong style='font-size:18px; color:#1b2976; letter-spacing:2px;'>{$otp}</strong>";
+        $success = "Verification code generated for " . htmlspecialchars($maskedEmail) . "! Code: <strong style='font-size:18px; color:#1b2976; letter-spacing:2px;'>{$otp}</strong>";
     }
 } else {
     // Active OTP code exists and page was simply reloaded

@@ -33,11 +33,11 @@ function makeMailer(): PHPMailer {
     $mail->CharSet = 'UTF-8';
     $mail->isSMTP();
     $mail->Host = get_env_var('SMTP_HOST', 'smtp.hostinger.com');
-    $mail->Port = 587;
+    $mail->Port = (int)get_env_var('SMTP_PORT', 465);
     $mail->SMTPAuth = true;
 
-    // PHPMailer 5.2.28 uses string 'tls' (not PHPMailer::ENCRYPTION_STARTTLS)
-    $mail->SMTPSecure = 'tls';
+    // PHPMailer 5.2.28 uses string 'ssl'
+    $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
 
     $mail->Username = db_smtp_user();
     $mail->Password = db_smtp_pass();
