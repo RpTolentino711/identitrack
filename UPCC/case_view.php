@@ -1291,9 +1291,7 @@ hr{border-color:var(--border-glass);margin:16px 0}
                                  </a>
                                  <div style="font-size: 12px; color: var(--text-main); line-height: 1.5;">
                                    <div style="font-weight: 700; color: #93c5fd; margin-bottom: 4px;">Incident Report Photo</div>
-                                   <a href="../<?= htmlspecialchars($caseEvidenceFile) ?>" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 12px; font-weight: 700; margin-top: 6px; box-shadow: 0 2px 8px rgba(37,99,235,0.4);">
-                                     🔍 Open High-Res Photo Lightbox
-                                   </a>
+                                   
                                  </div>
                                </div>
                              <?php else: ?>
