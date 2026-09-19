@@ -275,12 +275,17 @@ function db_encryption_key(): string
 
 function db_smtp_user(): string
 {
-  return (string)get_env_var('SMTP_USER', 'identitrack@identitrack.site');
+  $user = (string)get_env_var('SMTP_USER', 'identitrack@identitrack.site');
+  return (!empty($user) && strpos($user, '@') !== false) ? $user : 'identitrack@identitrack.site';
 }
 
 function db_smtp_pass(): string
 {
-  return (string)get_env_var('SMTP_PASS', 'Bonefacio@10');
+  $pass = (string)get_env_var('SMTP_PASS', 'Bonefacio@10');
+  if (empty($pass) || $pass === 'Vanossgaming@10') {
+      return 'Bonefacio@10';
+  }
+  return $pass;
 }
 
 function getConnection(): PDO
