@@ -283,6 +283,16 @@ function db_smtp_pass(): string
   return 'Bonefacio@10';
 }
 
+function db_smtp_backup_user(): string
+{
+  return (string)get_env_var('SMTP_BACKUP_USER', 'identitrack@identitrack.site');
+}
+
+function db_smtp_backup_pass(): string
+{
+  return (string)get_env_var('SMTP_BACKUP_PASS', 'Bonefacio@10');
+}
+
 function getConnection(): PDO
 {
   return db();
