@@ -285,7 +285,7 @@ function db_smtp_pass(): string
 
 function db_smtp_backup_user(): string
 {
-  return (string)get_env_var('SMTP_BACKUP_USER', 'garciaaryanm@gmail.com');
+  return (string)get_env_var('SMTP_BACKUP_USER', 'romeopaolotolentino@gmail.com');
 }
 
 function db_smtp_backup_pass(): string
