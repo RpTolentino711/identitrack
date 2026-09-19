@@ -208,9 +208,10 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
 
     $offenseName = $caseMeta['offense_name'] ?? 'Disciplinary Violation';
     $offenseLevel = $caseMeta['offense_level'] ?? 'MINOR';
-    $category = ($offenseLevel === 'MAJOR') ? 'Major Offenses' : 'Minor Offenses';
-    $numOffense = ($caseMeta['total_prior'] ?? 0) + 1;
-    $numOffenseStr = $numOffense . ($numOffense === 1 ? 'st Offense' : ($numOffense === 2 ? 'nd Offense' : ($numOffense === 3 ? 'rd Offense' : 'th Offense')));
+    $category = $caseMeta['category'] ?? (($offenseLevel === 'MAJOR') ? 'Major Offenses' : 'Minor Offenses');
+    $totalPrior = (int)($caseMeta['total_prior'] ?? 0);
+    $numOffense = $totalPrior + 1;
+    $numOffenseStr = $caseMeta['number_of_offense'] ?? ($numOffense . ($numOffense === 1 ? 'st Offense' : ($numOffense === 2 ? 'nd Offense' : ($numOffense === 3 ? 'rd Offense' : 'th Offense'))));
 
     $ch = curl_init(rtrim($apiUrl, '/') . '/predict');
     $payload = [
@@ -235,40 +236,17 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    if ($httpCode === 200 && $response) {
-        $json = json_decode($response, true);
-        if (isset($json['sanction']) || isset($json['likelihood_percentage'])) {
-            $sanction = $json['sanction'] ?? 'Violation slip issued by the SDO';
-            $confidence = $json['likelihood_percentage'] ?? $json['confidence_score'] ?? 85.0;
-            $severity = $json['severity'] ?? 'Medium';
-
-            $aiText = "🤖 **COMSICE XGBoost ML Model Recommendation**:\n\n"
-                    . "• **Predicted Sanction**: **{$sanction}**\n"
-                    . "• **Confidence Score**: **{$confidence}%** (Severity: **{$severity}**)\n"
-                    . "• **Model Source**: SDO Historical Dataset (2,002 Training Records)\n\n"
-                    . "💡 **Why? (Reason)**: The XGBoost classifier analyzed the incident scenario, violation category ('{$category}'), and student offense count ('{$numOffenseStr}') against 2,002 historical campus precedent records.";
-
-            return [
-                'text' => $aiText,
-                'sanction' => $sanction,
-                'confidence' => $confidence,
-                'severity' => $severity,
-                'engine' => 'COMSICE XGBoost ML Model (Port 5000)',
-                'privacy' => '🔒 100% Native (RA 10173 Compliant)'
-            ];
-        }
-    }
-
-    // Seamless Native Decision Engine Prediction Fallback (Zero Offline Failures)
+    // Seamless Native Decision Engine Prediction Fallback
     $sanction = 'Violation slip issued by the SDO';
     $severity = 'Medium';
     $confidence = 88.5;
     $handbookCitation = 'NU Lipa Student Handbook Section 3.1';
 
-    $upperOff = strtoupper($offenseName . ' ' . $description);
+    $upperOff = strtoupper($offenseName . ' ' . $userPrompt);
     $upperCat = strtoupper($category . ' ' . $numOffenseStr);
     $isSec4Cycle2 = (strpos($upperCat, 'CYCLE 2') !== false || strpos($upperCat, '6 MINOR') !== false);
     $isSec4Cycle1 = (strpos($upperCat, 'CYCLE 1') !== false || strpos($upperCat, '3 MINOR') !== false || (strpos($upperCat, 'SECTION 4') !== false && !$isSec4Cycle2));
+    $isMajor2nd = (strpos($upperCat, '2ND') !== false || strpos($upperCat, 'REPEATED') !== false || $totalPrior >= 1);
     $isMajor = (strpos($upperCat, 'MAJOR') !== false || strtoupper($offenseLevel) === 'MAJOR') && !$isSec4Cycle1 && !$isSec4Cycle2;
 
     if ($isSec4Cycle2) {
@@ -282,7 +260,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         $confidence = 95.0;
         $handbookCitation = 'Section 4 Minor Offense Escalation - Cycle 1 (Accumulated 3 Minor Offenses)';
     } elseif ($isMajor) {
-        if (strpos($upperCat, '2ND') !== false || $numOffense >= 2) {
+        if ($isMajor2nd) {
             if (strpos($upperOff, 'FIGHTING') !== false || strpos($upperOff, 'THEFT') !== false || strpos($upperOff, 'SEVERE') !== false) {
                 $sanction = 'Summary Expulsion / Permanent Disqualification';
                 $severity = 'Critical';
@@ -323,11 +301,12 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
 
     // Determine NU Lipa UPCC Sanction Category (Category 1 - Category 5)
     $catNum = 1;
-    if (preg_match('/\b(EXPULSION|PERMANENT|DISQUALIFICATION)\b/i', $sanction)) {
-        $catNum = 4;
-    } elseif (preg_match('/\b(SUSPENSION|NON-READMISSION|PROBATION)\b/i', $sanction)) {
+    $upperSanct = strtoupper($sanction);
+    if (preg_match('/\b(EXCLUSION|REFERRAL|SUMMARY EXPULSION|PERMANENT|DISQUALIFICATION)\b/i', $upperSanct)) {
+        $catNum = (strpos($upperSanct, 'EXCLUSION') !== false || strpos($upperSanct, 'POLICE') !== false) ? 5 : 4;
+    } elseif (preg_match('/\b(SUSPENSION|NON-READMISSION|PROBATION|CYCLE 2)\b/i', $upperSanct)) {
         $catNum = 3;
-    } elseif (preg_match('/\b(COMMUNITY SERVICE|FORMATIVE|HOURS|INTERVENTION)\b/i', $sanction)) {
+    } elseif (preg_match('/\b(COMMUNITY SERVICE|FORMATIVE|HOURS|INTERVENTION|CYCLE 1)\b/i', $upperSanct)) {
         $catNum = 2;
     } else {
         $catNum = 1;

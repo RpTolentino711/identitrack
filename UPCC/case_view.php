@@ -4131,7 +4131,7 @@ function toggleDrawerWhyPanel() {
       </div>
 
       <button type="button" onclick="runComsicePrediction()" style="width:100%;background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:12px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='scale(1.01)';" onmouseout="this.style.transform='scale(1)';">
-        <span>🔮</span> Predict Sanction
+        <span>🔍</span> Analyze Case & Predict Sanction
       </button>
     </div>
 
