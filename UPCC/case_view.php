@@ -4053,29 +4053,43 @@ function toggleDrawerWhyPanel() {
   </div>
 
   <!-- COMSICE PREDICTOR FORM & RESULTS PANEL -->
+  <?php
+    $autoFirstOffense = $offenses[0] ?? null;
+    $autoLevel = !empty($autoFirstOffense['level']) ? strtoupper($autoFirstOffense['level']) : 'MINOR';
+    $autoCategory = ($autoLevel === 'MAJOR') ? 'Major Offenses' : 'Minor Offenses';
+    $autoViolation = !empty($autoFirstOffense['offense_name']) ? $autoFirstOffense['offense_name'] : 'General Violation';
+    $autoPriorCount = count($priorResolvedCases ?? []);
+    $autoNumVal = $autoPriorCount + 1;
+    $autoNumOffenseStr = $autoNumVal . ($autoNumVal === 1 ? 'st Offense' : ($autoNumVal === 2 ? 'nd Offense' : ($autoNumVal === 3 ? 'rd Offense' : 'th Offense')));
+    $autoDesc = !empty($autoFirstOffense['description']) ? $autoFirstOffense['description'] : (!empty($case['case_summary']) ? $case['case_summary'] : $autoViolation);
+  ?>
   <div style="flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">
     
     <!-- PREDICTOR INPUT FORM CONTAINER -->
     <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.12);border-radius:18px;padding:18px;">
-      <div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
-        <span>📋</span> Record & Predict Violation Sanction
+      <div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="display:flex;align-items:center;gap:8px;"><span>📋</span> Record & Predict Violation Sanction</span>
+        <span style="font-size:11px;background:rgba(16,185,129,0.15);color:#10b981;padding:2px 8px;border-radius:12px;border:1px solid rgba(16,185,129,0.3);font-weight:700;">⚡ Auto-Fetched from MySQL</span>
       </div>
       
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
         <div>
           <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Category *</label>
           <select id="comsiceCategory" style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;">
-            <option value="Minor Offenses">Minor Offenses</option>
-            <option value="Major Offenses">Major Offenses</option>
+            <option value="Minor Offenses" <?= $autoCategory === 'Minor Offenses' ? 'selected' : '' ?>>Minor Offenses</option>
+            <option value="Major Offenses" <?= $autoCategory === 'Major Offenses' ? 'selected' : '' ?>>Major Offenses</option>
           </select>
         </div>
         <div>
           <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Number of Offense *</label>
           <select id="comsiceNumOffense" style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;">
-            <option value="1st Offense">1st Offense</option>
-            <option value="2nd Offense">2nd Offense</option>
-            <option value="3rd Offense">3rd Offense</option>
-            <option value="4th Offense">4th Offense</option>
+            <option value="1st Offense" <?= $autoNumOffenseStr === '1st Offense' ? 'selected' : '' ?>>1st Offense</option>
+            <option value="2nd Offense" <?= $autoNumOffenseStr === '2nd Offense' ? 'selected' : '' ?>>2nd Offense</option>
+            <option value="3rd Offense" <?= $autoNumOffenseStr === '3rd Offense' ? 'selected' : '' ?>>3rd Offense</option>
+            <option value="4th Offense" <?= $autoNumOffenseStr === '4th Offense' ? 'selected' : '' ?>>4th Offense</option>
+            <?php if (!in_array($autoNumOffenseStr, ['1st Offense','2nd Offense','3rd Offense','4th Offense'], true)): ?>
+              <option value="<?= htmlspecialchars($autoNumOffenseStr) ?>" selected><?= htmlspecialchars($autoNumOffenseStr) ?></option>
+            <?php endif; ?>
           </select>
         </div>
       </div>
@@ -4083,9 +4097,10 @@ function toggleDrawerWhyPanel() {
       <div style="margin-bottom:12px;">
         <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Violation *</label>
         <select id="comsiceViolation" style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;">
-          <option value="<?= htmlspecialchars((string)($offenseName ?? 'General Violation')) ?>"><?= htmlspecialchars((string)($offenseName ?? 'General Violation')) ?> (Current Case)</option>
+          <option value="<?= htmlspecialchars($autoViolation) ?>" selected><?= htmlspecialchars($autoViolation) ?> (Auto-detected from Case)</option>
           <option value="Lending or Misuse of Student ID badge">Lending or Misuse of Student ID badge</option>
           <option value="Dress Code / Grooming Misconduct">Dress Code / Grooming Misconduct</option>
+          <option value="Littering / Improper Waste Disposal">Littering / Improper Waste Disposal</option>
           <option value="Vaping or Smoking on Campus">Vaping or Smoking on Campus</option>
           <option value="Academic Dishonesty / Exam Cheating">Academic Dishonesty / Exam Cheating</option>
           <option value="Physical Altercation / Fighting">Physical Altercation / Fighting</option>
@@ -4097,7 +4112,7 @@ function toggleDrawerWhyPanel() {
 
       <div style="margin-bottom:14px;">
         <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Incident Description / Notes *</label>
-        <textarea id="comsiceDescription" rows="2" placeholder="Enter specific incident details or student statement..." style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;resize:none;"><?= htmlspecialchars((string)($offenseDescription ?? $offenseName ?? '')) ?></textarea>
+        <textarea id="comsiceDescription" rows="2" placeholder="Enter specific incident details or student statement..." style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;resize:none;"><?= htmlspecialchars((string)$autoDesc) ?></textarea>
       </div>
 
       <button type="button" onclick="runComsicePrediction()" style="width:100%;background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:12px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='scale(1.01)';" onmouseout="this.style.transform='scale(1)';">
