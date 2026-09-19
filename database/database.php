@@ -285,12 +285,12 @@ function db_smtp_pass(): string
 
 function db_smtp_backup_user(): string
 {
-  return (string)get_env_var('SMTP_BACKUP_USER', 'identitrack@identitrack.site');
+  return (string)get_env_var('SMTP_BACKUP_USER', 'garciaaryanm@gmail.com');
 }
 
 function db_smtp_backup_pass(): string
 {
-  return (string)get_env_var('SMTP_BACKUP_PASS', 'Bonefacio@10');
+  return (string)get_env_var('SMTP_BACKUP_PASS', 'jlwxonaothejrhbm');
 }
 
 function getConnection(): PDO
