@@ -1202,3 +1202,206 @@ if (function_exists('db_one')) {
   })();
 </script>
 
+<!-- ACTIVE COMMUNITY SERVICE LOGOUT INTERCEPTOR MODAL -->
+<div class="active-cs-modal-overlay" id="activeCsLogoutModalOverlay" style="display: none;" aria-hidden="true">
+  <div class="active-cs-modal-card" role="dialog" aria-modal="true" aria-labelledby="activeCsModalTitle">
+    <div style="padding: 20px 24px 16px; background: #fff8f8; border-bottom: 1px solid #fee2e2; display: flex; align-items: center; justify-content: space-between;">
+      <h3 id="activeCsModalTitle" style="margin:0; font-size: 18px; font-weight:700; color:#991b1b; display:flex; align-items:center; gap:10px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:24px; height:24px;">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        Active Community Service Session
+      </h3>
+      <button type="button" id="activeCsCloseBtn" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:24px; line-height:1; font-weight:700;">&times;</button>
+    </div>
+    <div style="padding: 24px; text-align: left;">
+      <p style="margin: 0 0 14px; font-size: 14px; color: #334155; line-height: 1.5;">
+        There <span id="activeCsCountText">is currently 1 student</span> actively performing Community Service right now.
+      </p>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; font-size: 13px; color: #475569; line-height: 1.45;">
+        Before logging out or leaving the portal, please select how you would like to handle active student session(s):
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button type="button" id="activeCsPauseBtn" style="width:100%; padding:12px 18px; background:#f59e0b; color:#ffffff; border:none; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(245,158,11,0.25); transition: background 0.15s ease;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+          Pause Sessions & Log Out
+        </button>
+        <button type="button" id="activeCsClockoutBtn" style="width:100%; padding:12px 18px; background:#dc2626; color:#ffffff; border:none; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(220,38,38,0.25); transition: background 0.15s ease;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+          Clock Out Sessions & Log Out
+        </button>
+        <button type="button" id="activeCsCancelBtn" style="width:100%; padding:10px 18px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; margin-top:4px; transition: background 0.15s ease;">
+          Cancel Logout
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .active-cs-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(8, 16, 48, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 100001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .active-cs-modal-card {
+    background: #ffffff;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 24px 64px rgba(8, 16, 48, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    overflow: hidden;
+    position: relative;
+    animation: csSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  #activeCsPauseBtn:hover { background: #d97706 !important; }
+  #activeCsClockoutBtn:hover { background: #b91c1c !important; }
+  #activeCsCancelBtn:hover { background: #e2e8f0 !important; }
+</style>
+
+<script>
+  (function() {
+    let cachedActiveCsCount = 0;
+    let targetLogoutUrl = 'logout.php';
+
+    async function checkActiveCsStatus() {
+      try {
+        const res = await fetch('api_get_cs_live_status.php', { cache: 'no-store' });
+        if (!res.ok) return 0;
+        const data = await res.json();
+        if (data && data.ok) {
+          cachedActiveCsCount = parseInt(data.active_count || 0, 10);
+          return cachedActiveCsCount;
+        }
+      } catch (e) {}
+      return 0;
+    }
+
+    checkActiveCsStatus();
+    setInterval(checkActiveCsStatus, 8000);
+
+    function promptActiveCsLogout(count, redirectUrl) {
+      targetLogoutUrl = redirectUrl || 'logout.php';
+      const overlay = document.getElementById('activeCsLogoutModalOverlay');
+      const countText = document.getElementById('activeCsCountText');
+      if (!overlay) {
+        window.location.href = targetLogoutUrl;
+        return;
+      }
+      if (countText) {
+        countText.innerHTML = count === 1 
+          ? 'is currently <b>1 student</b>' 
+          : `are currently <b>${count} students</b>`;
+      }
+      overlay.style.display = 'flex';
+      overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function hideActiveCsLogout() {
+      const overlay = document.getElementById('activeCsLogoutModalOverlay');
+      if (overlay) {
+        overlay.style.display = 'none';
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    async function handleLogoutAttempt(e, href) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const activeCount = await checkActiveCsStatus();
+      if (activeCount > 0) {
+        const sidebarModal = document.getElementById('logoutModalOverlay');
+        if (sidebarModal) sidebarModal.classList.remove('show');
+
+        promptActiveCsLogout(activeCount, href);
+      } else {
+        window.location.href = href || 'logout.php';
+      }
+    }
+
+    document.addEventListener('click', function(e) {
+      const target = e.target.closest('a[href*="logout.php"], #logoutConfirmBtn');
+      if (target) {
+        let href = 'logout.php';
+        if (target.tagName === 'A') {
+          href = target.getAttribute('href') || 'logout.php';
+        } else if (target.id === 'logoutConfirmBtn') {
+          const sidebarLogoutLink = document.getElementById('sidebarLogoutLink');
+          if (sidebarLogoutLink) href = sidebarLogoutLink.getAttribute('href') || 'logout.php';
+        }
+        handleLogoutAttempt(e, href);
+      }
+    }, true);
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const pauseBtn = document.getElementById('activeCsPauseBtn');
+      const clockoutBtn = document.getElementById('activeCsClockoutBtn');
+      const cancelBtn = document.getElementById('activeCsCancelBtn');
+      const closeBtn = document.getElementById('activeCsCloseBtn');
+
+      if (cancelBtn) cancelBtn.addEventListener('click', hideActiveCsLogout);
+      if (closeBtn) closeBtn.addEventListener('click', hideActiveCsLogout);
+
+      async function executeBatchAndLogout(action) {
+        if (pauseBtn) pauseBtn.disabled = true;
+        if (clockoutBtn) clockoutBtn.disabled = true;
+
+        try {
+          const res = await fetch('api_batch_cs_action.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action })
+          });
+          const data = await res.json();
+          if (data && data.ok) {
+            window.location.href = targetLogoutUrl;
+            return;
+          } else {
+            alert('Error performing batch action: ' + (data.message || 'Unknown error'));
+          }
+        } catch (err) {
+          alert('Network error while processing request. Proceeding with logout.');
+          window.location.href = targetLogoutUrl;
+        } finally {
+          if (pauseBtn) pauseBtn.disabled = false;
+          if (clockoutBtn) clockoutBtn.disabled = false;
+        }
+      }
+
+      if (pauseBtn) {
+        pauseBtn.addEventListener('click', function() {
+          executeBatchAndLogout('pause_all');
+        });
+      }
+
+      if (clockoutBtn) {
+        clockoutBtn.addEventListener('click', function() {
+          executeBatchAndLogout('clockout_all');
+        });
+      }
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+      if (cachedActiveCsCount > 0) {
+        const msg = 'Students are currently performing Community Service. Are you sure you want to close without pausing or clocking them out?';
+        e.preventDefault();
+        e.returnValue = msg;
+        return msg;
+      }
+    });
+
+  })();
+</script>
+
+
