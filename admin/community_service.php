@@ -697,7 +697,11 @@ if ($q !== '') {
                         </div>
                       </div>
                       <button type="button" 
-                              onclick="openUpdateCSNoteModal(<?php echo (int)$session['session_id']; ?>, '<?php echo e(addslashes($session['sdo_notes'] ?? '')); ?>', '<?php echo e(addslashes($session['student_name'])); ?>')" 
+                              class="btn-edit-cs-note"
+                              data-session-id="<?php echo (int)$session['session_id']; ?>"
+                              data-sdo-notes="<?php echo e($session['sdo_notes'] ?? ''); ?>"
+                              data-student-name="<?php echo e($session['student_name']); ?>"
+                              onclick="openUpdateCSNoteModal(this)" 
                               style="padding: 6px 12px; background: #3b4a9e; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; box-shadow: 0 2px 6px rgba(59,74,158,0.2);">
                         ✏️ Edit Note
                       </button>
@@ -1112,6 +1116,10 @@ if ($q !== '') {
         <button type="button" id="btnConfirmPauseCS" onclick="confirmPauseCS()" class="btn btn-primary" style="background:#dc2626; border-color:#dc2626; padding:8px 20px; border-radius:8px; font-weight:800; color:#fff;">
           ⏸ Yes, Pause Service Timer
         </button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Update SDO Notes / Task Location -->
   <div id="updateCSNoteModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
     <div class="modal-content" style="background:#fff; width:100%; max-width:480px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
@@ -1147,6 +1155,12 @@ if ($q !== '') {
     let activeCSNoteSessionId = 0;
 
     function openUpdateCSNoteModal(sessionId, currentNote, studentName) {
+        if (typeof sessionId === 'object' && sessionId !== null) {
+            const btn = sessionId;
+            sessionId = parseInt(btn.getAttribute('data-session-id'), 10);
+            currentNote = btn.getAttribute('data-sdo-notes') || '';
+            studentName = btn.getAttribute('data-student-name') || 'Student';
+        }
         activeCSNoteSessionId = sessionId;
         document.getElementById('updateCSNoteStudentName').textContent = studentName || 'Student';
         document.getElementById('updateCSNoteInput').value = currentNote || '';
