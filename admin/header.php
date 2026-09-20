@@ -1315,33 +1315,32 @@ if (function_exists('db_one')) {
       }
     }
 
-    async function handleLogoutAttempt(e, href) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const activeCount = await checkActiveCsStatus();
-      if (activeCount > 0) {
-        const sidebarModal = document.getElementById('logoutModalOverlay');
-        if (sidebarModal) sidebarModal.classList.remove('show');
-
-        promptActiveCsLogout(activeCount, href);
-      } else {
-        window.location.href = href || 'logout.php';
-      }
-    }
-
     document.addEventListener('click', function(e) {
-      const target = e.target.closest('a[href*="logout.php"], #logoutConfirmBtn');
-      if (target) {
+      const logoutConfirmBtn = e.target.closest('#logoutConfirmBtn');
+      const logoutLink = e.target.closest('a[href*="logout.php"]');
+
+      if (!logoutConfirmBtn && !logoutLink) return;
+
+      // Only intercept if there are active CS sessions running right now
+      if (cachedActiveCsCount > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+
         let href = 'logout.php';
-        if (target.tagName === 'A') {
-          href = target.getAttribute('href') || 'logout.php';
-        } else if (target.id === 'logoutConfirmBtn') {
+        if (logoutLink) {
+          href = logoutLink.getAttribute('href') || 'logout.php';
+        } else if (logoutConfirmBtn) {
           const sidebarLogoutLink = document.getElementById('sidebarLogoutLink');
           if (sidebarLogoutLink) href = sidebarLogoutLink.getAttribute('href') || 'logout.php';
         }
-        handleLogoutAttempt(e, href);
+
+        const sidebarModal = document.getElementById('logoutModalOverlay');
+        if (sidebarModal) sidebarModal.classList.remove('show');
+
+        promptActiveCsLogout(cachedActiveCsCount, href);
       }
+      // If cachedActiveCsCount === 0:
+      // Do NOTHING here! Let normal sidebar.php modal (#logoutModalOverlay) or default link behavior proceed naturally.
     }, true);
 
     document.addEventListener('DOMContentLoaded', function() {
