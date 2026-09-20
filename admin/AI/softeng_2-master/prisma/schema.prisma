@@ -1,0 +1,102 @@
+generator client {
+  provider      = "prisma-client"
+  output        = "../app/generated/prisma"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Sanction {
+  id            Int       @id @default(autoincrement())
+  violation_id  Int
+  student_id    String
+  sanction_type String
+  duration_days Int       @default(0)
+  notes         String?
+  is_completed  Boolean   @default(false)
+  assigned_at   DateTime  @default(now())
+  completed_at  DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime?
+  student       Student   @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
+  violation     Violation @relation(fields: [violation_id], references: [id], onDelete: Cascade)
+
+  @@index([violation_id])
+  @@index([student_id])
+  @@index([is_completed])
+}
+
+model Student {
+  student_id       String      @id
+  name             String
+  grade_level      String
+  section          String?
+  guardian_contact String?
+  created_at       DateTime    @default(now())
+  updated_at       DateTime?
+  sanctions        Sanction[]
+  violations       Violation[]
+
+  @@index([name])
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  username      String    @unique
+  password_hash String
+  full_name     String
+  role          UserRole  @default(teacher)
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime?
+
+  @@map("users")
+}
+
+model Violation {
+  id                      Int               @id @default(autoincrement())
+  student_id              String
+  description             String
+  category                String
+  severity                ViolationSeverity
+  occurred_at             DateTime          @default(now())
+  reported_by             String?
+  suggested_sanction      String?
+  suggested_duration_days Int               @default(0)
+  is_sanction_assigned    Boolean           @default(false)
+  created_at              DateTime          @default(now())
+  updated_at              DateTime?
+  likelihood              Int
+  sanctions               Sanction[]
+  student                 Student           @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
+
+  @@index([student_id])
+  @@index([severity])
+  @@index([category])
+}
+
+model ViolationCategory {
+  id               Int               @id @default(autoincrement())
+  name             String            @unique
+  description      String?
+  default_severity ViolationSeverity @default(Low)
+  created_at       DateTime          @default(now())
+  updated_at       DateTime?
+}
+
+enum UserRole {
+  admin
+  teacher
+  staff
+  counselor
+}
+
+enum ViolationSeverity {
+  Low
+  Medium
+  High
+  Critical
+}
