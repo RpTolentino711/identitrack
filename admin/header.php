@@ -1220,17 +1220,13 @@ if (function_exists('db_one')) {
       <p style="margin: 0 0 14px; font-size: 14px; color: #334155; line-height: 1.5;">
         There <span id="activeCsCountText">is currently 1 student</span> actively performing Community Service right now.
       </p>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; font-size: 13px; color: #475569; line-height: 1.45;">
-        Before logging out or leaving the portal, please select how you would like to handle active student session(s):
+      <div style="background: #fffbe6; border: 1px solid #fef3c7; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; font-size: 13px; color: #b45309; line-height: 1.45;">
+        Before logging out, active student session(s) will be paused to freeze their timers until resumed by an Admin.
       </div>
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <button type="button" id="activeCsPauseBtn" style="width:100%; padding:12px 18px; background:#f59e0b; color:#ffffff; border:none; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(245,158,11,0.25); transition: background 0.15s ease;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
           Pause Sessions & Log Out
-        </button>
-        <button type="button" id="activeCsClockoutBtn" style="width:100%; padding:12px 18px; background:#dc2626; color:#ffffff; border:none; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(220,38,38,0.25); transition: background 0.15s ease;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
-          Clock Out Sessions & Log Out
         </button>
         <button type="button" id="activeCsCancelBtn" style="width:100%; padding:10px 18px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; margin-top:4px; transition: background 0.15s ease;">
           Cancel Logout
@@ -1350,7 +1346,6 @@ if (function_exists('db_one')) {
 
     document.addEventListener('DOMContentLoaded', function() {
       const pauseBtn = document.getElementById('activeCsPauseBtn');
-      const clockoutBtn = document.getElementById('activeCsClockoutBtn');
       const cancelBtn = document.getElementById('activeCsCancelBtn');
       const closeBtn = document.getElementById('activeCsCloseBtn');
 
@@ -1359,7 +1354,6 @@ if (function_exists('db_one')) {
 
       async function executeBatchAndLogout(action) {
         if (pauseBtn) pauseBtn.disabled = true;
-        if (clockoutBtn) clockoutBtn.disabled = true;
 
         try {
           const res = await fetch('api_batch_cs_action.php', {
@@ -1379,19 +1373,12 @@ if (function_exists('db_one')) {
           window.location.href = targetLogoutUrl;
         } finally {
           if (pauseBtn) pauseBtn.disabled = false;
-          if (clockoutBtn) clockoutBtn.disabled = false;
         }
       }
 
       if (pauseBtn) {
         pauseBtn.addEventListener('click', function() {
           executeBatchAndLogout('pause_all');
-        });
-      }
-
-      if (clockoutBtn) {
-        clockoutBtn.addEventListener('click', function() {
-          executeBatchAndLogout('clockout_all');
         });
       }
     });
