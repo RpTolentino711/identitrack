@@ -497,6 +497,17 @@ function admin_logout(): void
     // Clear all active sessions if session ID was already lost
     db_exec("UPDATE admin_user SET active_session_token = NULL, active_session_ip = NULL");
   }
+
+  // Auto-pause any active community service sessions in DB when admin logs out
+  try {
+    ensure_community_service_pause_schema();
+    db_exec(
+      "UPDATE community_service_session 
+       SET status = 'PAUSED', pause_reason = 'Paused automatically on Admin logout', paused_at = COALESCE(paused_at, NOW())
+       WHERE time_out IS NULL AND status = 'ACTIVE'"
+    );
+  } catch (\Throwable $e) {}
+
   unset($_SESSION['admin'], $_SESSION['admin_session_token'], $_SESSION['admin_id'], $_SESSION['admin_username'], $_SESSION['admin_pre_2fa'], $_SESSION['login_otp']);
 }
 

@@ -191,6 +191,26 @@ $activeAdmin = db_one("
   LIMIT 1
 ");
 
+$hasActiveAdmin = ($activeAdmin !== null && $activeAdmin !== false);
+
+if (!$hasActiveAdmin && $activeSession && ($activeSession['session_status'] ?? '') === 'ACTIVE') {
+    ensure_community_service_pause_schema();
+    db_exec(
+      "UPDATE community_service_session 
+       SET status = 'PAUSED', pause_reason = 'Paused automatically: No active SDO Admin logged in', paused_at = COALESCE(paused_at, NOW())
+       WHERE session_id = :sid AND time_out IS NULL",
+      [':sid' => (int)$activeSession['session_id']]
+    );
+    $activeSession['session_status'] = 'PAUSED';
+    $activeSession['status'] = 'PAUSED';
+    $activeSession['pause_reason'] = 'Paused automatically: No active SDO Admin logged in';
+    $activeSession['paused_at'] = date('Y-m-d H:i:s');
+    $timeInTs = strtotime($activeSession['time_in']);
+    $pausedAtTs = time();
+    $accumPausedSecs = (int)($activeSession['accum_paused_seconds'] ?? 0);
+    $activeSession['net_elapsed_seconds'] = max(0, ($pausedAtTs - $timeInTs) - $accumPausedSecs);
+}
+
 // Compute totals based on active requirements, falling back to the latest completed requirement
 $activeReqs = [];
 $completedReqs = [];
