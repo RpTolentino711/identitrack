@@ -2058,7 +2058,7 @@ function ensure_upcc_ai_schema(): void {
             id INT AUTO_INCREMENT PRIMARY KEY,
             case_id VARCHAR(64) NOT NULL,
             requested_by INT DEFAULT NULL,
-            model_version VARCHAR(64) DEFAULT 'UPCC-RF-v1.0',
+            model_version VARCHAR(64) DEFAULT 'UPCC-XGB-v1.0',
             dataset_version VARCHAR(64) DEFAULT 'UPCC-DATA-v1.0',
             recommendation VARCHAR(64) DEFAULT NULL,
             prediction_confidence FLOAT DEFAULT 0.0,

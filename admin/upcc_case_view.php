@@ -4270,7 +4270,7 @@ async function runAiAnalysis() {
         
         const confVal = Math.round((data.confidence || 0.78) * 100);
         if (confPct) confPct.textContent = `${confVal}%`;
-        if (modVer) modVer.textContent = data.model_version || 'UPCC-RF-v1.0';
+        if (modVer) modVer.textContent = data.model_version || 'UPCC-XGB-v1.0';
 
         const distTable = document.getElementById('ai-hist-dist-table');
         if (distTable && data.historical_distribution) {
@@ -4967,7 +4967,7 @@ syncLive();
           </div>
           <div style="background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 12px;">
             <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Version</span>
-            <strong style="font-size: 0.8rem; color: #cbd5e1;">UPCC-RF-v1.0 (<?= number_format(get_total_ai_dataset_count()) ?> Dataset)</strong>
+            <strong style="font-size: 0.8rem; color: #cbd5e1;">UPCC-XGB-v1.0 (<?= number_format(get_total_ai_dataset_count()) ?> Dataset)</strong>
           </div>
         </div>
 
@@ -5012,7 +5012,7 @@ syncLive();
         <!-- MODEL INFORMATION -->
         <div style="background: rgba(0,0,0,0.35); border-radius: 12px; padding: 12px 14px; font-size: 0.75rem; color: #94a3b8; line-height: 1.6;">
           <strong style="color:#f8fafc;">MODEL DETAILS:</strong><br>
-          • Model Version: UPCC-RF-v1.0 (Random Forest)<br>
+          • Model Version: UPCC-XGB-v1.0 (COMSICE XGBoost ML Model)<br>
           • Training Dataset: UPCC-DATA-v1.0 (<?= number_format(get_total_ai_dataset_count()) ?> verified cases)<br>
           • Precedent Matcher: TF-IDF Cosine Similarity
         </div>

@@ -3297,7 +3297,7 @@ async function runAiAnalysis() {
         if (confPct) confPct.textContent = confVal;
         if (dConfPct) dConfPct.textContent = confVal;
 
-        if (modVer) modVer.textContent = data.model_version || 'UPCC-RF-v1.0';
+        if (modVer) modVer.textContent = data.model_version || 'UPCC-XGB-v1.0';
 
         const distTable = document.getElementById('ai-hist-dist-table');
         const dDistTable = document.getElementById('drawer-ai-hist-dist-table');
