@@ -4245,9 +4245,45 @@ function toggleDrawerWhyPanel() {
 
   </div>
 
-</div>
-
 <script>
+function renderComsiceResult(data) {
+    const initBox = document.getElementById('comsiceInitialStateBox');
+    const resCard = document.getElementById('comsiceResultCard');
+    const loadingBox = document.getElementById('comsiceLoadingBox');
+
+    if (initBox) initBox.style.display = 'none';
+    if (loadingBox) loadingBox.style.display = 'none';
+
+    if (data && data.ok) {
+        document.getElementById('comsicePredictedSanction').textContent = data.sanction || 'Violation slip issued by the SDO';
+        document.getElementById('comsiceConfidenceScore').textContent = (data.confidence || 88.5) + '%';
+        document.getElementById('comsiceSanctionCategory').textContent = data.category_label || (data.category_num ? `Category ${data.category_num}` : 'Category 1');
+        
+        const sevEl = document.getElementById('comsiceSeverityBadge');
+        const sev = data.severity || 'Medium';
+        sevEl.textContent = sev;
+        if (sev === 'Critical' || sev === 'High') {
+            sevEl.style.background = 'rgba(239, 68, 68, 0.2)';
+            sevEl.style.color = '#ef4444';
+            sevEl.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        } else if (sev === 'Medium') {
+            sevEl.style.background = 'rgba(245, 158, 11, 0.2)';
+            sevEl.style.color = '#f59e0b';
+            sevEl.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        } else {
+            sevEl.style.background = 'rgba(16, 185, 129, 0.2)';
+            sevEl.style.color = '#10b981';
+            sevEl.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        }
+
+        document.getElementById('comsiceExplanation').innerHTML = (data.ai_explanation || data.reply || '')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+
+        if (resCard) resCard.style.display = 'block';
+    }
+}
+
 async function runComsicePrediction() {
     const category = document.getElementById('comsiceCategory').value;
     const numOffense = document.getElementById('comsiceNumOffense').value;
@@ -4282,35 +4318,15 @@ async function runComsicePrediction() {
         
         clearTimeout(timer1);
         clearTimeout(timer2);
-        if (loadingBox) loadingBox.style.display = 'none';
 
         if (data && data.ok) {
-            document.getElementById('comsicePredictedSanction').textContent = data.sanction || 'Violation slip issued by the SDO';
-            document.getElementById('comsiceConfidenceScore').textContent = (data.confidence || 88.5) + '%';
-            document.getElementById('comsiceSanctionCategory').textContent = data.category_label || (data.category_num ? `Category ${data.category_num}` : 'Category 1');
-            
-            const sevEl = document.getElementById('comsiceSeverityBadge');
-            const sev = data.severity || 'Medium';
-            sevEl.textContent = sev;
-            if (sev === 'Critical' || sev === 'High') {
-                sevEl.style.background = 'rgba(239, 68, 68, 0.2)';
-                sevEl.style.color = '#ef4444';
-                sevEl.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-            } else if (sev === 'Medium') {
-                sevEl.style.background = 'rgba(245, 158, 11, 0.2)';
-                sevEl.style.color = '#f59e0b';
-                sevEl.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-            } else {
-                sevEl.style.background = 'rgba(16, 185, 129, 0.2)';
-                sevEl.style.color = '#10b981';
-                sevEl.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-            }
-
-            document.getElementById('comsiceExplanation').innerHTML = (data.ai_explanation || data.reply || '')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n/g, '<br>');
-
-            if (resCard) resCard.style.display = 'block';
+            try {
+                sessionStorage.setItem('comsice_ai_prediction_case_' + caseId, JSON.stringify(data));
+            } catch(e) {}
+            renderComsiceResult(data);
+        } else {
+            if (loadingBox) loadingBox.style.display = 'none';
+            if (initBox) initBox.style.display = 'flex';
         }
     } catch(err) {
         if (loadingBox) loadingBox.style.display = 'none';
@@ -4318,6 +4334,18 @@ async function runComsicePrediction() {
         alert("Prediction error: " + err.message);
     }
 }
+
+// Auto-restore cached AI prediction on page load / hard refresh
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const caseId = <?= (int)$caseId ?>;
+        const cached = sessionStorage.getItem('comsice_ai_prediction_case_' + caseId);
+        if (cached) {
+            const data = JSON.parse(cached);
+            renderComsiceResult(data);
+        }
+    } catch(e) {}
+});
 
 let currentTypingInterval = null;
 let isAiGenerating = false;
