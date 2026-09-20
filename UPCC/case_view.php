@@ -4091,12 +4091,12 @@ function toggleDrawerWhyPanel() {
         <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#0284c7,#2563eb);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(2,132,199,0.3);">🤖</div>
         <div>
           <h4 style="font-size:15px;font-weight:800;color:#f8fafc;margin:0;">Hello, UPCC Panel Member!</h4>
-          <p style="font-size:12px;color:#94a3b8;margin:3px 0 0 0;line-height:1.35;">Would you like me to analyze this student's case record and suggest the appropriate handbook sanction for this hearing?</p>
+          <p style="font-size:12px;color:#94a3b8;margin:3px 0 0 0;line-height:1.35;">IdentiTrack AI is automatically analyzing this student's case record and predicting the official handbook sanction below...</p>
         </div>
       </div>
 
       <!-- LOCKED AUTO-FETCHED CASE RECORD (READ-ONLY FOR PANEL) -->
-      <div style="background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:14px;">
+      <div style="background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
         <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
           <span style="display:flex;align-items:center;gap:6px;"><span>🔒</span> Auto-Fetched Case Parameters</span>
           <span style="font-size:10px;color:#10b981;background:rgba(16,185,129,0.15);padding:2px 8px;border-radius:10px;border:1px solid rgba(16,185,129,0.3);font-weight:700;">MySQL Locked</span>
@@ -4129,11 +4129,6 @@ function toggleDrawerWhyPanel() {
       <input type="hidden" id="comsiceNumOffense" value="<?= htmlspecialchars($autoCaseTypeStr) ?>">
       <input type="hidden" id="comsiceViolation" value="<?= htmlspecialchars($autoViolation) ?>">
       <input type="hidden" id="comsiceDescription" value="<?= htmlspecialchars((string)$autoDesc) ?>">
-
-      <!-- SUGGEST SANCTION BUTTON -->
-      <button type="button" onclick="runComsicePrediction()" style="width:100%;background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:13px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px) scale(1.01)';" onmouseout="this.style.transform='translateY(0) scale(1)';">
-        <span>⚡</span> Suggest Punishment for this Case
-      </button>
     </div>
 
     <!-- MULTI-STEP ANIMATED LOADING SCREEN -->
