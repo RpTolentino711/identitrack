@@ -1315,34 +1315,37 @@ if (function_exists('db_one')) {
       }
     }
 
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', async function(e) {
       const logoutConfirmBtn = e.target.closest('#logoutConfirmBtn');
       const directLogoutLink = e.target.closest('a[href*="logout.php"]:not(#sidebarLogoutLink)');
 
       if (!logoutConfirmBtn && !directLogoutLink) return;
 
-      // Only intercept when user confirms logout (#logoutConfirmBtn) or clicks a direct logout link while CS is active
-      if (cachedActiveCsCount > 0) {
-        e.preventDefault();
-        e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
 
-        let href = 'logout.php';
-        if (directLogoutLink) {
-          href = directLogoutLink.getAttribute('href') || 'logout.php';
-        } else if (logoutConfirmBtn) {
-          const sidebarLogoutLink = document.getElementById('sidebarLogoutLink');
-          if (sidebarLogoutLink) href = sidebarLogoutLink.getAttribute('href') || 'logout.php';
-        }
+      let href = 'logout.php';
+      if (directLogoutLink) {
+        href = directLogoutLink.getAttribute('href') || 'logout.php';
+      } else if (logoutConfirmBtn) {
+        const sidebarLogoutLink = document.getElementById('sidebarLogoutLink');
+        if (sidebarLogoutLink) href = sidebarLogoutLink.getAttribute('href') || 'logout.php';
+      }
 
+      // Check fresh live status from server
+      const activeCount = await checkActiveCsStatus();
+
+      if (activeCount > 0) {
         // Close 1st modal (#logoutModalOverlay)
         const sidebarModal = document.getElementById('logoutModalOverlay');
         if (sidebarModal) sidebarModal.classList.remove('show');
 
         // Open 2nd modal (#activeCsLogoutModalOverlay)
-        promptActiveCsLogout(cachedActiveCsCount, href);
+        promptActiveCsLogout(activeCount, href);
+      } else {
+        // No active sessions -> proceed with logout
+        window.location.href = href || 'logout.php';
       }
-      // If cachedActiveCsCount === 0:
-      // Allow default behavior (#logoutConfirmBtn proceeds to logout.php via sidebar.php listener)
     }, true);
 
     document.addEventListener('DOMContentLoaded', function() {

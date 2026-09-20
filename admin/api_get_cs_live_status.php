@@ -5,7 +5,8 @@ require_once __DIR__ . '/../database/database.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-if (empty($_SESSION['user_id'])) {
+$admin = function_exists('admin_current') ? admin_current() : null;
+if (!$admin && empty($_SESSION['admin']) && empty($_SESSION['admin_id']) && empty($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['ok' => false, 'message' => 'Unauthorized admin session.']);
     exit;
