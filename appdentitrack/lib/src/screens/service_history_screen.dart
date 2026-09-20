@@ -27,7 +27,7 @@ DateTime _parseManilaDateTime(String dateStr) {
 
 // ─── Live session timer widget ──────────────────────────────────────────────
 
-class LiveSessionTimer extends StatelessWidget {
+class LiveSessionTimer extends StatefulWidget {
   final String timeIn;
   final ActiveServiceSession? activeSession;
 
@@ -38,14 +38,38 @@ class LiveSessionTimer extends StatelessWidget {
   });
 
   @override
+  State<LiveSessionTimer> createState() => _LiveSessionTimerState();
+}
+
+class _LiveSessionTimerState extends State<LiveSessionTimer> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (activeSession == null) {
+    final active = widget.activeSession;
+    if (active == null) {
       return const Text('00:00:00', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.grey));
     }
 
-    final isPaused = activeSession!.sessionStatus == 'PAUSED';
+    final isPaused = active.sessionStatus == 'PAUSED';
     if (isPaused) {
-      final sec = activeSession!.netElapsedSeconds;
+      final sec = active.netElapsedSeconds;
       final h = (sec ~/ 3600).toString().padLeft(2, '0');
       final m = ((sec % 3600) ~/ 60).toString().padLeft(2, '0');
       final s = (sec % 60).toString().padLeft(2, '0');
@@ -59,28 +83,284 @@ class LiveSessionTimer extends StatelessWidget {
       );
     }
 
-    final syncTime = DateTime.now();
-    final initialNetElapsed = activeSession!.netElapsedSeconds;
+    final start = _parseManilaDateTime(widget.timeIn);
+    final wallDiff = DateTime.now().difference(start).inSeconds;
+    final elapsedSec = math.max(active.netElapsedSeconds, wallDiff);
 
-    return StreamBuilder(
-      stream: Stream.periodic(const Duration(seconds: 1)),
-      builder: (context, snapshot) {
-        final localDiff = DateTime.now().difference(syncTime).inSeconds;
-        final elapsedSec = math.max(0, initialNetElapsed + localDiff);
-
-        final h = (elapsedSec ~/ 3600).toString().padLeft(2, '0');
-        final m = ((elapsedSec % 3600) ~/ 60).toString().padLeft(2, '0');
-        final s = (elapsedSec % 60).toString().padLeft(2, '0');
-        return Text(
-          '$h:$m:$s',
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-            color: Color(0xFF2E7D32),
-          ),
-        );
-      },
+    final h = (elapsedSec ~/ 3600).toString().padLeft(2, '0');
+    final m = ((elapsedSec % 3600) ~/ 60).toString().padLeft(2, '0');
+    final s = (elapsedSec % 60).toString().padLeft(2, '0');
+    return Text(
+      '$h:$m:$s',
+      style: const TextStyle(
+        fontWeight: FontWeight.w700,
+        fontSize: 13,
+        color: Color(0xFF2E7D32),
+      ),
     );
+  }
+}
+
+// ─── Progress Ring Card (Stateful to prevent scroll crashes) ───────────────
+
+class ProgressRingCard extends StatefulWidget {
+  final CommunityServiceOverview data;
+
+  const ProgressRingCard({super.key, required this.data});
+
+  @override
+  State<ProgressRingCard> createState() => _ProgressRingCardState();
+}
+
+class _ProgressRingCardState extends State<ProgressRingCard> {
+  Timer? _timer;
+  static const double epsilon = 0.0001;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _formatHoursPrecise(double hours) {
+    if (hours <= 0) return '0s';
+    final totalSeconds = (hours * 3600).round();
+    final h = totalSeconds ~/ 3600;
+    final m = (totalSeconds % 3600) ~/ 60;
+    final s = totalSeconds % 60;
+
+    List<String> parts = [];
+    if (h > 0) parts.add('${h}h');
+    if (m > 0) parts.add('${m}m');
+    if (s > 0 || (h == 0 && m == 0)) parts.add('${s}s');
+    return parts.join(' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    try {
+      final data = widget.data;
+      double confirmedCompleted = data.hoursCompleted;
+      double assigned = data.hoursAssigned;
+      double hoursRemaining = assigned - confirmedCompleted;
+
+      if (data.activeSession != null) {
+        final active = data.activeSession!;
+        double elapsedSec = 0.0;
+        if (active.sessionStatus == 'PAUSED') {
+          elapsedSec = active.netElapsedSeconds.toDouble();
+        } else {
+          final start = _parseManilaDateTime(active.timeIn);
+          final wallDiff = DateTime.now().difference(start).inSeconds.toDouble();
+          elapsedSec = math.max(active.netElapsedSeconds.toDouble(), wallDiff);
+        }
+        hoursRemaining -= (elapsedSec / 3600.0);
+      }
+
+      if (hoursRemaining < epsilon) hoursRemaining = 0.0;
+
+      final bool hasActive = data.requirements.any((r) => r.status.toUpperCase() == 'ACTIVE');
+      final bool officiallyDone = !hasActive && data.requirements.any((r) => r.status.toUpperCase() == 'COMPLETED');
+      final bool effectivelyDone = assigned > 0 &&
+          (confirmedCompleted >= assigned - epsilon || (assigned - hoursRemaining) >= assigned - epsilon);
+
+      final bool serviceDone = officiallyDone || effectivelyDone;
+
+      final double rawProgress = assigned > 0 ? (serviceDone ? 0.0 : (hoursRemaining / assigned)) : 0.0;
+
+      final double progress = (rawProgress.isNaN || rawProgress.isInfinite)
+          ? 0.0
+          : rawProgress.clamp(0.0, 1.0);
+
+      final double liveCompleted = serviceDone ? assigned : (assigned - hoursRemaining);
+
+      final totalSecondsRemaining = (hoursRemaining.isNaN || hoursRemaining.isInfinite || hoursRemaining < 0)
+          ? 0
+          : (hoursRemaining * 3600).round();
+      final h = (totalSecondsRemaining ~/ 3600).toString().padLeft(2, '0');
+      final m = ((totalSecondsRemaining % 3600) ~/ 60).toString().padLeft(2, '0');
+      final s = (totalSecondsRemaining % 60).toString().padLeft(2, '0');
+
+      final bool isPaused = data.activeSession?.sessionStatus == 'PAUSED';
+
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            )
+          ],
+        ),
+        child: Column(
+          children: [
+            SizedBox(
+              width: 160,
+              height: 160,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey.shade100,
+                    ),
+                  ),
+                  SizedBox.expand(
+                    child: CircularProgressIndicator(
+                      value: progress,
+                      strokeWidth: 12,
+                      backgroundColor: Colors.grey.shade300,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        serviceDone
+                            ? const Color(0xFF2E7D32)
+                            : (isPaused ? Colors.orange : const Color(0xFF193B8C)),
+                      ),
+                    ),
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        serviceDone ? '✓' : '$h:$m:$s',
+                        style: TextStyle(
+                          fontSize: serviceDone ? 40 : 28,
+                          fontWeight: FontWeight.w900,
+                          color: serviceDone
+                              ? const Color(0xFF2E7D32)
+                              : (isPaused ? Colors.orange.shade800 : const Color(0xFF193B8C)),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      Text(
+                        serviceDone
+                            ? 'Complete!'
+                            : (isPaused ? '⏸️ PAUSED' : 'remaining'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isPaused ? Colors.orange.shade800 : Colors.grey.shade600,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Column(
+                  children: [
+                    Text(
+                      _formatHoursPrecise(liveCompleted),
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF193B8C)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Completed',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+                Container(width: 1, height: 40, color: Colors.grey.shade300),
+                Column(
+                  children: [
+                    Text(
+                      _formatHoursPrecise(assigned),
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF193B8C)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Required',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (!serviceDone && hoursRemaining <= epsilon) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8E1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFFE082)),
+                ),
+                child: Text(
+                  'Awaiting admin confirmation of your completed hours.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+              ),
+            ] else if (serviceDone) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFA5D6A7)),
+                ),
+                child: const Column(
+                  children: [
+                    Text(
+                      '🎉 Congratulations!',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF2E7D32),
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'You have successfully completed all your community service hours!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2E7D32),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
   }
 }
 
@@ -109,9 +389,10 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
 
   static const blue = Color(0xFF193B8C);
   static const blueDark = Color(0xFF102B6B);
-
-  // Small epsilon to counter floating‑point errors (0.0001 hours = 0.36 seconds)
   static const double epsilon = 0.0001;
+
+  bool _shownPauseDialog = false;
+  String? _previousSessionStatus;
 
   @override
   void initState() {
@@ -126,11 +407,11 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
     });
   }
 
-  bool _shownPauseDialog = false;
-  String? _previousSessionStatus;
-
   @override
   void dispose() {
+    if (_data?.activeSession?.taskIsNew == true) {
+      _api.acknowledgeNewTask(widget.studentId);
+    }
     super.dispose();
   }
 
@@ -241,20 +522,6 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
     }
   }
 
-  String _formatHoursPrecise(double hours) {
-    if (hours <= 0) return '0s';
-    final totalSeconds = (hours * 3600).round();
-    final h = totalSeconds ~/ 3600;
-    final m = (totalSeconds % 3600) ~/ 60;
-    final s = totalSeconds % 60;
-
-    List<String> parts = [];
-    if (h > 0) parts.add('${h}h');
-    if (m > 0) parts.add('${m}m');
-    if (s > 0 || (h == 0 && m == 0)) parts.add('${s}s');
-    return parts.join(' ');
-  }
-
   String _calculateHoursPrecise(String timeIn, String timeOut) {
     if (timeOut.isEmpty) return '--:--';
     try {
@@ -272,27 +539,6 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
       return parts.join(' ');
     } catch (_) {
       return '--:--';
-    }
-  }
-
-  // Uses epsilon to avoid tiny positive remaining hours due to floating‑point errors
-  double _getRemainingHoursBeforeActiveSession(int requirementId) {
-    if (_data == null) return 0.0;
-    try {
-      final req = _data!.requirements
-          .firstWhere((r) => r.requirementId == requirementId);
-      final double requiredHours = req.hoursRequired;
-
-      final double completedHours = _data!.sessions
-          .where((s) => s.requirementId == requirementId)
-          .map((s) => s.hoursDone)
-          .fold(0.0, (sum, item) => sum + item);
-
-      double remaining = requiredHours - completedHours;
-      if (remaining < epsilon) remaining = 0.0;
-      return remaining;
-    } catch (_) {
-      return 0.0;
     }
   }
 
@@ -318,234 +564,6 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
     }
   }
 
-  // ─── Progress Ring Card ─────────────────────────────────────────────────
-
-  Widget _circularProgressCard() {
-    return StreamBuilder(
-      stream: Stream.periodic(const Duration(seconds: 1)),
-      builder: (context, snapshot) {
-        try {
-          if (_data == null) {
-            return const SizedBox.shrink();
-          }
-
-          double confirmedCompleted = _data!.hoursCompleted;
-          double assigned = _data!.hoursAssigned;
-
-          double hoursRemaining = assigned - confirmedCompleted;
-          if (_data!.activeSession != null) {
-            try {
-              final start = _parseManilaDateTime(_data!.activeSession!.timeIn);
-              final elapsedHours =
-                  DateTime.now().difference(start).inSeconds / 3600.0;
-              hoursRemaining -= elapsedHours;
-            } catch (_) {}
-          }
-          if (hoursRemaining < epsilon) hoursRemaining = 0.0;
-
-          final bool hasActive = _data!.requirements
-              .any((r) => r.status.toUpperCase() == 'ACTIVE');
-          final bool officiallyDone = !hasActive && _data!.requirements
-              .any((r) => r.status.toUpperCase() == 'COMPLETED');
-          final bool effectivelyDone = assigned > 0 &&
-              (confirmedCompleted >= assigned - epsilon ||
-                  (assigned - hoursRemaining) >= assigned - epsilon);
-
-          final bool serviceDone = officiallyDone || effectivelyDone;
-
-          final double rawProgress = assigned > 0
-              ? (serviceDone
-                  ? 0.0
-                  : (hoursRemaining / assigned))
-              : 0.0;
-
-          final double progress = (rawProgress.isNaN || rawProgress.isInfinite)
-              ? 0.0
-              : rawProgress.clamp(0.0, 1.0);
-
-          final double liveCompleted = serviceDone ? assigned : (assigned - hoursRemaining);
-
-          final totalSecondsRemaining = (hoursRemaining.isNaN || hoursRemaining.isInfinite || hoursRemaining < 0)
-              ? 0
-              : (hoursRemaining * 3600).round();
-          final h = (totalSecondsRemaining ~/ 3600).toString().padLeft(2, '0');
-          final m = ((totalSecondsRemaining % 3600) ~/ 60)
-              .toString()
-              .padLeft(2, '0');
-          final s = (totalSecondsRemaining % 60).toString().padLeft(2, '0');
-
-          return Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                )
-              ],
-            ),
-            child: Column(
-              children: [
-                SizedBox(
-                  width: 160,
-                  height: 160,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.grey.shade100,
-                        ),
-                      ),
-                      SizedBox.expand(
-                        child: CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 12,
-                          backgroundColor: Colors.grey.shade300,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            serviceDone
-                                ? const Color(0xFF2E7D32)
-                                : const Color(0xFF193B8C),
-                          ),
-                        ),
-                      ),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            serviceDone ? '✓' : '$h:$m:$s',
-                            style: TextStyle(
-                              fontSize: serviceDone ? 40 : 28,
-                              fontWeight: FontWeight.w900,
-                              color: serviceDone
-                                  ? const Color(0xFF2E7D32)
-                                  : const Color(0xFF193B8C),
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          Text(
-                            serviceDone ? 'Complete!' : 'remaining',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Column(
-                      children: [
-                        Text(
-                          _formatHoursPrecise(liveCompleted),
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF193B8C)),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Completed',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade600),
-                        ),
-                      ],
-                    ),
-                    Container(width: 1, height: 40, color: Colors.grey.shade300),
-                    Column(
-                      children: [
-                        Text(
-                          _formatHoursPrecise(assigned),
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF193B8C)),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Required',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade600),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                if (!serviceDone && hoursRemaining <= epsilon) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF8E1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFFFE082)),
-                    ),
-                    child: Text(
-                      'Awaiting admin confirmation of your completed hours.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.orange.shade800,
-                      ),
-                    ),
-                  ),
-                ] else if (serviceDone) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFA5D6A7)),
-                    ),
-                    child: const Column(
-                      children: [
-                        Text(
-                          '🎉 Congratulations!',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF2E7D32),
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'You have successfully completed all your community service hours!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF2E7D32),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          );
-        } catch (_) {
-          return const SizedBox.shrink();
-        }
-      },
-    );
-  }
-
   // ─── Session Card ──────────────────────────────────────────────────────
 
   Widget _sessionCard(ServiceSession session) {
@@ -559,13 +577,20 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
             ? rawReqLoc.trim()
             : 'Assigned by SDO');
 
+    final bool isLiveActiveCard = _data?.activeSession != null &&
+        session.sessionId == _data!.activeSession!.sessionId;
+    final bool isTaskNew = isLiveActiveCard && (_data!.activeSession!.taskIsNew);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: isTaskNew ? Colors.indigo.shade400 : Colors.grey.shade200,
+          width: isTaskNew ? 1.5 : 1.0,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -585,14 +610,16 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                 decoration: BoxDecoration(
                   color: isCompleted
                       ? const Color(0xFF2E7D32).withOpacity(0.12)
-                      : Colors.grey.withOpacity(0.12),
+                      : (isTaskNew ? Colors.indigo.withOpacity(0.12) : Colors.grey.withOpacity(0.12)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   isCompleted
                       ? Icons.check_circle_rounded
-                      : Icons.access_time_rounded,
-                  color: isCompleted ? const Color(0xFF2E7D32) : Colors.grey,
+                      : (isTaskNew ? Icons.new_releases_rounded : Icons.access_time_rounded),
+                  color: isCompleted
+                      ? const Color(0xFF2E7D32)
+                      : (isTaskNew ? Colors.indigo.shade700 : Colors.grey),
                   size: 18,
                 ),
               ),
@@ -601,14 +628,46 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      taskName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: blueDark),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            taskName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: isTaskNew ? Colors.indigo.shade900 : blueDark,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isTaskNew) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.shade600,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.new_releases_rounded, color: Colors.white, size: 11),
+                                SizedBox(width: 3),
+                                Text(
+                                  'NEW TASK',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     Text(
                       'Location: $location',
@@ -624,17 +683,25 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                 decoration: BoxDecoration(
                   color: isCompleted
                       ? const Color(0xFF2E7D32).withOpacity(0.12)
-                      : Colors.orange.withOpacity(0.12),
+                      : (_data?.activeSession?.sessionStatus == 'PAUSED'
+                          ? Colors.orange.withOpacity(0.12)
+                          : Colors.green.withOpacity(0.12)),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  isCompleted ? 'Completed' : 'In Progress',
+                  isCompleted
+                      ? 'Completed'
+                      : (_data?.activeSession?.sessionStatus == 'PAUSED'
+                          ? 'PAUSED'
+                          : 'In Progress'),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: isCompleted
                         ? const Color(0xFF2E7D32)
-                        : Colors.orange.shade700,
+                        : (_data?.activeSession?.sessionStatus == 'PAUSED'
+                            ? Colors.orange.shade700
+                            : const Color(0xFF2E7D32)),
                   ),
                 ),
               ),
@@ -727,7 +794,9 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
 
   Widget _buildCompletedView() {
     final double assigned = _data!.hoursAssigned;
-    final String formattedAssigned = _formatHoursPrecise(assigned);
+    final String formattedAssigned = _data != null
+        ? '${assigned.toStringAsFixed(0)}h'
+        : '0h';
 
     return Center(
       child: SingleChildScrollView(
@@ -749,35 +818,18 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                   ),
                 ],
               ),
-              child: Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  const Icon(
-                    Icons.assignment_turned_in_rounded,
-                    color: Color(0xFF2E7D32),
-                    size: 64,
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.lock_rounded,
-                      color: Color(0xFF193B8C),
-                      size: 20,
-                    ),
-                  ),
-                ],
+              child: const Icon(
+                Icons.task_alt_rounded,
+                color: Color(0xFF2E7D32),
+                size: 64,
               ),
             ),
             const SizedBox(height: 28),
             const Text(
-              '🎉 Congratulations!',
+              'Requirement Completed!',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 26,
+                fontSize: 22,
                 fontWeight: FontWeight.w900,
                 color: Color(0xFF2E7D32),
                 letterSpacing: -0.5,
@@ -785,12 +837,12 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Service Requirement Completed',
+              'You have fulfilled all required community service hours.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.grey.shade800,
+                fontSize: 14,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 24),
@@ -800,7 +852,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: const Color(0xFFA5D6A7)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.03),
@@ -809,44 +861,28 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                   ),
                 ],
               ),
-              child: Column(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Text(
+                    'Total Hours Served',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Total Hours Served',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
                       Text(
                         formattedAssigned,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF193B8C),
+                          color: Color(0xFF2E7D32),
                         ),
                       ),
-                    ],
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Requirement Status',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -888,7 +924,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
 
   Widget _buildLockedView() {
     final double assigned = _data!.hoursAssigned;
-    final String formattedAssigned = _formatHoursPrecise(assigned);
+    final String formattedAssigned = '${assigned.toStringAsFixed(0)}h';
 
     return Center(
       child: SingleChildScrollView(
@@ -1048,7 +1084,6 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine if service is done (either officially or effectively)
     bool hasActive = _data != null && _data!.requirements
         .any((r) => r.status.toUpperCase() == 'ACTIVE');
     bool officiallyDone = _data != null && !hasActive && _data!.requirements
@@ -1060,7 +1095,6 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
 
     bool serviceDone = officiallyDone || effectivelyDone;
 
-    // Manage congrats flag
     if (_data != null) {
       if (serviceDone) {
         if (!_congratsSeen) {
@@ -1152,7 +1186,6 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                             else if (!serviceDone &&
                                 _data!.hasAssignment &&
                                 _data!.activeSession == null)
-                              // ─── Scanner status banner ──────────────────
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                                 child: Container(
@@ -1237,6 +1270,34 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                                           padding: const EdgeInsets.fromLTRB(
                                               18, 18, 18, 18),
                                           children: [
+                                            if (_data?.activeSession?.taskIsNew == true)
+                                              Padding(
+                                                padding: const EdgeInsets.only(bottom: 14),
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(12),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.indigo.shade50,
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    border: Border.all(color: Colors.indigo.shade300),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(Icons.new_releases_rounded, color: Colors.indigo.shade700, size: 22),
+                                                      const SizedBox(width: 10),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'NEW TASK ASSIGNED: SDO has updated your task location!',
+                                                          style: TextStyle(
+                                                            color: Colors.indigo.shade900,
+                                                            fontWeight: FontWeight.w800,
+                                                            fontSize: 12,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
                                             Text(
                                               'Track your service hours',
                                               style: TextStyle(
@@ -1245,7 +1306,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                                                   color: Colors.grey.shade700),
                                             ),
                                             const SizedBox(height: 14),
-                                            _circularProgressCard(),
+                                            ProgressRingCard(data: _data!),
                                             const SizedBox(height: 24),
                                             Text(
                                               'Session History',
