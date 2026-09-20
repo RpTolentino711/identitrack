@@ -29,54 +29,58 @@ DateTime _parseManilaDateTime(String dateStr) {
 
 class LiveSessionTimer extends StatelessWidget {
   final String timeIn;
-  final double remainingHoursBeforeActive;
+  final ActiveServiceSession? activeSession;
 
   const LiveSessionTimer({
     super.key,
     required this.timeIn,
-    required this.remainingHoursBeforeActive,
+    this.activeSession,
   });
 
   @override
   Widget build(BuildContext context) {
-    try {
-      final start = _parseManilaDateTime(timeIn);
-      final remainingSecondsTotal = (remainingHoursBeforeActive * 3600).round();
-      return StreamBuilder(
-        stream: Stream.periodic(const Duration(seconds: 1)),
-        builder: (context, snapshot) {
-          try {
-            final elapsed = DateTime.now().difference(start).inSeconds;
-            final countdownSeconds = remainingSecondsTotal - elapsed;
-
-            if (countdownSeconds <= 0) {
-              return const Text(
-                '00:00:00',
-                style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: Color(0xFF2E7D32)),
-              );
-            }
-
-            final h = (countdownSeconds ~/ 3600).toString().padLeft(2, '0');
-            final m = ((countdownSeconds % 3600) ~/ 60).toString().padLeft(2, '0');
-            final s = (countdownSeconds % 60).toString().padLeft(2, '0');
-            return Text(
-              '$h:$m:$s',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: Color(0xFFE65100)),
-            );
-          } catch (_) {
-            return const Text('00:00:00');
-          }
-        },
-      );
-    } catch (_) {
-      return const Text('--:--');
+    if (activeSession == null) {
+      return const Text('00:00:00', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.grey));
     }
+
+    final isPaused = activeSession!.sessionStatus == 'PAUSED';
+    if (isPaused) {
+      final sec = activeSession!.netElapsedSeconds;
+      final h = (sec ~/ 3600).toString().padLeft(2, '0');
+      final m = ((sec % 3600) ~/ 60).toString().padLeft(2, '0');
+      final s = (sec % 60).toString().padLeft(2, '0');
+      return Text(
+        '⏸️ $h:$m:$s (PAUSED)',
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+          color: Colors.orange,
+        ),
+      );
+    }
+
+    final syncTime = DateTime.now();
+    final initialNetElapsed = activeSession!.netElapsedSeconds;
+
+    return StreamBuilder(
+      stream: Stream.periodic(const Duration(seconds: 1)),
+      builder: (context, snapshot) {
+        final localDiff = DateTime.now().difference(syncTime).inSeconds;
+        final elapsedSec = math.max(0, initialNetElapsed + localDiff);
+
+        final h = (elapsedSec ~/ 3600).toString().padLeft(2, '0');
+        final m = ((elapsedSec % 3600) ~/ 60).toString().padLeft(2, '0');
+        final s = (elapsedSec % 60).toString().padLeft(2, '0');
+        return Text(
+          '$h:$m:$s',
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: Color(0xFF2E7D32),
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -688,8 +692,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                     else
                       LiveSessionTimer(
                         timeIn: session.timeIn,
-                        remainingHoursBeforeActive:
-                            _getRemainingHoursBeforeActiveSession(session.requirementId),
+                        activeSession: _data?.activeSession,
                       ),
                   ],
                 ),

@@ -153,18 +153,15 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
     // Session is ACTIVE: poll server status periodically so admin logout/pause is caught immediately
     _startActivePolling();
 
-    final start = _parseServerDateTime(s.timeIn);
-    if (start == null) {
-      if (mounted) setState(() => _elapsed = Duration.zero);
-      return;
-    }
+    final initialNetElapsed = s.netElapsedSeconds;
+    final syncTime = DateTime.now();
 
     void tick() {
-      final now = DateTime.now();
-      final diff = now.difference(start) - Duration(seconds: s.accumPausedSeconds);
       if (!mounted) return;
+      final localDiff = DateTime.now().difference(syncTime).inSeconds;
+      final elapsedSec = math.max(0, initialNetElapsed + localDiff);
       setState(() {
-        _elapsed = diff.isNegative ? Duration.zero : diff;
+        _elapsed = Duration(seconds: elapsedSec);
       });
     }
 
