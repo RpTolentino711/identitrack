@@ -1317,30 +1317,32 @@ if (function_exists('db_one')) {
 
     document.addEventListener('click', function(e) {
       const logoutConfirmBtn = e.target.closest('#logoutConfirmBtn');
-      const logoutLink = e.target.closest('a[href*="logout.php"]');
+      const directLogoutLink = e.target.closest('a[href*="logout.php"]:not(#sidebarLogoutLink)');
 
-      if (!logoutConfirmBtn && !logoutLink) return;
+      if (!logoutConfirmBtn && !directLogoutLink) return;
 
-      // Only intercept if there are active CS sessions running right now
+      // Only intercept when user confirms logout (#logoutConfirmBtn) or clicks a direct logout link while CS is active
       if (cachedActiveCsCount > 0) {
         e.preventDefault();
         e.stopPropagation();
 
         let href = 'logout.php';
-        if (logoutLink) {
-          href = logoutLink.getAttribute('href') || 'logout.php';
+        if (directLogoutLink) {
+          href = directLogoutLink.getAttribute('href') || 'logout.php';
         } else if (logoutConfirmBtn) {
           const sidebarLogoutLink = document.getElementById('sidebarLogoutLink');
           if (sidebarLogoutLink) href = sidebarLogoutLink.getAttribute('href') || 'logout.php';
         }
 
+        // Close 1st modal (#logoutModalOverlay)
         const sidebarModal = document.getElementById('logoutModalOverlay');
         if (sidebarModal) sidebarModal.classList.remove('show');
 
+        // Open 2nd modal (#activeCsLogoutModalOverlay)
         promptActiveCsLogout(cachedActiveCsCount, href);
       }
       // If cachedActiveCsCount === 0:
-      // Do NOTHING here! Let normal sidebar.php modal (#logoutModalOverlay) or default link behavior proceed naturally.
+      // Allow default behavior (#logoutConfirmBtn proceeds to logout.php via sidebar.php listener)
     }, true);
 
     document.addEventListener('DOMContentLoaded', function() {
