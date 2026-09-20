@@ -3874,15 +3874,6 @@ function toggleAiDrawer(forceState) {
             bubble.style.opacity = '0';
             setTimeout(() => { if (bubble) bubble.style.display = 'none'; }, 200);
         }
-
-        if (!hasAutoFetchedAiSanction) {
-            hasAutoFetchedAiSanction = true;
-            setTimeout(() => {
-                if (typeof runComsicePrediction === 'function') {
-                    runComsicePrediction();
-                }
-            }, 300);
-        }
     } else {
         drawer.style.transform = 'translateY(120%) scale(0.95)';
         drawer.style.opacity = '0';
@@ -4039,11 +4030,11 @@ function toggleDrawerWhyPanel() {
         </svg>
       </div>
       <div>
-        <div style="font-weight:800;font-size:16px;color:#f8fafc;letter-spacing:0.3px;display:flex;align-items:center;gap:6px;">
-          IdentiTrack AI <span style="font-size:11px;background:rgba(56,189,248,0.15);color:#38bdf8;padding:2px 8px;border-radius:12px;border:1px solid rgba(56,189,248,0.3);font-weight:700;">COMSICE PREDICTOR</span>
+        <div style="font-weight:800;font-size:16px;color:#f8fafc;letter-spacing:0.3px;display:flex;align-items:center;gap:8px;">
+          IdentiTrack AI <span style="font-size:10px;background:rgba(56,189,248,0.12);color:#38bdf8;padding:2px 8px;border-radius:12px;border:1px solid rgba(56,189,248,0.3);font-weight:700;letter-spacing:0.05em;">ON-PREMISE</span>
         </div>
-        <div style="font-size:11.5px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-top:2px;">
-          <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block;"></span> XGBoost ML Engine (2,002 Records)
+        <div style="font-size:11.5px;color:#38bdf8;display:flex;align-items:center;gap:5px;margin-top:2px;font-weight:600;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block;"></span> Hearing Advisory Assistant
         </div>
       </div>
     </div>
@@ -4081,92 +4072,106 @@ function toggleDrawerWhyPanel() {
     $autoViolation = !empty($autoFirstOffense['offense_name']) ? $autoFirstOffense['offense_name'] : 'General Handbook Violation';
     $autoDesc = !empty($autoFirstOffense['description']) ? $autoFirstOffense['description'] : (!empty($case['case_summary']) ? $case['case_summary'] : $autoViolation);
   ?>
-  <div style="flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">
+  <div style="flex:1;padding:32px 24px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;">
     
-    <!-- PANEL GREETING & AUTO-FETCHED CASE PARAMETERS -->
-    <div style="background:linear-gradient(135deg, rgba(30,58,138,0.4), rgba(15,23,42,0.85));border:1px solid rgba(56,189,248,0.25);border-radius:18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+    <!-- HIDDEN INPUT VALUES FOR BACKEND PREDICTION ENGINE -->
+    <input type="hidden" id="comsiceCategory" value="<?= htmlspecialchars($autoCategory) ?>">
+    <input type="hidden" id="comsiceNumOffense" value="<?= htmlspecialchars($autoCaseTypeStr) ?>">
+    <input type="hidden" id="comsiceViolation" value="<?= htmlspecialchars($autoViolation) ?>">
+    <input type="hidden" id="comsiceDescription" value="<?= htmlspecialchars((string)$autoDesc) ?>">
+
+    <!-- INITIAL READY TO ANALYZE CARD (MATCHES USER SCREENSHOT EXACTLY) -->
+    <div id="comsiceInitialStateBox" style="display:flex;flex-direction:column;align-items:center;text-align:center;max-width:440px;width:100%;margin:auto 0;">
       
-      <!-- GREETING HEADER -->
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);">
-        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#0284c7,#2563eb);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(2,132,199,0.3);">🤖</div>
-        <div>
-          <h4 style="font-size:15px;font-weight:800;color:#f8fafc;margin:0;">Hello, UPCC Panel Member!</h4>
-          <p style="font-size:12px;color:#94a3b8;margin:3px 0 0 0;line-height:1.35;">IdentiTrack AI is automatically analyzing this student's case record and predicting the official handbook sanction below...</p>
-        </div>
+      <!-- GLOWING CENTER ROBOT HEAD AVATAR -->
+      <div style="width:84px;height:84px;margin-bottom:20px;position:relative;">
+        <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;filter:drop-shadow(0 0 16px rgba(56,189,248,0.5));">
+          <circle cx="60" cy="65" r="50" class="bot-aura" />
+          <ellipse cx="60" cy="100" rx="26" ry="6" class="bot-platform" />
+          <rect x="14" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-left" />
+          <rect x="96" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-right" />
+          <path d="M 24 55 A 40 40 0 0 1 96 55" class="bot-headband" />
+          <rect x="22" y="32" width="76" height="66" rx="26" class="bot-head-shell" />
+          <rect x="30" y="42" width="60" height="46" rx="18" class="bot-visor" />
+          <line x1="60" y1="32" x2="60" y2="18" class="bot-antenna-stem" />
+          <circle cx="60" cy="16" r="6" class="bot-antenna-bulb" />
+          <path d="M 40 49 Q 47 46 54 49" class="bot-brow bot-brow-left" />
+          <path d="M 66 49 Q 73 46 80 49" class="bot-brow bot-brow-right" />
+          <g class="bot-eyes-group">
+            <circle cx="47" cy="60" r="7" class="bot-eye bot-eye-left" />
+            <circle cx="45" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
+            <circle cx="73" cy="60" r="7" class="bot-eye bot-eye-right" />
+            <circle cx="71" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
+          </g>
+          <g class="bot-mouth-group">
+            <rect x="50" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-1" />
+            <rect x="58" y="76" width="4" height="6" rx="1.5" class="bot-mouth-bar bar-2" />
+            <rect x="66" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-3" />
+          </g>
+        </svg>
       </div>
 
-      <!-- LOCKED AUTO-FETCHED CASE RECORD (READ-ONLY FOR PANEL) -->
-      <div style="background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
-        <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
-          <span style="display:flex;align-items:center;gap:6px;"><span>🔒</span> Auto-Fetched Case Parameters</span>
-          <span style="font-size:10px;color:#10b981;background:rgba(16,185,129,0.15);padding:2px 8px;border-radius:10px;border:1px solid rgba(16,185,129,0.3);font-weight:700;">MySQL Locked</span>
-        </div>
+      <!-- TITLE -->
+      <h3 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 12px 0;letter-spacing:-0.2px;">Ready to analyze this case</h3>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-          <div style="background:rgba(255,255,255,0.03);padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
-            <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Category</div>
-            <div style="font-size:12.5px;font-weight:700;color:#e2e8f0;margin-top:2px;"><?= htmlspecialchars($autoCategory) ?></div>
-          </div>
-          <div style="background:rgba(255,255,255,0.03);padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
-            <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Hearing Type / Cycle</div>
-            <div style="font-size:12.5px;font-weight:700;color:#38bdf8;margin-top:2px;"><?= htmlspecialchars($autoCaseTypeStr) ?></div>
-          </div>
-        </div>
+      <!-- DESCRIPTION PARAGRAPH -->
+      <p style="font-size:14px;color:#94a3b8;line-height:1.6;margin:0 0 28px 0;max-width:400px;">
+        The AI will analyze case details against 2,295 verified historical UPCC precedents and Student Handbook rules to recommend a sanction &amp; Community Service hours.
+      </p>
 
-        <div style="margin-bottom:10px;background:rgba(255,255,255,0.03);padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
-          <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Offense Violation</div>
-          <div style="font-size:13px;font-weight:700;color:#f8fafc;margin-top:2px;"><?= htmlspecialchars($autoViolation) ?></div>
-        </div>
+      <!-- CENTERED SUGGEST BUTTON -->
+      <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#ffffff;padding:14px 44px;border-radius:14px;font-weight:900;font-size:15px;letter-spacing:0.06em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 26px rgba(2,132,199,0.5);transition:all 0.25s;" onmouseover="this.style.transform='translateY(-2px) scale(1.03)';" onmouseout="this.style.transform='translateY(0) scale(1)';">
+        <span>✦</span> SUGGEST
+      </button>
 
-        <div style="background:rgba(255,255,255,0.03);padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
-          <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Incident Summary / Notes</div>
-          <div style="font-size:12px;color:#cbd5e1;margin-top:4px;line-height:1.4;background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:8px;max-height:60px;overflow-y:auto;"><?= htmlspecialchars((string)$autoDesc) ?></div>
-        </div>
-      </div>
-
-      <!-- HIDDEN INPUT VALUES FOR BACKEND PREDICTION ENGINE -->
-      <input type="hidden" id="comsiceCategory" value="<?= htmlspecialchars($autoCategory) ?>">
-      <input type="hidden" id="comsiceNumOffense" value="<?= htmlspecialchars($autoCaseTypeStr) ?>">
-      <input type="hidden" id="comsiceViolation" value="<?= htmlspecialchars($autoViolation) ?>">
-      <input type="hidden" id="comsiceDescription" value="<?= htmlspecialchars((string)$autoDesc) ?>">
+      <!-- FOOTER ADVISORY NOTE -->
+      <p style="font-size:11.5px;color:#64748b;margin:36px 0 0 0;">
+        Advisory decision support. Final authority remains with SDO / UPCC.
+      </p>
     </div>
 
     <!-- MULTI-STEP ANIMATED LOADING SCREEN -->
-    <div id="comsiceLoadingBox" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px;background:rgba(15,23,42,0.9);border:1px solid rgba(56,189,248,0.3);border-radius:18px;text-align:center;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+    <div id="comsiceLoadingBox" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px;background:rgba(15,23,42,0.9);border:1px solid rgba(56,189,248,0.3);border-radius:24px;text-align:center;gap:16px;box-shadow:0 12px 40px rgba(0,0,0,0.6);width:100%;max-width:440px;margin:auto 0;">
       <div class="ai-dots-loader" style="margin-bottom:4px;"><span></span><span></span><span></span></div>
-      <div id="comsiceLoadingStep" style="font-size:14px;font-weight:800;color:#38bdf8;transition:all 0.3s;">
-        🔍 Fetching student history & prior offense records...
+      <div id="comsiceLoadingStep" style="font-size:14.5px;font-weight:800;color:#38bdf8;transition:all 0.3s;line-height:1.4;">
+        🔍 Fetching student history &amp; prior offense records...
       </div>
-      <div style="font-size:11.5px;color:#64748b;font-weight:600;">Evaluating case parameters against NU Lipa Handbook & 2,002 historical campus precedents</div>
+      <div style="font-size:12px;color:#64748b;font-weight:600;line-height:1.5;">
+        Analyzing case details against 2,295 verified historical UPCC precedents &amp; Student Handbook rules
+      </div>
     </div>
 
     <!-- PREDICTION OUTPUT RESULT CARD -->
-    <div id="comsiceResultCard" style="display:none;background:rgba(15,23,42,0.9);border:1px solid rgba(56,189,248,0.3);border-radius:18px;padding:18px;box-shadow:0 10px 25px rgba(0,0,0,0.4);">
-      <div style="font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">🤖 COMSICE ML Prediction Result</div>
+    <div id="comsiceResultCard" style="display:none;background:rgba(15,23,42,0.95);border:1px solid rgba(56,189,248,0.35);border-radius:22px;padding:22px;box-shadow:0 15px 35px rgba(0,0,0,0.5);width:100%;">
+      <div style="font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">🤖 COMSICE ML Prediction Result</div>
       
-      <div id="comsicePredictedSanction" style="font-size:18px;font-weight:800;color:#38bdf8;margin-bottom:12px;line-height:1.35;">
+      <div id="comsicePredictedSanction" style="font-size:18px;font-weight:800;color:#38bdf8;margin-bottom:14px;line-height:1.35;">
         Violation slip issued by the SDO
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
-        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 10px;border-radius:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:9px 10px;border-radius:12px;">
           <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Category</div>
           <div id="comsiceSanctionCategory" style="font-size:13.5px;font-weight:800;color:#38bdf8;margin-top:2px;">Category 1</div>
         </div>
-        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 10px;border-radius:12px;">
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:9px 10px;border-radius:12px;">
           <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Confidence</div>
           <div id="comsiceConfidenceScore" style="font-size:13.5px;font-weight:800;color:#4ade80;margin-top:2px;">88.5%</div>
         </div>
-        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:8px 10px;border-radius:12px;">
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:9px 10px;border-radius:12px;">
           <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Severity</div>
           <div id="comsiceSeverityBadge" style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:12px;font-weight:800;margin-top:2px;background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4);">Medium</div>
         </div>
       </div>
 
-      <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:4px;">💡 Recommendation Explanation:</div>
-      <div id="comsiceExplanation" style="font-size:13px;color:#94a3b8;line-height:1.5;background:rgba(0,0,0,0.3);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.05);">
-        The XGBoost classifier evaluated the offense against 2,002 historical campus precedent records.
+      <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px;">💡 Recommendation Explanation:</div>
+      <div id="comsiceExplanation" style="font-size:13px;color:#94a3b8;line-height:1.55;background:rgba(0,0,0,0.35);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);max-height:260px;overflow-y:auto;">
+        The XGBoost classifier evaluated the offense against 2,295 historical campus precedent records.
       </div>
+
+      <button type="button" onclick="runComsicePrediction()" style="margin-top:16px;width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:#38bdf8;padding:10px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='rgba(56,189,248,0.12)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+        <span>🔄</span> Re-Analyze &amp; Refresh Recommendation
+      </button>
     </div>
 
   </div>
@@ -4180,10 +4185,12 @@ async function runComsicePrediction() {
     const violation = document.getElementById('comsiceViolation').value;
     const description = document.getElementById('comsiceDescription').value;
 
+    const initBox = document.getElementById('comsiceInitialStateBox');
     const resCard = document.getElementById('comsiceResultCard');
     const loadingBox = document.getElementById('comsiceLoadingBox');
     const stepEl = document.getElementById('comsiceLoadingStep');
     
+    if (initBox) initBox.style.display = 'none';
     if (resCard) resCard.style.display = 'none';
     if (loadingBox) loadingBox.style.display = 'flex';
 
@@ -4192,7 +4199,7 @@ async function runComsicePrediction() {
         if (stepEl) stepEl.textContent = '📘 Evaluating NU Lipa Student Handbook penalty rules...';
     }, 400);
     const timer2 = setTimeout(() => {
-        if (stepEl) stepEl.textContent = '🤖 Running COMSICE XGBoost ML Model Inference...';
+        if (stepEl) stepEl.textContent = '🤖 Running COMSICE XGBoost ML Model Inference (2,295 Precedents)...';
     }, 900);
 
     try {
@@ -4238,6 +4245,7 @@ async function runComsicePrediction() {
         }
     } catch(err) {
         if (loadingBox) loadingBox.style.display = 'none';
+        if (initBox) initBox.style.display = 'flex';
         alert("Prediction error: " + err.message);
     }
 }
