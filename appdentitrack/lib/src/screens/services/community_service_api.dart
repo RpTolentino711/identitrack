@@ -65,6 +65,17 @@ class CommunityServiceApi {
     final decoded = jsonDecode(res.body);
     return (decoded['message'] ?? 'Session paused.').toString();
   }
+
+  Future<void> acknowledgeNewTask(String studentId) async {
+    try {
+      final headers = await StudentApiAuth.jsonHeaders();
+      await http.post(
+        Uri.parse('${AppConfig.baseUrl}/api/student/acknowledge_new_task.php'),
+        headers: headers,
+        body: jsonEncode({'student_id': studentId}),
+      );
+    } catch (_) {}
+  }
 }
 
 class CommunityServiceOverview {

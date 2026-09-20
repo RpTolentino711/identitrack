@@ -53,6 +53,10 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
   void dispose() {
     _ticker?.cancel();
     _pausedPollTimer?.cancel();
+    _activePollTimer?.cancel();
+    if (_activeSession?.taskIsNew == true) {
+      _api.acknowledgeNewTask(widget.studentId);
+    }
     super.dispose();
   }
 
@@ -76,6 +80,14 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
         _pendingManualRequest = res.pendingManualRequest;
         _loading = false;
       });
+
+      if (_activeSession?.taskIsNew == true) {
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted && _activeSession?.taskIsNew == true) {
+            _api.acknowledgeNewTask(widget.studentId);
+          }
+        });
+      }
 
       _syncTimer();
     } catch (e) {
