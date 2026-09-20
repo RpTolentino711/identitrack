@@ -95,6 +95,7 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
   void _syncTimer() {
     _ticker?.cancel();
     _pausedPollTimer?.cancel();
+    _activePollTimer?.cancel();
 
     final s = _activeSession;
     if (s == null) {
@@ -131,6 +132,9 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
       return;
     }
 
+    // Session is ACTIVE: poll server status periodically so admin logout/pause is caught immediately
+    _startActivePolling();
+
     final start = _parseServerDateTime(s.timeIn);
     if (start == null) {
       if (mounted) setState(() => _elapsed = Duration.zero);
@@ -148,6 +152,29 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
 
     tick();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => tick());
+  }
+
+  void _startActivePolling() {
+    _activePollTimer?.cancel();
+    _activePollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (!mounted) return;
+      try {
+        final res = await _api.getOverview(widget.studentId);
+        if (!mounted) return;
+        if (res.activeSession?.sessionStatus != 'ACTIVE' || 
+            res.activeSession?.location != _activeSession?.location ||
+            res.activeSession?.taskIsNew == true) {
+          setState(() {
+            _activeSession = res.activeSession;
+            _hoursAssigned = res.hoursAssigned;
+            _hoursCompleted = res.hoursCompleted;
+            _requirements = res.requirements;
+            _sessions = res.sessions;
+          });
+          _syncTimer();
+        }
+      } catch (_) {}
+    });
   }
 
   void _startPausedPolling() {
