@@ -132,6 +132,7 @@ $activeSession = db_one(
       css.time_in,
       css.login_method,
       css.sdo_notes,
+      css.task_is_new,
       css.status AS session_status,
       css.pause_reason,
       css.paused_at,
@@ -165,6 +166,12 @@ if ($activeSession) {
   $activeSession['status'] = $status;
   if (!empty($activeSession['sdo_notes'])) {
     $activeSession['location'] = $activeSession['sdo_notes'];
+  }
+
+  $isNewTask = ((int)($activeSession['task_is_new'] ?? 0) === 1);
+  $activeSession['task_is_new'] = $isNewTask;
+  if ($isNewTask) {
+    db_exec("UPDATE community_service_session SET task_is_new = 0 WHERE session_id = :sid", [':sid' => $activeSession['session_id']]);
   }
 }
 

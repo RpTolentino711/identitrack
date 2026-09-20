@@ -655,7 +655,7 @@ if ($q !== '') {
                       </div>
                       <?php if (($session['session_status'] ?? '') === 'PAUSED'): ?>
                         <span style="background: #fff3cd; color: #856404; border: 1px solid #ffe8a1; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
-                          <span>⏸️</span> PAUSED (No Movement 5 Mins)
+                          <span>⏸️</span> PAUSED
                         </span>
                       <?php endif; ?>
                     </div>
@@ -711,7 +711,7 @@ if ($q !== '') {
                       <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                         <div style="font-size: 12px; color: #856404; font-weight: 600; display: flex; align-items: center; gap: 6px;">
                           <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#d97706;"></span>
-                          Reason: <?php echo e($session['pause_reason'] ?: 'Stationary for 5 minutes'); ?>
+                          Reason: <?php echo e($session['pause_reason'] ?: 'Manually paused by Admin'); ?>
                         </div>
                         <button type="button" 
                                 onclick="openResumeCSModal(<?php echo (int)$session['session_id']; ?>, '<?php echo e($session['student_id']); ?>', '<?php echo e($session['student_name']); ?>')" 

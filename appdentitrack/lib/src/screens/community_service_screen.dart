@@ -162,14 +162,21 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
 
   void _startActivePolling() {
     _activePollTimer?.cancel();
-    _activePollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+    _activePollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       if (!mounted) return;
       try {
         final res = await _api.getOverview(widget.studentId);
         if (!mounted) return;
-        if (res.activeSession?.sessionStatus != 'ACTIVE' || 
-            res.activeSession?.location != _activeSession?.location ||
-            res.activeSession?.taskIsNew == true) {
+        final newStatus = res.activeSession?.sessionStatus;
+        final oldStatus = _activeSession?.sessionStatus;
+        final newNotes = res.activeSession?.location;
+        final oldNotes = _activeSession?.location;
+        final isNewTask = res.activeSession?.taskIsNew ?? false;
+
+        if (newStatus != oldStatus ||
+            newNotes != oldNotes ||
+            isNewTask ||
+            (res.activeSession == null && _activeSession != null)) {
           setState(() {
             _activeSession = res.activeSession;
             _hoursAssigned = res.hoursAssigned;
@@ -185,14 +192,27 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
 
   void _startPausedPolling() {
     _pausedPollTimer?.cancel();
-    _pausedPollTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+    _pausedPollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       if (!mounted) return;
       try {
         final res = await _api.getOverview(widget.studentId);
         if (!mounted) return;
-        if (res.activeSession?.sessionStatus == 'ACTIVE') {
+        final newStatus = res.activeSession?.sessionStatus;
+        final oldStatus = _activeSession?.sessionStatus;
+        final newNotes = res.activeSession?.location;
+        final oldNotes = _activeSession?.location;
+        final isNewTask = res.activeSession?.taskIsNew ?? false;
+
+        if (newStatus != oldStatus ||
+            newNotes != oldNotes ||
+            isNewTask ||
+            (res.activeSession == null && _activeSession != null)) {
           setState(() {
             _activeSession = res.activeSession;
+            _hoursAssigned = res.hoursAssigned;
+            _hoursCompleted = res.hoursCompleted;
+            _requirements = res.requirements;
+            _sessions = res.sessions;
           });
           _syncTimer();
         }
@@ -220,8 +240,8 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
         ),
         content: Text(
           reason.isNotEmpty
-              ? 'Your clock-in has been paused ($reason).\n\nPlease contact the Admin if you want to resume your community service.'
-              : 'Your clock-in has been paused. The system sensed you stopped moving for 5 minutes.\n\nPlease contact the Admin if you want to resume your community service.',
+              ? 'Your clock-in has been paused ($reason).\n\nPlease contact SDO Admin to resume your community service.'
+              : 'Your clock-in has been paused by SDO Admin.\n\nPlease contact SDO Admin to resume your community service.',
           style: const TextStyle(fontSize: 14, height: 1.4),
         ),
         actions: [
@@ -704,12 +724,14 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const Text(
-                                        'PAUSED (No Movement Detected)',
+                                        'PAUSED',
                                         style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE65100), fontSize: 13),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'The system sensed you stopped moving for 5 minutes. Please contact the Admin to resume your service.',
+                                        _activeSession!.pauseReason.isNotEmpty
+                                            ? _activeSession!.pauseReason
+                                            : 'Your community service timer has been paused by SDO Admin. Please contact SDO to resume.',
                                         style: TextStyle(color: Colors.orange.shade900, fontSize: 12, height: 1.3),
                                       ),
                                     ],

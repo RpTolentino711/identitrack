@@ -21,7 +21,7 @@ $raw = file_get_contents('php://input') ?: '';
 $body = json_decode($raw, true) ?: [];
 $studentId = trim((string)($body['student_id'] ?? ''));
 $sessionId = (int)($body['session_id'] ?? 0);
-$reason = trim((string)($body['reason'] ?? 'Stationary for 5 minutes'));
+$reason = trim((string)($body['reason'] ?? 'Manually paused by Admin'));
 
 if ($studentId === '') {
   http_response_code(400);
@@ -89,9 +89,9 @@ $adminIds = db_all("SELECT admin_id FROM admin_user WHERE is_active = 1") ?: [];
 foreach ($adminIds as $adm) {
     db_exec(
         "INSERT INTO notification (type, title, message, student_id, admin_id, related_table, related_id, is_read, is_deleted, created_at)
-         VALUES ('COMMUNITY_SERVICE_INACTIVITY_PAUSED', '⚠️ Inactivity Auto-Paused', :msg, :sid, :aid, 'community_service_session', :session_id, 0, 0, NOW())",
+         VALUES ('COMMUNITY_SERVICE_INACTIVITY_PAUSED', '⏸️ Session Paused', :msg, :sid, :aid, 'community_service_session', :session_id, 0, 0, NOW())",
         [
-            ':msg' => "App detected {$studentName} ({$studentId}) has not moved for 5 minutes. Their community service time has been automatically paused.",
+            ':msg' => "Community service session for {$studentName} ({$studentId}) has been paused ({$reason}).",
             ':sid' => $studentId,
             ':aid' => $adm['admin_id'],
             ':session_id' => (string)$session['session_id']
@@ -146,7 +146,7 @@ if ($studentInfo && !empty($studentInfo['student_email'])) {
 
 echo json_encode([
   'ok' => true,
-  'message' => 'Your clock-in has been paused. The system sensed you stopped moving for 5 minutes. Please contact the Admin to resume your community service.',
+  'message' => 'Your community service session has been paused. Please contact SDO Admin to resume.',
   'data' => [
     'session_id' => $session['session_id'],
     'status' => 'PAUSED',
