@@ -129,6 +129,7 @@ class ActiveServiceSession {
   final String pauseReason;
   final String pausedAt;
   final int accumPausedSeconds;
+  final bool taskIsNew;
 
   ActiveServiceSession({
     required this.sessionId,
@@ -141,6 +142,7 @@ class ActiveServiceSession {
     required this.pauseReason,
     required this.pausedAt,
     required this.accumPausedSeconds,
+    this.taskIsNew = false,
   });
 
   factory ActiveServiceSession.fromJson(Map<String, dynamic> json) =>
@@ -157,6 +159,7 @@ class ActiveServiceSession {
         pausedAt: (json['paused_at'] ?? '').toString(),
         accumPausedSeconds:
             int.tryParse((json['accum_paused_seconds'] ?? 0).toString()) ?? 0,
+        taskIsNew: json['task_is_new'] == true || json['task_is_new'] == 1 || json['task_is_new'] == '1',
       );
 }
 

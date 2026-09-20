@@ -577,6 +577,81 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
                               ? (_activeSession!.sessionStatus == 'PAUSED' ? Colors.orange.shade800 : const Color(0xFF2E7D32))
                               : Colors.grey,
                         ),
+                        if (_activeSession != null && _activeSession!.location.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: _activeSession!.taskIsNew ? Colors.indigo.shade300 : Colors.grey.shade300),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: _activeSession!.taskIsNew ? Colors.indigo.shade50 : blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    Icons.assignment_turned_in_rounded,
+                                    color: _activeSession!.taskIsNew ? Colors.indigo.shade700 : blueDark,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'SDO Task / Assignment Location',
+                                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700, fontSize: 11),
+                                          ),
+                                          if (_activeSession!.taskIsNew) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.indigo.shade600,
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.new_releases_rounded, color: Colors.white, size: 12),
+                                                  SizedBox(width: 4),
+                                                  Text('NEW TASK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _activeSession!.location,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: blueDark, fontSize: 14),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         if (_activeSession != null && _activeSession!.sessionStatus == 'PAUSED') ...[
                           const SizedBox(height: 12),
                           Container(

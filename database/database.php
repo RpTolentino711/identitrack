@@ -1035,6 +1035,14 @@ function ensure_community_service_pause_schema(): void
       db_exec("ALTER TABLE community_service_session ADD COLUMN paused_at DATETIME DEFAULT NULL");
       db_exec("ALTER TABLE community_service_session ADD COLUMN accum_paused_seconds INT NOT NULL DEFAULT 0");
     }
+    $hasNotes = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'community_service_session' AND COLUMN_NAME = 'sdo_notes'");
+    if (!$hasNotes) {
+      db_exec("ALTER TABLE community_service_session ADD COLUMN sdo_notes TEXT DEFAULT NULL");
+    }
+    $hasTaskIsNew = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'community_service_session' AND COLUMN_NAME = 'task_is_new'");
+    if (!$hasTaskIsNew) {
+      db_exec("ALTER TABLE community_service_session ADD COLUMN task_is_new TINYINT(1) NOT NULL DEFAULT 0");
+    }
   } catch (\Throwable $e) {}
 }
 

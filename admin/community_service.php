@@ -39,6 +39,8 @@ $activeSessions = db_all(
       css.requirement_id,
       css.time_in,
       css.login_method,
+      css.sdo_notes,
+      css.task_is_new,
       css.status AS session_status,
       css.pause_reason,
       css.paused_at,
@@ -687,6 +689,20 @@ if ($q !== '') {
                       </div>
                     </div>
 
+                    <div style="margin-top: 10px; padding: 10px 14px; background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);">
+                      <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.3px;">SDO Notes / Assignment Location</div>
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-top: 2px; word-break: break-word;">
+                          <?php echo e($session['sdo_notes'] ?: 'No location/notes provided'); ?>
+                        </div>
+                      </div>
+                      <button type="button" 
+                              onclick="openUpdateCSNoteModal(<?php echo (int)$session['session_id']; ?>, '<?php echo e(addslashes($session['sdo_notes'] ?? '')); ?>', '<?php echo e(addslashes($session['student_name'])); ?>')" 
+                              style="padding: 6px 12px; background: #3b4a9e; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; box-shadow: 0 2px 6px rgba(59,74,158,0.2);">
+                        ✏️ Edit Note
+                      </button>
+                    </div>
+
                     <?php if (($session['session_status'] ?? '') === 'PAUSED'): ?>
                       <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                         <div style="font-size: 12px; color: #856404; font-weight: 600; display: flex; align-items: center; gap: 6px;">
@@ -1096,9 +1112,100 @@ if ($q !== '') {
         <button type="button" id="btnConfirmPauseCS" onclick="confirmPauseCS()" class="btn btn-primary" style="background:#dc2626; border-color:#dc2626; padding:8px 20px; border-radius:8px; font-weight:800; color:#fff;">
           ⏸ Yes, Pause Service Timer
         </button>
+  <!-- MODAL: Update SDO Notes / Task Location -->
+  <div id="updateCSNoteModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#fff; width:100%; max-width:480px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;">
+          <span style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:#3b4a9e; color:#fff; font-size:14px;">✏️</span> Edit Task Location / SDO Note
+        </h3>
+        <button type="button" onclick="closeUpdateCSNoteModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
+      </div>
+      <div style="margin-bottom:14px; font-size:14px; color:#334155; line-height:1.5;">
+        Updating task location / SDO notes for <strong id="updateCSNoteStudentName" style="color:#3b4a9e;">Student</strong>:
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block; font-size:12px; font-weight:700; color:#1e293b; margin-bottom:6px;">
+          SDO Notes / Assignment Location <span style="color:#dc2626;">*</span>
+        </label>
+        <textarea id="updateCSNoteInput" rows="3" placeholder="Enter task location or SDO instructions..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; font-family:inherit;" required></textarea>
+        <div style="font-size:11px; color:#64748b; margin-top:4px;">
+          ℹ️ Updating this note will instantly send a <strong>NEW TASK</strong> notification badge to the student's app.
+        </div>
+      </div>
+      <div id="updateCSNoteMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn" onclick="closeUpdateCSNoteModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
+        <button type="button" id="btnConfirmUpdateCSNote" onclick="confirmUpdateCSNote()" class="btn btn-primary" style="background:#3b4a9e; border-color:#3b4a9e; padding:8px 20px; border-radius:8px; font-weight:800; color:#fff;">
+          💾 Save & Notify Student
+        </button>
       </div>
     </div>
   </div>
+
+  <script>
+    let activeCSNoteSessionId = 0;
+
+    function openUpdateCSNoteModal(sessionId, currentNote, studentName) {
+        activeCSNoteSessionId = sessionId;
+        document.getElementById('updateCSNoteStudentName').textContent = studentName || 'Student';
+        document.getElementById('updateCSNoteInput').value = currentNote || '';
+        document.getElementById('updateCSNoteMsg').textContent = '';
+        document.getElementById('updateCSNoteMsg').className = '';
+        const modal = document.getElementById('updateCSNoteModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeUpdateCSNoteModal() {
+        const modal = document.getElementById('updateCSNoteModal');
+        if (modal) modal.style.display = 'none';
+        activeCSNoteSessionId = 0;
+    }
+
+    async function confirmUpdateCSNote() {
+        const noteInput = document.getElementById('updateCSNoteInput');
+        const noteVal = noteInput ? noteInput.value.trim() : '';
+        const msgDiv = document.getElementById('updateCSNoteMsg');
+        const btn = document.getElementById('btnConfirmUpdateCSNote');
+
+        if (!noteVal) {
+            msgDiv.style.color = '#dc2626';
+            msgDiv.textContent = '❌ SDO Notes / Assignment Location cannot be empty. Please enter task details.';
+            return;
+        }
+
+        btn.disabled = true;
+        msgDiv.style.color = '#3b82f6';
+        msgDiv.textContent = '⏳ Saving note and notifying student...';
+
+        try {
+            const res = await fetch('api_update_cs_note.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: activeCSNoteSessionId,
+                    sdo_notes: noteVal
+                })
+            });
+            const data = await res.json();
+            if (data && data.ok) {
+                msgDiv.style.color = '#16a34a';
+                msgDiv.textContent = '✅ Note updated successfully!';
+                setTimeout(() => {
+                    window.location.reload();
+                }, 800);
+            } else {
+                msgDiv.style.color = '#dc2626';
+                msgDiv.textContent = '❌ ' + (data.message || 'Error updating note.');
+            }
+        } catch (err) {
+            msgDiv.style.color = '#dc2626';
+            msgDiv.textContent = '❌ Network error updating note.';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+  </script>
 </body>
 </html>
 
