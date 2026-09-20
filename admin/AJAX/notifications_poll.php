@@ -77,6 +77,10 @@ $completedServices = db_all(
    JOIN student s ON s.student_id = csr.student_id
    WHERE csr.status = 'COMPLETED'
      AND csr.completed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+     AND NOT EXISTS (
+       SELECT 1 FROM community_service_requirement csr_act
+       WHERE csr_act.student_id = csr.student_id AND csr_act.status = 'ACTIVE'
+     )
    ORDER BY csr.completed_at DESC",
   $pollParams
 );
