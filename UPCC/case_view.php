@@ -4069,8 +4069,48 @@ function toggleDrawerWhyPanel() {
         $autoCaseTypeStr = ($priorMajorCount >= 1) ? 'Automatic Major - 2nd+ Offense' : 'Automatic Major - 1st Offense';
     }
 
-    $autoViolation = !empty($autoFirstOffense['offense_name']) ? $autoFirstOffense['offense_name'] : 'General Handbook Violation';
-    $autoDesc = !empty($autoFirstOffense['description']) ? $autoFirstOffense['description'] : (!empty($case['case_summary']) ? $case['case_summary'] : $autoViolation);
+    // --- BUILD COMPREHENSIVE MULTI-OFFENSE VIOLATION & INCIDENT SUMMARY ---
+    $offenseNamesList = [];
+    $offenseDescItems = [];
+
+    if (!empty($offenses) && is_array($offenses)) {
+        foreach ($offenses as $idx => $off) {
+            $name = !empty($off['offense_name']) ? trim($off['offense_name']) : 'Minor Offense';
+            $desc = !empty($off['description']) ? trim($off['description']) : '';
+            
+            $offenseNamesList[] = $name;
+
+            if ($desc !== '') {
+                // Label each offense's description if there are multiple offenses
+                if (count($offenses) > 1) {
+                    $offenseDescItems[] = "• " . $name . " (#" . ($idx + 1) . "): " . $desc;
+                } else {
+                    $offenseDescItems[] = $desc;
+                }
+            }
+        }
+    }
+
+    // Format Violation string (e.g. "Littering (3x)" or "Littering, No ID Badge, Improper Attire")
+    if (empty($offenseNamesList)) {
+        $autoViolation = 'General Handbook Violation';
+    } else {
+        $nameCounts = array_count_values($offenseNamesList);
+        $formattedNames = [];
+        foreach ($nameCounts as $name => $count) {
+            $formattedNames[] = ($count > 1) ? "{$name} ({$count}x)" : $name;
+        }
+        $autoViolation = implode(', ', $formattedNames);
+    }
+
+    // Format Incident Summary / Notes string
+    if (!empty($offenseDescItems)) {
+        $autoDesc = implode("\n", $offenseDescItems);
+    } elseif (!empty($case['case_summary'])) {
+        $autoDesc = trim((string)$case['case_summary']);
+    } else {
+        $autoDesc = $autoViolation;
+    }
   ?>
   <div style="flex:1;padding:20px 24px;overflow-y:auto;display:flex;flex-direction:column;box-sizing:border-box;gap:16px;">
     
@@ -4105,7 +4145,7 @@ function toggleDrawerWhyPanel() {
 
       <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
         <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Incident Summary / Notes</div>
-        <div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;line-height:1.4;background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:8px;max-height:50px;overflow-y:auto;"><?= htmlspecialchars((string)$autoDesc) ?></div>
+        <div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;line-height:1.45;background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:8px;max-height:90px;overflow-y:auto;white-space:pre-wrap;"><?= htmlspecialchars((string)$autoDesc) ?></div>
       </div>
     </div>
 
