@@ -4083,62 +4083,66 @@ function toggleDrawerWhyPanel() {
   ?>
   <div style="flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">
     
-    <!-- PREDICTOR INPUT FORM CONTAINER -->
-    <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.12);border-radius:18px;padding:18px;">
-      <div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
-        <span style="display:flex;align-items:center;gap:8px;"><span>📋</span> Record & Predict Violation Sanction</span>
-        <span style="font-size:11px;background:rgba(16,185,129,0.15);color:#10b981;padding:2px 8px;border-radius:12px;border:1px solid rgba(16,185,129,0.3);font-weight:700;">⚡ Auto-Fetched from MySQL</span>
-      </div>
+    <!-- PANEL GREETING & AUTO-FETCHED CASE PARAMETERS -->
+    <div style="background:linear-gradient(135deg, rgba(30,58,138,0.4), rgba(15,23,42,0.85));border:1px solid rgba(56,189,248,0.25);border-radius:18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
       
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <!-- GREETING HEADER -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#0284c7,#2563eb);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(2,132,199,0.3);">🤖</div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Category *</label>
-          <select id="comsiceCategory" style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;">
-            <option value="Section 4 Minor Escalation" <?= $autoCategory === 'Section 4 Minor Escalation' ? 'selected' : '' ?>>Section 4 Minor Escalation</option>
-            <option value="Automatic Major Offenses" <?= $autoCategory === 'Automatic Major Offenses' ? 'selected' : '' ?>>Automatic Major Offenses</option>
-          </select>
-        </div>
-        <div>
-          <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Hearing Case Type / Cycle *</label>
-          <select id="comsiceNumOffense" style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;">
-            <option value="Section 4 - Cycle 1 (3 Minors Escalation)" <?= $autoCaseTypeStr === 'Section 4 - Cycle 1 (3 Minors Escalation)' ? 'selected' : '' ?>>Section 4 - Cycle 1 (3 Minors)</option>
-            <option value="Section 4 - Cycle 2 (6 Minors Escalation)" <?= $autoCaseTypeStr === 'Section 4 - Cycle 2 (6 Minors Escalation)' ? 'selected' : '' ?>>Section 4 - Cycle 2 (6 Minors)</option>
-            <option value="Automatic Major - 1st Offense" <?= $autoCaseTypeStr === 'Automatic Major - 1st Offense' ? 'selected' : '' ?>>Automatic Major - 1st Offense</option>
-            <option value="Automatic Major - 2nd+ Offense" <?= $autoCaseTypeStr === 'Automatic Major - 2nd+ Offense' ? 'selected' : '' ?>>Automatic Major - 2nd+ Offense</option>
-          </select>
+          <h4 style="font-size:15px;font-weight:800;color:#f8fafc;margin:0;">Hello, UPCC Panel Member!</h4>
+          <p style="font-size:12px;color:#94a3b8;margin:3px 0 0 0;line-height:1.35;">Would you like me to analyze this student's case record and suggest the appropriate handbook sanction for this hearing?</p>
         </div>
       </div>
 
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Violation *</label>
-        <select id="comsiceViolation" style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;">
-          <option value="<?= htmlspecialchars($autoViolation) ?>" selected><?= htmlspecialchars($autoViolation) ?> (Auto-detected from Case)</option>
-          <option value="Lending or Misuse of Student ID badge">Lending or Misuse of Student ID badge</option>
-          <option value="Dress Code / Grooming Misconduct">Dress Code / Grooming Misconduct</option>
-          <option value="Littering / Improper Waste Disposal">Littering / Improper Waste Disposal</option>
-          <option value="Vaping or Smoking on Campus">Vaping or Smoking on Campus</option>
-          <option value="Academic Dishonesty / Exam Cheating">Academic Dishonesty / Exam Cheating</option>
-          <option value="Physical Altercation / Fighting">Physical Altercation / Fighting</option>
-          <option value="Theft or Property Misconduct">Theft or Property Misconduct</option>
-          <option value="Gross Act of Disrespect">Gross Act of Disrespect</option>
-          <option value="Bullying or Harassment">Bullying or Harassment</option>
-        </select>
+      <!-- LOCKED AUTO-FETCHED CASE RECORD (READ-ONLY FOR PANEL) -->
+      <div style="background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+          <span style="display:flex;align-items:center;gap:6px;"><span>🔒</span> Auto-Fetched Case Parameters</span>
+          <span style="font-size:10px;color:#10b981;background:rgba(16,185,129,0.15);padding:2px 8px;border-radius:10px;border:1px solid rgba(16,185,129,0.3);font-weight:700;">MySQL Locked</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div style="background:rgba(255,255,255,0.03);padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Category</div>
+            <div style="font-size:12.5px;font-weight:700;color:#e2e8f0;margin-top:2px;"><?= htmlspecialchars($autoCategory) ?></div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Hearing Type / Cycle</div>
+            <div style="font-size:12.5px;font-weight:700;color:#38bdf8;margin-top:2px;"><?= htmlspecialchars($autoCaseTypeStr) ?></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:10px;background:rgba(255,255,255,0.03);padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Offense Violation</div>
+          <div style="font-size:13px;font-weight:700;color:#f8fafc;margin-top:2px;"><?= htmlspecialchars($autoViolation) ?></div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.03);padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Incident Summary / Notes</div>
+          <div style="font-size:12px;color:#cbd5e1;margin-top:4px;line-height:1.4;background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:8px;max-height:60px;overflow-y:auto;"><?= htmlspecialchars((string)$autoDesc) ?></div>
+        </div>
       </div>
 
-      <div style="margin-bottom:14px;">
-        <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px;">Incident Description / Notes *</label>
-        <textarea id="comsiceDescription" rows="2" placeholder="Enter specific incident details or student statement..." style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,0.18);color:#f8fafc;padding:9px 12px;border-radius:10px;font-size:13px;outline:none;resize:none;"><?= htmlspecialchars((string)$autoDesc) ?></textarea>
-      </div>
+      <!-- HIDDEN INPUT VALUES FOR BACKEND PREDICTION ENGINE -->
+      <input type="hidden" id="comsiceCategory" value="<?= htmlspecialchars($autoCategory) ?>">
+      <input type="hidden" id="comsiceNumOffense" value="<?= htmlspecialchars($autoCaseTypeStr) ?>">
+      <input type="hidden" id="comsiceViolation" value="<?= htmlspecialchars($autoViolation) ?>">
+      <input type="hidden" id="comsiceDescription" value="<?= htmlspecialchars((string)$autoDesc) ?>">
 
-      <button type="button" onclick="runComsicePrediction()" style="width:100%;background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:12px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='scale(1.01)';" onmouseout="this.style.transform='scale(1)';">
-        <span>🔍</span> Analyze Case & Predict Sanction
+      <!-- SUGGEST SANCTION BUTTON -->
+      <button type="button" onclick="runComsicePrediction()" style="width:100%;background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#fff;padding:13px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(2,132,199,0.4);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px) scale(1.01)';" onmouseout="this.style.transform='translateY(0) scale(1)';">
+        <span>⚡</span> Suggest Punishment for this Case
       </button>
     </div>
 
-    <!-- LOADING SPINNER -->
-    <div id="comsiceLoadingBox" style="display:none;align-items:center;justify-content:center;padding:20px;gap:10px;color:#38bdf8;font-weight:700;font-size:14px;">
-      <div class="ai-dots-loader"><span></span><span></span><span></span></div>
-      <span>Running COMSICE ML Model Inference...</span>
+    <!-- MULTI-STEP ANIMATED LOADING SCREEN -->
+    <div id="comsiceLoadingBox" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px;background:rgba(15,23,42,0.9);border:1px solid rgba(56,189,248,0.3);border-radius:18px;text-align:center;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+      <div class="ai-dots-loader" style="margin-bottom:4px;"><span></span><span></span><span></span></div>
+      <div id="comsiceLoadingStep" style="font-size:14px;font-weight:800;color:#38bdf8;transition:all 0.3s;">
+        🔍 Fetching student history & prior offense records...
+      </div>
+      <div style="font-size:11.5px;color:#64748b;font-weight:600;">Evaluating case parameters against NU Lipa Handbook & 2,002 historical campus precedents</div>
     </div>
 
     <!-- PREDICTION OUTPUT RESULT CARD -->
@@ -4183,9 +4187,18 @@ async function runComsicePrediction() {
 
     const resCard = document.getElementById('comsiceResultCard');
     const loadingBox = document.getElementById('comsiceLoadingBox');
+    const stepEl = document.getElementById('comsiceLoadingStep');
     
     if (resCard) resCard.style.display = 'none';
     if (loadingBox) loadingBox.style.display = 'flex';
+
+    if (stepEl) stepEl.textContent = '🔍 Fetching student history & prior offense records...';
+    const timer1 = setTimeout(() => {
+        if (stepEl) stepEl.textContent = '📘 Evaluating NU Lipa Student Handbook penalty rules...';
+    }, 400);
+    const timer2 = setTimeout(() => {
+        if (stepEl) stepEl.textContent = '🤖 Running COMSICE XGBoost ML Model Inference...';
+    }, 900);
 
     try {
         const caseId = <?= (int)$caseId ?>;
@@ -4196,6 +4209,8 @@ async function runComsicePrediction() {
         });
         const data = await res.json();
         
+        clearTimeout(timer1);
+        clearTimeout(timer2);
         if (loadingBox) loadingBox.style.display = 'none';
 
         if (data && data.ok) {
