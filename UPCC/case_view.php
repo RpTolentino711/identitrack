@@ -4072,7 +4072,7 @@ function toggleDrawerWhyPanel() {
     $autoViolation = !empty($autoFirstOffense['offense_name']) ? $autoFirstOffense['offense_name'] : 'General Handbook Violation';
     $autoDesc = !empty($autoFirstOffense['description']) ? $autoFirstOffense['description'] : (!empty($case['case_summary']) ? $case['case_summary'] : $autoViolation);
   ?>
-  <div style="flex:1;padding:32px 24px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;">
+  <div style="flex:1;padding:20px 24px;overflow-y:auto;display:flex;flex-direction:column;box-sizing:border-box;gap:16px;">
     
     <!-- HIDDEN INPUT VALUES FOR BACKEND PREDICTION ENGINE -->
     <input type="hidden" id="comsiceCategory" value="<?= htmlspecialchars($autoCategory) ?>">
@@ -4080,8 +4080,37 @@ function toggleDrawerWhyPanel() {
     <input type="hidden" id="comsiceViolation" value="<?= htmlspecialchars($autoViolation) ?>">
     <input type="hidden" id="comsiceDescription" value="<?= htmlspecialchars((string)$autoDesc) ?>">
 
+    <!-- LOCKED AUTO-FETCHED CASE PARAMETERS (READ-ONLY FOR PANEL) -->
+    <div style="width:100%;background:rgba(15,23,42,0.8);border:1px solid rgba(56,189,248,0.25);border-radius:16px;padding:14px 16px;box-sizing:border-box;">
+      <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="display:flex;align-items:center;gap:6px;"><span>🔒</span> Auto-Fetched Case Parameters</span>
+        <span style="font-size:10px;color:#10b981;background:rgba(16,185,129,0.15);padding:2px 8px;border-radius:10px;border:1px solid rgba(16,185,129,0.3);font-weight:700;">MySQL Locked</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Category</div>
+          <div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-top:2px;"><?= htmlspecialchars($autoCategory) ?></div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Hearing Type / Cycle</div>
+          <div style="font-size:12px;font-weight:700;color:#38bdf8;margin-top:2px;"><?= htmlspecialchars($autoCaseTypeStr) ?></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Offense Violation</div>
+        <div style="font-size:12.5px;font-weight:700;color:#f8fafc;margin-top:2px;"><?= htmlspecialchars($autoViolation) ?></div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Incident Summary / Notes</div>
+        <div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;line-height:1.4;background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:8px;max-height:50px;overflow-y:auto;"><?= htmlspecialchars((string)$autoDesc) ?></div>
+      </div>
+    </div>
+
     <!-- INITIAL READY TO ANALYZE CARD (MATCHES USER SCREENSHOT EXACTLY) -->
-    <div id="comsiceInitialStateBox" style="display:flex;flex-direction:column;align-items:center;text-align:center;max-width:440px;width:100%;margin:auto 0;">
+    <div id="comsiceInitialStateBox" style="display:flex;flex-direction:column;align-items:center;text-align:center;max-width:440px;width:100%;margin:0 auto;">
       
       <!-- GLOWING CENTER ROBOT HEAD AVATAR -->
       <div style="width:84px;height:84px;margin-bottom:20px;position:relative;">
