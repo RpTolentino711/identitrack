@@ -122,7 +122,12 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
     _previousSessionStatus = s.sessionStatus;
 
     if (s.sessionStatus == 'PAUSED') {
-      // Session paused - do not tick timer!
+      // Session paused - set _elapsed to static frozen netElapsedSeconds from server and do not tick timer!
+      if (mounted) {
+        setState(() {
+          _elapsed = Duration(seconds: s.netElapsedSeconds);
+        });
+      }
       _startPausedPolling();
       if (!_shownPauseDialog && mounted) {
         _shownPauseDialog = true;

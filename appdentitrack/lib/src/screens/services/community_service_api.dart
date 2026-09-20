@@ -129,6 +129,7 @@ class ActiveServiceSession {
   final String pauseReason;
   final String pausedAt;
   final int accumPausedSeconds;
+  final int netElapsedSeconds;
   final bool taskIsNew;
 
   ActiveServiceSession({
@@ -142,6 +143,7 @@ class ActiveServiceSession {
     required this.pauseReason,
     required this.pausedAt,
     required this.accumPausedSeconds,
+    required this.netElapsedSeconds,
     this.taskIsNew = false,
   });
 
@@ -159,6 +161,8 @@ class ActiveServiceSession {
         pausedAt: (json['paused_at'] ?? '').toString(),
         accumPausedSeconds:
             int.tryParse((json['accum_paused_seconds'] ?? 0).toString()) ?? 0,
+        netElapsedSeconds:
+            int.tryParse((json['net_elapsed_seconds'] ?? 0).toString()) ?? 0,
         taskIsNew: json['task_is_new'] == true || json['task_is_new'] == 1 || json['task_is_new'] == '1',
       );
 }
