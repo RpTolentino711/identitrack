@@ -734,18 +734,24 @@ try {
 
     // ── ACTION: predict — COMSICE Interactive Predictor Form ──
     if ($action === 'predict') {
-        $pCategory = trim((string)($_POST['category'] ?? $_GET['category'] ?? 'Minor Offenses'));
+        $pCategory = trim((string)($_POST['category'] ?? $_GET['category'] ?? 'Section 4 Minor Escalation'));
         $pViolation = trim((string)($_POST['violation'] ?? $_GET['violation'] ?? $offenseName));
-        $pNumOffense = trim((string)($_POST['number_of_offense'] ?? $_GET['number_of_offense'] ?? '1st Offense'));
+        $pNumOffense = trim((string)($_POST['number_of_offense'] ?? $_GET['number_of_offense'] ?? 'Section 4 - Cycle 1 (3 Minors Escalation)'));
         $pDescription = trim((string)($_POST['description'] ?? $_GET['description'] ?? ''));
 
         $numVal = 1;
-        if (preg_match('/(\d+)/', $pNumOffense, $nm)) {
+        if (stripos($pNumOffense, 'Cycle 2') !== false || stripos($pNumOffense, '6 Minor') !== false || stripos($pNumOffense, '2nd') !== false) {
+            $numVal = 6;
+        } elseif (stripos($pNumOffense, 'Cycle 1') !== false || stripos($pNumOffense, '3 Minor') !== false) {
+            $numVal = 3;
+        } elseif (preg_match('/(\d+)/', $pNumOffense, $nm)) {
             $numVal = (int)$nm[1];
         }
 
         $predictCaseMeta = array_merge($caseMeta, [
             'offense_name' => $pViolation,
+            'category' => $pCategory,
+            'number_of_offense' => $pNumOffense,
             'offense_level' => (strpos(strtoupper($pCategory), 'MAJOR') !== false) ? 'MAJOR' : 'MINOR',
             'total_prior' => max(0, $numVal - 1)
         ]);
