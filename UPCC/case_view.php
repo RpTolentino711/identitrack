@@ -4185,7 +4185,7 @@ function toggleDrawerWhyPanel() {
 
       <!-- DESCRIPTION PARAGRAPH -->
       <p style="font-size:14px;color:#94a3b8;line-height:1.6;margin:0 0 28px 0;max-width:400px;">
-        The AI will analyze case details against 2,295 verified historical UPCC precedents and Student Handbook rules to recommend a sanction &amp; Community Service hours.
+        The AI will analyze case details against 3,441 verified historical UPCC precedents and Student Handbook rules to recommend a sanction &amp; Community Service hours.
       </p>
 
       <!-- CENTERED SUGGEST BUTTON -->
@@ -4206,7 +4206,7 @@ function toggleDrawerWhyPanel() {
         🔍 Fetching student history &amp; prior offense records...
       </div>
       <div style="font-size:12px;color:#64748b;font-weight:600;line-height:1.5;">
-        Analyzing case details against 2,295 verified historical UPCC precedents &amp; Student Handbook rules
+        Analyzing case details against 3,441 verified historical UPCC precedents &amp; Student Handbook rules
       </div>
     </div>
 
@@ -4235,7 +4235,7 @@ function toggleDrawerWhyPanel() {
 
       <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px;">💡 Recommendation Explanation:</div>
       <div id="comsiceExplanation" style="font-size:13px;color:#94a3b8;line-height:1.55;background:rgba(0,0,0,0.35);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);max-height:260px;overflow-y:auto;">
-        The XGBoost classifier evaluated the offense against 2,295 historical campus precedent records.
+        The XGBoost classifier evaluated the offense against 3,441 historical campus precedent records.
       </div>
 
       <button type="button" onclick="runComsicePrediction()" style="margin-top:16px;width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:#38bdf8;padding:10px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='rgba(56,189,248,0.12)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
@@ -4304,7 +4304,7 @@ async function runComsicePrediction() {
         if (stepEl) stepEl.textContent = '📘 Evaluating NU Lipa Student Handbook penalty rules...';
     }, 400);
     const timer2 = setTimeout(() => {
-        if (stepEl) stepEl.textContent = '🤖 Running COMSICE XGBoost ML Model Inference (2,295 Precedents)...';
+        if (stepEl) stepEl.textContent = '🤖 Running COMSICE XGBoost ML Model Inference (3,441 Precedents)...';
     }, 900);
 
     try {
