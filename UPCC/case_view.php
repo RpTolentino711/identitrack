@@ -4073,7 +4073,7 @@ function toggleDrawerWhyPanel() {
     <div style="width:100%;background:rgba(15,23,42,0.8);border:1px solid rgba(56,189,248,0.25);border-radius:16px;padding:14px 16px;box-sizing:border-box;">
       <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
         <span style="display:flex;align-items:center;gap:6px;"><span>🔒</span> Auto-Fetched Case Parameters</span>
-        <span style="font-size:10px;color:#10b981;background:rgba(16,185,129,0.15);padding:2px 8px;border-radius:10px;border:1px solid rgba(16,185,129,0.3);font-weight:700;">MySQL Locked</span>
+        <span style="font-size:10px;color:#10b981;background:rgba(16,185,129,0.15);padding:2px 8px;border-radius:10px;border:1px solid rgba(16,185,129,0.3);font-weight:700;">Database Verified</span>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
