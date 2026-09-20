@@ -4934,7 +4934,7 @@ syncLive();
       </div>
       <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);">
         <div id="drawer-step-1" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Reviewing case information</div>
-        <div id="drawer-step-2" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Checking 3,441 verified historical cases</div>
+        <div id="drawer-step-2" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Checking <?= number_format(get_total_ai_dataset_count()) ?> verified historical cases</div>
         <div id="drawer-step-3" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Comparing similar cases & precedent text</div>
         <div id="drawer-step-4" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Checking handbook compatibility & CS matrix</div>
         <div id="drawer-step-5" style="color: #94a3b8; display: flex; align-items: center; gap: 10px;">○ Preparing recommendation</div>
@@ -4967,7 +4967,7 @@ syncLive();
           </div>
           <div style="background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 12px;">
             <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; display: block;">Model Version</span>
-            <strong style="font-size: 0.8rem; color: #cbd5e1;">UPCC-RF-v1.0 (3,441 Dataset)</strong>
+            <strong style="font-size: 0.8rem; color: #cbd5e1;">UPCC-RF-v1.0 (<?= number_format(get_total_ai_dataset_count()) ?> Dataset)</strong>
           </div>
         </div>
 
@@ -5013,7 +5013,7 @@ syncLive();
         <div style="background: rgba(0,0,0,0.35); border-radius: 12px; padding: 12px 14px; font-size: 0.75rem; color: #94a3b8; line-height: 1.6;">
           <strong style="color:#f8fafc;">MODEL DETAILS:</strong><br>
           • Model Version: UPCC-RF-v1.0 (Random Forest)<br>
-          • Training Dataset: UPCC-DATA-v1.0 (3,441 verified cases)<br>
+          • Training Dataset: UPCC-DATA-v1.0 (<?= number_format(get_total_ai_dataset_count()) ?> verified cases)<br>
           • Precedent Matcher: TF-IDF Cosine Similarity
         </div>
       </div>

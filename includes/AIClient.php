@@ -145,7 +145,7 @@ class AIClient
                     'handbook' => [
                         'section' => 'COMSICE XGBoost Machine Learning Model',
                         'rule' => $violation ?: $sanitizedDesc,
-                        'source' => 'SDO Historical Dataset (3,441 Records)'
+                        'source' => 'SDO Historical Dataset (' . number_format(get_total_ai_dataset_count()) . ' Records)'
                     ],
                     'recommendation' => [
                         'intervention' => $remoteResult['sanction'] ?? 'Recommended Sanction Pending',

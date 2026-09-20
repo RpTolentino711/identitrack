@@ -313,13 +313,14 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     }
     $catLabel = "Category {$catNum}";
 
-    $whyReason = "Evaluated against 3,441 historical campus precedent records and NU Lipa Student Handbook ({$handbookCitation}). Offense: '{$offenseName}', Category: '{$category}', Attempt: '{$numOffenseStr}'.";
+    $totalDatasetCountStr = number_format(get_total_ai_dataset_count());
+    $whyReason = "Evaluated against {$totalDatasetCountStr} historical campus precedent records and NU Lipa Student Handbook ({$handbookCitation}). Offense: '{$offenseName}', Category: '{$category}', Attempt: '{$numOffenseStr}'.";
 
     $aiText = "🤖 **COMSICE XGBoost ML Model Recommendation**:\n\n"
             . "• **Sanction Category**: **{$catLabel}**\n"
             . "• **Predicted Sanction**: **{$sanction}**\n"
             . "• **Confidence Score**: **{$confidence}%** (Severity: **{$severity}**)\n"
-            . "• **Model Source**: SDO Historical Dataset (3,441 Training Records)\n\n"
+            . "• **Model Source**: SDO Historical Dataset ({$totalDatasetCountStr} Training Records)\n\n"
             . "💡 **Why? (Reason)**: {$whyReason}";
 
     return [

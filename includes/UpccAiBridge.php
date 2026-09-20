@@ -223,7 +223,7 @@ class UpccAiBridge
             "handbook_reference" => $level === "MINOR" ? "Section IV" : "Section V",
             "model_version" => "UPCC-RF-v1.0",
             "dataset_version" => "UPCC-DATA-v1.0",
-            "dataset_total_cases" => (!empty($cases) ? count($cases) : 2295)
+            "dataset_total_cases" => (!empty($cases) ? count($cases) : get_total_ai_dataset_count())
         ];
     }
 

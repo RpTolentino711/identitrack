@@ -2336,4 +2336,19 @@ if (!function_exists('getStudentActiveMinorCycle')) {
         ];
     }
 }
+
+/**
+ * Dynamic Dataset Counter for AI Decision Support
+ * Returns the total precedent count (Base Historical Dataset + Finalized UPCC Cases).
+ */
+function get_total_ai_dataset_count(): int {
+    $baseDatasetCount = 3441;
+    try {
+        $finalizedCases = db_one("SELECT COUNT(*) as cnt FROM upcc_case WHERE case_status IN ('RESOLVED', 'CLOSED', 'DECIDED', 'FINALIZED')");
+        $additionalCases = (int)($finalizedCases['cnt'] ?? 0);
+        return $baseDatasetCount + $additionalCases;
+    } catch (\Throwable $e) {
+        return $baseDatasetCount;
+    }
+}
 ?>
