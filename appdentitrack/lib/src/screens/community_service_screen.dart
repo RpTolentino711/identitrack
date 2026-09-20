@@ -35,6 +35,7 @@ class _CommunityServiceScreenState extends State<CommunityServiceScreen> {
 
   Timer? _ticker;
   Timer? _pausedPollTimer;
+  Timer? _activePollTimer;
   bool _shownPauseDialog = false;
   String? _previousSessionStatus;
   Duration _elapsed = Duration.zero;
