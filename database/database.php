@@ -2040,38 +2040,6 @@ function ensure_upcc_ai_schema(): void {
     static $done = false;
     if ($done) return;
 
-    try {
-        db_exec("CREATE TABLE IF NOT EXISTS ai_model_registry (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            model_version VARCHAR(64) UNIQUE NOT NULL,
-            dataset_version VARCHAR(64) NOT NULL,
-            algorithm VARCHAR(64) DEFAULT 'RandomForestClassifier',
-            training_case_count INT DEFAULT 0,
-            metrics_json TEXT DEFAULT NULL,
-            status VARCHAR(32) DEFAULT 'STANDBY',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-    } catch (\Throwable $e) {}
-
-    try {
-        db_exec("CREATE TABLE IF NOT EXISTS ai_audit_log (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            case_id VARCHAR(64) NOT NULL,
-            requested_by INT DEFAULT NULL,
-            model_version VARCHAR(64) DEFAULT 'UPCC-XGB-v1.0',
-            dataset_version VARCHAR(64) DEFAULT 'UPCC-DATA-v1.0',
-            recommendation VARCHAR(64) DEFAULT NULL,
-            prediction_confidence FLOAT DEFAULT 0.0,
-            similar_case_count INT DEFAULT 0,
-            similarity_threshold FLOAT DEFAULT 0.70,
-            historical_distribution_json TEXT DEFAULT NULL,
-            handbook_version VARCHAR(64) DEFAULT '2026-v1',
-            final_panel_decision VARCHAR(64) DEFAULT NULL,
-            panel_agreement VARCHAR(64) DEFAULT 'PENDING',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-    } catch (\Throwable $e) {}
-
     try { db_exec("ALTER TABLE upcc_case ADD COLUMN final_panel_decision VARCHAR(64) DEFAULT NULL;"); } catch (\Throwable $e) {}
     try { db_exec("ALTER TABLE upcc_case ADD COLUMN decision_reason TEXT DEFAULT NULL;"); } catch (\Throwable $e) {}
     try { db_exec("ALTER TABLE upcc_case ADD COLUMN decision_finalized_at DATETIME DEFAULT NULL;"); } catch (\Throwable $e) {}
