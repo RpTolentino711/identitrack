@@ -807,7 +807,7 @@ $statusBadge = decision_badge($statusRaw);
 $categoryDescriptions = [
     1 => 'Formal Reprimand & Active Semester Probation (0 Hours CS).',
     2 => 'Formative Community Service (150 to 250 Hours) with Counseling / Education / Evaluation.',
-    3 => 'Non-Readmission / Suspension (1 Term Non-Readmission / Suspension).',
+    3 => 'Non-Readmission / Suspension.',
     4 => 'Exclusion / Mandatory Dismissal (Dropped from University Rolls).',
     5 => 'Summary Expulsion & Police Referral (Permanent Disqualification from Higher Education).',
 ];
@@ -2234,7 +2234,7 @@ function toggleSugFields() {
     } else if (v >= 3 && v <= 5) {
         show('sugCat345');
         const texts = {
-            3: 'Category 3 — Non-Readmission / Suspension (1 Term Non-Readmission / Suspension).',
+            3: 'Category 3 — Non-Readmission / Suspension.',
             4: 'Category 4 — Exclusion / Mandatory Dismissal (Dropped from University Rolls).',
             5: 'Category 5 — Summary Expulsion & Police Referral (Permanent Disqualification).',
         };
@@ -3628,7 +3628,7 @@ function closeHandbookModal() {
       <p><strong>Section V — Major Offenses & Sanction Categories:</strong><br>
       • Category 1: Formal Reprimand & Active Semester Probation (0 Hours CS).<br>
       • Category 2: Formative Community Service (150 to 250 Hours) + Counseling / Education.<br>
-      • Category 3: Non-Readmission / Suspension (1 Term Non-Readmission / Suspension).<br>
+      • Category 3: Non-Readmission / Suspension.<br>
       • Category 4 / 5: Exclusion or Expulsion for extreme violence, theft, or weapons.</p>
     </div>
     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
