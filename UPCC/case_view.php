@@ -4186,10 +4186,6 @@ function toggleDrawerWhyPanel() {
       <div id="comsiceExplanation" style="font-size:13px;color:#94a3b8;line-height:1.55;background:rgba(0,0,0,0.35);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);max-height:260px;overflow-y:auto;">
         The XGBoost classifier evaluated the offense against <?= number_format(get_total_ai_dataset_count()) ?> historical campus precedent records.
       </div>
-
-      <button type="button" onclick="runComsicePrediction()" style="margin-top:16px;width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:#38bdf8;padding:10px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='rgba(56,189,248,0.12)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
-        <span>🔄</span> Re-Analyze &amp; Refresh Recommendation
-      </button>
     </div>
 
   </div>
