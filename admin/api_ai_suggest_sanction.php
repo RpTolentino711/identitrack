@@ -342,7 +342,22 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
                     $handbookCitation = 'Section 5 Major Penalty Matrix - 2nd Major Offense';
                 }
             } else {
-                if (strpos($upperOff, 'CHEATING') !== false || strpos($upperOff, 'ACADEMIC') !== false) {
+                $isExplicitAcademicCheating = (
+                    strpos($upperOff, 'CHEATING') !== false || 
+                    strpos($upperOff, 'ACADEMIC DISHONESTY') !== false || 
+                    strpos($upperOff, 'KODIGO') !== false || 
+                    strpos($upperOff, 'PLAGIARISM') !== false || 
+                    strpos($upperOff, 'EXAM DISHONESTY') !== false
+                );
+                $isPhysicalViolation = (
+                    strpos($upperOff, 'BRAWL') !== false || 
+                    strpos($upperOff, 'FIGHT') !== false || 
+                    strpos($upperOff, 'PHYSICAL') !== false || 
+                    strpos($upperOff, 'CANTEEN') !== false || 
+                    strpos($upperOff, 'ASSAULT') !== false
+                );
+
+                if ($isExplicitAcademicCheating && !$isPhysicalViolation) {
                     $sanction = 'Grade of 0.0 in Exam & Written SDO Reprimand';
                     $severity = 'High';
                     $confidence = 94.0;
@@ -354,6 +369,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
                     $handbookCitation = 'Section 5 Major Penalty Matrix - 1st Major Offense';
                 }
             }
+
         } else { // Minor Offenses (1st/2nd Attempt before Section 4)
             if ($numOffense == 2) {
                 $sanction = 'Guardian Warning & Formal SDO Counseling';
