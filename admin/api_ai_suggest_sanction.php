@@ -388,16 +388,19 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     // Determine NU Lipa UPCC Sanction Category (Category 1 - Category 5)
     $catNum = 1;
     $upperSanct = strtoupper($sanction);
-    if (preg_match('/\b(EXCLUSION|REFERRAL|SUMMARY EXPULSION|PERMANENT|DISQUALIFICATION)\b/i', $upperSanct)) {
-        $catNum = (strpos($upperSanct, 'EXCLUSION') !== false || strpos($upperSanct, 'POLICE') !== false) ? 5 : 4;
-    } elseif (preg_match('/\b(SUSPENSION|NON-READMISSION|PROBATION|CYCLE 2)\b/i', $upperSanct)) {
+    if (strpos($upperSanct, 'CATEGORY 5') !== false || strpos($upperSanct, 'SUMMARY EXPULSION') !== false || strpos($upperSanct, 'POLICE') !== false) {
+        $catNum = 5;
+    } elseif (strpos($upperSanct, 'CATEGORY 4') !== false || strpos($upperSanct, 'EXCLUSION') !== false || strpos($upperSanct, 'MANDATORY DISMISSAL') !== false || strpos($upperSanct, 'PERMANENT') !== false) {
+        $catNum = 4;
+    } elseif (strpos($upperSanct, 'CATEGORY 3') !== false || strpos($upperSanct, 'SUSPENSION') !== false || strpos($upperSanct, 'NON-READMISSION') !== false || strpos($upperSanct, 'CYCLE 2') !== false) {
         $catNum = 3;
-    } elseif (preg_match('/\b(COMMUNITY SERVICE|FORMATIVE|HOURS|INTERVENTION|CYCLE 1)\b/i', $upperSanct)) {
+    } elseif (strpos($upperSanct, 'CATEGORY 2') !== false || strpos($upperSanct, 'COMMUNITY SERVICE') !== false || strpos($upperSanct, 'FORMATIVE') !== false || strpos($upperSanct, 'HOURS') !== false || strpos($upperSanct, 'CYCLE 1') !== false) {
         $catNum = 2;
     } else {
         $catNum = 1;
     }
     $catLabel = "Category {$catNum}";
+
 
     $totalDatasetCountStr = number_format(get_total_ai_dataset_count());
     $whyReason = "Evaluated against {$totalDatasetCountStr} historical campus precedent records and NU Lipa Student Handbook ({$handbookCitation}). Offense: '{$offenseName}', Category: '{$category}', Attempt: '{$numOffenseStr}'.";

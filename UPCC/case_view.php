@@ -807,7 +807,7 @@ $statusBadge = decision_badge($statusRaw);
 $categoryDescriptions = [
     1 => 'Formal Reprimand & Active Semester Probation (0 Hours CS).',
     2 => 'Formative Community Service (150 to 250 Hours) with Counseling / Education / Evaluation.',
-    3 => 'Non-Readmission / Suspension (250 to 400 Hours Community Service or 1 Term Suspension).',
+    3 => 'Non-Readmission / Suspension (1 Term Non-Readmission / Suspension).',
     4 => 'Exclusion / Mandatory Dismissal (Dropped from University Rolls).',
     5 => 'Summary Expulsion & Police Referral (Permanent Disqualification from Higher Education).',
 ];
