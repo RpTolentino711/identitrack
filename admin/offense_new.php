@@ -148,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
 
   if ($existing_type_id <= 0) {
     $errors[] = 'Please select an offense type.';
-  } else if ((in_array($existing_type_id, [22, 23, 24], true) || $level === 'DISMISSED') && $description === '' && $dismissalReason === '') {
+  } else if ((in_array($existing_type_id, [22, 23, 24], true) || $level === 'DISMISSED' || $level === 'MAJOR') && $description === '' && $dismissalReason === '') {
     $errors[] = 'Please provide a detailed description/notes for this offense.';
   }
 
@@ -3391,11 +3391,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 </div>
 
                 <?php
-                  $isDescRequired = ($level === 'DISMISSED' || in_array($postExistingTypeId, [22, 23, 24], true));
+                  $isDescRequired = ($level === 'MAJOR' || $level === 'DISMISSED' || in_array($postExistingTypeId, [22, 23, 24], true));
                 ?>
                 <div class="form-row full">
                   <div class="form-group">
-                    <label for="description" id="descLabel">Description / Notes <span id="descOptional" style="<?php echo $isDescRequired ? 'color:var(--red); font-weight:800;' : ''; ?>"><?php echo $isDescRequired ? '*' : '(optional)'; ?></span></label>
+                    <label for="description" id="descLabel">Description / Notes <span id="descOptional" style="<?php echo $isDescRequired ? 'color:var(--red); font-weight:800;' : ''; ?>"><?php echo $isDescRequired ? ($level === 'MAJOR' ? '* (REQUIRED FOR MAJOR OFFENSES)' : '* (Required)') : '(optional)'; ?></span></label>
                     <textarea id="description" name="description" <?php echo $isDescRequired ? 'required' : ''; ?>
                               placeholder="Describe the incident in detail..."><?php echo htmlspecialchars($postDesc); ?></textarea>
                   </div>
@@ -3404,7 +3404,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
                 <div class="form-actions">
                   <input type="hidden" name="_action_hint" value="save">
-                  <button type="submit" class="btn btn-primary" onclick="if(!this.form.checkValidity())return true; const btn=this; setTimeout(() => { btn.disabled=true; btn.innerHTML='<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' style=\'animation: spin 1s linear infinite; width:18px;height:18px;margin-right:6px;\'><path d=\'M21 12a9 9 0 1 1-6.219-8.56\'/></svg> Registering...'; }, 10); return true;">
+                  <button type="submit" id="btnRegisterOffense" class="btn btn-primary" onclick="if(!this.form.checkValidity())return true; const btn=this; setTimeout(() => { btn.disabled=true; btn.innerHTML='<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' style=\'animation: spin 1s linear infinite; width:18px;height:18px;margin-right:6px;\'><path d=\'M21 12a9 9 0 1 1-6.219-8.56\'/></svg> Registering...'; }, 10); return true;">
                     <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                     Register Offense
                   </button>
@@ -5550,11 +5550,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       const typeId = typeSelect ? typeSelect.value : '';
       const descOpt = document.getElementById('descOptional');
       const descInput = document.getElementById('description');
-      const isRequired = (lvl === 'DISMISSED' || ['22', '23', '24'].includes(typeId));
+      const isRequired = (lvl === 'MAJOR' || lvl === 'DISMISSED' || ['22', '23', '24'].includes(typeId));
 
       if (descOpt) {
         if (isRequired) {
-          descOpt.innerHTML = ' <span style="color:#dc2626; font-weight:800; font-size:15px;">*</span>';
+          if (lvl === 'MAJOR') {
+            descOpt.innerHTML = ' <span style="color:#dc2626; font-weight:800; font-size:13px;">* (REQUIRED FOR MAJOR OFFENSES)</span>';
+          } else {
+            descOpt.innerHTML = ' <span style="color:#dc2626; font-weight:800; font-size:13px;">* (Required)</span>';
+          }
         } else {
           descOpt.innerHTML = ' <span style="color:#64748b; font-weight:normal;">(optional)</span>';
         }
@@ -5566,11 +5570,56 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           descInput.removeAttribute('required');
         }
       }
+
+      checkFormValidity();
+    }
+
+    function checkFormValidity() {
+      const levelSelect = document.getElementById('levelSelect');
+      const lvl = (levelSelect ? levelSelect.value : '').toUpperCase();
+      const typeSelect = document.getElementById('offense_type_id');
+      const typeId = typeSelect ? typeSelect.value : '';
+      const descInput = document.getElementById('description');
+      const submitBtn = document.getElementById('btnRegisterOffense') || document.querySelector('.form-actions button[type="submit"]');
+
+      const isRequired = (lvl === 'MAJOR' || lvl === 'DISMISSED' || ['22', '23', '24'].includes(typeId));
+      const descVal = (descInput ? descInput.value : '').trim();
+
+      if (submitBtn) {
+        if (isRequired && descVal === '') {
+          submitBtn.disabled = true;
+          submitBtn.style.opacity = '0.55';
+          submitBtn.style.cursor = 'not-allowed';
+          submitBtn.title = 'Please provide incident Description / Notes before registering a Major Offense.';
+        } else {
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+          submitBtn.style.cursor = 'pointer';
+          submitBtn.title = '';
+        }
+      }
     }
 
     // Intercept form submission
     document.addEventListener('DOMContentLoaded', function() {
       updateDescRequirement();
+
+      const descInput = document.getElementById('description');
+      if (descInput) {
+        descInput.addEventListener('input', checkFormValidity);
+        descInput.addEventListener('keyup', checkFormValidity);
+        descInput.addEventListener('change', checkFormValidity);
+      }
+
+      const levelSelect = document.getElementById('levelSelect');
+      if (levelSelect) {
+        levelSelect.addEventListener('change', updateDescRequirement);
+      }
+
+      const typeSelect = document.getElementById('offense_type_id');
+      if (typeSelect) {
+        typeSelect.addEventListener('change', updateDescRequirement);
+      }
       const form = document.getElementById('offenseForm');
       if (!form) return;
 
