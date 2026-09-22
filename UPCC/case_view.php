@@ -4098,54 +4098,8 @@ function toggleDrawerWhyPanel() {
       </div>
     </div>
 
-    <!-- INITIAL READY TO ANALYZE CARD (MATCHES USER SCREENSHOT EXACTLY) -->
-    <div id="comsiceInitialStateBox" style="display:flex;flex-direction:column;align-items:center;text-align:center;max-width:440px;width:100%;margin:0 auto;">
-      
-      <!-- GLOWING CENTER ROBOT HEAD AVATAR -->
-      <div style="width:84px;height:84px;margin-bottom:20px;position:relative;">
-        <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;filter:drop-shadow(0 0 16px rgba(56,189,248,0.5));">
-          <circle cx="60" cy="65" r="50" class="bot-aura" />
-          <ellipse cx="60" cy="100" rx="26" ry="6" class="bot-platform" />
-          <rect x="14" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-left" />
-          <rect x="96" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-right" />
-          <path d="M 24 55 A 40 40 0 0 1 96 55" class="bot-headband" />
-          <rect x="22" y="32" width="76" height="66" rx="26" class="bot-head-shell" />
-          <rect x="30" y="42" width="60" height="46" rx="18" class="bot-visor" />
-          <line x1="60" y1="32" x2="60" y2="18" class="bot-antenna-stem" />
-          <circle cx="60" cy="16" r="6" class="bot-antenna-bulb" />
-          <path d="M 40 49 Q 47 46 54 49" class="bot-brow bot-brow-left" />
-          <path d="M 66 49 Q 73 46 80 49" class="bot-brow bot-brow-right" />
-          <g class="bot-eyes-group">
-            <circle cx="47" cy="60" r="7" class="bot-eye bot-eye-left" />
-            <circle cx="45" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
-            <circle cx="73" cy="60" r="7" class="bot-eye bot-eye-right" />
-            <circle cx="71" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
-          </g>
-          <g class="bot-mouth-group">
-            <rect x="50" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-1" />
-            <rect x="58" y="76" width="4" height="6" rx="1.5" class="bot-mouth-bar bar-2" />
-            <rect x="66" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-3" />
-          </g>
-        </svg>
-      </div>
-
-      <!-- TITLE -->
-      <h3 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 12px 0;letter-spacing:-0.2px;">Ready to analyze this case</h3>
-
-      <!-- DESCRIPTION PARAGRAPH -->
-      <p style="font-size:14px;color:#94a3b8;line-height:1.6;margin:0 0 28px 0;max-width:400px;">
-        The AI will analyze case details against <?= number_format(get_total_ai_dataset_count()) ?> verified historical UPCC precedents and Student Handbook rules to recommend a sanction &amp; Community Service hours.
-      </p>
-
-      <!-- CENTERED SUGGEST BUTTON -->
-      <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#ffffff;padding:14px 44px;border-radius:14px;font-weight:900;font-size:15px;letter-spacing:0.06em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 26px rgba(2,132,199,0.5);transition:all 0.25s;" onmouseover="this.style.transform='translateY(-2px) scale(1.03)';" onmouseout="this.style.transform='translateY(0) scale(1)';">
-        <span>✦</span> SUGGEST
-      </button>
-
-      <!-- FOOTER ADVISORY NOTE -->
-      <p style="font-size:11.5px;color:#64748b;margin:36px 0 0 0;">
-        Advisory decision support. Final authority remains with SDO / UPCC.
-      </p>
+    <!-- INITIAL READY TO ANALYZE CARD (HIDDEN FOR AUTO-PREDICTION) -->
+    <div id="comsiceInitialStateBox" style="display:none;flex-direction:column;align-items:center;text-align:center;max-width:440px;width:100%;margin:0 auto;">
     </div>
 
     <!-- MULTI-STEP ANIMATED LOADING SCREEN -->
@@ -4280,7 +4234,7 @@ async function runComsicePrediction() {
     }
 }
 
-// Auto-restore cached AI prediction on page load / hard refresh
+// Auto-run AI prediction on page load so parameters & ML prediction result render directly
 document.addEventListener('DOMContentLoaded', function() {
     try {
         const caseId = <?= (int)$caseId ?>;
@@ -4288,8 +4242,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cached) {
             const data = JSON.parse(cached);
             renderComsiceResult(data);
+        } else {
+            runComsicePrediction();
         }
-    } catch(e) {}
+    } catch(e) {
+        runComsicePrediction();
+    }
 });
 
 let currentTypingInterval = null;
