@@ -281,25 +281,42 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
             $handbookCitation = 'COMSICE XGBoost ML Model (sanction_xgb_model.json)';
             $usedMlModel = true;
 
-            // Handbook Sanity Guard: Prevent Academic Exam Sanctions for Physical Brawls / Fights / Non-Academic Offenses
+            // Handbook Safety Guard: Extreme Safety Violations (Explosives, Bomb Threats, Deadly Weapons, Firearms)
             $upperOff = strtoupper($offenseName . ' ' . $userPrompt);
             $upperSanct = strtoupper($sanction);
-            $isAcademicSanction = (strpos($upperSanct, 'EXAM') !== false || strpos($upperSanct, 'GRADE OF 0.0') !== false || strpos($upperSanct, 'CHEATING') !== false);
-            $isPhysicalOrNonAcademicMajor = (
-                strtoupper($offenseLevel) === 'MAJOR' || 
-                strpos($upperOff, 'BRAWL') !== false || 
-                strpos($upperOff, 'FIGHT') !== false || 
-                strpos($upperOff, 'PHYSICAL') !== false || 
-                strpos($upperOff, 'MAJ-') !== false ||
-                strpos($upperOff, 'CANTEEN') !== false
-            );
-            $isNotCheatingOffense = (strpos($upperOff, 'CHEATING') === false && strpos($upperOff, 'KODIGO') === false && strpos($upperOff, 'PLAGIARISM') === false);
 
-            if ($isAcademicSanction && $isPhysicalOrNonAcademicMajor && $isNotCheatingOffense) {
-                $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
-                $severity = 'High';
-                $confidence = 94.0;
-                $handbookCitation = 'NU Lipa Student Handbook Section 5 (Category 2 Major Offense Matrix)';
+            $isExtremeSafetyViolation = (
+                strpos($upperOff, 'EXPLOSIVE') !== false ||
+                strpos($upperOff, 'BOMB') !== false ||
+                strpos($upperOff, 'DEADLY WEAPON') !== false ||
+                strpos($upperOff, 'FIREARM') !== false ||
+                strpos($upperOff, 'GUN') !== false
+            );
+
+            if ($isExtremeSafetyViolation) {
+                $sanction = 'Category 5 (Summary Expulsion & Police Referral)';
+                $severity = 'Critical';
+                $confidence = 99.0;
+                $handbookCitation = 'NU Lipa Student Handbook Section 5 (Category 5 Extreme Safety Violation — Explosives / Weapons)';
+            } else {
+                // Handbook Sanity Guard: Prevent Academic Exam Sanctions for Physical Brawls / Fights / Non-Academic Offenses
+                $isAcademicSanction = (strpos($upperSanct, 'EXAM') !== false || strpos($upperSanct, 'GRADE OF 0.0') !== false || strpos($upperSanct, 'CHEATING') !== false);
+                $isPhysicalOrNonAcademicMajor = (
+                    strtoupper($offenseLevel) === 'MAJOR' || 
+                    strpos($upperOff, 'BRAWL') !== false || 
+                    strpos($upperOff, 'FIGHT') !== false || 
+                    strpos($upperOff, 'PHYSICAL') !== false || 
+                    strpos($upperOff, 'MAJ-') !== false ||
+                    strpos($upperOff, 'CANTEEN') !== false
+                );
+                $isNotCheatingOffense = (strpos($upperOff, 'CHEATING') === false && strpos($upperOff, 'KODIGO') === false && strpos($upperOff, 'PLAGIARISM') === false);
+
+                if ($isAcademicSanction && $isPhysicalOrNonAcademicMajor && $isNotCheatingOffense) {
+                    $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
+                    $severity = 'High';
+                    $confidence = 94.0;
+                    $handbookCitation = 'NU Lipa Student Handbook Section 5 (Category 2 Major Offense Matrix)';
+                }
             }
         }
     }
@@ -346,7 +363,20 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
             $confidence = 95.0;
             $handbookCitation = 'Section 4 Minor Offense Escalation — Cycle 1 (Accumulated 3 Minor Offenses)';
         } elseif ($isMajor) {
-            if ($isMajor2nd) {
+            $isExtremeSafetyViolation = (
+                strpos($upperOff, 'EXPLOSIVE') !== false ||
+                strpos($upperOff, 'BOMB') !== false ||
+                strpos($upperOff, 'DEADLY WEAPON') !== false ||
+                strpos($upperOff, 'FIREARM') !== false ||
+                strpos($upperOff, 'GUN') !== false
+            );
+
+            if ($isExtremeSafetyViolation) {
+                $sanction = 'Category 5 (Summary Expulsion & Police Referral)';
+                $severity = 'Critical';
+                $confidence = 99.0;
+                $handbookCitation = 'Section 5 Major Penalty Matrix - Category 5 Extreme Safety Violation (Explosives / Weapons)';
+            } elseif ($isMajor2nd) {
                 if (strpos($upperOff, 'FIGHTING') !== false || strpos($upperOff, 'THEFT') !== false || strpos($upperOff, 'SEVERE') !== false) {
                     $sanction = 'Summary Expulsion / Permanent Disqualification';
                     $severity = 'Critical';

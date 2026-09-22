@@ -4186,6 +4186,13 @@ function toggleDrawerWhyPanel() {
       <div id="comsiceExplanation" style="font-size:13px;color:#94a3b8;line-height:1.55;background:rgba(0,0,0,0.35);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);max-height:260px;overflow-y:auto;">
         The XGBoost classifier evaluated the offense against <?= number_format(get_total_ai_dataset_count()) ?> historical campus precedent records.
       </div>
+
+      <!-- RE-ANALYZE SUGGESTION BUTTON -->
+      <div style="margin-top:16px;display:flex;justify-content:center;">
+        <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2));border:1px solid rgba(56,189,248,0.4);color:#38bdf8;padding:10px 24px;border-radius:12px;font-weight:800;font-size:13px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(56,189,248,0.15);transition:all 0.2s;" onmouseover="this.style.background='linear-gradient(135deg, #0284c7, #2563eb)';this.style.color='#ffffff';this.style.borderColor='transparent';this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2))';this.style.color='#38bdf8';this.style.borderColor='rgba(56,189,248,0.4)';this.style.transform='translateY(0)';">
+          <span>🔄</span> Re-Analyze Suggestion
+        </button>
+      </div>
     </div>
 
   </div>
