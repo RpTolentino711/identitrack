@@ -311,10 +311,14 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         $confidence = 88.5;
         $handbookCitation = 'NU Lipa Student Handbook Section 3.1';
 
-        $upperOff = strtoupper($offenseName . ' ' . $userPrompt);
-        $upperCat = strtoupper($category . ' ' . $numOffenseStr);
-        $isSec4Cycle2 = (strpos($upperCat, 'CYCLE 2') !== false || strpos($upperCat, '6 MINOR') !== false);
-        $isSec4Cycle1 = (strpos($upperCat, 'CYCLE 1') !== false || strpos($upperCat, '3 MINOR') !== false || (strpos($upperCat, 'SECTION 4') !== false && !$isSec4Cycle2));
+        $instanceCount = (int)($caseMeta['instance_count'] ?? 1);
+        $totalMinorCount = (int)($caseMeta['total_minor_count'] ?? 1);
+
+        $isSec4Same3 = (strtoupper($offenseLevel) === 'MINOR' && $instanceCount >= 3);
+        $isSec4Diff4 = (strtoupper($offenseLevel) === 'MINOR' && $totalMinorCount >= 4);
+
+        $isSec4Cycle2 = (strpos($upperCat, 'CYCLE 2') !== false || strpos($upperCat, '6 MINOR') !== false || ($totalMinorCount >= 6));
+        $isSec4Cycle1 = ($isSec4Same3 || $isSec4Diff4 || strpos($upperCat, 'CYCLE 1') !== false || strpos($upperCat, '3 MINOR') !== false || (strpos($upperCat, 'SECTION 4') !== false && !$isSec4Cycle2));
         $isMajor2nd = (strpos($upperCat, '2ND') !== false || strpos($upperCat, 'REPEATED') !== false || $totalPrior >= 1);
         $isMajor = (strpos($upperCat, 'MAJOR') !== false || strtoupper($offenseLevel) === 'MAJOR') && !$isSec4Cycle1 && !$isSec4Cycle2;
 
@@ -322,12 +326,22 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
             $sanction = '1 Semester Suspension & Disciplinary Probation (Section 4 Cycle 2)';
             $severity = 'Critical';
             $confidence = 96.5;
-            $handbookCitation = 'Section 4 Minor Offense Escalation - Cycle 2 (Accumulated 6 Minor Offenses)';
-        } elseif ($isSec4Cycle1) {
-            $sanction = 'Formative Community Service (150–250 Hours)';
+            $handbookCitation = 'Section 4 Minor Offense Escalation — Cycle 2 (Accumulated 6 Minor Offenses)';
+        } elseif ($isSec4Same3) {
+            $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
             $severity = 'High';
             $confidence = 95.0;
-            $handbookCitation = 'Section 4 Minor Offense Escalation - Cycle 1 (Accumulated 3 Minor Offenses)';
+            $handbookCitation = "Section 4 Minor Offense Escalation — Trigger 1: 3 Repeated Same Minor Offenses ('{$offenseName}')";
+        } elseif ($isSec4Diff4) {
+            $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
+            $severity = 'High';
+            $confidence = 95.0;
+            $handbookCitation = 'Section 4 Minor Offense Escalation — Trigger 2: 4 Accumulated Minor Offenses Across Different Violation Types';
+        } elseif ($isSec4Cycle1) {
+            $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
+            $severity = 'High';
+            $confidence = 95.0;
+            $handbookCitation = 'Section 4 Minor Offense Escalation — Cycle 1 (Accumulated 3 Minor Offenses)';
         } elseif ($isMajor) {
             if ($isMajor2nd) {
                 if (strpos($upperOff, 'FIGHTING') !== false || strpos($upperOff, 'THEFT') !== false || strpos($upperOff, 'SEVERE') !== false) {
@@ -527,6 +541,13 @@ try {
         WHERE c.student_id = :sid AND ot.level = 'MAJOR' AND c.case_id != :cid
     ", [':sid' => $targetStudentId, ':cid' => $caseId]) : ['cnt' => 0];
     $totalMajorCount = (int)($totalMajorRow['cnt'] ?? 0);
+
+    $totalMinorRow = $targetStudentId !== '' ? db_one("
+        SELECT COUNT(*) as cnt FROM offense o
+        JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+        WHERE o.student_id = :sid AND ot.level = 'MINOR'
+    ", [':sid' => $targetStudentId]) : ['cnt' => 1];
+    $totalMinorCount = max(1, (int)($totalMinorRow['cnt'] ?? 1));
 
     // ── Pending / Ongoing Cases Lookup (Includes Offense Names & Levels) ──
     $pendingCasesRows = $targetStudentId !== '' ? db_all("
@@ -789,6 +810,8 @@ try {
         'major_category' => $majorCategory,
         'offense_type_id' => $offenseTypeId,
         'total_prior' => $totalPrior,
+        'instance_count' => $instanceCount,
+        'total_minor_count' => $totalMinorCount,
         'prior_cases_text' => $priorCasesBreakdownText,
         'pending_cases_count' => count($pendingCasesRows),
         'pending_cases_text' => $pendingCasesText,
