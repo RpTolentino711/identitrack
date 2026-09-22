@@ -281,23 +281,42 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
             $handbookCitation = 'COMSICE XGBoost ML Model (sanction_xgb_model.json)';
             $usedMlModel = true;
 
-            // Handbook Safety Guard: Extreme Safety Violations (Explosives, Bomb Threats, Deadly Weapons, Firearms)
+            // Handbook Safety Guard: Extreme Safety Violations (Weapons, Knives, Firearms, Explosives, Drugs)
             $upperOff = strtoupper($offenseName . ' ' . $userPrompt);
             $upperSanct = strtoupper($sanction);
 
             $isExtremeSafetyViolation = (
                 strpos($upperOff, 'EXPLOSIVE') !== false ||
                 strpos($upperOff, 'BOMB') !== false ||
-                strpos($upperOff, 'DEADLY WEAPON') !== false ||
+                strpos($upperOff, 'WEAPON') !== false ||
+                strpos($upperOff, 'KNIFE') !== false ||
+                strpos($upperOff, 'BLADE') !== false ||
                 strpos($upperOff, 'FIREARM') !== false ||
-                strpos($upperOff, 'GUN') !== false
+                strpos($upperOff, 'GUN') !== false ||
+                strpos($upperOff, 'TASER') !== false ||
+                strpos($upperOff, 'SWORD') !== false
+            );
+
+            $isDrugViolation = (
+                strpos($upperOff, 'DRUG') !== false ||
+                strpos($upperOff, 'DRUGS') !== false ||
+                strpos($upperOff, 'SHABU') !== false ||
+                strpos($upperOff, 'MARIJUANA') !== false ||
+                strpos($upperOff, 'WEED') !== false ||
+                strpos($upperOff, 'NARCOTIC') !== false ||
+                strpos($upperOff, 'PROHIBITED SUBSTANCE') !== false
             );
 
             if ($isExtremeSafetyViolation) {
                 $sanction = 'Category 5 (Summary Expulsion & Police Referral)';
                 $severity = 'Critical';
                 $confidence = 99.0;
-                $handbookCitation = 'NU Lipa Student Handbook Section 5 (Category 5 Extreme Safety Violation — Explosives / Weapons)';
+                $handbookCitation = 'NU Lipa Student Handbook Section 5 (Category 5 Extreme Safety Violation — Weapons / Explosives)';
+            } elseif ($isDrugViolation) {
+                $sanction = 'Category 5 (Summary Expulsion & Police Referral)';
+                $severity = 'Critical';
+                $confidence = 99.0;
+                $handbookCitation = 'NU Lipa Student Handbook Section 5 (Category 5 Major Penalty Matrix — Illegal Drugs & Prohibited Substances)';
             } else {
                 // Handbook Sanity Guard: Prevent Academic Exam Sanctions for Physical Brawls / Fights / Non-Academic Offenses
                 $isAcademicSanction = (strpos($upperSanct, 'EXAM') !== false || strpos($upperSanct, 'GRADE OF 0.0') !== false || strpos($upperSanct, 'CHEATING') !== false);
@@ -366,16 +385,35 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
             $isExtremeSafetyViolation = (
                 strpos($upperOff, 'EXPLOSIVE') !== false ||
                 strpos($upperOff, 'BOMB') !== false ||
-                strpos($upperOff, 'DEADLY WEAPON') !== false ||
+                strpos($upperOff, 'WEAPON') !== false ||
+                strpos($upperOff, 'KNIFE') !== false ||
+                strpos($upperOff, 'BLADE') !== false ||
                 strpos($upperOff, 'FIREARM') !== false ||
-                strpos($upperOff, 'GUN') !== false
+                strpos($upperOff, 'GUN') !== false ||
+                strpos($upperOff, 'TASER') !== false ||
+                strpos($upperOff, 'SWORD') !== false
+            );
+
+            $isDrugViolation = (
+                strpos($upperOff, 'DRUG') !== false ||
+                strpos($upperOff, 'DRUGS') !== false ||
+                strpos($upperOff, 'SHABU') !== false ||
+                strpos($upperOff, 'MARIJUANA') !== false ||
+                strpos($upperOff, 'WEED') !== false ||
+                strpos($upperOff, 'NARCOTIC') !== false ||
+                strpos($upperOff, 'PROHIBITED SUBSTANCE') !== false
             );
 
             if ($isExtremeSafetyViolation) {
                 $sanction = 'Category 5 (Summary Expulsion & Police Referral)';
                 $severity = 'Critical';
                 $confidence = 99.0;
-                $handbookCitation = 'Section 5 Major Penalty Matrix - Category 5 Extreme Safety Violation (Explosives / Weapons)';
+                $handbookCitation = 'Section 5 Major Penalty Matrix - Category 5 Extreme Safety Violation (Weapons / Explosives)';
+            } elseif ($isDrugViolation) {
+                $sanction = 'Category 5 (Summary Expulsion & Police Referral)';
+                $severity = 'Critical';
+                $confidence = 99.0;
+                $handbookCitation = 'Section 5 Major Penalty Matrix - Category 5 (Illegal Drugs & Prohibited Substances)';
             } elseif ($isMajor2nd) {
                 if (strpos($upperOff, 'FIGHTING') !== false || strpos($upperOff, 'THEFT') !== false || strpos($upperOff, 'SEVERE') !== false) {
                     $sanction = 'Summary Expulsion / Permanent Disqualification';
