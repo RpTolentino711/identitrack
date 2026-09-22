@@ -4272,6 +4272,7 @@ async function runComsicePrediction() {
         } else {
             if (loadingBox) loadingBox.style.display = 'none';
             if (initBox) initBox.style.display = 'flex';
+            alert((data && data.error) ? data.error : "AI Prediction failed to complete. Please check MySQL database connection.");
         }
     } catch(err) {
         if (loadingBox) loadingBox.style.display = 'none';

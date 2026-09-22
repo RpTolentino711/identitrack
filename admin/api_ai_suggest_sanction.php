@@ -823,33 +823,11 @@ try {
         'total_combined_hours' => $totalCombinedHours
     ];
 
-    // ── ACTION: suggest — AI Sanction Recommendation via COMSICE ML Model ──
-    if ($action === 'suggest') {
-        $aiEngineRes = queryAiEngine('', $offenseName, $studentName, $targetStudentId, $caseMeta);
-
-        echo json_encode([
-            'ok' => true,
-            'source' => 'comscie_xgboost_ml_model',
-            'is_new_offense_type' => false,
-            'student_id' => $targetStudentId,
-            'student_name' => $studentName,
-            'offense_name' => $offenseName,
-            'sanction' => $aiEngineRes['sanction'] ?? 'Violation slip issued by the SDO',
-            'confidence' => $aiEngineRes['confidence'] ?? 88.5,
-            'severity' => $aiEngineRes['severity'] ?? 'Medium',
-            'ai_explanation' => $aiEngineRes['text'],
-            'ai_available' => true,
-            'engine' => $aiEngineRes['engine'],
-            'privacy' => $aiEngineRes['privacy']
-        ]);
-        exit;
-    }
-
-    // ── ACTION: predict — COMSICE Interactive Predictor Form ──
-    if ($action === 'predict') {
-        $pCategory = trim((string)($_POST['category'] ?? $_GET['category'] ?? 'Section 4 Minor Escalation'));
+    // ── ACTION: suggest / predict — AI Sanction Recommendation via COMSICE ML Model ──
+    if ($action === 'suggest' || $action === 'predict') {
+        $pCategory = trim((string)($_POST['category'] ?? $_GET['category'] ?? $category));
         $pViolation = trim((string)($_POST['violation'] ?? $_GET['violation'] ?? $offenseName));
-        $pNumOffense = trim((string)($_POST['number_of_offense'] ?? $_GET['number_of_offense'] ?? 'Section 4 - Cycle 1 (3 Minors Escalation)'));
+        $pNumOffense = trim((string)($_POST['number_of_offense'] ?? $_GET['number_of_offense'] ?? '1st Offense'));
         $pDescription = trim((string)($_POST['description'] ?? $_GET['description'] ?? ''));
 
         $numVal = 1;
@@ -873,7 +851,12 @@ try {
 
         echo json_encode([
             'ok' => true,
-            'action' => 'predict',
+            'action' => $action,
+            'source' => 'comscie_xgboost_ml_model',
+            'is_new_offense_type' => false,
+            'student_id' => $targetStudentId,
+            'student_name' => $studentName,
+            'offense_name' => $pViolation,
             'sanction' => $aiEngineRes['sanction'] ?? 'Violation slip issued by the SDO',
             'category_num' => $aiEngineRes['category_num'] ?? 1,
             'category_label' => $aiEngineRes['category_label'] ?? 'Category 1',
@@ -881,6 +864,7 @@ try {
             'severity' => $aiEngineRes['severity'] ?? 'Medium',
             'ai_explanation' => $aiEngineRes['text'],
             'reply' => $aiEngineRes['text'],
+            'ai_available' => true,
             'engine' => $aiEngineRes['engine'],
             'privacy' => $aiEngineRes['privacy']
         ]);
