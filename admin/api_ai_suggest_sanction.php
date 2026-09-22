@@ -318,6 +318,15 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
                 $confidence = 99.0;
                 $handbookCitation = 'NU Lipa Student Handbook Section 5 (Category 5 Major Penalty Matrix — Illegal Drugs & Prohibited Substances)';
             } else {
+                $dbCat = isset($caseMeta['major_category']) && (int)$caseMeta['major_category'] > 0 ? (int)$caseMeta['major_category'] : 0;
+                $categoryNames = [
+                    1 => 'Category 1 (Formal Reprimand & Active Semester Probation)',
+                    2 => 'Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)',
+                    3 => 'Category 3 (1 Semester Non-Readmission / Suspension)',
+                    4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
+                    5 => 'Category 5 (Summary Expulsion & Police Referral)'
+                ];
+
                 // Handbook Sanity Guard: Prevent Academic Exam Sanctions for Physical Brawls / Fights / Non-Academic Offenses
                 $isAcademicSanction = (strpos($upperSanct, 'EXAM') !== false || strpos($upperSanct, 'GRADE OF 0.0') !== false || strpos($upperSanct, 'CHEATING') !== false);
                 $isPhysicalOrNonAcademicMajor = (
@@ -330,7 +339,12 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
                 );
                 $isNotCheatingOffense = (strpos($upperOff, 'CHEATING') === false && strpos($upperOff, 'KODIGO') === false && strpos($upperOff, 'PLAGIARISM') === false);
 
-                if ($isAcademicSanction && $isPhysicalOrNonAcademicMajor && $isNotCheatingOffense) {
+                if ($dbCat >= 1 && $dbCat <= 5) {
+                    $sanction = $categoryNames[$dbCat];
+                    $severity = ($dbCat >= 4) ? 'Critical' : (($dbCat >= 2) ? 'High' : 'Medium');
+                    $confidence = max($confidence, 95.0);
+                    $handbookCitation = "NU Lipa Student Handbook Database Catalog (Category {$dbCat} Major Offense)";
+                } elseif ($isAcademicSanction && $isPhysicalOrNonAcademicMajor && $isNotCheatingOffense) {
                     $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
                     $severity = 'High';
                     $confidence = 94.0;
@@ -404,6 +418,15 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
                 strpos($upperOff, 'PROHIBITED SUBSTANCE') !== false
             );
 
+            $dbCat = isset($caseMeta['major_category']) && (int)$caseMeta['major_category'] > 0 ? (int)$caseMeta['major_category'] : 0;
+            $categoryNames = [
+                1 => 'Category 1 (Formal Reprimand & Active Semester Probation)',
+                2 => 'Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)',
+                3 => 'Category 3 (1 Semester Non-Readmission / Suspension)',
+                4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
+                5 => 'Category 5 (Summary Expulsion & Police Referral)'
+            ];
+
             if ($isExtremeSafetyViolation) {
                 $sanction = 'Category 5 (Summary Expulsion & Police Referral)';
                 $severity = 'Critical';
@@ -414,6 +437,11 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
                 $severity = 'Critical';
                 $confidence = 99.0;
                 $handbookCitation = 'Section 5 Major Penalty Matrix - Category 5 (Illegal Drugs & Prohibited Substances)';
+            } elseif ($dbCat >= 1 && $dbCat <= 5) {
+                $sanction = $categoryNames[$dbCat];
+                $severity = ($dbCat >= 4) ? 'Critical' : (($dbCat >= 2) ? 'High' : 'Medium');
+                $confidence = 95.0;
+                $handbookCitation = "NU Lipa Student Handbook Database Catalog (Category {$dbCat} Major Offense)";
             } elseif ($isMajor2nd) {
                 if (strpos($upperOff, 'FIGHTING') !== false || strpos($upperOff, 'THEFT') !== false || strpos($upperOff, 'SEVERE') !== false) {
                     $sanction = 'Summary Expulsion / Permanent Disqualification';
