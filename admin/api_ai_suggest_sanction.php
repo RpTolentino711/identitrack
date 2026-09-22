@@ -452,7 +452,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $totalDatasetCountStr = number_format(get_total_ai_dataset_count());
     $whyReason = "Evaluated against {$totalDatasetCountStr} historical campus precedent records and NU Lipa Student Handbook ({$handbookCitation}). Offense: '{$offenseName}', Category: '{$category}', Attempt: '{$numOffenseStr}'.";
 
-    $aiText = "🤖 **COMSICE XGBoost ML Model Recommendation**:\n\n"
+    $aiText = "🤖 **Identati Ai XGBoost ML Model Recommendation**:\n\n"
             . "• **Sanction Category**: **{$catLabel}**\n"
             . "• **Predicted Sanction**: **{$sanction}**\n"
             . "• **Confidence Score**: **{$confidence}%** (Severity: **{$severity}**)\n"
@@ -466,7 +466,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         'category_label' => $catLabel,
         'confidence' => $confidence,
         'severity' => $severity,
-        'engine' => 'COMSICE XGBoost ML Model',
+        'engine' => 'Identati Ai XGBoost ML Model',
         'privacy' => '🔒 100% Native (RA 10173 Compliant)'
     ];
 }
