@@ -311,6 +311,9 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         $confidence = 88.5;
         $handbookCitation = 'NU Lipa Student Handbook Section 3.1';
 
+        $upperOff = strtoupper((string)($offenseName . ' ' . $userPrompt));
+        $upperCat = strtoupper((string)($category . ' ' . $numOffenseStr));
+
         $instanceCount = (int)($caseMeta['instance_count'] ?? 1);
         $totalMinorCount = (int)($caseMeta['total_minor_count'] ?? 1);
 
