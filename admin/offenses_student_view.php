@@ -1856,42 +1856,54 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                         </div>
                         <?php foreach ($group as $subIdx => $minor): ?>
                           <?php $subPhoto = get_evidence_photo_url($minor['offense_photo'] ?? ''); ?>
-                          <div class="escalation-minor-item" style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px; padding:10px 14px; background:#fff; border:1px solid #fecdd3; border-radius:10px; box-shadow:0 1px 3px rgba(220,38,38,0.04);">
-                            <div style="display:flex; gap:10px; align-items:flex-start; flex:1;">
-                              <div class="escalation-minor-num"><?php echo ($subIdx + 1); ?></div>
-                              <div>
-                                <div class="escalation-minor-name"><?php echo e((string)$minor['name']); ?></div>
-                                <div class="escalation-minor-meta">
-                                  <?php if (!empty($minor['code'])): ?>
-                                    <span class="escalation-minor-code"><?php echo e((string)$minor['code']); ?></span>
-                                  <?php endif; ?>
-                                  <?php if (!empty($minor['description'])): ?>
-                                    <span style="font-size:11px;color:#991b1b;font-weight:500;font-style:italic;">
-                                      "<?php echo e((string)$minor['description']); ?>"
+                          <?php $foldId = "photo_fold_sec4_" . (int)$groupIndex . "_" . (int)$minor['offense_id']; ?>
+                          <div class="escalation-minor-item" style="margin-bottom:8px; padding:10px 14px; background:#fff; border:1px solid #fecdd3; border-radius:10px; box-shadow:0 1px 3px rgba(220,38,38,0.04);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                              <div style="display:flex; gap:10px; align-items:flex-start; flex:1; <?= $subPhoto !== '' ? 'cursor:pointer;' : '' ?>" <?= $subPhoto !== '' ? 'onclick="togglePhotoFold(\'' . $foldId . '\')"' : '' ?>>
+                                <div class="escalation-minor-num"><?php echo ($subIdx + 1); ?></div>
+                                <div>
+                                  <div class="escalation-minor-name"><?php echo e((string)$minor['name']); ?></div>
+                                  <div class="escalation-minor-meta">
+                                    <?php if (!empty($minor['code'])): ?>
+                                      <span class="escalation-minor-code"><?php echo e((string)$minor['code']); ?></span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($minor['description'])): ?>
+                                      <span style="font-size:11px;color:#991b1b;font-weight:500;font-style:italic;">
+                                        "<?php echo e((string)$minor['description']); ?>"
+                                      </span>
+                                    <?php endif; ?>
+                                    <span style="font-size:11px;color:#b91c1c;font-weight:500;display:flex;align-items:center;gap:4px;">
+                                      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:11px;height:11px;">
+                                        <rect x="3" y="4" width="18" height="18" rx="2"/>
+                                        <line x1="16" y1="2" x2="16" y2="6"/>
+                                        <line x1="8" y1="2" x2="8" y2="6"/>
+                                        <line x1="3" y1="10" x2="21" y2="10"/>
+                                      </svg>
+                                      <?php echo date('M j, Y', strtotime((string)$minor['date_committed'])); ?>
                                     </span>
-                                  <?php endif; ?>
-                                  <span style="font-size:11px;color:#b91c1c;font-weight:500;display:flex;align-items:center;gap:4px;">
-                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:11px;height:11px;">
-                                      <rect x="3" y="4" width="18" height="18" rx="2"/>
-                                      <line x1="16" y1="2" x2="16" y2="6"/>
-                                      <line x1="8" y1="2" x2="8" y2="6"/>
-                                      <line x1="3" y1="10" x2="21" y2="10"/>
-                                    </svg>
-                                    <?php echo date('M j, Y', strtotime((string)$minor['date_committed'])); ?>
-                                  </span>
+                                  </div>
                                 </div>
                               </div>
+                              <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                                <?php if ($subPhoto !== ''): ?>
+                                  <button type="button" onclick="togglePhotoFold('<?= $foldId ?>')" class="btn btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" title="Click to view or hide photo evidence">
+                                    📷 View Photo
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:12px;height:12px;transition:transform 0.2s;" id="arrow_<?= $foldId ?>"><path d="M19 9l-7 7-7-7"></path></svg>
+                                  </button>
+                                  <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)$minor['offense_id'] ?>)" class="btn btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;" title="Replace Photo Evidence">🔄 Replace</button>
+                                <?php else: ?>
+                                  <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)($minor['offense_id'] ?? 0) ?>)" class="btn btn-sm" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" title="Upload Photo Evidence">📷 Upload Photo</button>
+                                <?php endif; ?>
+                              </div>
                             </div>
-                            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-                              <?php if ($subPhoto !== ''): ?>
-                                <a href="<?= htmlspecialchars($subPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
-                                  <img src="<?= htmlspecialchars($subPhoto) ?>" alt="Photo Evidence" style="width:42px; height:42px; object-fit:cover; border-radius:6px; border:1.5px solid #fca5a5; box-shadow:0 2px 5px rgba(185,28,28,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
+                            <?php if ($subPhoto !== ''): ?>
+                              <div id="<?= $foldId ?>" style="display:none; margin-top:10px; padding:10px; background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; text-align:center;">
+                                <a href="<?= htmlspecialchars($subPhoto) ?>" target="_blank" title="Click to open full resolution image in new tab">
+                                  <img src="<?= htmlspecialchars($subPhoto) ?>" alt="Photo Evidence" style="max-width:100%; max-height:280px; object-fit:contain; border-radius:8px; border:1.5px solid #fca5a5; box-shadow:0 4px 12px rgba(185,28,28,0.15);" />
                                 </a>
-                                <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)$minor['offense_id'] ?>)" class="btn btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;" title="Replace Photo Evidence">📷 Replace</button>
-                              <?php else: ?>
-                                <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)($minor['offense_id'] ?? 0) ?>)" class="btn btn-sm" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" title="Upload Photo Evidence">📷 Upload Photo</button>
-                              <?php endif; ?>
-                            </div>
+                                <div style="font-size:11px; color:#991b1b; margin-top:6px; font-weight:600;">Click image to open full resolution (Click "📷 View Photo" or item to fold/hide)</div>
+                              </div>
+                            <?php endif; ?>
                           </div>
                         <?php endforeach; ?>
                       </div>
@@ -1945,44 +1957,17 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                         </div>
                       <?php endif; ?>
 
-                      <?php 
-                        $groupPhotos = [];
-                        if (!empty($groupData['case_photo'])) {
-                          $u = get_evidence_photo_url($groupData['case_photo']);
-                          if ($u !== '') $groupPhotos[] = $u;
-                        }
-                        foreach ($group as $gm) {
-                          if (!empty($gm['offense_photo'])) {
-                            $u = get_evidence_photo_url($gm['offense_photo']);
-                            if ($u !== '' && !in_array($u, $groupPhotos, true)) $groupPhotos[] = $u;
-                          }
-                        }
-                      ?>
-                      <?php if (!empty($groupPhotos)): ?>
-                        <div style="margin-top:12px; margin-bottom:12px; padding:10px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-                          <div style="display:flex; align-items:center; gap:8px;">
-                            <div style="width:32px; height:32px; border-radius:8px; background:#dbeafe; display:grid; place-items:center; color:#1d4ed8; flex-shrink:0;">
-                              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;">
-                                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                              </svg>
-                            </div>
-                            <div>
-                              <div style="font-size:11.5px; font-weight:800; color:#1e40af; text-transform:uppercase; letter-spacing:0.4px;">Photo Evidence Attached</div>
-                              <div style="font-size:11px; color:#3b82f6;">Click thumbnail to inspect full image</div>
-                            </div>
-                          </div>
-                          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                            <?php foreach ($groupPhotos as $pUrl): ?>
-                              <a href="<?= htmlspecialchars($pUrl) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
-                                <img src="<?= htmlspecialchars($pUrl) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #93c5fd; box-shadow:0 3px 8px rgba(29,78,216,0.18); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
-                              </a>
-                            <?php endforeach; ?>
-                          </div>
-                        </div>
-                      <?php endif; ?>
                       <?php
                         $caseIdForNte = (int)($groupData['case_id'] ?? 0);
                         $nteInfo = !empty($nteMap['case_' . $caseIdForNte]) ? $nteMap['case_' . $caseIdForNte] : null;
+                        if (!$nteInfo && !empty($group)) {
+                          foreach ($group as $gm) {
+                            if (!empty($gm['offense_id']) && !empty($nteMap['offense_' . $gm['offense_id']])) {
+                              $nteInfo = $nteMap['offense_' . $gm['offense_id']];
+                              break;
+                            }
+                          }
+                        }
                         $isCaseEnded = in_array(strtoupper((string)($groupData['status'] ?? ($c['status'] ?? ''))), ['RESOLVED', 'CLOSED', 'DISMISSED', 'CANCELLED'], true);
                       ?>
                       <div style="margin-top:12px; margin-bottom:12px; padding:12px; border-radius:8px; font-size:12.5px; <?= $nteInfo ? 'background:#f0fdf4; border:1px solid #bbf7d0;' : 'background:#fffbeb; border:1px solid #fef3c7;' ?>">
@@ -2043,9 +2028,10 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                         <div class="off-desc"><?php echo e((string)$minor['description']); ?></div>
                       <?php endif; ?>
                       <?php $mPhoto = get_evidence_photo_url($minor['offense_photo'] ?? ''); ?>
+                      <?php $mFoldId = "photo_fold_min_" . (int)($minor['offense_id'] ?? rand(1000,9999)); ?>
                       <?php if ($mPhoto !== ''): ?>
                         <div style="margin-top:10px; margin-bottom:10px; padding:10px 14px; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-                          <div style="display:flex; align-items:center; gap:8px;">
+                          <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="togglePhotoFold('<?= $mFoldId ?>')">
                             <div style="width:32px; height:32px; border-radius:8px; background:#fef3c7; display:grid; place-items:center; color:#b45309; flex-shrink:0;">
                               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;">
                                 <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
@@ -2053,15 +2039,22 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                             </div>
                             <div>
                               <div style="font-size:11.5px; font-weight:800; color:#b45309; text-transform:uppercase; letter-spacing:0.4px;">Photo Evidence Attached</div>
-                              <div style="font-size:11px; color:#d97706;">Click thumbnail to inspect full image</div>
+                              <div style="font-size:11px; color:#d97706;">Click to fold / unfold image</div>
                             </div>
                           </div>
                           <div style="display:flex; align-items:center; gap:8px;">
-                            <a href="<?= htmlspecialchars($mPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
-                              <img src="<?= htmlspecialchars($mPhoto) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #fde68a; box-shadow:0 3px 8px rgba(180,83,9,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
-                            </a>
-                            <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)$minor['offense_id'] ?>)" class="btn btn-sm" style="background:#fef3c7; color:#b45309; border:1px solid #fcd34d; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;" title="Replace Photo Evidence">📷 Replace</button>
+                            <button type="button" onclick="togglePhotoFold('<?= $mFoldId ?>')" class="btn btn-sm" style="background:#fef3c7; color:#b45309; border:1px solid #fcd34d; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" title="Click to view or hide photo evidence">
+                              📷 View Photo
+                              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:12px;height:12px;transition:transform 0.2s;" id="arrow_<?= $mFoldId ?>"><path d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)$minor['offense_id'] ?>)" class="btn btn-sm" style="background:#fef3c7; color:#b45309; border:1px solid #fcd34d; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;" title="Replace Photo Evidence">🔄 Replace</button>
                           </div>
+                        </div>
+                        <div id="<?= $mFoldId ?>" style="display:none; margin-top:6px; margin-bottom:12px; padding:10px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; text-align:center;">
+                          <a href="<?= htmlspecialchars($mPhoto) ?>" target="_blank" title="Click to open full resolution image in new tab">
+                            <img src="<?= htmlspecialchars($mPhoto) ?>" alt="Photo Evidence" style="max-width:100%; max-height:280px; object-fit:contain; border-radius:8px; border:1px solid #fcd34d; box-shadow:0 4px 12px rgba(180,83,9,0.15);" />
+                          </a>
+                          <div style="font-size:11px; color:#b45309; margin-top:6px; font-weight:600;">Click image to open full resolution (Click "📷 View Photo" to fold/hide)</div>
                         </div>
                       <?php else: ?>
                         <div style="margin-top:6px; margin-bottom:6px;">
@@ -2200,9 +2193,10 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                       <?php endif; ?>
 
                       <?php $majPhoto = get_evidence_photo_url($h['case_photo'] ?: ($h['offense_photo'] ?? '')); ?>
+                      <?php $majFoldId = "photo_fold_maj_" . (int)($h['offense_id'] ?? rand(1000,9999)); ?>
                       <?php if ($majPhoto !== ''): ?>
                         <div style="margin-top:10px; margin-bottom:10px; padding:10px 14px; background:#fef2f2; border:1px solid #fca5a5; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-                          <div style="display:flex; align-items:center; gap:8px;">
+                          <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="togglePhotoFold('<?= $majFoldId ?>')">
                             <div style="width:32px; height:32px; border-radius:8px; background:#fee2e2; display:grid; place-items:center; color:#dc2626; flex-shrink:0;">
                               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;">
                                 <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
@@ -2210,17 +2204,24 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                             </div>
                             <div>
                               <div style="font-size:11.5px; font-weight:800; color:#b91c1c; text-transform:uppercase; letter-spacing:0.4px;">Photo Evidence Attached</div>
-                              <div style="font-size:11px; color:#dc2626;">Click thumbnail to inspect full image</div>
+                              <div style="font-size:11px; color:#dc2626;">Click to fold / unfold image</div>
                             </div>
                           </div>
                           <div style="display:flex; align-items:center; gap:8px;">
-                            <a href="<?= htmlspecialchars($majPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
-                              <img src="<?= htmlspecialchars($majPhoto) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #fca5a5; box-shadow:0 3px 8px rgba(220,38,38,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
-                            </a>
+                            <button type="button" onclick="togglePhotoFold('<?= $majFoldId ?>')" class="btn btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" title="Click to view or hide photo evidence">
+                              📷 View Photo
+                              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:12px;height:12px;transition:transform 0.2s;" id="arrow_<?= $majFoldId ?>"><path d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
                             <?php if (!empty($h['offense_id'])): ?>
-                              <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)$h['offense_id'] ?>)" class="btn btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;" title="Replace Photo Evidence">📷 Replace</button>
+                              <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)$h['offense_id'] ?>)" class="btn btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;" title="Replace Photo Evidence">🔄 Replace</button>
                             <?php endif; ?>
                           </div>
+                        </div>
+                        <div id="<?= $majFoldId ?>" style="display:none; margin-top:6px; margin-bottom:12px; padding:10px; background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; text-align:center;">
+                          <a href="<?= htmlspecialchars($majPhoto) ?>" target="_blank" title="Click to open full resolution image in new tab">
+                            <img src="<?= htmlspecialchars($majPhoto) ?>" alt="Photo Evidence" style="max-width:100%; max-height:280px; object-fit:contain; border-radius:8px; border:1px solid #fca5a5; box-shadow:0 4px 12px rgba(220,38,38,0.15);" />
+                          </a>
+                          <div style="font-size:11px; color:#991b1b; margin-top:6px; font-weight:600;">Click image to open full resolution (Click "📷 View Photo" to fold/hide)</div>
                         </div>
                       <?php else: ?>
                         <?php if (!empty($h['offense_id'])): ?>
@@ -2229,6 +2230,40 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                           </div>
                         <?php endif; ?>
                       <?php endif; ?>
+
+                      <?php
+                        $majCaseId = (int)($h['case_id'] ?? 0);
+                        $majOffenseId = (int)($h['offense_id'] ?? 0);
+                        $nteInfoMaj = !empty($nteMap['case_' . $majCaseId]) ? $nteMap['case_' . $majCaseId] : (!empty($nteMap['offense_' . $majOffenseId]) ? $nteMap['offense_' . $majOffenseId] : null);
+                        $isMajCaseEnded = in_array(strtoupper((string)($h['uc_status'] ?? $h['status'] ?? '')), ['RESOLVED', 'CLOSED', 'DISMISSED', 'CANCELLED'], true);
+                      ?>
+                      <div style="margin-top:12px; margin-bottom:12px; padding:12px; border-radius:8px; font-size:12.5px; <?= $nteInfoMaj ? 'background:#f0fdf4; border:1px solid #bbf7d0;' : 'background:#fffbeb; border:1px solid #fef3c7;' ?>">
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                          <div>
+                            <?php if ($nteInfoMaj): ?>
+                              <div style="font-weight:700; color:#166534;">✅ Form F-005 Notice to Explain Sent to Outlook</div>
+                              <div style="font-size:11.5px; color:#15803d; margin-top:2px;">
+                                Submitted: <strong><?= date('M j, Y', strtotime($nteInfoMaj['created_at'])) ?> at <?= date('h:i:s A', strtotime($nteInfoMaj['created_at'])) ?></strong>
+                              </div>
+                            <?php else: ?>
+                              <div style="font-weight:700; color:#92400e;">⚠️ Form F-005 Skipped / Not Sent</div>
+                              <div style="font-size:11.5px; color:#b45309; margin-top:2px;">Form F-005 document was not sent during offense creation.</div>
+                            <?php endif; ?>
+                          </div>
+                          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <?php if ($nteInfoMaj && !empty($nteInfoMaj['attachment_path'])): ?>
+                              <a href="../<?= htmlspecialchars($nteInfoMaj['attachment_path']) ?>" target="_blank" download class="btn btn-sm" style="background:#166534; color:#fff; font-weight:700; font-size:11px; padding:4px 10px; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">📥 Download Form F-005</a>
+                              <?php if (!$isMajCaseEnded): ?>
+                                <button type="button" class="btn-trigger-nte-upload" data-case-id="<?= $majCaseId ?>" data-offense-id="<?= $majOffenseId ?>" data-student-id="<?= htmlspecialchars($studentId) ?>" onclick="window.openDirectNteUploadModal(this, event, <?= $majCaseId ?>, '<?= htmlspecialchars($studentId) ?>'); return false;" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-size:13px; font-weight:800; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; line-height:1;" title="Re-upload or replace Form F-005" onmouseover="this.style.background='#dc2626'; this.style.color='#fff';" onmouseout="this.style.background='#fee2e2'; this.style.color='#dc2626';">✕</button>
+                              <?php endif; ?>
+                            <?php else: ?>
+                              <?php if (!$isMajCaseEnded): ?>
+                                <button type="button" class="btn-trigger-nte-upload btn btn-sm" data-case-id="<?= $majCaseId ?>" data-offense-id="<?= $majOffenseId ?>" data-student-id="<?= htmlspecialchars($studentId) ?>" onclick="window.openDirectNteUploadModal(this, event, <?= $majCaseId ?>, '<?= htmlspecialchars($studentId) ?>'); return false;" style="background:#1b2b6b; color:#fff; font-weight:700; font-size:11px; padding:4px 10px; border-radius:6px; border:none; cursor:pointer;">📤 Upload Form F-005</button>
+                              <?php endif; ?>
+                            <?php endif; ?>
+                          </div>
+                        </div>
+                      </div>
 
                       <div class="off-footer">
                         <?php if (!empty($h['code'])): ?>
@@ -2645,6 +2680,19 @@ $majorCount = $rawMajorCount + count($escalationGroups);
   </div>
 </div>
 <script>
+function togglePhotoFold(id) {
+  const el = document.getElementById(id);
+  const arrow = document.getElementById('arrow_' + id);
+  if (el) {
+    if (el.style.display === 'none' || el.style.display === '') {
+      el.style.display = 'block';
+      if (arrow) arrow.style.transform = 'rotate(180deg)';
+    } else {
+      el.style.display = 'none';
+      if (arrow) arrow.style.transform = 'rotate(0deg)';
+    }
+  }
+}
 function openOffensePhotoUploadModal(offenseId) {
   document.getElementById('modal_upload_offense_id').value = offenseId;
   document.getElementById('uploadOffensePhotoModal').style.display = 'flex';
