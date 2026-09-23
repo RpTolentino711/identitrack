@@ -1671,21 +1671,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
         </details>
       </div>
 
-      <div style="margin-top: 8px;">
-        <details style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
-          <summary style="padding: 10px 14px; font-size: 12px; font-weight: 700; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; color: var(--text-2); user-select: none;">
-            <span style="display:flex; align-items:center; gap:6px;">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              View Form F-005 History (' . $totalNteDisplay . ')
-            </span>
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 14px; height: 14px; transition: transform 0.2s;"><path d="M6 9l6 6 6-6"/></svg>
-          </summary>
-          <div style="padding: 12px; border-top: 1px solid var(--border); background: var(--surface); max-height: 220px; overflow-y: auto;">
-            ' . $nteHistoryHtml . '
-          </div>
-        </details>
-        <style>details > summary::-webkit-details-marker { display: none; } details[open] summary svg { transform: rotate(180deg); }</style>
-      </div>
+      <style>details > summary::-webkit-details-marker { display: none; } details[open] summary svg { transform: rotate(180deg); }</style>
     </div>
   </div>';
 }
