@@ -3292,7 +3292,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   <input type="hidden" name="dismissal_approval_confirmed" id="dismissal_approval_confirmed" value="0"/>
                   <input type="hidden" name="evidence_file_confirmed" id="evidence_file_confirmed" value="0"/>
                   <input type="hidden" name="nte_file_confirmed" id="nte_file_confirmed" value="0"/>
-                  <input type="file" name="evidence_file" id="evidence_file_input" style="display:none;" accept="image/*,.pdf"/>
+                  <input type="file" name="evidence_file_hidden" id="evidence_file_input" style="display:none;" accept="image/*,.pdf"/>
 
                   <div class="form-row">
                     <div class="form-group">
@@ -3410,7 +3410,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                       <span>📷 Incident Photo Evidence <span style="font-weight:normal; color:var(--text-4);">(Optional)</span></span>
                       <span id="formPhotoBadge" style="font-size:11px; background:#f1f5f9; color:#64748b; padding:2px 8px; border-radius:10px; font-weight:600;">No photo attached</span>
                     </label>
-                    <input type="file" id="visible_evidence_input" accept="image/*,.pdf" style="padding:8px 12px; font-size:13px;" onchange="handleFormPhotoSelected(this)">
+                    <input type="file" name="evidence_file" id="visible_evidence_input" accept="image/*,.pdf" style="padding:8px 12px; font-size:13px;" onchange="handleFormPhotoSelected(this)">
                     <div id="formPhotoPreviewBox" style="display:none; margin-top:8px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; align-items:center; gap:10px;">
                       <div id="formPhotoThumbnail" style="width:40px; height:40px; border-radius:6px; overflow:hidden; background:#dbeafe; display:flex; align-items:center; justify-content:center; flex-shrink:0;"></div>
                       <div style="flex:1; min-width:0;">
@@ -5663,12 +5663,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       window.__minorPhotoConfirmed = true;
       const form = document.getElementById('offenseForm');
       if (form) {
-        const btn = document.getElementById('btnRegisterOffense');
-        if (btn) {
-          btn.disabled = true;
-          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite; width:18px;height:18px;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Registering...';
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit();
+        } else {
+          const btn = document.getElementById('btnRegisterOffense');
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite; width:18px;height:18px;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Registering...';
+          }
+          form.submit();
         }
-        form.submit();
       }
     };
 
