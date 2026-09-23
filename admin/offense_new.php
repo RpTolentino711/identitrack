@@ -3788,6 +3788,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       <div style="display: flex; gap: 10px; justify-content: center;">
         <button class="btn" onclick="closeConfirmSkipEvidenceModal()" style="flex: 1; justify-content: center; font-weight: 700;">No, Select Photo</button>
         <button class="btn btn-primary" onclick="executeFinishWithoutPhoto()" style="flex: 1; justify-content: center; font-weight: 700; background: #2563eb; border-color: #2563eb;">Yes, Finish Without Photo</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL: Minor Offense Photo Warning Confirmation -->
@@ -5659,7 +5661,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
     window.confirmProceedWithoutMinorPhoto = function() {
       const modal = document.getElementById('minorPhotoWarningModal');
-      if (modal) modal.style.display = 'none';
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+      }
       window.__minorPhotoConfirmed = true;
       const form = document.getElementById('offenseForm');
       if (form) {
@@ -5678,7 +5683,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
     window.focusMinorPhotoInput = function() {
       const modal = document.getElementById('minorPhotoWarningModal');
-      if (modal) modal.style.display = 'none';
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+      }
       const btn = document.getElementById('btnRegisterOffense');
       if (btn) {
         btn.disabled = false;
@@ -5688,7 +5696,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       if (visibleInput) {
         visibleInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
         visibleInput.focus();
-        visibleInput.click();
+        try { visibleInput.click(); } catch(e) {}
       }
     };
 
@@ -5768,7 +5776,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           e.preventDefault();
           e.stopPropagation();
           const modal = document.getElementById('minorPhotoWarningModal');
-          if (modal) modal.style.display = 'flex';
+          if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+          }
           return false;
         }
         window.__minorPhotoConfirmed = false;
