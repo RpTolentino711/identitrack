@@ -542,7 +542,7 @@ foreach ($sec4Cases as $c) {
     $escParams = [':cid' => $caseId];
     db_add_encryption_key($escParams);
     $linkedMinors = db_all("
-        SELECT o.offense_id, o.date_committed, " . db_decrypt_col('description', 'o') . " AS description, ot.code, ot.name
+        SELECT o.offense_id, o.date_committed, o.evidence_file AS offense_photo, " . db_decrypt_col('description', 'o') . " AS description, ot.code, ot.name
         FROM upcc_case_offense uco
         JOIN offense o ON o.offense_id = uco.offense_id
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -1855,31 +1855,44 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                           Contributing Minor Offenses
                         </div>
                         <?php foreach ($group as $subIdx => $minor): ?>
-                        <div class="escalation-minor-item">
-                          <div class="escalation-minor-num"><?php echo ($subIdx + 1); ?></div>
-                          <div>
-                            <div class="escalation-minor-name"><?php echo e((string)$minor['name']); ?></div>
-                            <div class="escalation-minor-meta">
-                              <?php if (!empty($minor['code'])): ?>
-                                <span class="escalation-minor-code"><?php echo e((string)$minor['code']); ?></span>
+                          <?php $subPhoto = get_evidence_photo_url($minor['offense_photo'] ?? ''); ?>
+                          <div class="escalation-minor-item" style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px; padding:10px 14px; background:#fff; border:1px solid #fecdd3; border-radius:10px; box-shadow:0 1px 3px rgba(220,38,38,0.04);">
+                            <div style="display:flex; gap:10px; align-items:flex-start; flex:1;">
+                              <div class="escalation-minor-num"><?php echo ($subIdx + 1); ?></div>
+                              <div>
+                                <div class="escalation-minor-name"><?php echo e((string)$minor['name']); ?></div>
+                                <div class="escalation-minor-meta">
+                                  <?php if (!empty($minor['code'])): ?>
+                                    <span class="escalation-minor-code"><?php echo e((string)$minor['code']); ?></span>
+                                  <?php endif; ?>
+                                  <?php if (!empty($minor['description'])): ?>
+                                    <span style="font-size:11px;color:#991b1b;font-weight:500;font-style:italic;">
+                                      "<?php echo e((string)$minor['description']); ?>"
+                                    </span>
+                                  <?php endif; ?>
+                                  <span style="font-size:11px;color:#b91c1c;font-weight:500;display:flex;align-items:center;gap:4px;">
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:11px;height:11px;">
+                                      <rect x="3" y="4" width="18" height="18" rx="2"/>
+                                      <line x1="16" y1="2" x2="16" y2="6"/>
+                                      <line x1="8" y1="2" x2="8" y2="6"/>
+                                      <line x1="3" y1="10" x2="21" y2="10"/>
+                                    </svg>
+                                    <?php echo date('M j, Y', strtotime((string)$minor['date_committed'])); ?>
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                              <?php if ($subPhoto !== ''): ?>
+                                <a href="<?= htmlspecialchars($subPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
+                                  <img src="<?= htmlspecialchars($subPhoto) ?>" alt="Photo Evidence" style="width:42px; height:42px; object-fit:cover; border-radius:6px; border:1.5px solid #fca5a5; box-shadow:0 2px 5px rgba(185,28,28,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
+                                </a>
+                                <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)$minor['offense_id'] ?>)" class="btn btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;" title="Replace Photo Evidence">📷 Replace</button>
+                              <?php else: ?>
+                                <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)($minor['offense_id'] ?? 0) ?>)" class="btn btn-sm" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" title="Upload Photo Evidence">📷 Upload Photo</button>
                               <?php endif; ?>
-                              <?php if (!empty($minor['description'])): ?>
-                                <span style="font-size:11px;color:#991b1b;font-weight:500;font-style:italic;">
-                                  "<?php echo e((string)$minor['description']); ?>"
-                                </span>
-                              <?php endif; ?>
-                              <span style="font-size:11px;color:#b91c1c;font-weight:500;display:flex;align-items:center;gap:4px;">
-                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:11px;height:11px;">
-                                  <rect x="3" y="4" width="18" height="18" rx="2"/>
-                                  <line x1="16" y1="2" x2="16" y2="6"/>
-                                  <line x1="8" y1="2" x2="8" y2="6"/>
-                                  <line x1="3" y1="10" x2="21" y2="10"/>
-                                </svg>
-                                <?php echo date('M j, Y', strtotime((string)$minor['date_committed'])); ?>
-                              </span>
                             </div>
                           </div>
-                        </div>
                         <?php endforeach; ?>
                       </div>
                       
@@ -2200,10 +2213,21 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                               <div style="font-size:11px; color:#dc2626;">Click thumbnail to inspect full image</div>
                             </div>
                           </div>
-                          <a href="<?= htmlspecialchars($majPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
-                            <img src="<?= htmlspecialchars($majPhoto) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #fca5a5; box-shadow:0 3px 8px rgba(220,38,38,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
-                          </a>
+                          <div style="display:flex; align-items:center; gap:8px;">
+                            <a href="<?= htmlspecialchars($majPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
+                              <img src="<?= htmlspecialchars($majPhoto) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #fca5a5; box-shadow:0 3px 8px rgba(220,38,38,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
+                            </a>
+                            <?php if (!empty($h['offense_id'])): ?>
+                              <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)$h['offense_id'] ?>)" class="btn btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;" title="Replace Photo Evidence">📷 Replace</button>
+                            <?php endif; ?>
+                          </div>
                         </div>
+                      <?php else: ?>
+                        <?php if (!empty($h['offense_id'])): ?>
+                          <div style="margin-top:6px; margin-bottom:6px;">
+                            <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)$h['offense_id'] ?>)" class="btn btn-sm" style="background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">📷 Upload Photo Evidence</button>
+                          </div>
+                        <?php endif; ?>
                       <?php endif; ?>
 
                       <div class="off-footer">

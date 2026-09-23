@@ -1510,10 +1510,6 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
                   ' . (!empty($caseNteDoc) ? 'Form F-005 document is attached below.' : 'Form F-005 was not sent during offense registration.') . '
                 </div>
                 ' . $caseNteBtn . '
-                <div style="margin-top:6px; padding-top:6px; border-top:1px dashed #fde68a; display:flex; align-items:center; justify-content:space-between; font-size:11px; flex-wrap:wrap; gap:4px;">
-                  <span style="font-weight:700; color:#92400e;">📷 Photo Evidence:</span>
-                  ' . $casePhotoBtn . '
-                </div>
               </div>';
           }
       }
@@ -1626,7 +1622,6 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
           Submitted: <strong>' . $nteDate . ' at ' . $nteTime . '</strong>
         </div>
         ' . ($fileLink ?: '<div></div>') . '
-        ' . $hearingToggleBtn . '
       </div>';
   }
 
