@@ -3426,7 +3426,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
                 <div class="form-actions">
                   <input type="hidden" name="_action_hint" value="save">
-                  <button type="submit" id="btnRegisterOffense" class="btn btn-primary" onclick="if(!this.form.checkValidity())return true; const btn=this; setTimeout(() => { btn.disabled=true; btn.innerHTML='<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' style=\'animation: spin 1s linear infinite; width:18px;height:18px;margin-right:6px;\'><path d=\'M21 12a9 9 0 1 1-6.219-8.56\'/></svg> Registering...'; }, 10); return true;">
+                  <button type="submit" id="btnRegisterOffense" class="btn btn-primary">
                     <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                     Register Offense
                   </button>
@@ -5662,12 +5662,24 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       if (modal) modal.style.display = 'none';
       window.__minorPhotoConfirmed = true;
       const form = document.getElementById('offenseForm');
-      if (form) form.submit();
+      if (form) {
+        const btn = document.getElementById('btnRegisterOffense');
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite; width:18px;height:18px;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Registering...';
+        }
+        form.submit();
+      }
     };
 
     window.focusMinorPhotoInput = function() {
       const modal = document.getElementById('minorPhotoWarningModal');
       if (modal) modal.style.display = 'none';
+      const btn = document.getElementById('btnRegisterOffense');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Register Offense';
+      }
       const visibleInput = document.getElementById('visible_evidence_input');
       if (visibleInput) {
         visibleInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -5792,6 +5804,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
           }
         }
 
+        const btn = document.getElementById('btnRegisterOffense');
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite; width:18px;height:18px;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Registering...';
+        }
         return true;
       });
     });
