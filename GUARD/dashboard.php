@@ -1245,7 +1245,15 @@ function submitReport() {
   }
 
   fetch('api_submit_report.php', { method:'POST', body:fd })
-    .then(r => r.json())
+    .then(async r => {
+      const text = await r.text();
+      try {
+        return JSON.parse(text);
+      } catch (err) {
+        console.error('Non-JSON response:', text);
+        return { success: false, message: 'Server error: Invalid response format.' };
+      }
+    })
     .then(data => {
       btn.disabled = false;
       btn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> Submit Violation Report`;
@@ -1268,7 +1276,7 @@ function submitReport() {
         showToast(data.message || 'Submission failed.', 'error');
       }
     })
-    .catch(() => {
+    .catch(err => {
       btn.disabled = false;
       btn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> Submit Violation Report`;
       showToast('Network error. Please try again.', 'error');

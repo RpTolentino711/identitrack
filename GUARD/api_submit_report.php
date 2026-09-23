@@ -1,14 +1,19 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+ob_start();
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['guard_logged_in']) || $_SESSION['guard_logged_in'] !== true) {
+    ob_clean();
     http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized session. Please re-login.']);
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    ob_clean();
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Method not allowed']);
     exit;
@@ -18,7 +23,13 @@ $studentId     = trim($_POST['student_id']      ?? '');
 $offenseTypeId = intval($_POST['offense_type_id'] ?? 0);
 $dateCommitted = trim($_POST['date_committed']   ?? '');
 $description   = trim($_POST['description']      ?? '');
-$guardId       = $_SESSION['guard_id'];
+$guardId       = intval($_SESSION['guard_id']    ?? 0);
+
+if ($guardId <= 0) {
+    ob_clean();
+    echo json_encode(['success' => false, 'message' => 'Invalid guard session. Please re-login.']);
+    exit;
+}
 
 // Validate
 if ($studentId === '') {
@@ -129,8 +140,8 @@ if ($info) {
         ':title' => 'Guard Report: ' . $info['level'] . ' offense filed for ' . $fullName,
         ':msg'   => 'Guard submitted a violation report for ' . $fullName . '. Offense: ' . $info['offense_name'] . '. Pending admin review.',
         ':sid'   => $studentId,
-        ':rid'   => $reportId,
     ]);
 }
 
+ob_clean();
 echo json_encode(['success' => true, 'report_id' => $reportId]);
