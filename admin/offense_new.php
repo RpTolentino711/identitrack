@@ -3404,7 +3404,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                 </div>
 
-                <div class="form-row full" style="margin-top: 6px;">
+                <div class="form-row full" id="formPhotoGroup" style="margin-top: 6px; <?php echo ($level === 'MAJOR') ? 'display:none;' : ''; ?>">
                   <div class="form-group">
                     <label for="visible_evidence_input" style="font-weight:700; color:var(--text-3); display:flex; align-items:center; justify-content:space-between;">
                       <span>📷 Incident Photo Evidence <span style="font-weight:normal; color:var(--text-4);">(Optional)</span></span>
@@ -4553,6 +4553,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const catGroup = document.getElementById('categoryGroup');
     if (catGroup) {
       catGroup.style.display = (lvl === 'MAJOR') ? 'block' : 'none';
+    }
+
+    const photoGroup = document.getElementById('formPhotoGroup');
+    if (photoGroup) {
+      photoGroup.style.display = (lvl === 'MAJOR') ? 'none' : 'block';
     }
 
     const disBanner = document.getElementById('dismissedAlertBanner');
