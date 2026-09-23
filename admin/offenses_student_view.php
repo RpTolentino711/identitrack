@@ -1514,26 +1514,45 @@ $majorCount = $rawMajorCount + count($escalationGroups);
   <?php require_once __DIR__ . '/header.php'; ?>
 
   <script>
-    window.openDirectNteUploadModal = function(btn, evt, caseId, studentId) {
-        if (evt) {
-            if (evt.preventDefault) evt.preventDefault();
-            if (evt.stopPropagation) evt.stopPropagation();
+    window.openDirectNteUploadModal = function(btnOrCid, evtOrSid, caseIdOpt, studentIdOpt, offenseIdOpt) {
+        if (evtOrSid && typeof evtOrSid === 'object' && evtOrSid.preventDefault) {
+            evtOrSid.preventDefault();
+            if (evtOrSid.stopPropagation) evtOrSid.stopPropagation();
         }
-        let cid = caseId || 0;
-        let sid = studentId || '';
-        if (btn && btn.getAttribute) {
-            cid = btn.getAttribute('data-case-id') || cid;
-            sid = btn.getAttribute('data-student-id') || sid;
+        let cid = 0;
+        let oid = 0;
+        let sid = '<?= htmlspecialchars($studentId) ?>';
+
+        if (typeof btnOrCid === 'number' || (typeof btnOrCid === 'string' && !isNaN(parseInt(btnOrCid)) && !btnOrCid.includes('HTML'))) {
+            cid = parseInt(btnOrCid) || 0;
+            if (typeof evtOrSid === 'string' && evtOrSid.length > 0) {
+                sid = evtOrSid;
+            }
+            if (typeof caseIdOpt === 'number' || (typeof caseIdOpt === 'string' && !isNaN(parseInt(caseIdOpt)))) {
+                oid = parseInt(caseIdOpt) || 0;
+            }
+        } else if (btnOrCid && btnOrCid.getAttribute) {
+            cid = parseInt(btnOrCid.getAttribute('data-case-id')) || parseInt(caseIdOpt) || 0;
+            oid = parseInt(btnOrCid.getAttribute('data-offense-id')) || parseInt(offenseIdOpt) || 0;
+            sid = btnOrCid.getAttribute('data-student-id') || studentIdOpt || sid;
         }
+
         const cidEl = document.getElementById('directNteCaseId');
+        const oidEl = document.getElementById('directNteOffenseId');
         const sidEl = document.getElementById('directNteStudentId');
         const msgEl = document.getElementById('directNteUploadMsg');
+        const fileEl = document.getElementById('directNteFileInput');
+        const submitBtn = document.getElementById('btnSubmitDirectNte');
+
         if (cidEl) cidEl.value = cid;
+        if (oidEl) oidEl.value = oid;
         if (sidEl) sidEl.value = sid;
         if (msgEl) msgEl.innerHTML = '';
+        if (fileEl) fileEl.value = '';
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; }
+
         const modal = document.getElementById('directNteUploadModal');
         if (modal) {
-            modal.classList.add('active');
             modal.style.cssText = 'display:flex !important; position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; background:rgba(15,23,42,0.75) !important; z-index:999999 !important; align-items:center !important; justify-content:center !important;';
         }
         return false;
@@ -1542,8 +1561,44 @@ $majorCount = $rawMajorCount + count($escalationGroups);
     window.closeDirectNteUploadModal = function() {
         const modal = document.getElementById('directNteUploadModal');
         if (modal) {
-            modal.classList.remove('active');
             modal.style.cssText = 'display:none !important;';
+        }
+    };
+
+    window.submitDirectNteUpload = async function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        const form = document.getElementById('directNteUploadForm');
+        const formData = new FormData(form);
+        const msg = document.getElementById('directNteUploadMsg');
+        const btn = document.getElementById('btnSubmitDirectNte');
+
+        if (msg) { msg.innerHTML = '⌛ Uploading & sending email to student Outlook…'; msg.style.color = '#334155'; }
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+
+        try {
+            const res = await fetch('api_send_nte_form.php', { method: 'POST', body: formData });
+            const text = await res.text();
+            let data = {};
+            try {
+                data = JSON.parse(text);
+            } catch (parseErr) {
+                console.error('Non-JSON response from api_send_nte_form.php:', text);
+                data = { ok: false, error: 'Server error: Invalid format.' };
+            }
+
+            if (data.ok || data.success) {
+                if (msg) { msg.innerHTML = '✅ Form F-005 uploaded & sent to student Outlook!'; msg.style.color = '#166534'; }
+                setTimeout(() => {
+                    window.closeDirectNteUploadModal();
+                    window.location.reload();
+                }, 1000);
+            } else {
+                if (msg) { msg.innerHTML = '❌ Failed: ' + (data.error || data.message || 'Error occurred during upload'); msg.style.color = '#b91c1c'; }
+                if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+            }
+        } catch (err) {
+            if (msg) { msg.innerHTML = '❌ Upload error: ' + err.message; msg.style.color = '#b91c1c'; }
+            if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
         }
     };
 
@@ -1553,8 +1608,9 @@ $majorCount = $rawMajorCount + count($escalationGroups);
             e.preventDefault();
             e.stopPropagation();
             const cid = btn.getAttribute('data-case-id') || 0;
+            const oid = btn.getAttribute('data-offense-id') || 0;
             const sid = btn.getAttribute('data-student-id') || '';
-            window.openDirectNteUploadModal(btn, e, cid, sid);
+            window.openDirectNteUploadModal(btn, e, cid, sid, oid);
         }
     }, true);
   </script>
@@ -2607,51 +2663,6 @@ $majorCount = $rawMajorCount + count($escalationGroups);
       }
     });
   })();
-
-  function openDirectNteUploadModal(caseId, studentId) {
-      document.getElementById('directNteCaseId').value = caseId;
-      document.getElementById('directNteStudentId').value = studentId;
-      document.getElementById('directNteUploadMsg').innerHTML = '';
-      const modal = document.getElementById('directNteUploadModal');
-      if (modal) modal.style.display = 'flex';
-  }
-
-  function closeDirectNteUploadModal() {
-      const modal = document.getElementById('directNteUploadModal');
-      if (modal) modal.style.display = 'none';
-  }
-
-  async function submitDirectNteUpload(e) {
-      e.preventDefault();
-      const form = document.getElementById('directNteUploadForm');
-      const formData = new FormData(form);
-      const msg = document.getElementById('directNteUploadMsg');
-      const btn = document.getElementById('btnSubmitDirectNte');
-      
-      if (msg) { msg.innerHTML = '⌛ Uploading & sending email to student Outlook…'; msg.style.color = '#334155'; }
-      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
-      
-      try {
-          const res = await fetch('api_send_nte_form.php', { method: 'POST', body: formData });
-          const data = await res.json();
-          
-          if (data.ok) {
-              if (msg) { msg.innerHTML = '✅ Form F-005 uploaded & sent to student Outlook!'; msg.style.color = '#166534'; }
-              setTimeout(() => {
-                  closeDirectNteUploadModal();
-                  window.location.reload();
-              }, 1200);
-          } else {
-              if (msg) { msg.innerHTML = '❌ Failed: ' + (data.error || data.message || 'Error occurred'); msg.style.color = '#b91c1c'; }
-              if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
-          }
-      } catch (err) {
-          if (msg) { msg.innerHTML = '❌ Upload error: ' + err.message; msg.style.color = '#b91c1c'; }
-          if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
-      }
-  }
-  </script>
-
   </script>
 <!-- UPLOAD OFFENSE PHOTO EVIDENCE MODAL -->
 <div id="uploadOffensePhotoModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; justify-content:center; align-items:center;">
