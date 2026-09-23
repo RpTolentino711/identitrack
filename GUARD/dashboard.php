@@ -853,7 +853,12 @@ input[type=datetime-local].form-control { color-scheme: light; }
             </svg>
             Incident Photo Evidence <span style="color:var(--muted); font-size:11px; font-weight:normal;">(Optional)</span>
           </div>
-          <input type="file" id="evidenceFile" class="form-control" accept="image/*,.pdf" style="padding: 8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="file" id="evidenceFile" class="form-control" accept="image/*,.pdf" style="padding: 8px; flex:1;" onchange="onGuardFileSelected(this)">
+            <button type="button" id="clearPhotoBtn" onclick="clearGuardEvidenceFile()" style="display:none; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:10px; padding:0 14px; font-weight:800; font-size:14px; cursor:pointer; align-items:center; justify-content:center; gap:4px; flex-shrink:0; height:42px;" title="Clear selected photo">
+              ✕
+            </button>
+          </div>
           <div style="font-size:11px; color:var(--muted); margin-top:4px;">Attach photo or PDF file of the incident evidence.</div>
         </div>
 
@@ -1169,6 +1174,22 @@ function updateLevelBadge() {
 
 window.__guardPhotoConfirmed = false;
 
+function onGuardFileSelected(input) {
+  const clearBtn = document.getElementById('clearPhotoBtn');
+  if (input && input.files && input.files.length > 0) {
+    if (clearBtn) clearBtn.style.display = 'inline-flex';
+  } else {
+    if (clearBtn) clearBtn.style.display = 'none';
+  }
+}
+
+function clearGuardEvidenceFile() {
+  const input = document.getElementById('evidenceFile');
+  const clearBtn = document.getElementById('clearPhotoBtn');
+  if (input) input.value = '';
+  if (clearBtn) clearBtn.style.display = 'none';
+}
+
 function closeGuardNoPhotoModal(proceed) {
   const modal = document.getElementById('guardNoPhotoConfirmModal');
   if (modal) modal.style.display = 'none';
@@ -1239,6 +1260,7 @@ function submitReport() {
         document.getElementById('reportFormWrap').classList.add('hidden');
         document.getElementById('offenseSelect').value = '';
         document.getElementById('description').value = '';
+        clearGuardEvidenceFile();
         updateLevelBadge();
         searchInput.value = '';
         document.getElementById('selectedStudentId').value = '';
