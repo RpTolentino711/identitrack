@@ -172,6 +172,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
           $evidenceFilePath = 'uploads/incident_reports/' . $filename;
         }
       }
+    } elseif (!empty($_POST['existing_evidence_file'])) {
+      $evidenceFilePath = trim((string)$_POST['existing_evidence_file']);
     }
 
     $offenseStatus = ($level === 'DISMISSED') ? 'DISMISSED' : 'OPEN';
@@ -3404,18 +3406,40 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                 </div>
 
+                <?php
+                  $pendingGuardEvFile = ($pendingGuardReport && !empty($pendingGuardReport['evidence_file'])) ? (string)$pendingGuardReport['evidence_file'] : '';
+                  $hasExistingPhoto = !empty($pendingGuardEvFile);
+                  $existingPhotoUrl = $hasExistingPhoto ? '../' . htmlspecialchars($pendingGuardEvFile) : '';
+                  $existingFileName = $hasExistingPhoto ? htmlspecialchars(basename($pendingGuardEvFile)) : '';
+                  $isImageEv = $hasExistingPhoto && (bool)preg_match('/\.(jpg|jpeg|png|webp)$/i', $pendingGuardEvFile);
+                ?>
                 <div class="form-row full" id="formPhotoGroup" style="margin-top: 6px; <?php echo ($level === 'MAJOR') ? 'display:none;' : ''; ?>">
                   <div class="form-group">
                     <label for="visible_evidence_input" style="font-weight:700; color:var(--text-3); display:flex; align-items:center; justify-content:space-between;">
                       <span>📷 Incident Photo Evidence <span style="font-weight:normal; color:var(--text-4);">(Optional)</span></span>
-                      <span id="formPhotoBadge" style="font-size:11px; background:#f1f5f9; color:#64748b; padding:2px 8px; border-radius:10px; font-weight:600;">No photo attached</span>
+                      <span id="formPhotoBadge" style="font-size:11px; background:<?php echo $hasExistingPhoto ? '#dcfce7' : '#f1f5f9'; ?>; color:<?php echo $hasExistingPhoto ? '#15803d' : '#64748b'; ?>; padding:2px 8px; border-radius:10px; font-weight:600;">
+                        <?php echo $hasExistingPhoto ? 'Guard Photo Auto-Filled ✓' : 'No photo attached'; ?>
+                      </span>
                     </label>
+                    <input type="hidden" name="existing_evidence_file" id="existing_evidence_file" value="<?php echo htmlspecialchars($pendingGuardEvFile); ?>"/>
                     <input type="file" name="evidence_file" id="visible_evidence_input" accept="image/*,.pdf" style="padding:8px 12px; font-size:13px;" onchange="handleFormPhotoSelected(this)">
-                    <div id="formPhotoPreviewBox" style="display:none; margin-top:8px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; align-items:center; gap:10px;">
-                      <div id="formPhotoThumbnail" style="width:40px; height:40px; border-radius:6px; overflow:hidden; background:#dbeafe; display:flex; align-items:center; justify-content:center; flex-shrink:0;"></div>
+                    <div id="formPhotoPreviewBox" style="display:<?php echo $hasExistingPhoto ? 'flex' : 'none'; ?>; margin-top:8px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; align-items:center; gap:10px;">
+                      <div id="formPhotoThumbnail" style="width:40px; height:40px; border-radius:6px; overflow:hidden; background:#dbeafe; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <?php if ($hasExistingPhoto): ?>
+                          <?php if ($isImageEv): ?>
+                            <img src="<?php echo $existingPhotoUrl; ?>" style="width:100%; height:100%; object-fit:cover;" />
+                          <?php else: ?>
+                            <span style="font-size:20px; color:#2563eb;">📄</span>
+                          <?php endif; ?>
+                        <?php endif; ?>
+                      </div>
                       <div style="flex:1; min-width:0;">
-                        <div id="formPhotoFileName" style="font-size:12px; font-weight:700; color:#1e40af; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
-                        <div id="formPhotoFileSize" style="font-size:10px; color:#3b82f6;"></div>
+                        <div id="formPhotoFileName" style="font-size:12px; font-weight:700; color:#1e40af; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                          <?php echo $hasExistingPhoto ? ($existingFileName . ' (Guard Report Photo)') : ''; ?>
+                        </div>
+                        <div id="formPhotoFileSize" style="font-size:10px; color:#3b82f6;">
+                          <?php echo $hasExistingPhoto ? ('Auto-filled from Pending Guard Report #' . (int)$pendingReportId) : ''; ?>
+                        </div>
                       </div>
                       <button type="button" onclick="clearFormPhotoSelection()" style="background:#fee2e2; color:#dc2626; border:none; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">Remove</button>
                     </div>
@@ -5633,6 +5657,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
       if (previewBox) previewBox.style.display = 'flex';
 
+      const existingInput = document.getElementById('existing_evidence_file');
+      if (existingInput) existingInput.value = '';
+
       const hiddenInput = document.getElementById('evidence_file_input');
       if (hiddenInput && window.DataTransfer) {
         const dt = new DataTransfer();
@@ -5645,11 +5672,13 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       const previewBox = document.getElementById('formPhotoPreviewBox');
       const visibleInput = document.getElementById('visible_evidence_input');
       const hiddenInput = document.getElementById('evidence_file_input');
+      const existingInput = document.getElementById('existing_evidence_file');
       const badgeEl = document.getElementById('formPhotoBadge');
 
       if (previewBox) previewBox.style.display = 'none';
       if (visibleInput) visibleInput.value = '';
       if (hiddenInput) hiddenInput.value = '';
+      if (existingInput) existingInput.value = '';
       if (badgeEl) {
         badgeEl.textContent = 'No photo attached';
         badgeEl.style.background = '#f1f5f9';
@@ -5768,8 +5797,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         const lvl = document.getElementById('levelSelect')?.value || 'MINOR';
         const visibleInput = document.getElementById('visible_evidence_input');
         const hiddenInput = document.getElementById('evidence_file_input');
+        const existingInput = document.getElementById('existing_evidence_file');
         const hasPhoto = (visibleInput && visibleInput.files && visibleInput.files.length > 0) ||
-                         (hiddenInput && hiddenInput.files && hiddenInput.files.length > 0);
+                         (hiddenInput && hiddenInput.files && hiddenInput.files.length > 0) ||
+                         (existingInput && existingInput.value.trim() !== '');
 
         // Check if Minor Offense submit without photo evidence
         if (lvl === 'MINOR' && !hasPhoto && !window.__minorPhotoConfirmed) {
