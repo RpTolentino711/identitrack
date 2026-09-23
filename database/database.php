@@ -2058,10 +2058,19 @@ function ensure_upcc_ai_schema(): void {
 
     $done = true;
 }
+function ensure_guard_report_evidence_column(): void {
+    static $done = false;
+    if ($done) return;
+    try {
+        db_exec("ALTER TABLE guard_violation_report ADD COLUMN evidence_file VARCHAR(255) DEFAULT NULL;");
+    } catch (\Throwable $e) {}
+    $done = true;
+}
 ensure_dismissed_records_migrated();
 ensure_notice_to_explain_table();
 ensure_hearing_photo_column();
 ensure_upcc_ai_schema();
+ensure_guard_report_evidence_column();
 
 if (!function_exists('getOrdinal')) {
     function getOrdinal(int $n): string {

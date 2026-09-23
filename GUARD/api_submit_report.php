@@ -61,6 +61,7 @@ if (!$dt) {
 $dateFormatted = $dt->format('Y-m-d H:i:s');
 
 require_once __DIR__ . '/../database/database.php';
+ensure_guard_report_evidence_column();
 $pdo = getConnection();
 
 // Verify student exists
