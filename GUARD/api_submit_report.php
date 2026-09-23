@@ -97,50 +97,57 @@ if (isset($_FILES['evidence_file']) && $_FILES['evidence_file']['error'] === UPL
     }
 }
 
-// Insert report with encrypted description & evidence file
-$sqlIns = "INSERT INTO guard_violation_report
-        (student_id, submitted_by, offense_type_id, date_committed, description, evidence_file, status)
-    VALUES
-        (:sid, :gid, :oid, :dt, " . db_encrypt_col('description', ':desc') . ", :evfile, 'PENDING')";
+try {
+    // Insert report with encrypted description & evidence file
+    $sqlIns = "INSERT INTO guard_violation_report
+            (student_id, submitted_by, offense_type_id, date_committed, description, evidence_file, status)
+        VALUES
+            (:sid, :gid, :oid, :dt, " . db_encrypt_col('description', ':desc') . ", :evfile, 'PENDING')";
 
-$paramsIns = [
-    ':sid'    => $studentId,
-    ':gid'    => $guardId,
-    ':oid'    => $offenseTypeId,
-    ':dt'     => $dateFormatted,
-    ':desc'   => $description !== '' ? $description : '',
-    ':evfile' => $evidenceFilePath,
-];
-db_add_encryption_key($paramsIns);
-db_exec($sqlIns, $paramsIns);
+    $paramsIns = [
+        ':sid'    => $studentId,
+        ':gid'    => $guardId,
+        ':oid'    => $offenseTypeId,
+        ':dt'     => $dateFormatted,
+        ':desc'   => $description !== '' ? $description : '',
+        ':evfile' => $evidenceFilePath,
+    ];
+    db_add_encryption_key($paramsIns);
+    db_exec($sqlIns, $paramsIns);
 
-$reportId = db_last_id();
+    $reportId = db_last_id();
 
-// Insert notification for admin
-$sqlNotif = "INSERT INTO notification
-        (type, title, message, student_id, related_table, related_id, is_read)
-    VALUES
-        ('GUARD_REPORT', :title, :msg, :sid, 'guard_violation_report', :rid, 0)";
+    // Insert notification for admin
+    $sqlNotif = "INSERT INTO notification
+            (type, title, message, student_id, related_table, related_id, is_read)
+        VALUES
+            ('GUARD_REPORT', :title, :msg, :sid, 'guard_violation_report', :rid, 0)";
 
-// Get offense name and student name (decrypted) for notification
-$sqlInfo = "SELECT 
-        " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ", 
-        ot.name AS offense_name, ot.level
-    FROM student s
-    JOIN offense_type ot ON ot.offense_type_id = :oid
-    WHERE s.student_id = :sid";
+    // Get offense name and student name (decrypted) for notification
+    $sqlInfo = "SELECT 
+            " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ", 
+            ot.name AS offense_name, ot.level
+        FROM student s
+        JOIN offense_type ot ON ot.offense_type_id = :oid
+        WHERE s.student_id = :sid";
 
-$paramsInfo = [':oid' => $offenseTypeId, ':sid' => $studentId];
-db_add_encryption_key($paramsInfo);
-$info = db_one($sqlInfo, $paramsInfo);
+    $paramsInfo = [':oid' => $offenseTypeId, ':sid' => $studentId];
+    db_add_encryption_key($paramsInfo);
+    $info = db_one($sqlInfo, $paramsInfo);
 
-if ($info) {
-    $fullName = $info['student_fn'] . ' ' . $info['student_ln'];
-    db_exec($sqlNotif, [
-        ':title' => 'Guard Report: ' . $info['level'] . ' offense filed for ' . $fullName,
-        ':msg'   => 'Guard submitted a violation report for ' . $fullName . '. Offense: ' . $info['offense_name'] . '. Pending admin review.',
-        ':sid'   => $studentId,
-    ]);
+    if ($info) {
+        $fullName = $info['student_fn'] . ' ' . $info['student_ln'];
+        db_exec($sqlNotif, [
+            ':title' => 'Guard Report: ' . $info['level'] . ' offense filed for ' . $fullName,
+            ':msg'   => 'Guard submitted a violation report for ' . $fullName . '. Offense: ' . $info['offense_name'] . '. Pending admin review.',
+            ':sid'   => $studentId,
+            ':rid'   => $reportId,
+        ]);
+    }
+} catch (\Throwable $e) {
+    ob_clean();
+    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+    exit;
 }
 
 ob_clean();
