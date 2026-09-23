@@ -68,18 +68,37 @@ if (!$otCheck->fetch()) {
     exit;
 }
 
-// Insert report with encrypted description
+// Process uploaded evidence file if provided
+$evidenceFilePath = null;
+if (isset($_FILES['evidence_file']) && $_FILES['evidence_file']['error'] === UPLOAD_ERR_OK) {
+    $uploadDir = __DIR__ . '/../uploads/incident_reports/';
+    if (!is_dir($uploadDir)) {
+        @mkdir($uploadDir, 0777, true);
+    }
+    $ext = strtolower(pathinfo($_FILES['evidence_file']['name'], PATHINFO_EXTENSION));
+    $allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+    if (in_array($ext, $allowedExts, true)) {
+        $filename = 'guard_ev_' . time() . '_' . uniqid() . '.' . $ext;
+        $targetPath = $uploadDir . $filename;
+        if (move_uploaded_file($_FILES['evidence_file']['tmp_name'], $targetPath)) {
+            $evidenceFilePath = 'uploads/incident_reports/' . $filename;
+        }
+    }
+}
+
+// Insert report with encrypted description & evidence file
 $sqlIns = "INSERT INTO guard_violation_report
-        (student_id, submitted_by, offense_type_id, date_committed, description, status)
+        (student_id, submitted_by, offense_type_id, date_committed, description, evidence_file, status)
     VALUES
-        (:sid, :gid, :oid, :dt, " . db_encrypt_col('description', ':desc') . ", 'PENDING')";
+        (:sid, :gid, :oid, :dt, " . db_encrypt_col('description', ':desc') . ", :evfile, 'PENDING')";
 
 $paramsIns = [
-    ':sid'  => $studentId,
-    ':gid'  => $guardId,
-    ':oid'  => $offenseTypeId,
-    ':dt'   => $dateFormatted,
-    ':desc' => $description !== '' ? $description : '',
+    ':sid'    => $studentId,
+    ':gid'    => $guardId,
+    ':oid'    => $offenseTypeId,
+    ':dt'     => $dateFormatted,
+    ':desc'   => $description !== '' ? $description : '',
+    ':evfile' => $evidenceFilePath,
 ];
 db_add_encryption_key($paramsIns);
 db_exec($sqlIns, $paramsIns);

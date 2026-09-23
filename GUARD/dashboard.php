@@ -845,6 +845,18 @@ input[type=datetime-local].form-control { color-scheme: light; }
           <textarea id="description" class="form-control" placeholder="Add additional details about the violation..." required></textarea>
         </div>
 
+        <div class="field">
+          <div class="field-label">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <circle cx="12" cy="13" r="3" />
+            </svg>
+            Incident Photo Evidence <span style="color:var(--muted); font-size:11px; font-weight:normal;">(Optional)</span>
+          </div>
+          <input type="file" id="evidenceFile" class="form-control" accept="image/*,.pdf" style="padding: 8px;">
+          <div style="font-size:11px; color:var(--muted); margin-top:4px;">Attach photo or PDF file of the incident evidence.</div>
+        </div>
+
         <div class="form-divider"></div>
 
         <button class="btn-submit" id="submitBtn" onclick="submitReport()">
@@ -933,6 +945,23 @@ input[type=datetime-local].form-control { color-scheme: light; }
     </div>
     <div class="welcome-title" id="guardScanTitle">Scanning...</div>
     <div class="welcome-sub" id="guardScanSub">Please wait while verifying...</div>
+  </div>
+</div>
+
+<!-- ─── SUBMIT NO PHOTO CONFIRMATION MODAL ─── -->
+<div class="welcome-overlay" id="guardNoPhotoConfirmModal" style="display: none; align-items: center; justify-content: center; position: fixed; inset: 0; z-index: 10000; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px);">
+  <div class="welcome-card" style="text-align:center; padding:32px 24px; width: 90%; max-width: 420px;">
+    <div style="width:64px; height:64px; border-radius:50%; background:#fffbe0; color:#d97706; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.15); font-size:32px;">
+      📷
+    </div>
+    <div class="welcome-title" style="font-size:20px; margin-bottom:8px;">No Photo Evidence Attached</div>
+    <div class="welcome-sub" style="font-size:14px; margin-bottom:24px; line-height: 1.5; color:var(--text2);">
+      You are about to submit a violation report without attaching incident photo evidence. Would you like to proceed or add a photo first?
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button type="button" class="sheet-btn" onclick="closeGuardNoPhotoModal(true)" style="flex:1; justify-content:center; padding:12px; font-weight:700;">Confirm & Submit</button>
+      <button type="button" class="welcome-cta" onclick="closeGuardNoPhotoModal(false)" style="flex:1; justify-content:center; padding:12px;">Add Photo First</button>
+    </div>
   </div>
 </div>
 
@@ -1138,6 +1167,20 @@ function updateLevelBadge() {
   }
 }
 
+window.__guardPhotoConfirmed = false;
+
+function closeGuardNoPhotoModal(proceed) {
+  const modal = document.getElementById('guardNoPhotoConfirmModal');
+  if (modal) modal.style.display = 'none';
+  if (proceed) {
+    window.__guardPhotoConfirmed = true;
+    submitReport();
+  } else {
+    const fileEl = document.getElementById('evidenceFile');
+    if (fileEl) fileEl.focus();
+  }
+}
+
 // ─── SUBMIT ───
 function submitReport() {
   const studentId  = document.getElementById('selectedStudentId').value;
@@ -1146,11 +1189,22 @@ function submitReport() {
 
   const descEl     = document.getElementById('description');
   const desc       = descEl ? descEl.value : '';
-  
+  const fileEl     = document.getElementById('evidenceFile');
+  const hasFile    = fileEl && fileEl.files && fileEl.files.length > 0;
+
   if (!studentId)        { showToast('No student selected.', 'error'); return; }
   if (!offenseId)        { showToast('Please select an offense type.', 'error'); return; }
   if (!dateCommit)       { showToast('Please enter the incident date & time.', 'error'); return; }
   if (!desc || !desc.trim()) { showToast('Please enter the incident details / remarks.', 'error'); if (descEl) descEl.focus(); return; }
+
+  if (!hasFile && !window.__guardPhotoConfirmed) {
+    const modal = document.getElementById('guardNoPhotoConfirmModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      return;
+    }
+  }
+  window.__guardPhotoConfirmed = false;
 
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
@@ -1165,6 +1219,9 @@ function submitReport() {
   fd.append('offense_type_id', offenseId);
   fd.append('date_committed',  dateCommit);
   fd.append('description',     desc);
+  if (hasFile) {
+    fd.append('evidence_file', fileEl.files[0]);
+  }
 
   fetch('api_submit_report.php', { method:'POST', body:fd })
     .then(r => r.json())

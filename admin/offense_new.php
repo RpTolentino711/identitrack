@@ -3392,12 +3392,38 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
                 <?php
                   $isDescRequired = ($level === 'MAJOR' || $level === 'DISMISSED' || in_array($postExistingTypeId, [22, 23, 24], true));
+                  $isNotesEnabled = ($isDescRequired || $postDesc !== '');
                 ?>
                 <div class="form-row full">
                   <div class="form-group">
-                    <label for="description" id="descLabel">Description / Notes <span id="descOptional" style="<?php echo $isDescRequired ? 'color:var(--red); font-weight:800;' : ''; ?>"><?php echo $isDescRequired ? ($level === 'MAJOR' ? '* (REQUIRED FOR MAJOR OFFENSES)' : '* (Required)') : '(optional)'; ?></span></label>
-                    <textarea id="description" name="description" <?php echo $isDescRequired ? 'required' : ''; ?>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                      <label for="description" id="descLabel" style="margin-bottom:0;">Description / Notes <span id="descOptional" style="<?php echo $isDescRequired ? 'color:var(--red); font-weight:800;' : ''; ?>"><?php echo $isDescRequired ? ($level === 'MAJOR' ? '* (REQUIRED FOR MAJOR OFFENSES)' : '* (Required)') : '(optional)'; ?></span></label>
+                      <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--blue); cursor:pointer; text-transform:none; letter-spacing:0;">
+                        <input type="checkbox" id="enable_custom_notes" onchange="toggleCustomNotes(this)" <?php echo $isNotesEnabled ? 'checked' : ''; ?> <?php echo $isDescRequired ? 'disabled' : ''; ?> style="width:16px; height:16px; cursor:pointer;">
+                        <span>Enable Custom Notes</span>
+                      </label>
+                    </div>
+                    <textarea id="description" name="description" <?php echo $isDescRequired ? 'required' : ''; ?> <?php echo (!$isNotesEnabled && !$isDescRequired) ? 'disabled' : ''; ?>
                               placeholder="Describe the incident in detail..."><?php echo htmlspecialchars($postDesc); ?></textarea>
+                  </div>
+                </div>
+
+                <div class="form-row full" style="margin-top: 6px;">
+                  <div class="form-group">
+                    <label for="visible_evidence_input" style="font-weight:700; color:var(--text-3); display:flex; align-items:center; justify-content:space-between;">
+                      <span>📷 Incident Photo Evidence <span style="font-weight:normal; color:var(--text-4);">(Optional)</span></span>
+                      <span id="formPhotoBadge" style="font-size:11px; background:#f1f5f9; color:#64748b; padding:2px 8px; border-radius:10px; font-weight:600;">No photo attached</span>
+                    </label>
+                    <input type="file" id="visible_evidence_input" accept="image/*,.pdf" style="padding:8px 12px; font-size:13px;" onchange="handleFormPhotoSelected(this)">
+                    <div id="formPhotoPreviewBox" style="display:none; margin-top:8px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; align-items:center; gap:10px;">
+                      <div id="formPhotoThumbnail" style="width:40px; height:40px; border-radius:6px; overflow:hidden; background:#dbeafe; display:flex; align-items:center; justify-content:center; flex-shrink:0;"></div>
+                      <div style="flex:1; min-width:0;">
+                        <div id="formPhotoFileName" style="font-size:12px; font-weight:700; color:#1e40af; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
+                        <div id="formPhotoFileSize" style="font-size:10px; color:#3b82f6;"></div>
+                      </div>
+                      <button type="button" onclick="clearFormPhotoSelection()" style="background:#fee2e2; color:#dc2626; border:none; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">Remove</button>
+                    </div>
+                    <div class="field-hint">Attach official photo evidence of the incident for documentation.</div>
                   </div>
                 </div>
 
@@ -3766,6 +3792,19 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       <div style="display: flex; gap: 10px; justify-content: center;">
         <button class="btn" onclick="closeConfirmSkipEvidenceModal()" style="flex: 1; justify-content: center; font-weight: 700;">No, Select Photo</button>
         <button class="btn btn-primary" onclick="executeFinishWithoutPhoto()" style="flex: 1; justify-content: center; font-weight: 700; background: #2563eb; border-color: #2563eb;">Yes, Finish Without Photo</button>
+  </div>
+
+  <!-- MODAL: Minor Offense Photo Warning Confirmation -->
+  <div id="minorPhotoWarningModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.75); z-index:999999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#fff; max-width:440px; width:92%; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); text-align:center;">
+      <div style="font-size:42px; margin-bottom:12px;">📷</div>
+      <h3 style="font-size:18px; font-weight:800; color:#1e293b; margin-bottom:8px;">No Incident Photo Uploaded</h3>
+      <p style="font-size:13px; color:#475569; line-height:1.5; margin-bottom:20px;">
+        You are about to register a Minor Offense without uploading an Incident Photo. Would you like to proceed or upload a photo now?
+      </p>
+      <div style="display:flex; gap:10px; justify-content:center;">
+        <button type="button" class="btn" onclick="confirmProceedWithoutMinorPhoto()" style="flex:1; padding:10px 12px; font-weight:700; border-radius:8px;">Proceed Without Photo</button>
+        <button type="button" class="btn btn-primary" onclick="focusMinorPhotoInput()" style="flex:1; padding:10px 12px; font-weight:700; background:#2563eb; color:#fff; border-radius:8px;">Upload Photo Now</button>
       </div>
     </div>
   </div>
@@ -4165,6 +4204,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       nteModal.style.display = 'none';
     }
     
+    // SECTION 4 ESCALATION 2-MODAL WORKFLOW: Bypass Modal 3 completely!
+    if (typeof LETTER_TYPE !== 'undefined' && LETTER_TYPE === 'escalation') {
+      showFinalSuccessModal(window.__pendingNteSentStatus, false);
+      return;
+    }
+
     const choiceModal = document.getElementById('modal-evidence-photo-choice');
     if (choiceModal) {
       choiceModal.style.display = 'flex';
@@ -5543,6 +5588,93 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       if (form) form.submit();
     }
 
+    window.toggleCustomNotes = function(checkbox) {
+      const descInput = document.getElementById('description');
+      if (!descInput) return;
+      if (checkbox.checked) {
+        descInput.disabled = false;
+        descInput.focus();
+      } else {
+        descInput.disabled = true;
+        descInput.value = '';
+        if (typeof checkFormValidity === 'function') checkFormValidity();
+      }
+    };
+
+    window.handleFormPhotoSelected = function(input) {
+      if (!input || !input.files || !input.files[0]) return;
+      const file = input.files[0];
+      const previewBox = document.getElementById('formPhotoPreviewBox');
+      const fileNameEl = document.getElementById('formPhotoFileName');
+      const fileSizeEl = document.getElementById('formPhotoFileSize');
+      const thumbEl = document.getElementById('formPhotoThumbnail');
+      const badgeEl = document.getElementById('formPhotoBadge');
+
+      if (fileNameEl) fileNameEl.textContent = file.name;
+      if (fileSizeEl) fileSizeEl.textContent = (file.size / 1024).toFixed(1) + ' KB';
+      if (badgeEl) {
+        badgeEl.textContent = 'Photo attached ✓';
+        badgeEl.style.background = '#dcfce7';
+        badgeEl.style.color = '#15803d';
+      }
+
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          if (thumbEl) thumbEl.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;" />`;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        if (thumbEl) thumbEl.innerHTML = `<span style="font-size:20px; color:#2563eb;">📄</span>`;
+      }
+
+      if (previewBox) previewBox.style.display = 'flex';
+
+      const hiddenInput = document.getElementById('evidence_file_input');
+      if (hiddenInput && window.DataTransfer) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        hiddenInput.files = dt.files;
+      }
+    };
+
+    window.clearFormPhotoSelection = function() {
+      const previewBox = document.getElementById('formPhotoPreviewBox');
+      const visibleInput = document.getElementById('visible_evidence_input');
+      const hiddenInput = document.getElementById('evidence_file_input');
+      const badgeEl = document.getElementById('formPhotoBadge');
+
+      if (previewBox) previewBox.style.display = 'none';
+      if (visibleInput) visibleInput.value = '';
+      if (hiddenInput) hiddenInput.value = '';
+      if (badgeEl) {
+        badgeEl.textContent = 'No photo attached';
+        badgeEl.style.background = '#f1f5f9';
+        badgeEl.style.color = '#64748b';
+      }
+    };
+
+    window.__minorPhotoConfirmed = false;
+
+    window.confirmProceedWithoutMinorPhoto = function() {
+      const modal = document.getElementById('minorPhotoWarningModal');
+      if (modal) modal.style.display = 'none';
+      window.__minorPhotoConfirmed = true;
+      const form = document.getElementById('offenseForm');
+      if (form) form.submit();
+    };
+
+    window.focusMinorPhotoInput = function() {
+      const modal = document.getElementById('minorPhotoWarningModal');
+      if (modal) modal.style.display = 'none';
+      const visibleInput = document.getElementById('visible_evidence_input');
+      if (visibleInput) {
+        visibleInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        visibleInput.focus();
+        visibleInput.click();
+      }
+    };
+
     function updateDescRequirement() {
       const levelSelect = document.getElementById('levelSelect');
       const lvl = (levelSelect ? levelSelect.value : '').toUpperCase();
@@ -5550,7 +5682,17 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       const typeId = typeSelect ? typeSelect.value : '';
       const descOpt = document.getElementById('descOptional');
       const descInput = document.getElementById('description');
+      const notesCheckbox = document.getElementById('enable_custom_notes');
       const isRequired = (lvl === 'MAJOR' || lvl === 'DISMISSED' || ['22', '23', '24'].includes(typeId));
+
+      if (notesCheckbox) {
+        if (isRequired) {
+          notesCheckbox.checked = true;
+          notesCheckbox.disabled = true;
+        } else {
+          notesCheckbox.disabled = false;
+        }
+      }
 
       if (descOpt) {
         if (isRequired) {
@@ -5566,8 +5708,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       if (descInput) {
         if (isRequired) {
           descInput.setAttribute('required', 'required');
+          descInput.disabled = false;
         } else {
           descInput.removeAttribute('required');
+          if (notesCheckbox && !notesCheckbox.checked) {
+            descInput.disabled = true;
+          } else {
+            descInput.disabled = false;
+          }
         }
       }
 
@@ -5625,6 +5773,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
       form.addEventListener('submit', function(e) {
         const lvl = document.getElementById('levelSelect')?.value || 'MINOR';
+        const visibleInput = document.getElementById('visible_evidence_input');
+        const hiddenInput = document.getElementById('evidence_file_input');
+        const hasPhoto = (visibleInput && visibleInput.files && visibleInput.files.length > 0) ||
+                         (hiddenInput && hiddenInput.files && hiddenInput.files.length > 0);
+
+        // Check if Minor Offense submit without photo evidence
+        if (lvl === 'MINOR' && !hasPhoto && !window.__minorPhotoConfirmed) {
+          e.preventDefault();
+          e.stopPropagation();
+          const modal = document.getElementById('minorPhotoWarningModal');
+          if (modal) modal.style.display = 'flex';
+          return false;
+        }
+        window.__minorPhotoConfirmed = false;
+
         const isConfirmedEvidence = document.getElementById('evidence_file_confirmed')?.value === '1';
 
         // Check if DISMISSED

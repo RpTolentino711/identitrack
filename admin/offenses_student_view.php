@@ -55,15 +55,43 @@ if ($scanFlashKey === 'pending_guard_found') {
   $scanFlash = 'No existing offense record found for this student.';
 } elseif ($scanFlashKey === 'student_not_found') {
   $scanFlash = 'No student match found for the scanned ID.';
+} elseif ($scanFlashKey === 'photo_updated') {
+  $scanFlash = 'Photo evidence updated successfully for offense.';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = (string)($_POST['action'] ?? '');
   $reportId = (int)($_POST['report_id'] ?? 0);
 
+  if ($action === 'update_offense_photo') {
+    $offenseIdToUpdate = (int)($_POST['offense_id'] ?? 0);
+    if ($offenseIdToUpdate > 0 && isset($_FILES['evidence_photo']) && $_FILES['evidence_photo']['error'] === UPLOAD_ERR_OK) {
+      $tmpName = $_FILES['evidence_photo']['tmp_name'];
+      $filename = $_FILES['evidence_photo']['name'];
+      $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+      $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+      if (in_array($ext, $allowed, true)) {
+        $uploadDir = __DIR__ . '/../uploads/incident_reports/';
+        if (!is_dir($uploadDir)) {
+          mkdir($uploadDir, 0777, true);
+        }
+        $newName = 'evidence_' . time() . '_' . uniqid() . '.' . $ext;
+        $targetFile = $uploadDir . $newName;
+        if (move_uploaded_file($tmpName, $targetFile)) {
+          $dbPath = 'uploads/incident_reports/' . $newName;
+          db_exec(
+            "UPDATE offense SET evidence_file = :ev, updated_at = NOW() WHERE offense_id = :oid AND student_id = :sid",
+            [':ev' => $dbPath, ':oid' => $offenseIdToUpdate, ':sid' => $studentId]
+          );
+          redirect('offenses_student_view.php?student_id=' . urlencode($studentId) . '&scan_msg=photo_updated');
+        }
+      }
+    }
+  }
+
   if ($reportId > 0 && ($action === 'approve_guard_report' || $action === 'reject_guard_report' || $action === 'dismiss_guard_report')) {
     $report = db_one(
-      "SELECT report_id, student_id, offense_type_id, date_committed, description, status
+      "SELECT report_id, student_id, offense_type_id, date_committed, description, evidence_file, status
        FROM guard_violation_report
        WHERE report_id = :rid AND student_id = :sid AND is_deleted = 0
        LIMIT 1",
@@ -82,13 +110,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           ':lvl' => 'DISMISSED',
           ':descr' => trim((string)($report['description'] ?? '')) === '' ? null : $report['description'],
           ':dreason' => $reason,
+          ':evfile' => !empty($report['evidence_file']) ? $report['evidence_file'] : null,
           ':dt' => (string)$report['date_committed'],
         ];
         db_add_encryption_key($insParams);
 
         db_exec(
-          "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, dismissal_reason, date_committed, status, created_at, updated_at)
-           VALUES (:sid, :admin, :tid, :lvl, " . db_encrypt_col('description', ':descr') . ", :dreason, :dt, 'DISMISSED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+          "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, dismissal_reason, evidence_file, date_committed, status, created_at, updated_at)
+           VALUES (:sid, :admin, :tid, :lvl, " . db_encrypt_col('description', ':descr') . ", :dreason, :evfile, :dt, 'DISMISSED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
           $insParams
         );
 
@@ -128,14 +157,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $majorCategory = (int)($offenseType['major_category'] ?? 0);
 
           db_exec(
-            "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, date_committed, status, created_at, updated_at)
-             VALUES (:sid, :admin, :tid, :lvl, :descr, :dt, 'OPEN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            "INSERT INTO offense (student_id, recorded_by, offense_type_id, level, description, evidence_file, date_committed, status, created_at, updated_at)
+             VALUES (:sid, :admin, :tid, :lvl, :descr, :evfile, :dt, 'OPEN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
             [
               ':sid' => (string)$report['student_id'],
               ':admin' => $adminId,
               ':tid' => (int)$report['offense_type_id'],
               ':lvl' => $level,
               ':descr' => trim((string)($report['description'] ?? '')) === '' ? null : $report['description'],
+              ':evfile' => !empty($report['evidence_file']) ? $report['evidence_file'] : null,
               ':dt' => (string)$report['date_committed'],
             ]
           );
@@ -227,6 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                           </div>
                         </div>
+                      
                       </body>
                       </html>
                       ";
@@ -449,7 +480,7 @@ db_add_encryption_key($historyParams);
 // Fetch all offenses, oldest first for correct grouping
 $history = db_all(
   "SELECT o.offense_id, o.status, " . db_decrypt_col('description', 'o') . " AS description, o.date_committed,
-          o.level, o.incident_photo AS offense_photo,
+          o.level, COALESCE(o.evidence_file, o.incident_photo) AS offense_photo,
           ot.code, ot.name, ot.major_category,
           uc.case_id, uc.status AS uc_status, uc.decided_category AS uc_category,
           uc.probation_until, uc.incident_photo AS case_photo,
@@ -2012,9 +2043,16 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                               <div style="font-size:11px; color:#d97706;">Click thumbnail to inspect full image</div>
                             </div>
                           </div>
-                          <a href="<?= htmlspecialchars($mPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
-                            <img src="<?= htmlspecialchars($mPhoto) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #fde68a; box-shadow:0 3px 8px rgba(180,83,9,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
-                          </a>
+                          <div style="display:flex; align-items:center; gap:8px;">
+                            <a href="<?= htmlspecialchars($mPhoto) ?>" target="_blank" style="display:block;" title="Click to view full photo evidence">
+                              <img src="<?= htmlspecialchars($mPhoto) ?>" alt="Photo Evidence" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1.5px solid #fde68a; box-shadow:0 3px 8px rgba(180,83,9,0.15); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.08)';" onmouseout="this.style.transform='scale(1)';" />
+                            </a>
+                            <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)$minor['offense_id'] ?>)" class="btn btn-sm" style="background:#fef3c7; color:#b45309; border:1px solid #fcd34d; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;" title="Replace Photo Evidence">📷 Replace</button>
+                          </div>
+                        </div>
+                      <?php else: ?>
+                        <div style="margin-top:6px; margin-bottom:6px;">
+                          <button type="button" onclick="openOffensePhotoUploadModal(<?= (int)($minor['offense_id'] ?? 0) ?>)" class="btn btn-sm" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">📷 Upload Photo Evidence</button>
                         </div>
                       <?php endif; ?>
                       <div class="off-footer">
@@ -2556,6 +2594,41 @@ $majorCount = $rawMajorCount + count($escalationGroups);
   </script>
 
   </script>
+<!-- UPLOAD OFFENSE PHOTO EVIDENCE MODAL -->
+<div id="uploadOffensePhotoModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#ffffff; border-radius:16px; width:min(90vw, 440px); padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+      <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+        <span>📷</span> Upload Incident Photo Evidence
+      </h3>
+      <button type="button" onclick="closeOffensePhotoUploadModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#64748b;">✕</button>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="action" value="update_offense_photo">
+      <input type="hidden" name="offense_id" id="modal_upload_offense_id" value="">
+      
+      <div style="margin-bottom:16px;">
+        <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Select Incident Photo Image</label>
+        <input type="file" name="evidence_photo" accept="image/*" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;">
+        <div style="font-size:11px; color:#64748b; margin-top:4px;">Supported formats: JPG, PNG, WEBP.</div>
+      </div>
+      
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" onclick="closeOffensePhotoUploadModal()" style="padding:8px 16px; background:#f1f5f9; color:#475569; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Cancel</button>
+        <button type="submit" style="padding:8px 20px; background:#2563eb; color:#ffffff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Upload & Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function openOffensePhotoUploadModal(offenseId) {
+  document.getElementById('modal_upload_offense_id').value = offenseId;
+  document.getElementById('uploadOffensePhotoModal').style.display = 'flex';
+}
+function closeOffensePhotoUploadModal() {
+  document.getElementById('uploadOffensePhotoModal').style.display = 'none';
+}
+</script>
 </body>
 </html>
 

@@ -1316,6 +1316,18 @@ hr{border-color:var(--border-glass);margin:16px 0}
                                                 <div class="value"><?= htmlspecialchars((string)$offense['description']) ?></div>
                                             </div>
                                             <?php endif; ?>
+                                            <?php if (!empty(trim((string)($offense['evidence_file'] ?? '')))): 
+                                                $evPath = '../' . ltrim($offense['evidence_file'], '/');
+                                            ?>
+                                            <div class="offense-row">
+                                                <div class="label">Photo Evidence</div>
+                                                <div class="value">
+                                                    <a href="<?= htmlspecialchars($evPath) ?>" target="_blank" title="View full image">
+                                                        <img src="<?= htmlspecialchars($evPath) ?>" alt="Incident Photo Evidence" style="max-width: 160px; max-height: 160px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); object-fit: cover; margin-top: 4px; transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <?php endif; ?>
                                             <?php if (!empty(trim((string)($offense['intervention_first'] ?? '')))): ?>
                                             <div class="offense-row">
                                                 <div class="label">1st intervention</div>
