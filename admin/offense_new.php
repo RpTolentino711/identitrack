@@ -3830,6 +3830,21 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       </div>
     </div>
   </div>
+
+  <!-- MODAL: Confirm Remove Guard Photo Evidence -->
+  <div id="confirmRemoveGuardPhotoModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.75); z-index:999999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#fff; max-width:440px; width:92%; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); text-align:center;">
+      <div style="font-size:42px; margin-bottom:12px;">🗑️</div>
+      <h3 style="font-size:18px; font-weight:800; color:#1e293b; margin-bottom:8px;">Remove Guard Photo Evidence?</h3>
+      <p style="font-size:13px; color:#475569; line-height:1.5; margin-bottom:20px;">
+        Are you sure you want to remove the incident photo evidence submitted by the security guard for this violation report?
+      </p>
+      <div style="display:flex; gap:10px; justify-content:center;">
+        <button type="button" class="btn btn-primary" onclick="executeRemoveGuardPhoto()" style="flex:1; padding:10px 12px; font-weight:700; background:#dc2626; border-color:#dc2626; color:#fff; border-radius:8px;">Yes, Remove Photo</button>
+        <button type="button" class="btn" onclick="closeRemoveGuardPhotoModal()" style="flex:1; padding:10px 12px; font-weight:700; background:#f1f5f9; color:#475569; border-radius:8px;">No, Keep Photo</button>
+      </div>
+    </div>
+  </div>
   <div id="confirmSkipNteModal" class="modal" style="z-index: 4000;">
     <div class="modal-content" style="max-width: 420px; text-align: center; border-radius: 16px; overflow: hidden; padding: 24px;">
       <div style="color: #f59e0b; margin-bottom: 16px;">
@@ -5669,6 +5684,22 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     };
 
     window.clearFormPhotoSelection = function() {
+      const existingInput = document.getElementById('existing_evidence_file');
+      const isGuardPhoto = existingInput && existingInput.value.trim() !== '';
+
+      if (isGuardPhoto) {
+        const modal = document.getElementById('confirmRemoveGuardPhotoModal');
+        if (modal) {
+          modal.style.display = 'flex';
+          modal.classList.add('active');
+        }
+      } else {
+        executeRemoveGuardPhoto();
+      }
+    };
+
+    window.executeRemoveGuardPhoto = function() {
+      closeRemoveGuardPhotoModal();
       const previewBox = document.getElementById('formPhotoPreviewBox');
       const visibleInput = document.getElementById('visible_evidence_input');
       const hiddenInput = document.getElementById('evidence_file_input');
@@ -5683,6 +5714,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         badgeEl.textContent = 'No photo attached';
         badgeEl.style.background = '#f1f5f9';
         badgeEl.style.color = '#64748b';
+      }
+    };
+
+    window.closeRemoveGuardPhotoModal = function() {
+      const modal = document.getElementById('confirmRemoveGuardPhotoModal');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
       }
     };
 
