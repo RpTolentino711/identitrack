@@ -4929,9 +4929,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   function showFinalSuccessModal(nteSent = false, evidenceAttached = false) {
       const isSection4Escalation = (typeof IS_SECTION4_ESCALATION !== 'undefined' && IS_SECTION4_ESCALATION) ||
-                                    (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'escalation' || LETTER_TYPE === 'section4')) ||
-                                    (typeof isSection4Triggered !== 'undefined' && isSection4Triggered) ||
-                                    (window.__activeMinorCycle && window.__activeMinorCycle.is_escalation_triggered);
+                                    (typeof LETTER_TYPE !== 'undefined' && LETTER_TYPE === 'escalation');
 
       const isEscOrMajor = isSection4Escalation ||
                            (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation')) ||
