@@ -3858,7 +3858,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   const NTE_PENDING_MODE = <?php echo json_encode($ntePendingMode); ?>;
   const EVIDENCE_PENDING_MODE = <?php echo json_encode($evidencePendingMode); ?>;
   const LETTER_TYPE = <?php echo json_encode($letterType); ?>;
-  const IS_SECTION4_ESCALATION = <?php echo json_encode((!empty($isSection4EscalationOffense) || $letterType === 'escalation' || $letterType === 'major') && ($letterType === 'escalation' || $letterType === 'major')); ?>;
+  const IS_SECTION4_ESCALATION = <?php echo json_encode($letterType === 'escalation'); ?>;
   const SUCCESS_MODE = <?php echo json_encode($successMode); ?>;
   const INIT_LEVEL  = <?php echo json_encode($level); ?>;
   const SHOW_STUDENT_RECORD_MODAL = <?php echo json_encode($studentInfo && ($liveMinorCount + $liveMajorCount > 0 || count($liveActiveUpccCases) > 0)); ?>;
