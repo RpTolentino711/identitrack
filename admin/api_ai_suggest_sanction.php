@@ -572,11 +572,12 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
 try {
     $action = trim((string)($_GET['action'] ?? $_POST['action'] ?? 'suggest'));
 
-    $caseId = (int)($_GET['case_id'] ?? $_POST['case_id'] ?? 0);
+    $rawCaseId = trim((string)($_GET['case_id'] ?? $_POST['case_id'] ?? ''));
+    $caseId = (int)$rawCaseId;
     $studentId = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
     $userQuery = trim((string)($_GET['query'] ?? $_POST['query'] ?? $_GET['user_query'] ?? $_POST['user_query'] ?? ''));
 
-    if ($caseId <= 0 && $studentId === '' && $action !== 'global_chat') {
+    if ($rawCaseId === '' && $studentId === '' && $action !== 'global_chat') {
         echo json_encode(['ok' => false, 'error' => 'Case ID or Student ID required.']);
         exit;
     }
@@ -584,8 +585,8 @@ try {
     // ── Hearing Status Locking ──
     $case = null;
     $allCaseOffenses = [];
-    if ($caseId > 0) {
-        $cStatusRow = db_one("SELECT status FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
+    if ($rawCaseId !== '') {
+        $cStatusRow = db_one("SELECT status FROM upcc_case WHERE case_id = :cid OR CAST(case_id AS CHAR) = :cid", [':cid' => $rawCaseId]);
         if ($cStatusRow) {
             $st = strtoupper((string)($cStatusRow['status'] ?? ''));
             if (in_array($st, ['CLOSED', 'RESOLVED', 'FINALIZED'], true)) {
@@ -604,14 +605,14 @@ try {
             FROM upcc_case_offense uco
             JOIN offense o ON o.offense_id = uco.offense_id
             JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-            WHERE uco.case_id = :cid
+            WHERE uco.case_id = :cid OR CAST(uco.case_id AS CHAR) = :cid
             ORDER BY ot.level DESC, ot.name ASC
-        ", [':cid' => $caseId]);
+        ", [':cid' => $rawCaseId]);
 
         if (!empty($allCaseOffenses)) {
             $case = $allCaseOffenses[0];
-            $case['case_id'] = $caseId;
-            $cMetaRow = db_one("SELECT student_id, decided_category, probation_until, punishment_details FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
+            $case['case_id'] = $rawCaseId;
+            $cMetaRow = db_one("SELECT student_id, decided_category, probation_until, punishment_details FROM upcc_case WHERE case_id = :cid OR CAST(case_id AS CHAR) = :cid", [':cid' => $rawCaseId]);
             if ($cMetaRow) {
                 $case = array_merge($case, $cMetaRow);
             }
@@ -649,7 +650,7 @@ try {
     $instanceCount = max(1, (int)($instanceCountRow['cnt'] ?? 1));
 
     // ── Detailed Prior Resolved Cases Breakdown (Includes Offense Names) ──
-    $priorCasesWithCat = $targetStudentId !== '' ? db_all("
+    $priorCasesWithCat = ($targetStudentId !== '' && $rawCaseId !== '') ? db_all("
         SELECT c.case_id, c.decided_category, c.punishment_details, c.status, c.created_at,
                GROUP_CONCAT(DISTINCT ot.name SEPARATOR '|||') as offense_names,
                GROUP_CONCAT(DISTINCT ot.level SEPARATOR '|||') as offense_levels
@@ -657,25 +658,25 @@ try {
         LEFT JOIN upcc_case_offense uco ON uco.case_id = c.case_id
         LEFT JOIN offense o ON o.offense_id = uco.offense_id
         LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-        WHERE c.student_id = :sid AND c.case_id != :cid AND c.status IN ('RESOLVED', 'CLOSED', 'DECIDED')
+        WHERE c.student_id = :sid AND (c.case_id != :cid AND CAST(c.case_id AS CHAR) != :cid) AND c.status IN ('RESOLVED', 'CLOSED', 'DECIDED')
         GROUP BY c.case_id
         ORDER BY c.case_id DESC
-    ", [':sid' => $targetStudentId, ':cid' => $caseId]) : [];
+    ", [':sid' => $targetStudentId, ':cid' => $rawCaseId]) : [];
 
     $totalPrior = count($priorCasesWithCat);
 
-    $totalMajorRow = $targetStudentId !== '' ? db_one("
+    $totalMajorRow = ($targetStudentId !== '' && $rawCaseId !== '') ? db_one("
         SELECT COUNT(*) as cnt FROM upcc_case c
         JOIN upcc_case_offense uco ON uco.case_id = c.case_id
         JOIN offense o ON o.offense_id = uco.offense_id
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-        WHERE c.student_id = :sid AND ot.level = 'MAJOR' AND c.case_id != :cid
-    ", [':sid' => $targetStudentId, ':cid' => $caseId]) : ['cnt' => 0];
+        WHERE c.student_id = :sid AND ot.level = 'MAJOR' AND (c.case_id != :cid AND CAST(c.case_id AS CHAR) != :cid)
+    ", [':sid' => $targetStudentId, ':cid' => $rawCaseId]) : ['cnt' => 0];
     $totalMajorCount = (int)($totalMajorRow['cnt'] ?? 0);
 
-    $priorCasesAllRow = ($targetStudentId !== '' && $caseId > 0) ? db_one(
-        "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid AND case_id < :cid",
-        [':sid' => $targetStudentId, ':cid' => $caseId]
+    $priorCasesAllRow = ($targetStudentId !== '' && $rawCaseId !== '') ? db_one(
+        "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid AND (case_id != :cid AND CAST(case_id AS CHAR) != :cid)",
+        [':sid' => $targetStudentId, ':cid' => $rawCaseId]
     ) : ['cnt' => 0];
     $priorCasesAllCount = (int)($priorCasesAllRow['cnt'] ?? 0);
 
