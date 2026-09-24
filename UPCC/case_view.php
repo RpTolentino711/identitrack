@@ -4026,12 +4026,28 @@ function toggleDrawerWhyPanel() {
         }
     }
 
+    $priorCasesCountRow = db_one(
+        "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid AND case_id < :cid",
+        [':sid' => $case['student_id'], ':cid' => $caseId]
+    );
+    $priorCasesCount = (int)($priorCasesCountRow['cnt'] ?? 0);
+
+    $totalStudentCasesRow = db_one(
+        "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid",
+        [':sid' => $case['student_id']]
+    );
+    $totalStudentCases = (int)($totalStudentCasesRow['cnt'] ?? 0);
+
+    $effectivePriorCount = max($priorMajorCount, $priorCasesCount, ($totalStudentCases > 1 ? $totalStudentCases - 1 : 0));
+
     if ($isSec4) {
         $autoCategory = 'Section 4 Minor Escalation';
-        $autoCaseTypeStr = ($priorSec4Count >= 1) ? 'Section 4 - Cycle 2 (6 Minors Escalation)' : 'Section 4 - Cycle 1 (3 Minors Escalation)';
+        $autoCaseTypeStr = ($priorSec4Count >= 1 || $effectivePriorCount >= 1) ? 'Section 4 - Cycle 2 (6 Minors Escalation)' : 'Section 4 - Cycle 1 (3 Minors Escalation)';
     } else {
         $autoCategory = 'Automatic Major Offenses';
-        $autoCaseTypeStr = ($priorMajorCount >= 1) ? 'Automatic Major - 2nd+ Offense' : 'Automatic Major - 1st Offense';
+        $attemptNum = $effectivePriorCount + 1;
+        $suffix = ($attemptNum === 2 ? 'nd' : ($attemptNum === 3 ? 'rd' : 'th'));
+        $autoCaseTypeStr = ($effectivePriorCount >= 1) ? "Automatic Major - {$attemptNum}{$suffix} Offense" : 'Automatic Major - 1st Offense';
     }
 
     // --- BUILD COMPREHENSIVE MULTI-OFFENSE VIOLATION & INCIDENT SUMMARY ---
