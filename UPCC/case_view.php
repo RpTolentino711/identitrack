@@ -1331,13 +1331,27 @@ hr{border-color:var(--border-glass);margin:16px 0}
                                             <?php if (!empty(trim((string)($offense['intervention_first'] ?? '')))): ?>
                                             <div class="offense-row">
                                                 <div class="label">1st intervention</div>
-                                                <div class="value"><?= htmlspecialchars((string)$offense['intervention_first']) ?></div>
+                                                <div class="value">
+                                                    <?= htmlspecialchars(preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$offense['intervention_first']))) ?>
+                                                    <?php if (!empty($priorResolvedCases)): ?>
+                                                        <span style="background:#059669; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">✔ Completed</span>
+                                                    <?php else: ?>
+                                                        <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">⏳ Ongoing Hearing</span>
+                                                    <?php endif; ?>
+                                                </div>
                                             </div>
                                             <?php endif; ?>
                                             <?php if (!empty(trim((string)($offense['intervention_second'] ?? '')))): ?>
                                             <div class="offense-row">
                                                 <div class="label">2nd intervention</div>
-                                                <div class="value"><?= htmlspecialchars((string)$offense['intervention_second']) ?></div>
+                                                <div class="value">
+                                                    <?= htmlspecialchars(preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$offense['intervention_second']))) ?>
+                                                    <?php if (!empty($priorResolvedCases)): ?>
+                                                        <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">⏳ Ongoing Hearing</span>
+                                                    <?php else: ?>
+                                                        <span style="background:rgba(255,255,255,0.15); color:var(--text-muted); padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">Pending</span>
+                                                    <?php endif; ?>
+                                                </div>
                                             </div>
                                             <?php endif; ?>
                                         </div>

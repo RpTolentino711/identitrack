@@ -210,7 +210,12 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $offenseLevel = $caseMeta['offense_level'] ?? 'MINOR';
     $category = $caseMeta['category'] ?? (($offenseLevel === 'MAJOR') ? 'Major Offenses' : 'Minor Offenses');
     $totalPrior = (int)($caseMeta['total_prior'] ?? 0);
-    $numOffense = $totalPrior + 1;
+    $instanceCount = (int)($caseMeta['instance_count'] ?? 1);
+    $totalMajorCount = (int)($caseMeta['total_major_count'] ?? 0);
+    $numOffense = max($totalPrior + 1, $instanceCount, ($totalMajorCount > 0 ? $totalMajorCount + 1 : 1));
+    if (isset($caseMeta['number_of_offense']) && preg_match('/(\d+)/', $caseMeta['number_of_offense'], $nm)) {
+        $numOffense = max($numOffense, (int)$nm[1]);
+    }
     $numOffenseStr = $caseMeta['number_of_offense'] ?? ($numOffense . ($numOffense === 1 ? 'st Offense' : ($numOffense === 2 ? 'nd Offense' : ($numOffense === 3 ? 'rd Offense' : 'th Offense'))));
 
     $ch = curl_init(rtrim($apiUrl, '/') . '/predict');
@@ -339,11 +344,16 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
                 );
                 $isNotCheatingOffense = (strpos($upperOff, 'CHEATING') === false && strpos($upperOff, 'KODIGO') === false && strpos($upperOff, 'PLAGIARISM') === false);
 
-                if ($dbCat >= 1 && $dbCat <= 5) {
+                if ($numOffense >= 2 && strtoupper($offenseLevel) === 'MAJOR') {
+                    $sanction = 'Category 3 (1 Semester Non-Readmission / Suspension)';
+                    $severity = 'Critical';
+                    $confidence = max($confidence, 96.0);
+                    $handbookCitation = 'NU Lipa Student Handbook Section 5 (Category 3 Major Penalty Matrix — 2nd Commission / 2nd Intervention)';
+                } elseif ($dbCat >= 1 && $dbCat <= 5) {
                     $sanction = $categoryNames[$dbCat];
                     $severity = ($dbCat >= 4) ? 'Critical' : (($dbCat >= 2) ? 'High' : 'Medium');
                     $confidence = max($confidence, 95.0);
-                    $handbookCitation = "NU Lipa Student Handbook Database Catalog (Category {$dbCat} Major Offense)";
+                    $handbookCitation = "NU Lipa Student Handbook Database Catalog (Category {$dbCat} Major Offense — 1st Intervention)";
                 } elseif ($isAcademicSanction && $isPhysicalOrNonAcademicMajor && $isNotCheatingOffense) {
                     $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
                     $severity = 'High';
@@ -926,11 +936,15 @@ try {
     if ($action === 'suggest' || $action === 'predict') {
         $pCategory = trim((string)($_POST['category'] ?? $_GET['category'] ?? $category));
         $pViolation = trim((string)($_POST['violation'] ?? $_GET['violation'] ?? $offenseName));
-        $pNumOffense = trim((string)($_POST['number_of_offense'] ?? $_GET['number_of_offense'] ?? '1st Offense'));
+
+        $calculatedAttempt = ($totalPrior >= 1 || $instanceCount >= 2 || $totalMajorCount >= 1) ? 2 : 1;
+        $defaultNumOffenseStr = ($calculatedAttempt >= 2) ? "2nd Offense" : "1st Offense";
+
+        $pNumOffense = trim((string)($_POST['number_of_offense'] ?? $_GET['number_of_offense'] ?? $defaultNumOffenseStr));
         $pDescription = trim((string)($_POST['description'] ?? $_GET['description'] ?? ''));
 
-        $numVal = 1;
-        if (stripos($pNumOffense, 'Cycle 2') !== false || stripos($pNumOffense, '6 Minor') !== false || stripos($pNumOffense, '2nd') !== false) {
+        $numVal = $calculatedAttempt;
+        if (stripos($pNumOffense, 'Cycle 2') !== false || stripos($pNumOffense, '6 Minor') !== false) {
             $numVal = 6;
         } elseif (stripos($pNumOffense, 'Cycle 1') !== false || stripos($pNumOffense, '3 Minor') !== false) {
             $numVal = 3;
@@ -943,7 +957,7 @@ try {
             'category' => $pCategory,
             'number_of_offense' => $pNumOffense,
             'offense_level' => (strpos(strtoupper($pCategory), 'MAJOR') !== false) ? 'MAJOR' : 'MINOR',
-            'total_prior' => max(0, $numVal - 1)
+            'total_prior' => max($totalPrior, $numVal - 1)
         ]);
 
         $aiEngineRes = queryAiEngine('', $pDescription ?: $pViolation, $studentName, $targetStudentId, $predictCaseMeta);

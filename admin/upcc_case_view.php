@@ -37,6 +37,14 @@ $offenses = db_all("SELECT o.*, " . db_decrypt_col('description', 'o') . " AS de
     JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
     WHERE uco.case_id = :id ORDER BY o.date_committed ASC", $offenseParams);
 
+$priorResolvedCases = db_all(
+    "SELECT uc.case_id, uc.status, uc.created_at, uc.decided_category, uc.punishment_details
+     FROM upcc_case uc
+     WHERE uc.student_id = :sid AND uc.case_id != :cid
+       AND uc.status IN ('RESOLVED', 'CLOSED', 'FINALIZED')",
+    [':sid' => $case['student_id'], ':cid' => $case_id]
+);
+
 $departments = db_all("SELECT dept_id, dept_name FROM departments WHERE is_active = 1 ORDER BY dept_name ASC");
 $defaultDeptId = (int)($case['assigned_department_id'] ?? 0);
 // If the case already has an assigned department, keep it even when that department
@@ -2247,13 +2255,23 @@ body {
                         </div>
                       <?php endif; ?>
                       <?php if (!empty(trim((string)($off['intervention_first'] ?? '')))): ?>
-                        <div style="font-size:11.5px; color:var(--ink-600);">
-                          <strong>1st Intervention:</strong> <?= htmlspecialchars((string)$off['intervention_first']) ?>
+                        <div style="font-size:11.5px; color:var(--ink-600); margin-top:4px;">
+                          <strong>1st Intervention:</strong> <?= htmlspecialchars(preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_first']))) ?>
+                          <?php if (!empty($priorResolvedCases)): ?>
+                            <span style="background:#059669; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">✔ Completed</span>
+                          <?php else: ?>
+                            <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">⏳ Ongoing Hearing</span>
+                          <?php endif; ?>
                         </div>
                       <?php endif; ?>
                       <?php if (!empty(trim((string)($off['intervention_second'] ?? '')))): ?>
-                        <div style="font-size:11.5px; color:var(--ink-600);">
-                          <strong>2nd Intervention:</strong> <?= htmlspecialchars((string)$off['intervention_second']) ?>
+                        <div style="font-size:11.5px; color:var(--ink-600); margin-top:4px;">
+                          <strong>2nd Intervention:</strong> <?= htmlspecialchars(preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_second']))) ?>
+                          <?php if (!empty($priorResolvedCases)): ?>
+                            <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">⏳ Ongoing Hearing</span>
+                          <?php else: ?>
+                            <span style="background:#94a3b8; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">Pending</span>
+                          <?php endif; ?>
                         </div>
                       <?php endif; ?>
                     </div>
