@@ -4223,7 +4223,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     }
     
     // SECTION 4 ESCALATION 2-MODAL WORKFLOW: Bypass Modal 3 completely!
-    if (typeof LETTER_TYPE !== 'undefined' && LETTER_TYPE === 'escalation') {
+    const isSection4Escalation = (typeof IS_SECTION4_ESCALATION !== 'undefined' && IS_SECTION4_ESCALATION) ||
+                                  (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'escalation' || LETTER_TYPE === 'section4')) ||
+                                  (typeof isSection4Triggered !== 'undefined' && isSection4Triggered) ||
+                                  (window.__activeMinorCycle && window.__activeMinorCycle.is_escalation_triggered);
+
+    if (isSection4Escalation) {
       showFinalSuccessModal(window.__pendingNteSentStatus, false);
       return;
     }
@@ -4926,7 +4931,12 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   function showFinalSuccessModal(nteSent = false, evidenceAttached = false) {
-      const isEscOrMajor = (typeof IS_SECTION4_ESCALATION !== 'undefined' && IS_SECTION4_ESCALATION) ||
+      const isSection4Escalation = (typeof IS_SECTION4_ESCALATION !== 'undefined' && IS_SECTION4_ESCALATION) ||
+                                    (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'escalation' || LETTER_TYPE === 'section4')) ||
+                                    (typeof isSection4Triggered !== 'undefined' && isSection4Triggered) ||
+                                    (window.__activeMinorCycle && window.__activeMinorCycle.is_escalation_triggered);
+
+      const isEscOrMajor = isSection4Escalation ||
                            (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation')) ||
                            (typeof currentLevel !== 'undefined' && currentLevel === 'MAJOR');
 
@@ -4959,7 +4969,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               nteText.innerHTML = '✅ Form F-005 Notice to Explain sent to student\'s Outlook email.';
               nteText.style.color = '#10b981';
               nteText.style.display = 'block';
-          } else if (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'major' || LETTER_TYPE === 'escalation')) {
+          } else if (isEscOrMajor) {
               nteText.innerHTML = 'ℹ️ Form F-005 file skipped (not sent to student).';
               nteText.style.color = 'var(--text-3)';
               nteText.style.display = 'block';
@@ -4969,7 +4979,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       }
 
       if (evText) {
-          if (evidenceAttached) {
+          if (isSection4Escalation) {
+              // Hide photo evidence status line completely for Section 4 Escalation (automatic major)
+              evText.style.display = 'none';
+              evText.innerHTML = '';
+          } else if (evidenceAttached) {
               evText.innerHTML = '✅ Incident photo evidence recorded.';
               evText.style.color = '#10b981';
               evText.style.display = 'block';
