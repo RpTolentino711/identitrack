@@ -17,7 +17,7 @@ $activeSessions = db_all(
     "SELECT css.session_id, css.status AS session_status, csr.student_id, css.time_in
      FROM community_service_session css
      JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
-     WHERE css.time_out IS NULL
+     WHERE css.time_out IS NULL AND (css.status IS NULL OR css.status != 'PAUSED')
      ORDER BY css.session_id DESC"
 );
 

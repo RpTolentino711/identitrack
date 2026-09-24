@@ -579,7 +579,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
             : 'Assigned by SDO');
 
     final bool isLiveActiveCard = _data?.activeSession != null &&
-        session.sessionId == _data!.activeSession!.sessionId;
+        (session.sessionId == _data!.activeSession!.sessionId || session.timeOut.isEmpty);
     final bool isTaskNew = isLiveActiveCard && (_data!.activeSession!.taskIsNew);
 
     return Container(
