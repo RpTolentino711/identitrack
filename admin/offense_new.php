@@ -4222,6 +4222,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       nteModal.style.display = 'none';
     }
 
+    const isSection4Escalation = (typeof IS_SECTION4_ESCALATION !== 'undefined' && IS_SECTION4_ESCALATION) ||
+                                  (typeof LETTER_TYPE !== 'undefined' && LETTER_TYPE === 'escalation');
+
+    if (isSection4Escalation) {
+      showFinalSuccessModal(window.__pendingNteSentStatus, false);
+      return;
+    }
+
     const choiceModal = document.getElementById('modal-evidence-photo-choice');
     if (choiceModal) {
       choiceModal.style.display = 'flex';
@@ -4966,7 +4974,10 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               nteText.style.display = 'none';
           }
       if (evText) {
-          if (evidenceAttached) {
+          if (isSection4Escalation) {
+              evText.style.display = 'none';
+              evText.innerHTML = '';
+          } else if (evidenceAttached) {
               evText.innerHTML = '✅ Incident photo evidence recorded.';
               evText.style.color = '#10b981';
               evText.style.display = 'block';
