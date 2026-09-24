@@ -4222,16 +4222,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       nteModal.style.display = 'none';
     }
 
-    const isSection4Escalation = (typeof IS_SECTION4_ESCALATION !== 'undefined' && IS_SECTION4_ESCALATION) ||
-                                  (typeof LETTER_TYPE !== 'undefined' && (LETTER_TYPE === 'escalation' || LETTER_TYPE === 'section4')) ||
-                                  (typeof isSection4Triggered !== 'undefined' && isSection4Triggered) ||
-                                  (window.__activeMinorCycle && window.__activeMinorCycle.is_escalation_triggered);
-
-    if (isSection4Escalation) {
-      showFinalSuccessModal(window.__pendingNteSentStatus, false);
-      return;
-    }
-
     const choiceModal = document.getElementById('modal-evidence-photo-choice');
     if (choiceModal) {
       choiceModal.style.display = 'flex';
@@ -4976,10 +4966,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
               nteText.style.display = 'none';
           }
       if (evText) {
-          if (isSection4Escalation) {
-              evText.style.display = 'none';
-              evText.innerHTML = '';
-          } else if (evidenceAttached) {
+          if (evidenceAttached) {
               evText.innerHTML = '✅ Incident photo evidence recorded.';
               evText.style.color = '#10b981';
               evText.style.display = 'block';
