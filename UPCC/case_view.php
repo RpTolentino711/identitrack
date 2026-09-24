@@ -4330,12 +4330,19 @@ async function runComsicePrediction() {
 document.addEventListener('DOMContentLoaded', function() {
     try {
         const caseId = <?= (int)$caseId ?>;
+        const currentCycle = document.getElementById('comsiceNumOffense')?.value || '';
         const cached = sessionStorage.getItem('comsice_ai_prediction_case_' + caseId);
         if (cached) {
             const data = JSON.parse(cached);
-            renderComsiceResult(data);
+            if (data && data.number_of_offense && currentCycle.includes(data.number_of_offense)) {
+                renderComsiceResult(data);
+                return;
+            }
         }
-    } catch(e) {}
+        runComsicePrediction();
+    } catch(e) {
+        runComsicePrediction();
+    }
 });
 
 let currentTypingInterval = null;

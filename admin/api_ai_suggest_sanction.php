@@ -207,21 +207,34 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $apiUrl = get_env_var('AI_API_URL', 'http://127.0.0.1:5000');
 
     $offenseName = $caseMeta['offense_name'] ?? 'Disciplinary Violation';
-    $offenseLevel = $caseMeta['offense_level'] ?? 'MINOR';
+    $offenseLevel = strtoupper((string)($caseMeta['offense_level'] ?? 'MAJOR'));
     $category = $caseMeta['category'] ?? (($offenseLevel === 'MAJOR') ? 'Major Offenses' : 'Minor Offenses');
+    if (stripos($category, 'MAJOR') !== false || stripos($offenseName, 'MAJOR') !== false) {
+        $offenseLevel = 'MAJOR';
+    }
+
+    $numOffense = 1;
+    if (isset($caseMeta['number_of_offense'])) {
+        $nStr = (string)$caseMeta['number_of_offense'];
+        if (stripos($nStr, '2nd') !== false || stripos($nStr, '2') !== false || stripos($nStr, 'second') !== false) {
+            $numOffense = max($numOffense, 2);
+        }
+        if (stripos($nStr, '3rd') !== false || stripos($nStr, '3') !== false || stripos($nStr, 'third') !== false) {
+            $numOffense = max($numOffense, 3);
+        }
+        if (stripos($nStr, '4th') !== false || stripos($nStr, '4') !== false || stripos($nStr, 'fourth') !== false) {
+            $numOffense = max($numOffense, 4);
+        }
+        if (preg_match('/(\d+)/', $nStr, $nm)) {
+            $numOffense = max($numOffense, (int)$nm[1]);
+        }
+    }
     $totalPrior = (int)($caseMeta['total_prior'] ?? 0);
     $instanceCount = (int)($caseMeta['instance_count'] ?? 1);
     $totalMajorCount = (int)($caseMeta['total_major_count'] ?? 0);
-    $numOffense = max($totalPrior + 1, $instanceCount, ($totalMajorCount > 0 ? $totalMajorCount + 1 : 1));
+    $numOffense = max($numOffense, $totalPrior + 1, $instanceCount, ($totalMajorCount > 0 ? $totalMajorCount + 1 : 1));
     if ($totalPrior >= 1 || $instanceCount >= 2 || $totalMajorCount >= 1) {
         $numOffense = max(2, $numOffense);
-    }
-    if (isset($caseMeta['number_of_offense']) && preg_match('/(\d+)/', $caseMeta['number_of_offense'], $nm)) {
-        $parsedNum = (int)$nm[1];
-        if ($totalPrior >= 1 || $instanceCount >= 2 || $totalMajorCount >= 1) {
-            $parsedNum = max(2, $parsedNum);
-        }
-        $numOffense = max($numOffense, $parsedNum);
     }
     $numOffenseStr = ($numOffense >= 2) ? ($numOffense . ($numOffense === 2 ? 'nd Offense' : ($numOffense === 3 ? 'rd Offense' : 'th Offense'))) : ($caseMeta['number_of_offense'] ?? '1st Offense');
 
