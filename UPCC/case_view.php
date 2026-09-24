@@ -4239,6 +4239,12 @@ function renderComsiceResult(data) {
     if (loadingBox) loadingBox.style.display = 'none';
 
     if (data && data.ok) {
+        if (data.number_of_offense) {
+            const hDisp = document.getElementById('comsiceHearingTypeDisplay');
+            const hInp = document.getElementById('comsiceNumOffense');
+            if (hDisp) hDisp.textContent = `Automatic Major - ${data.number_of_offense}`;
+            if (hInp) hInp.value = `Automatic Major - ${data.number_of_offense}`;
+        }
         document.getElementById('comsicePredictedSanction').textContent = data.sanction || 'Violation slip issued by the SDO';
         document.getElementById('comsiceConfidenceScore').textContent = (data.confidence || 88.5) + '%';
         document.getElementById('comsiceSanctionCategory').textContent = data.category_label || (data.category_num ? `Category ${data.category_num}` : 'Category 1');

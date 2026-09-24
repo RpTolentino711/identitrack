@@ -213,10 +213,17 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $instanceCount = (int)($caseMeta['instance_count'] ?? 1);
     $totalMajorCount = (int)($caseMeta['total_major_count'] ?? 0);
     $numOffense = max($totalPrior + 1, $instanceCount, ($totalMajorCount > 0 ? $totalMajorCount + 1 : 1));
-    if (isset($caseMeta['number_of_offense']) && preg_match('/(\d+)/', $caseMeta['number_of_offense'], $nm)) {
-        $numOffense = max($numOffense, (int)$nm[1]);
+    if ($totalPrior >= 1 || $instanceCount >= 2 || $totalMajorCount >= 1) {
+        $numOffense = max(2, $numOffense);
     }
-    $numOffenseStr = $caseMeta['number_of_offense'] ?? ($numOffense . ($numOffense === 1 ? 'st Offense' : ($numOffense === 2 ? 'nd Offense' : ($numOffense === 3 ? 'rd Offense' : 'th Offense'))));
+    if (isset($caseMeta['number_of_offense']) && preg_match('/(\d+)/', $caseMeta['number_of_offense'], $nm)) {
+        $parsedNum = (int)$nm[1];
+        if ($totalPrior >= 1 || $instanceCount >= 2 || $totalMajorCount >= 1) {
+            $parsedNum = max(2, $parsedNum);
+        }
+        $numOffense = max($numOffense, $parsedNum);
+    }
+    $numOffenseStr = ($numOffense >= 2) ? ($numOffense . ($numOffense === 2 ? 'nd Offense' : ($numOffense === 3 ? 'rd Offense' : 'th Offense'))) : ($caseMeta['number_of_offense'] ?? '1st Offense');
 
     $ch = curl_init(rtrim($apiUrl, '/') . '/predict');
     $payload = [
@@ -967,12 +974,10 @@ try {
         $pCategory = trim((string)($_POST['category'] ?? $_GET['category'] ?? $category));
         $pViolation = trim((string)($_POST['violation'] ?? $_GET['violation'] ?? $offenseName));
 
-        $defaultNumOffenseStr = ($calculatedAttempt >= 2) ? "2nd Offense" : "1st Offense";
-
-        $pNumOffense = trim((string)($_POST['number_of_offense'] ?? $_GET['number_of_offense'] ?? $defaultNumOffenseStr));
+        $pNumOffense = trim((string)($_POST['number_of_offense'] ?? $_GET['number_of_offense'] ?? ''));
         $pDescription = trim((string)($_POST['description'] ?? $_GET['description'] ?? ''));
 
-        $numVal = $calculatedAttempt;
+        $numVal = 1;
         if (stripos($pNumOffense, 'Cycle 2') !== false || stripos($pNumOffense, '6 Minor') !== false) {
             $numVal = 6;
         } elseif (stripos($pNumOffense, 'Cycle 1') !== false || stripos($pNumOffense, '3 Minor') !== false) {
@@ -981,14 +986,21 @@ try {
             $numVal = (int)$nm[1];
         }
 
+        $effectiveAttempt = max($calculatedAttempt, $numVal);
+        if ($isSecondOrHigherOffense) {
+            $effectiveAttempt = max(2, $effectiveAttempt);
+        }
+
+        $finalNumOffenseStr = ($effectiveAttempt >= 2) ? ($effectiveAttempt . ($effectiveAttempt === 2 ? 'nd Offense' : ($effectiveAttempt === 3 ? 'rd Offense' : 'th Offense'))) : "1st Offense";
+
         $predictCaseMeta = array_merge($caseMeta, [
             'offense_name' => $pViolation,
             'category' => $pCategory,
-            'number_of_offense' => $pNumOffense,
+            'number_of_offense' => $finalNumOffenseStr,
             'offense_level' => (strpos(strtoupper($pCategory), 'MAJOR') !== false) ? 'MAJOR' : 'MINOR',
-            'total_prior' => max($totalPrior, $calculatedAttempt - 1),
-            'total_major_count' => max($totalMajorCount, $calculatedAttempt - 1),
-            'instance_count' => max($instanceCount, $calculatedAttempt)
+            'total_prior' => max($totalPrior, $effectiveAttempt - 1),
+            'total_major_count' => max($totalMajorCount, $effectiveAttempt - 1),
+            'instance_count' => max($instanceCount, $effectiveAttempt)
         ]);
 
         $aiEngineRes = queryAiEngine('', $pDescription ?: $pViolation, $studentName, $targetStudentId, $predictCaseMeta);
@@ -1001,6 +1013,7 @@ try {
             'student_id' => $targetStudentId,
             'student_name' => $studentName,
             'offense_name' => $pViolation,
+            'number_of_offense' => $finalNumOffenseStr,
             'sanction' => $aiEngineRes['sanction'] ?? 'Violation slip issued by the SDO',
             'category_num' => $aiEngineRes['category_num'] ?? 1,
             'category_label' => $aiEngineRes['category_label'] ?? 'Category 1',
