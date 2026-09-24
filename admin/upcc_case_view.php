@@ -2244,19 +2244,10 @@ body {
                           <div style="color:var(--ink-800); margin-top:2px; font-style:italic;">"<?= htmlspecialchars((string)$off['description']) ?>"</div>
                         </div>
                       <?php endif; ?>
-                      <?php if (!empty($evUrl)): ?>
-                        <div style="margin-top:4px;">
-                          <strong style="color:#2563eb; font-size:11px; text-transform:uppercase; letter-spacing:0.4px; display:flex; align-items:center; gap:4px;">
-                            <span>📷</span> Incident Photo Evidence:
-                          </strong>
-                          <a href="<?= htmlspecialchars($evUrl) ?>" target="_blank" title="Click to view full photo evidence" style="display:inline-block; margin-top:6px;">
-                            <img src="<?= htmlspecialchars($evUrl) ?>" alt="Photo Evidence" style="max-width:180px; max-height:140px; object-fit:cover; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 2px 8px rgba(0,0,0,0.08); transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                          </a>
-                        </div>
-                      <?php endif; ?>
+                      
                       <?php if (!empty(trim((string)($off['intervention_first'] ?? '')))): ?>
                         <div style="font-size:11.5px; color:var(--ink-600); margin-top:4px;">
-                          <strong>1st Intervention:</strong> <?= htmlspecialchars(preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_first']))) ?>
+                          <strong>1st Intervention:</strong> <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_first']))), ')-—')) ?: 'Formative Intervention: University Service, Counseling, & Evaluation') ?>
                           <?php if (!empty($priorResolvedCases)): ?>
                             <span style="background:#059669; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">✔ Completed</span>
                           <?php else: ?>
@@ -2266,7 +2257,7 @@ body {
                       <?php endif; ?>
                       <?php if (!empty(trim((string)($off['intervention_second'] ?? '')))): ?>
                         <div style="font-size:11.5px; color:var(--ink-600); margin-top:4px;">
-                          <strong>2nd Intervention:</strong> <?= htmlspecialchars(preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_second']))) ?>
+                          <strong>2nd Intervention:</strong> <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_second']))), ')-—')) ?: '1 Semester Non-Readmission / Suspension') ?>
                           <?php if (!empty($priorResolvedCases)): ?>
                             <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">⏳ Ongoing Hearing</span>
                           <?php else: ?>
