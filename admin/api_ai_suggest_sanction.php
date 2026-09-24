@@ -346,7 +346,17 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
                 );
                 $isNotCheatingOffense = (strpos($upperOff, 'CHEATING') === false && strpos($upperOff, 'KODIGO') === false && strpos($upperOff, 'PLAGIARISM') === false);
 
-                if ($numOffense >= 2 && strtoupper($offenseLevel) === 'MAJOR') {
+                if ($numOffense >= 4 && strtoupper($offenseLevel) === 'MAJOR') {
+                    $sanction = 'Category 5 (Summary Expulsion & Police Referral)';
+                    $severity = 'Critical';
+                    $confidence = max($confidence, 99.0);
+                    $handbookCitation = 'NU Lipa Student Handbook Section 5 (Category 5 Major Penalty Matrix — 4th+ Commission / Summary Expulsion)';
+                } elseif ($numOffense == 3 && strtoupper($offenseLevel) === 'MAJOR') {
+                    $sanction = 'Category 4 (Exclusion / Mandatory Dismissal)';
+                    $severity = 'Critical';
+                    $confidence = max($confidence, 98.0);
+                    $handbookCitation = 'NU Lipa Student Handbook Section 5 (Category 4 Major Penalty Matrix — 3rd Commission / Exclusion)';
+                } elseif ($numOffense == 2 && strtoupper($offenseLevel) === 'MAJOR') {
                     $sanction = 'Category 3 (1 Semester Non-Readmission / Suspension)';
                     $severity = 'Critical';
                     $confidence = max($confidence, 96.0);
