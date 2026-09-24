@@ -161,8 +161,9 @@ class _ProgressRingCardState extends State<ProgressRingCard> {
           elapsedSec = active.netElapsedSeconds.toDouble();
         } else {
           final start = _parseManilaDateTime(active.timeIn);
-          final wallDiff = DateTime.now().difference(start).inSeconds.toDouble();
-          elapsedSec = math.max(active.netElapsedSeconds.toDouble(), wallDiff);
+          final rawSec = DateTime.now().difference(start).inSeconds;
+          final activeSec = math.max(0, rawSec - active.accumPausedSeconds);
+          elapsedSec = math.max(active.netElapsedSeconds.toDouble(), activeSec.toDouble());
         }
         hoursRemaining -= (elapsedSec / 3600.0);
       }
