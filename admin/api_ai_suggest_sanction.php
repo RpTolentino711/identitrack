@@ -281,6 +281,8 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         $resData = json_decode($response, true);
         if (is_array($resData) && !empty($resData['sanction'])) {
             $sanction = trim((string)$resData['sanction']);
+            $sanction = preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', $sanction);
+            $sanction = trim($sanction);
             $confidence = round((float)($resData['sanction_confidence'] ?? $resData['confidence_score'] ?? $resData['likelihood_percentage'] ?? 88.5), 1);
             $severity = trim((string)($resData['severity'] ?? 'Medium'));
             $handbookCitation = 'COMSICE XGBoost ML Model (sanction_xgb_model.json)';
@@ -508,6 +510,9 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         }
     }
 
+    $sanction = preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', $sanction);
+    $sanction = trim($sanction);
+
     // Determine NU Lipa UPCC Sanction Category (Category 1 - Category 5)
     $catNum = 1;
     $upperSanct = strtoupper($sanction);
@@ -650,6 +655,21 @@ try {
         WHERE c.student_id = :sid AND ot.level = 'MAJOR' AND c.case_id != :cid
     ", [':sid' => $targetStudentId, ':cid' => $caseId]) : ['cnt' => 0];
     $totalMajorCount = (int)($totalMajorRow['cnt'] ?? 0);
+
+    $priorCasesAllRow = ($targetStudentId !== '' && $caseId > 0) ? db_one(
+        "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid AND case_id < :cid",
+        [':sid' => $targetStudentId, ':cid' => $caseId]
+    ) : ['cnt' => 0];
+    $priorCasesAllCount = (int)($priorCasesAllRow['cnt'] ?? 0);
+
+    $totalCasesForStudentRow = ($targetStudentId !== '') ? db_one(
+        "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid",
+        [':sid' => $targetStudentId]
+    ) : ['cnt' => 0];
+    $totalCasesForStudent = (int)($totalCasesForStudentRow['cnt'] ?? 0);
+
+    $isSecondOrHigherOffense = ($totalPrior >= 1 || $instanceCount >= 2 || $totalMajorCount >= 1 || $priorCasesAllCount >= 1 || ($totalCasesForStudent >= 2 && $caseId > 0));
+    $calculatedAttempt = $isSecondOrHigherOffense ? max(2, $priorCasesAllCount + 1, $totalPrior + 1, $instanceCount, $totalMajorCount + 1) : 1;
 
     $totalMinorRow = $targetStudentId !== '' ? db_one("
         SELECT COUNT(*) as cnt FROM offense o
@@ -937,7 +957,6 @@ try {
         $pCategory = trim((string)($_POST['category'] ?? $_GET['category'] ?? $category));
         $pViolation = trim((string)($_POST['violation'] ?? $_GET['violation'] ?? $offenseName));
 
-        $calculatedAttempt = ($totalPrior >= 1 || $instanceCount >= 2 || $totalMajorCount >= 1) ? 2 : 1;
         $defaultNumOffenseStr = ($calculatedAttempt >= 2) ? "2nd Offense" : "1st Offense";
 
         $pNumOffense = trim((string)($_POST['number_of_offense'] ?? $_GET['number_of_offense'] ?? $defaultNumOffenseStr));
@@ -957,7 +976,9 @@ try {
             'category' => $pCategory,
             'number_of_offense' => $pNumOffense,
             'offense_level' => (strpos(strtoupper($pCategory), 'MAJOR') !== false) ? 'MAJOR' : 'MINOR',
-            'total_prior' => max($totalPrior, $numVal - 1)
+            'total_prior' => max($totalPrior, $calculatedAttempt - 1),
+            'total_major_count' => max($totalMajorCount, $calculatedAttempt - 1),
+            'instance_count' => max($instanceCount, $calculatedAttempt)
         ]);
 
         $aiEngineRes = queryAiEngine('', $pDescription ?: $pViolation, $studentName, $targetStudentId, $predictCaseMeta);

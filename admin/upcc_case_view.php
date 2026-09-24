@@ -4316,7 +4316,7 @@ async function runAiAnalysis() {
         const confPct = document.getElementById('ai-confidence-pct');
         const modVer = document.getElementById('ai-model-ver');
 
-        if (recTitle) recTitle.textContent = data.suggested_category_label || `CATEGORY ${data.suggested_category}`;
+        if (recTitle) recTitle.textContent = data.category_label || data.suggested_category_label || `CATEGORY ${data.category_num || data.suggested_category || 1}`;
         if (evCnt) evCnt.textContent = `${data.similar_cases || 8} similar verified cases`;
         
         const mostCommon = data.most_common_historical || `Category ${data.suggested_category}`;

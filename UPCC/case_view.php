@@ -3292,19 +3292,20 @@ async function runAiAnalysis() {
         const dPatStr = document.getElementById('drawer-ai-pattern-str');
         const dConfPct = document.getElementById('drawer-ai-confidence-pct');
 
-        const recLabel = data.suggested_category_label || `CATEGORY ${data.suggested_category || 1}`;
+        const recLabel = data.category_label || data.suggested_category_label || `CATEGORY ${data.category_num || data.suggested_category || 1}`;
         if (recTitle) recTitle.textContent = recLabel;
         if (dRecTitle) dRecTitle.textContent = recLabel;
 
         const csHours = data.community_service_hours || 0;
         let csText = "0 Hours (Formal Reprimand / Advisory)";
-        if (data.suggested_category === 2) {
+        const effectiveCat = data.category_num || data.suggested_category || 1;
+        if (effectiveCat === 2) {
             csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "150–250 Hours Formative Community Service";
-        } else if (data.suggested_category === 3) {
+        } else if (effectiveCat === 3) {
             csText = "0 Hours (Non-Readmission / Suspension)";
-        } else if (data.suggested_category === 4) {
+        } else if (effectiveCat === 4) {
             csText = "0 Hours (Non-Readmission / Exclusion)";
-        } else if (data.suggested_category === 5) {
+        } else if (effectiveCat === 5) {
             csText = "0 Hours (Summary Expulsion & Police Referral)";
         }
         const csTextEl = document.getElementById('drawer-ai-cs-text');
