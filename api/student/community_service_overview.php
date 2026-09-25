@@ -213,21 +213,22 @@ $completed = 0.0;
 $completedSeconds = 0;
 
 if (!empty($activeReqs)) {
+  $activeReqIds = array_map(function($ar) { return (int)$ar['requirement_id']; }, $activeReqs);
   foreach ($activeReqs as $ar) {
     $assigned += (float)$ar['hours_required'];
   }
   foreach ($sessions as $s) {
-    $completed += (float)$s['hours_done'];
-    $completedSeconds += (int)($s['net_completed_seconds'] ?? 0);
+    if (in_array((int)$s['requirement_id'], $activeReqIds, true)) {
+      $completed += (float)$s['hours_done'];
+      $completedSeconds += (int)($s['net_completed_seconds'] ?? 0);
+    }
   }
 } else if (!empty($completedReqs)) {
   // Use the most recent completed requirement
   $latestCompleted = $completedReqs[0]; // Ordered by assigned_at DESC
   $assigned = (float)$latestCompleted['hours_required'];
-  foreach ($sessions as $s) {
-    $completed += (float)$s['hours_done'];
-    $completedSeconds += (int)($s['net_completed_seconds'] ?? 0);
-  }
+  $completed = $assigned;
+  $completedSeconds = (int)round($assigned * 3600);
 }
 
 // If the student already has ACTIVE or COMPLETED community service, they've accepted — not under investigation
