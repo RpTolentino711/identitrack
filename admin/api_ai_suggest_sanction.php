@@ -286,12 +286,17 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     }
 
     if (!$usedMlModel) {
-        return runNativePhpMlPrediction(array_merge($caseMeta, [
-            'offense_name' => $offenseName,
-            'category' => $category,
-            'number_of_offense' => $numOffenseStr,
-            'offense_level' => $offenseLevel
-        ]));
+        return [
+            'used_ml_model' => false,
+            'error' => 'AI Prediction Server (softeng_2-master) is unreachable. Please ensure local Python server.py is running on port 5000.',
+            'sanction' => 'ML Model Offline',
+            'category_num' => 1,
+            'category_label' => 'Category 1',
+            'confidence' => 0.0,
+            'severity' => 'Unknown',
+            'engine' => 'Identati Ai XGBoost ML Model',
+            'privacy' => '🔒 100% Native (RA 10173 Compliant)'
+        ];
     }
 
     $sanction = preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', $sanction);
@@ -333,107 +338,6 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         'engine' => 'Identati Ai XGBoost ML Model',
         'privacy' => '🔒 100% Native (RA 10173 Compliant)'
     ];
-}
-
-if (!function_exists('runNativePhpMlPrediction')) {
-function runNativePhpMlPrediction(array $caseMeta): array
-{
-    $offenseName = (string)($caseMeta['offense_name'] ?? 'Disciplinary Violation');
-    $category = (string)($caseMeta['category'] ?? 'Major Offenses');
-    $numOffenseStr = (string)($caseMeta['number_of_offense'] ?? '1st Offense');
-    $offenseLevel = strtoupper((string)($caseMeta['offense_level'] ?? 'MAJOR'));
-    $totalPrior = (int)($caseMeta['total_prior'] ?? 0);
-    $instanceCount = (int)($caseMeta['instance_count'] ?? 1);
-    $totalMajorCount = (int)($caseMeta['total_major_count'] ?? 0);
-
-    $numVal = 1;
-    if (preg_match('/(\d+)/', $numOffenseStr, $m)) {
-        $numVal = (int)$m[1];
-    }
-    $effectiveAttempt = max($numVal, $totalPrior + 1, $instanceCount, ($totalMajorCount > 0 ? $totalMajorCount + 1 : 1));
-
-    $upperName = strtoupper($offenseName);
-    $upperCat = strtoupper($category);
-
-    $sanction = 'Violation slip issued by the SDO';
-    $catNum = 1;
-    $confidence = 87.0;
-    $severity = 'Low';
-
-    if (strpos($upperName, 'BOMB') !== false || strpos($upperName, 'EXPLOSIVE') !== false) {
-        $sanction = 'Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)';
-        $catNum = 2;
-        $confidence = 73.1;
-        $severity = 'High';
-    } elseif (strpos($upperName, 'CHEATING') !== false || strpos($upperName, 'DISHONESTY') !== false || strpos($upperName, 'EXAMINATION') !== false || strpos($upperName, 'PLAGIARISM') !== false) {
-        $sanction = 'Category 3 (Non-Readmission, denial of admission but is allowed to finish current term)';
-        $catNum = 3;
-        $confidence = ($effectiveAttempt >= 2) ? 44.8 : 40.3;
-        $severity = 'Medium';
-    } elseif (strpos($upperName, 'BRAWL') !== false || strpos($upperName, 'WEAPON') !== false || strpos($upperName, 'DRUGS') !== false || strpos($upperCat, 'CRIMINAL') !== false) {
-        $sanction = 'Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)';
-        $catNum = 2;
-        $confidence = 21.9;
-        $severity = 'High';
-    } elseif (strpos($upperCat, 'SECTION 4') !== false || strpos($numOffenseStr, 'Cycle') !== false || strpos($numOffenseStr, 'Minor') !== false) {
-        if ($effectiveAttempt >= 6 || strpos($numOffenseStr, 'Cycle 2') !== false || strpos($numOffenseStr, '6 Minor') !== false) {
-            $sanction = 'Violation slip and a written warning issued by the SDO';
-            $catNum = 1;
-            $confidence = 44.3;
-            $severity = 'Medium';
-        } else {
-            $sanction = 'Violation slip issued by the SDO';
-            $catNum = 1;
-            $confidence = 87.9;
-            $severity = 'Low';
-        }
-    } elseif ($offenseLevel === 'MAJOR' || strpos($upperCat, 'MAJOR') !== false) {
-        if ($effectiveAttempt >= 3) {
-            $sanction = 'Category 4 (Exclusion, dropping the name of the student immediately from the roll of students)';
-            $catNum = 4;
-            $confidence = 88.5;
-            $severity = 'Critical';
-        } elseif ($effectiveAttempt === 2) {
-            $sanction = 'Category 3 (Non-Readmission, denial of admission but is allowed to finish current term)';
-            $catNum = 3;
-            $confidence = 44.8;
-            $severity = 'Medium';
-        } else {
-            $sanction = 'Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)';
-            $catNum = 2;
-            $confidence = 75.0;
-            $severity = 'Medium';
-        }
-    } else {
-        $sanction = 'Violation slip issued by the SDO';
-        $catNum = 1;
-        $confidence = 87.0;
-        $severity = 'Low';
-    }
-
-    $catLabel = "Category {$catNum}";
-    $totalDatasetCountStr = function_exists('get_total_ai_dataset_count') ? number_format(get_total_ai_dataset_count()) : "3,441";
-    $whyReason = "Evaluated against {$totalDatasetCountStr} historical campus precedent records and NU Lipa Student Handbook. Offense: '{$offenseName}', Category: '{$category}', Attempt: '{$numOffenseStr}'.";
-
-    $aiText = "🤖 **Identati Ai XGBoost ML Model Recommendation**:\n\n"
-            . "• **Sanction Category**: **{$catLabel}**\n"
-            . "• **Predicted Sanction**: **{$sanction}**\n"
-            . "• **Confidence Score**: **{$confidence}%** (Severity: **{$severity}**)\n"
-            . "• **Model Source**: SDO Historical Dataset ({$totalDatasetCountStr} Training Records)\n\n"
-            . "💡 **Why? (Reason)**: {$whyReason}";
-
-    return [
-        'used_ml_model' => true,
-        'text' => $aiText,
-        'sanction' => $sanction,
-        'category_num' => $catNum,
-        'category_label' => $catLabel,
-        'confidence' => $confidence,
-        'severity' => $severity,
-        'engine' => 'Identati Ai XGBoost ML Model',
-        'privacy' => '🔒 100% Native (RA 10173 Compliant)'
-    ];
-}
 }
 
 if (!defined('IS_TESTING_CLI')) {
