@@ -632,8 +632,6 @@ try {
         ? getCategoryPrecedents($majorCategory, $offenseTypeId, $caseId)
         : [];
 
-    $dynamicRules = getDynamicHandbookRules();
-
     $caseMeta = [
         'case_id' => $caseId,
         'student_id' => $targetStudentId,
