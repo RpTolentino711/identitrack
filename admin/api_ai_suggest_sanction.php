@@ -221,7 +221,159 @@ function runCliPythonPrediction(array $payload): ?string
         return $stdout;
     }
 
-    return null;
+}
+
+/**
+ * 100% Native Pure PHP Machine Learning Prediction Engine
+ * Evaluates the exact softeng_2-master XGBoost model (13,000 decision trees, TF-IDF vectorizer, label encoder)
+ * directly in PHP with zero external Python binaries or background ports required.
+ */
+function runNativePhpXgbPrediction(array $payload): ?array
+{
+    $modelFile = __DIR__ . '/AI/softeng_2-master/server/modle/softeng_2_compiled_model.json';
+    if (!file_exists($modelFile)) {
+        return null;
+    }
+
+    static $modelData = null;
+    if ($modelData === null) {
+        $jsonStr = file_get_contents($modelFile);
+        $modelData = json_decode($jsonStr, true);
+    }
+
+    if (!is_array($modelData) || empty($modelData['trees'])) {
+        return null;
+    }
+
+    $scenario = (string)($payload['description'] ?? '');
+    $category = (string)($payload['category'] ?? '');
+    $violation = (string)($payload['violation'] ?? '');
+    $numOffenseStr = (string)($payload['number_of_offense'] ?? '1st offense');
+
+    if (empty($scenario)) {
+        $scenario = !empty($violation) ? $violation : 'Disciplinary Violation';
+    }
+
+    $clean = function(string $str): string {
+        $str = strtolower($str);
+        $str = preg_replace('/[^a-z0-9\s]/', '', $str);
+        return trim((string)preg_replace('/\s+/', ' ', $str));
+    };
+
+    $combinedText = trim($clean($scenario) . ' ' . $clean($category) . ' ' . $clean($violation));
+    preg_match_all('/\b[a-z0-9_]{2,}\b/', $combinedText, $mMatches);
+    $words = $mMatches[0] ?? [];
+
+    $tokens = [];
+    $count = count($words);
+    for ($i = 0; $i < $count; $i++) {
+        $tokens[] = $words[$i];
+        if ($i + 1 < $count) {
+            $tokens[] = $words[$i] . ' ' . $words[$i+1];
+        }
+    }
+
+    $vocab = $modelData['vocab'];
+    $idf = $modelData['idf'];
+
+    $termCounts = [];
+    foreach ($tokens as $tok) {
+        if (isset($vocab[$tok])) {
+            $idx = (int)$vocab[$tok];
+            $termCounts[$idx] = ($termCounts[$idx] ?? 0) + 1;
+        }
+    }
+
+    $features = [];
+    $sumSq = 0.0;
+    foreach ($termCounts as $idx => $tf) {
+        $val = (float)$tf * (float)$idf[$idx];
+        $features[$idx] = $val;
+        $sumSq += $val * $val;
+    }
+
+    $norm = ($sumSq > 0) ? sqrt($sumSq) : 1.0;
+    if ($norm > 0) {
+        foreach ($features as $idx => $val) {
+            $features[$idx] = $val / $norm;
+        }
+    }
+
+    $numOffense = 1.0;
+    if (preg_match('/(\d+)/', $numOffenseStr, $m)) {
+        $numOffense = (float)$m[1];
+    }
+    $features[500] = $numOffense;
+
+    $numClasses = (int)$modelData['num_classes'];
+    $labels = $modelData['labels'];
+    $trees = $modelData['trees'];
+    $logits = array_fill(0, $numClasses, 0.0);
+
+    foreach ($trees as $t) {
+        $cIdx = (int)$t['class'];
+        $lefts = $t['lefts'];
+        $rights = $t['rights'];
+        $splits = $t['splits'];
+        $conds = $t['conds'];
+        $weights = $t['weights'];
+        $defaults = $t['defaults'];
+
+        $curr = 0;
+        while ($lefts[$curr] !== -1) {
+            $fIdx = (int)$splits[$curr];
+            if (!isset($features[$fIdx])) {
+                $curr = ($defaults[$curr] === 1) ? $lefts[$curr] : $rights[$curr];
+            } else {
+                $val = (float)$features[$fIdx];
+                if ($val <= (float)$conds[$curr]) {
+                    $curr = $lefts[$curr];
+                } else {
+                    $curr = $rights[$curr];
+                }
+            }
+        }
+        $logits[$cIdx] += (float)$weights[$curr];
+    }
+
+    $maxLogit = max($logits);
+    $expScores = [];
+    $sumExp = 0.0;
+    foreach ($logits as $l) {
+        $e = exp($l - $maxLogit);
+        $expScores[] = $e;
+        $sumExp += $e;
+    }
+
+    $bestIdx = 0;
+    $bestProb = 0.0;
+    foreach ($expScores as $idx => $e) {
+        $p = $e / $sumExp;
+        if ($p > $bestProb) {
+            $bestProb = $p;
+            $bestIdx = $idx;
+        }
+    }
+
+    $predictedSanction = $labels[$bestIdx] ?? 'Category 1';
+    $likelihoodPercentage = round($bestProb * 100.0, 2);
+
+    $determineSeverity = function(float $lk): string {
+        if ($lk >= 75) return "Critical";
+        if ($lk >= 50) return "High";
+        if ($lk >= 25) return "Medium";
+        return "Low";
+    };
+
+    return [
+        'category' => $category ?: 'Uncategorized',
+        'sanction' => $predictedSanction,
+        'sanction_confidence' => $likelihoodPercentage,
+        'severity' => $determineSeverity($likelihoodPercentage),
+        'likelihood_percentage' => $likelihoodPercentage,
+        'confidence_score' => $likelihoodPercentage,
+        'model_status' => 'active_native_php'
+    ];
 }
 
 /**
@@ -287,7 +439,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    // If microservice HTTP request fails or is offline (e.g. Hostinger production server), fallback to direct Python CLI execution
+    // Tier 2: If microservice HTTP request fails or is offline (e.g. Hostinger production server), fallback to direct Python CLI execution
     if ($httpCode !== 200 || empty($response)) {
         $cliOutput = runCliPythonPrediction($payload);
         if ($cliOutput !== null && $cliOutput !== '') {
@@ -296,6 +448,15 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
                 $response = $cliOutput;
                 $httpCode = 200;
             }
+        }
+    }
+
+    // Tier 3: 100% Pure Native PHP Machine Learning Inference (Zero Python or external port dependencies)
+    if ($httpCode !== 200 || empty($response)) {
+        $nativeRes = runNativePhpXgbPrediction($payload);
+        if (is_array($nativeRes) && !empty($nativeRes['sanction'])) {
+            $response = json_encode($nativeRes);
+            $httpCode = 200;
         }
     }
 
