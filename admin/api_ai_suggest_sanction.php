@@ -119,6 +119,80 @@ function anonymizeAiPromptText(string $text, string $realName = '', string $stud
 }
 
 /**
+ * Direct Python CLI ML Inference Fallback Engine
+ * Used when port 5000 Flask microservice is unreachable (e.g. Linux shared hosting on Hostinger)
+ */
+function runCliPythonPrediction(array $payload): ?string
+{
+    $serverDir = __DIR__ . '/AI/softeng_2-master/server';
+    $cliScript = $serverDir . '/predict_cli.py';
+    if (!file_exists($cliScript)) {
+        return null;
+    }
+
+    $isWindows = (strncasecmp(PHP_OS, 'WIN', 3) === 0);
+
+    $candidates = [
+        $serverDir . '/venv/Scripts/python.exe',
+        $serverDir . '/venv/bin/python',
+        $serverDir . '/venv/bin/python3',
+        'python3',
+        'python'
+    ];
+
+    $pythonExec = null;
+    foreach ($candidates as $cand) {
+        if (strpos($cand, '/') !== false || strpos($cand, '\\') !== false) {
+            if (file_exists($cand)) {
+                $pythonExec = $cand;
+                break;
+            }
+        } else {
+            $testCmd = ($isWindows ? "where " : "which ") . escapeshellarg($cand);
+            $testRes = @shell_exec($testCmd);
+            if (!empty($testRes)) {
+                $pythonExec = $cand;
+                break;
+            }
+        }
+    }
+
+    if (!$pythonExec) {
+        return null;
+    }
+
+    $jsonPayload = json_encode($payload);
+    
+    $descriptorspec = [
+        0 => ["pipe", "r"],
+        1 => ["pipe", "w"],
+        2 => ["pipe", "w"]
+    ];
+
+    $cmd = escapeshellarg($pythonExec) . ' ' . escapeshellarg($cliScript);
+    $process = proc_open($cmd, $descriptorspec, $pipes, $serverDir);
+
+    if (is_resource($process)) {
+        fwrite($pipes[0], $jsonPayload);
+        fclose($pipes[0]);
+
+        $stdout = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+
+        proc_close($process);
+
+        if (!empty($stdout)) {
+            return trim($stdout);
+        }
+    }
+
+    return null;
+}
+
+/**
  * COMSICE Machine Learning Engine Router (Port 5000 /predict)
  */
 function queryAiEngine(string $systemPrompt, string $userPrompt, string $realName = '', string $studentId = '', array $caseMeta = []): array
@@ -181,36 +255,14 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    // If microservice was down, attempt single background auto-start and retry
+    // If microservice HTTP request fails or is offline (e.g. Hostinger production server), fallback to direct Python CLI execution
     if ($httpCode !== 200 || empty($response)) {
-        $pythonPath = __DIR__ . '/AI/softeng_2-master/server/venv/Scripts/python.exe';
-        $scriptPath = __DIR__ . '/AI/softeng_2-master/server/server.py';
-        if (file_exists($pythonPath) && file_exists($scriptPath)) {
-            $workingDir = __DIR__ . '/AI/softeng_2-master/server';
-            @pclose(@popen("cmd /c \"cd /d \"" . str_replace('/', '\\', $workingDir) . "\" && start /B \"\" \"" . str_replace('/', '\\', $pythonPath) . "\" \"" . str_replace('/', '\\', $scriptPath) . "\"\"", "r"));
-            
-            // Retry curl up to 3 times (1.5s total grace window)
-            for ($retry = 0; $retry < 3; $retry++) {
-                usleep(500000); // 500ms per attempt
-                $chRetry = curl_init(rtrim($apiUrl, '/') . '/predict');
-                curl_setopt_array($chRetry, [
-                    CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_POST           => true,
-                    CURLOPT_POSTFIELDS     => json_encode($payload),
-                    CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-                    CURLOPT_TIMEOUT        => 5,
-                    CURLOPT_CONNECTTIMEOUT => 2,
-                    CURLOPT_SSL_VERIFYPEER => false,
-                    CURLOPT_SSL_VERIFYHOST => false
-                ]);
-                $retryRes = curl_exec($chRetry);
-                $retryCode = curl_getinfo($chRetry, CURLINFO_HTTP_CODE);
-                curl_close($chRetry);
-                if ($retryCode === 200 && !empty($retryRes)) {
-                    $response = $retryRes;
-                    $httpCode = $retryCode;
-                    break;
-                }
+        $cliOutput = runCliPythonPrediction($payload);
+        if ($cliOutput !== null && $cliOutput !== '') {
+            $cliData = json_decode($cliOutput, true);
+            if (is_array($cliData) && !empty($cliData['sanction'])) {
+                $response = $cliOutput;
+                $httpCode = 200;
             }
         }
     }
@@ -290,6 +342,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
     ];
 }
 
+if (!defined('IS_TESTING_CLI')) {
 try {
     $action = trim((string)($_GET['action'] ?? $_POST['action'] ?? 'suggest'));
 
@@ -776,4 +829,5 @@ try {
         'ok' => false,
         'error' => $e->getMessage()
     ]);
+}
 }
