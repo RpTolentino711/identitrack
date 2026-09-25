@@ -49,46 +49,7 @@ function getDynamicHandbookRules(): string
     return $rules;
 }
 
-/**
- * Evaluates semantic concept equivalence between two offense names/descriptions.
- * Matches synonyms, Tagalog/Taglish terms, and related disciplinary concepts.
- * E.g., 'suntukan' <-> 'PHYSICAL ALTERCATION' <-> 'FIGHTING' <-> 'MISCONDUCT'
- */
-function areOffensesSemanticallyEqual(string $offA, string $offB): bool
-{
-    $a = mb_strtolower(trim($offA));
-    $b = mb_strtolower(trim($offB));
 
-    if ($a === '' || $b === '') return false;
-    if ($a === $b || strpos($a, $b) !== false || strpos($b, $a) !== false) return true;
-
-    // Define semantic clusters: terms sharing identical disciplinary meaning
-    $clusters = [
-        'fight' => ['fight', 'fighting', 'suntukan', 'away', 'bugbugan', 'physical altercation', 'physical misconduct', 'assault', 'brawl', 'brawling', 'physical injury', 'injuries', 'striking', 'mauling', 'misconduct'],
-        'vape' => ['vape', 'vaping', 'e-cigarette', 'juul', 'pod', 'smoke', 'smoking', 'tobacco', 'cigarette', 'yosi', 'bringing in vape'],
-        'id' => ['lending of id', 'lending id', 'borrowing id', 'id lending', 'id misuse', 'id tampering', 'passing id', 'id swap', 'double tapping', 'tap in tap out', 'using another id', 'false id', 'no id', 'id badge', 'badge', 'failure to wear', 'unapproved id', 'no badge'],
-        'dress' => ['dress code', 'attire', 'civilian attire', 'uniform', 'improper attire', 'grooming', 'hair', 'dyeing hair', 'hair color', 'hair dye', 'misconduct', 'inappropriate attire', 'unapproved attire'],
-        'cheating' => ['cheating', 'academic dishonesty', 'kodigo', 'plagiarism', 'exam cheating', 'copying', 'test cheating', 'exam fraud', 'dishonesty'],
-        'theft' => ['theft', 'stealing', 'ninakaw', 'pilferage', 'shoplifting', 'taking property', 'robbery', 'pocketing', 'burglary', 'stolen'],
-        'disrespect' => ['gross act of disrespect', 'disrespect', 'pambabastos', 'bastos', 'insult', 'insulting', 'verbal assault', 'profanity', 'cursing', 'offensive language', 'insubordination'],
-        'bullying' => ['bullying', 'harassment', 'cyberbullying', 'intimidation', 'threat', 'threatening', 'pang-aasar', 'gender-based sexual harassment', 'stalking'],
-        'drugs' => ['drugs', 'substance', 'alcohol', 'liquor', 'drinking', 'intoxication', 'marijuana', 'shabu', 'weed', 'beer'],
-        'weapon' => ['weapon', 'deadly weapon', 'taser', 'knife', 'blade', 'gun', 'firearm', 'explosive']
-    ];
-
-    foreach ($clusters as $category => $terms) {
-        $aMatches = false;
-        $bMatches = false;
-
-        foreach ($terms as $t) {
-            if (strpos($a, $t) !== false) $aMatches = true;
-            if (strpos($b, $t) !== false) $bMatches = true;
-            if ($aMatches && $bMatches) return true;
-        }
-    }
-
-    return false;
-}
 
 /**
  * Formats raw JSON punishment details into clean human text
@@ -526,8 +487,7 @@ try {
             }
         }
 
-        $allCaseOffenses = db_all("
-            SELECT o.offense_id, o.offense_type_id, o.description as offense_description,
+        $allCaseOffenses = db_all("SELECT o.offense_id, o.offense_type_id, o.description as offense_description,
                    ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
             FROM upcc_case_offense uco
             JOIN offense o ON o.offense_id = uco.offense_id
@@ -577,8 +537,7 @@ try {
     $instanceCount = max(1, (int)($instanceCountRow['cnt'] ?? 1));
 
     // ── Detailed Prior Resolved Cases Breakdown (Includes Offense Names) ──
-    $priorCasesWithCat = ($targetStudentId !== '' && $rawCaseId !== '') ? db_all("
-        SELECT c.case_id, c.decided_category, c.punishment_details, c.status, c.created_at,
+    $priorCasesWithCat = ($targetStudentId !== '' && $rawCaseId !== '') ? db_all(" SELECT c.case_id, c.decided_category, c.punishment_details, c.status, c.created_at,
                GROUP_CONCAT(DISTINCT ot.name SEPARATOR '|||') as offense_names,
                GROUP_CONCAT(DISTINCT ot.level SEPARATOR '|||') as offense_levels
         FROM upcc_case c
@@ -592,8 +551,7 @@ try {
 
     $totalPrior = count($priorCasesWithCat);
 
-    $totalMajorRow = ($targetStudentId !== '' && $rawCaseId !== '') ? db_one("
-        SELECT COUNT(*) as cnt FROM upcc_case c
+    $totalMajorRow = ($targetStudentId !== '' && $rawCaseId !== '') ? db_one(" SELECT COUNT(*) as cnt FROM upcc_case c
         JOIN upcc_case_offense uco ON uco.case_id = c.case_id
         JOIN offense o ON o.offense_id = uco.offense_id
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -616,16 +574,14 @@ try {
     $isSecondOrHigherOffense = ($totalPrior >= 1 || $instanceCount >= 2 || $totalMajorCount >= 1 || $priorCasesAllCount >= 1 || ($totalCasesForStudent >= 2 && $caseId > 0));
     $calculatedAttempt = $isSecondOrHigherOffense ? max(2, $priorCasesAllCount + 1, $totalPrior + 1, $instanceCount, $totalMajorCount + 1) : 1;
 
-    $totalMinorRow = $targetStudentId !== '' ? db_one("
-        SELECT COUNT(*) as cnt FROM offense o
+    $totalMinorRow = $targetStudentId !== '' ? db_one("SELECT COUNT(*) as cnt FROM offense o
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
         WHERE o.student_id = :sid AND ot.level = 'MINOR'
     ", [':sid' => $targetStudentId]) : ['cnt' => 1];
     $totalMinorCount = max(1, (int)($totalMinorRow['cnt'] ?? 1));
 
     // ── Pending / Ongoing Cases Lookup (Includes Offense Names & Levels) ──
-    $pendingCasesRows = $targetStudentId !== '' ? db_all("
-        SELECT c.case_id, c.status,
+    $pendingCasesRows = $targetStudentId !== '' ? db_all("SELECT c.case_id, c.status,
                GROUP_CONCAT(DISTINCT ot.name SEPARATOR '|||') as offense_names,
                GROUP_CONCAT(DISTINCT ot.level SEPARATOR '|||') as offense_levels
         FROM upcc_case c
@@ -683,10 +639,9 @@ try {
     }
 
     // ── Community Service Lookup ──────────────────────────────────────────────
-    $csReq = $targetStudentId !== '' ? db_one("
-        SELECT csr.requirement_id, " . db_decrypt_col('task_name', 'csr') . " AS task_name, csr.hours_required, csr.status,
+    $csReq = $targetStudentId !== '' ? db_one("SELECT csr.requirement_id, " . db_decrypt_col('task_name', 'csr') . " AS task_name, csr.hours_required, csr.status,
         (
-            SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, time_out)/3600.0), 0.0)
+    SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, time_out)/3600.0), 0.0)
             FROM community_service_session css
             WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NOT NULL
         ) AS hours_completed,
@@ -695,7 +650,7 @@ try {
             WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
         ) AS active_session_count,
         (
-            SELECT COUNT(*) FROM community_service_session css
+         SELECT COUNT(*) FROM community_service_session css
             WHERE css.requirement_id = csr.requirement_id
         ) AS total_session_count
         FROM community_service_requirement csr
@@ -771,18 +726,9 @@ try {
         $matchedHours = null;
         $matchedSource = null;
 
-        // Count exact matching precedent records in historical dataset (SANCTION.xlsx + Database)
-        $excelMatchesForThis = [];
-        if (!empty($cacheRecords)) {
-            foreach ($cacheRecords as $cr) {
-                $crOff = (string)($cr['offense'] ?? '');
-                if ($crOff !== '' && areOffensesSemanticallyEqual($crOff, $oName)) {
-                    $excelMatchesForThis[] = $cr;
-                }
-            }
-        }
+        // Count exact matching precedent records in MySQL database
         $dbMatchesForThis = getExactPrecedents($oId, $caseId, 50);
-        $totalDatasetMatchCount = count($excelMatchesForThis) + count($dbMatchesForThis);
+        $totalDatasetMatchCount = count($dbMatchesForThis);
         $casesStr = "record - {$totalDatasetMatchCount}";
 
         $matchedHours = null;
@@ -800,20 +746,6 @@ try {
                 $matchedHours = ($dbP[0]['decided_category'] >= 2) ? 150 : 0;
             }
             $matchedSource = "Category {$dbP[0]['decided_category']} Sanction ({$punStr})";
-        }
-
-        // Check SANCTION.xlsx Excel dataset cache using Semantic Concept Matching
-        if ($matchedHours === null && !empty($excelMatchesForThis)) {
-            $cr = $excelMatchesForThis[0];
-            $sanc = (string)($cr['sanction'] ?? '');
-            if (preg_match('/(\d+)\s*Hours/i', $sanc, $pm)) {
-                $matchedHours = (float)$pm[1];
-            } elseif (preg_match('/(\d+)\s*Minutes/i', $sanc, $pm)) {
-                $matchedHours = (float)$pm[1] / 60.0;
-            } else {
-                $matchedHours = (strpos(strtoupper($sanc), 'NON-READMISSION') !== false) ? 300 : ((strpos(strtoupper($sanc), '150') !== false) ? 150 : 250);
-            }
-            $matchedSource = "'{$cr['offense']}' ({$cr['sanction']})";
         }
 
         // Fallback: Handbook Gravity & Meaning Assessment if no dataset record
