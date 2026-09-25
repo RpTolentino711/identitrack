@@ -186,27 +186,31 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
         $pythonPath = __DIR__ . '/AI/softeng_2-master/server/venv/Scripts/python.exe';
         $scriptPath = __DIR__ . '/AI/softeng_2-master/server/server.py';
         if (file_exists($pythonPath) && file_exists($scriptPath)) {
-            @pclose(@popen("start /B \"\" \"" . str_replace('/', '\\', $pythonPath) . "\" \"" . str_replace('/', '\\', $scriptPath) . "\"", "r"));
-            usleep(600000); // 600ms grace period for Flask startup
+            $workingDir = __DIR__ . '/AI/softeng_2-master/server';
+            @pclose(@popen("cmd /c \"cd /d \"" . str_replace('/', '\\', $workingDir) . "\" && start /B \"\" \"" . str_replace('/', '\\', $pythonPath) . "\" \"" . str_replace('/', '\\', $scriptPath) . "\"\"", "r"));
             
-            // Retry curl once
-            $chRetry = curl_init(rtrim($apiUrl, '/') . '/predict');
-            curl_setopt_array($chRetry, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST           => true,
-                CURLOPT_POSTFIELDS     => json_encode($payload),
-                CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-                CURLOPT_TIMEOUT        => 5,
-                CURLOPT_CONNECTTIMEOUT => 2,
-                CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_SSL_VERIFYHOST => false
-            ]);
-            $retryRes = curl_exec($chRetry);
-            $retryCode = curl_getinfo($chRetry, CURLINFO_HTTP_CODE);
-            curl_close($chRetry);
-            if ($retryCode === 200 && !empty($retryRes)) {
-                $response = $retryRes;
-                $httpCode = $retryCode;
+            // Retry curl up to 3 times (1.5s total grace window)
+            for ($retry = 0; $retry < 3; $retry++) {
+                usleep(500000); // 500ms per attempt
+                $chRetry = curl_init(rtrim($apiUrl, '/') . '/predict');
+                curl_setopt_array($chRetry, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST           => true,
+                    CURLOPT_POSTFIELDS     => json_encode($payload),
+                    CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+                    CURLOPT_TIMEOUT        => 5,
+                    CURLOPT_CONNECTTIMEOUT => 2,
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => false
+                ]);
+                $retryRes = curl_exec($chRetry);
+                $retryCode = curl_getinfo($chRetry, CURLINFO_HTTP_CODE);
+                curl_close($chRetry);
+                if ($retryCode === 200 && !empty($retryRes)) {
+                    $response = $retryRes;
+                    $httpCode = $retryCode;
+                    break;
+                }
             }
         }
     }
