@@ -6,48 +6,7 @@ require_once __DIR__ . '/../database/database.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-/**
- * Dynamically constructs the Student Handbook Catalog and Penalty Matrix
- * by querying MySQL database tables in real-time. Zero hardcoded text.
- */
-function getDynamicHandbookRules(): string
-{
-    $types = db_all("SELECT code, name, level, major_category FROM offense_type WHERE is_active = 1 ORDER BY level ASC, major_category ASC, name ASC");
 
-    $minors = [];
-    $majors = [];
-
-    foreach ($types as $t) {
-        if ($t['level'] === 'MINOR') {
-            $minors[] = "• " . $t['name'] . " (Code: " . $t['code'] . ")";
-        } else {
-            $catStr = $t['major_category'] ? " [Category {$t['major_category']}]" : "";
-            $majors[] = "• " . $t['name'] . " (Code: " . $t['code'] . "){$catStr}";
-        }
-    }
-
-    $rules = "LIVE DATABASE STUDENT HANDBOOK CATALOG & DISCIPLINARY MATRIX:\n\n";
-    
-    $rules .= "REGISTERED MINOR OFFENSES (" . count($minors) . " Active Types in Database):\n";
-    $rules .= !empty($minors) ? implode("\n", $minors) : "• General Minor Violations";
-    $rules .= "\n\nSECTION 4 MINOR OFFENSE CYCLE & ESCALATION POLICY:\n";
-    $rules .= "• 1st Minor Offense (Attempt #1 of Cycle): Student Warning.\n";
-    $rules .= "• 2nd Minor Offense (Attempt #2 of Cycle): Guardian Warning / Notification.\n";
-    $rules .= "• 3rd Minor Offense (Attempt #3 of Cycle): Section 4 Escalation Triggered! Creates UPCC Case and opens 3-Modal Workflow (Notice of Guardian, Form F-005 NTE Upload, Incident Photo Upload — Admin can upload immediately or skip/defer). Referred to UPCC Panel for voting.\n";
-    $rules .= "• UPCC PANEL VOTING SUPREMACY: Section 4 escalation and automatic major offenses refer cases to the UPCC Panel, where Panel Members vote to decide the final Category (Category 1, 2, 3, 4, or 5). Section 4 does NOT force Category 2; final sanction always depends on Panel voting.\n";
-    $rules .= "• CONTINUOUS CYCLING METER: Minors cycle continuously in groups of 3 (1st cycle: minors 1–3; 2nd cycle: minors 4–6; 3rd cycle: minors 7–9, etc.), tracked dynamically on the Section 4 meter on the right side.\n\n";
-
-    $rules .= "REGISTERED MAJOR OFFENSES (" . count($majors) . " Active Types in Database):\n";
-    $rules .= !empty($majors) ? implode("\n", $majors) : "• General Major Violations";
-    $rules .= "\n\nMAJOR CATEGORY PENALTY MATRIX:\n";
-    $rules .= "• Category 1: Formal Reprimand & Active Semester Probation\n";
-    $rules .= "• Category 2: Formative Community Service (150–250 Hours)\n";
-    $rules .= "• Category 3: 1 Semester Non-Readmission / Suspension\n";
-    $rules .= "• Category 4: Exclusion / Mandatory Dismissal\n";
-    $rules .= "• Category 5: Summary Expulsion & Police Referral\n";
-
-    return $rules;
-}
 
 
 
@@ -266,153 +225,21 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
             $sanction = trim($sanction);
             $confidence = round((float)($resData['sanction_confidence'] ?? $resData['confidence_score'] ?? $resData['likelihood_percentage'] ?? 88.5), 1);
             $severity = trim((string)($resData['severity'] ?? 'Medium'));
-            $handbookCitation = 'COMSICE XGBoost ML Model (sanction_xgb_model.json)';
             $usedMlModel = true;
         }
     }
 
     if (!$usedMlModel) {
-        // Seamless Native Decision Engine Prediction Fallback
-        $sanction = 'Violation slip issued by the SDO';
-        $severity = 'Medium';
-        $confidence = 88.5;
-        $handbookCitation = 'NU Lipa Student Handbook Section 3.1';
-
-        $upperOff = strtoupper((string)($offenseName . ' ' . $userPrompt));
-        $upperCat = strtoupper((string)($category . ' ' . $numOffenseStr));
-
-        $instanceCount = (int)($caseMeta['instance_count'] ?? 1);
-        $totalMinorCount = (int)($caseMeta['total_minor_count'] ?? 1);
-
-        $isSec4Same3 = (strtoupper($offenseLevel) === 'MINOR' && $instanceCount >= 3);
-        $isSec4Diff4 = (strtoupper($offenseLevel) === 'MINOR' && $totalMinorCount >= 4);
-
-        $isSec4Cycle2 = (strpos($upperCat, 'CYCLE 2') !== false || strpos($upperCat, '6 MINOR') !== false || ($totalMinorCount >= 6));
-        $isSec4Cycle1 = ($isSec4Same3 || $isSec4Diff4 || strpos($upperCat, 'CYCLE 1') !== false || strpos($upperCat, '3 MINOR') !== false || (strpos($upperCat, 'SECTION 4') !== false && !$isSec4Cycle2));
-        $isMajor2nd = (strpos($upperCat, '2ND') !== false || strpos($upperCat, 'REPEATED') !== false || $totalPrior >= 1);
-        $isMajor = (strpos($upperCat, 'MAJOR') !== false || strtoupper($offenseLevel) === 'MAJOR') && !$isSec4Cycle1 && !$isSec4Cycle2;
-
-        if ($isSec4Cycle2) {
-            $sanction = '1 Semester Suspension & Disciplinary Probation (Section 4 Cycle 2)';
-            $severity = 'Critical';
-            $confidence = 96.5;
-            $handbookCitation = 'Section 4 Minor Offense Escalation — Cycle 2 (Accumulated 6 Minor Offenses)';
-        } elseif ($isSec4Same3) {
-            $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
-            $severity = 'High';
-            $confidence = 95.0;
-            $handbookCitation = "Section 4 Minor Offense Escalation — Trigger 1: 3 Repeated Same Minor Offenses ('{$offenseName}')";
-        } elseif ($isSec4Diff4) {
-            $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
-            $severity = 'High';
-            $confidence = 95.0;
-            $handbookCitation = 'Section 4 Minor Offense Escalation — Trigger 2: 4 Accumulated Minor Offenses Across Different Violation Types';
-        } elseif ($isSec4Cycle1) {
-            $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
-            $severity = 'High';
-            $confidence = 95.0;
-            $handbookCitation = 'Section 4 Minor Offense Escalation — Cycle 1 (Accumulated 3 Minor Offenses)';
-        } elseif ($isMajor) {
-            $isExtremeSafetyViolation = (
-                strpos($upperOff, 'EXPLOSIVE') !== false ||
-                strpos($upperOff, 'BOMB') !== false ||
-                strpos($upperOff, 'WEAPON') !== false ||
-                strpos($upperOff, 'KNIFE') !== false ||
-                strpos($upperOff, 'BLADE') !== false ||
-                strpos($upperOff, 'FIREARM') !== false ||
-                strpos($upperOff, 'GUN') !== false ||
-                strpos($upperOff, 'TASER') !== false ||
-                strpos($upperOff, 'SWORD') !== false
-            );
-
-            $isDrugViolation = (
-                strpos($upperOff, 'DRUG') !== false ||
-                strpos($upperOff, 'DRUGS') !== false ||
-                strpos($upperOff, 'SHABU') !== false ||
-                strpos($upperOff, 'MARIJUANA') !== false ||
-                strpos($upperOff, 'WEED') !== false ||
-                strpos($upperOff, 'NARCOTIC') !== false ||
-                strpos($upperOff, 'PROHIBITED SUBSTANCE') !== false
-            );
-
-            $dbCat = isset($caseMeta['major_category']) && (int)$caseMeta['major_category'] > 0 ? (int)$caseMeta['major_category'] : 0;
-            $categoryNames = [
-                1 => 'Category 1 (Formal Reprimand & Active Semester Probation)',
-                2 => 'Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)',
-                3 => 'Category 3 (1 Semester Non-Readmission / Suspension)',
-                4 => 'Category 4 (Exclusion / Mandatory Dismissal)',
-                5 => 'Category 5 (Summary Expulsion & Police Referral)'
-            ];
-
-            if ($isExtremeSafetyViolation) {
-                $sanction = 'Category 5 (Summary Expulsion & Police Referral)';
-                $severity = 'Critical';
-                $confidence = 99.0;
-                $handbookCitation = 'Section 5 Major Penalty Matrix - Category 5 Extreme Safety Violation (Weapons / Explosives)';
-            } elseif ($isDrugViolation) {
-                $sanction = 'Category 5 (Summary Expulsion & Police Referral)';
-                $severity = 'Critical';
-                $confidence = 99.0;
-                $handbookCitation = 'Section 5 Major Penalty Matrix - Category 5 (Illegal Drugs & Prohibited Substances)';
-            } elseif ($dbCat >= 1 && $dbCat <= 5) {
-                $sanction = $categoryNames[$dbCat];
-                $severity = ($dbCat >= 4) ? 'Critical' : (($dbCat >= 2) ? 'High' : 'Medium');
-                $confidence = 95.0;
-                $handbookCitation = "NU Lipa Student Handbook Database Catalog (Category {$dbCat} Major Offense)";
-            } elseif ($isMajor2nd) {
-                if (strpos($upperOff, 'FIGHTING') !== false || strpos($upperOff, 'THEFT') !== false || strpos($upperOff, 'SEVERE') !== false) {
-                    $sanction = 'Summary Expulsion / Permanent Disqualification';
-                    $severity = 'Critical';
-                    $confidence = 98.0;
-                    $handbookCitation = 'Section 5 Major Penalty Matrix - 2nd Major Offense (Severe Violation)';
-                } else {
-                    $sanction = '1 Semester Suspension & Academic Probation';
-                    $severity = 'Critical';
-                    $confidence = 94.5;
-                    $handbookCitation = 'Section 5 Major Penalty Matrix - 2nd Major Offense';
-                }
-            } else {
-                $isExplicitAcademicCheating = (
-                    strpos($upperOff, 'CHEATING') !== false || 
-                    strpos($upperOff, 'ACADEMIC DISHONESTY') !== false || 
-                    strpos($upperOff, 'KODIGO') !== false || 
-                    strpos($upperOff, 'PLAGIARISM') !== false || 
-                    strpos($upperOff, 'EXAM DISHONESTY') !== false
-                );
-                $isPhysicalViolation = (
-                    strpos($upperOff, 'BRAWL') !== false || 
-                    strpos($upperOff, 'FIGHT') !== false || 
-                    strpos($upperOff, 'PHYSICAL') !== false || 
-                    strpos($upperOff, 'CANTEEN') !== false || 
-                    strpos($upperOff, 'ASSAULT') !== false
-                );
-
-                if ($isExplicitAcademicCheating && !$isPhysicalViolation) {
-                    $sanction = 'Grade of 0.0 in Exam & Written SDO Reprimand';
-                    $severity = 'High';
-                    $confidence = 94.0;
-                    $handbookCitation = 'Section 5 Major Penalty Matrix - Academic Dishonesty';
-                } else {
-                    $sanction = 'Formative Community Service (150–250 Hours) & Disciplinary Probation';
-                    $severity = 'High';
-                    $confidence = 91.5;
-                    $handbookCitation = 'Section 5 Major Penalty Matrix - 1st Major Offense';
-                }
-            }
-
-        } else { // Minor Offenses (1st/2nd Attempt before Section 4)
-            if ($numOffense == 2) {
-                $sanction = 'Guardian Warning & Formal SDO Counseling';
-                $severity = 'Medium';
-                $confidence = 88.5;
-                $handbookCitation = 'Section 3.1 Minor Offense (2nd Attempt)';
-            } else {
-                $sanction = 'Violation Slip Issued by SDO (First Warning)';
-                $severity = 'Low';
-                $confidence = 87.0;
-                $handbookCitation = 'Section 3.1 Minor Offense (1st Attempt)';
-            }
-        }
+        return [
+            'error' => 'AI Prediction Server (softeng_2-master) is unreachable. Please ensure local Python server.py is running on port 5000.',
+            'sanction' => 'ML Model Offline',
+            'category_num' => 1,
+            'category_label' => 'Category 1',
+            'confidence' => 0.0,
+            'severity' => 'Unknown',
+            'engine' => 'Identati Ai XGBoost ML Model',
+            'privacy' => '🔒 100% Native (RA 10173 Compliant)'
+        ];
     }
 
     $sanction = preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', $sanction);
