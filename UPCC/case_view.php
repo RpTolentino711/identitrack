@@ -4246,7 +4246,7 @@ function renderComsiceResult(data) {
             if (hInp) hInp.value = `Automatic Major - ${data.number_of_offense}`;
         }
         document.getElementById('comsicePredictedSanction').textContent = data.sanction || 'Violation slip issued by the SDO';
-        document.getElementById('comsiceConfidenceScore').textContent = (data.confidence || 88.5) + '%';
+        document.getElementById('comsiceConfidenceScore').textContent = (data.confidence !== undefined && data.confidence !== null ? data.confidence : 88.5) + '%';
         document.getElementById('comsiceSanctionCategory').textContent = data.category_label || (data.category_num ? `Category ${data.category_num}` : 'Category 1');
         
         const sevEl = document.getElementById('comsiceSeverityBadge');

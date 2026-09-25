@@ -125,8 +125,10 @@ def predict():
         })
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Prediction error: {str(e)}")
-        return jsonify({"error": "Prediction failed on server"}), 500
+        return jsonify({"error": f"Prediction failed on server: {str(e)}"}), 500
 
 @app.route("/health", methods=["GET"])
 def health():

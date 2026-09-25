@@ -235,6 +235,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
 
     if (!$usedMlModel) {
         return [
+            'used_ml_model' => false,
             'error' => 'AI Prediction Server (softeng_2-master) is unreachable. Please ensure local Python server.py is running on port 5000.',
             'sanction' => 'ML Model Offline',
             'category_num' => 1,
@@ -277,6 +278,7 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
             . "💡 **Why? (Reason)**: {$whyReason}";
 
     return [
+        'used_ml_model' => true,
         'text' => $aiText,
         'sanction' => $sanction,
         'category_num' => $catNum,
@@ -693,6 +695,14 @@ try {
         ]);
 
         $aiEngineRes = queryAiEngine('', $pDescription ?: $pViolation, $studentName, $targetStudentId, $predictCaseMeta);
+
+        if (empty($aiEngineRes['used_ml_model']) || !empty($aiEngineRes['error'])) {
+            echo json_encode([
+                'ok' => false,
+                'error' => $aiEngineRes['error'] ?? 'AI Microservice is currently offline. Please ensure local Python server.py is running on port 5000.'
+            ]);
+            exit;
+        }
 
         echo json_encode([
             'ok' => true,
