@@ -132,10 +132,15 @@ function runCliPythonPrediction(array $payload): ?string
 
     $isWindows = (strncasecmp(PHP_OS, 'WIN', 3) === 0);
 
+    // Comprehensive Python binary paths for Windows, XAMPP, Linux, Hostinger & cPanel
     $candidates = [
         $serverDir . '/venv/Scripts/python.exe',
         $serverDir . '/venv/bin/python',
         $serverDir . '/venv/bin/python3',
+        '/usr/bin/python3',
+        '/usr/local/bin/python3',
+        '/usr/bin/python',
+        '/bin/python3',
         'python3',
         'python'
     ];
@@ -148,45 +153,72 @@ function runCliPythonPrediction(array $payload): ?string
                 break;
             }
         } else {
-            $testCmd = ($isWindows ? "where " : "which ") . escapeshellarg($cand);
-            $testRes = @shell_exec($testCmd);
-            if (!empty($testRes)) {
-                $pythonExec = $cand;
-                break;
+            if (function_exists('shell_exec')) {
+                $testCmd = ($isWindows ? "where " : "which ") . escapeshellarg($cand);
+                $testRes = @shell_exec($testCmd);
+                if (!empty($testRes)) {
+                    $pythonExec = trim(explode("\n", trim($testRes))[0]);
+                    break;
+                }
             }
         }
     }
 
     if (!$pythonExec) {
-        return null;
+        $pythonExec = $isWindows ? 'python' : '/usr/bin/python3';
     }
 
     $jsonPayload = json_encode($payload);
-    
-    $descriptorspec = [
-        0 => ["pipe", "r"],
-        1 => ["pipe", "w"],
-        2 => ["pipe", "w"]
-    ];
+    $tmpInputFile = sys_get_temp_dir() . '/comsice_in_' . md5(uniqid((string)mt_rand(), true)) . '.json';
+    @file_put_contents($tmpInputFile, $jsonPayload);
 
-    $cmd = escapeshellarg($pythonExec) . ' ' . escapeshellarg($cliScript);
-    $process = proc_open($cmd, $descriptorspec, $pipes, $serverDir);
+    $stdout = null;
 
-    if (is_resource($process)) {
-        fwrite($pipes[0], $jsonPayload);
-        fclose($pipes[0]);
+    // Method 1: proc_open
+    if (function_exists('proc_open')) {
+        $descriptorspec = [
+            0 => ["pipe", "r"],
+            1 => ["pipe", "w"],
+            2 => ["pipe", "w"]
+        ];
+        $cmd = escapeshellarg($pythonExec) . ' ' . escapeshellarg($cliScript);
+        $process = @proc_open($cmd, $descriptorspec, $pipes, $serverDir);
 
-        $stdout = stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-
-        $stderr = stream_get_contents($pipes[2]);
-        fclose($pipes[2]);
-
-        proc_close($process);
-
-        if (!empty($stdout)) {
-            return trim($stdout);
+        if (is_resource($process)) {
+            fwrite($pipes[0], $jsonPayload);
+            fclose($pipes[0]);
+            $stdout = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            proc_close($process);
         }
+    }
+
+    // Method 2: exec with temp input file
+    if (empty($stdout) && function_exists('exec') && file_exists($tmpInputFile)) {
+        $cmd = escapeshellarg($pythonExec) . ' ' . escapeshellarg($cliScript) . ' < ' . escapeshellarg($tmpInputFile) . ' 2>&1';
+        $outputLines = [];
+        @exec($cmd, $outputLines);
+        if (!empty($outputLines)) {
+            $stdout = implode("\n", $outputLines);
+        }
+    }
+
+    // Method 3: shell_exec with temp input file
+    if (empty($stdout) && function_exists('shell_exec') && file_exists($tmpInputFile)) {
+        $cmd = escapeshellarg($pythonExec) . ' ' . escapeshellarg($cliScript) . ' < ' . escapeshellarg($tmpInputFile);
+        $stdout = @shell_exec($cmd);
+    }
+
+    @unlink($tmpInputFile);
+
+    if (!empty($stdout)) {
+        $stdout = trim($stdout);
+        // Extract JSON substring if output has warnings
+        if (preg_match('/\{.*?\}/s', $stdout, $m)) {
+            return $m[0];
+        }
+        return $stdout;
     }
 
     return null;
