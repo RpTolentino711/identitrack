@@ -62,7 +62,7 @@ $activeSessions = db_all(
         )/3600.0, 0.0)
         FROM community_service_session prev
         JOIN community_service_requirement prev_csr ON prev_csr.requirement_id = prev.requirement_id
-        WHERE prev_csr.student_id = s.student_id AND prev.time_out IS NOT NULL
+        WHERE prev.requirement_id = css.requirement_id AND prev.time_out IS NOT NULL
       ) AS prev_hours_completed
    FROM community_service_session css
    JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
