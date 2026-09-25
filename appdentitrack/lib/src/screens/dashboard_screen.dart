@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -43,6 +44,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _seenAlertsCount = 0;
   int _lastMinorOffenseCount = 0;
   double _communityHours = 0;
+  int _communityRemainingSec = 0;
+  String _activeServiceSessionStatus = '';
+  Timer? _csTicker;
   String _accountMode = 'FULL_ACCESS';
   String _accountMessage = 'Account access is normal.';
   String _lastHearingPopupKey = '';
@@ -101,7 +105,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _alertSyncTimer?.cancel();
+    _csTicker?.cancel();
     super.dispose();
+  }
+
+  void _syncCsTicker() {
+    _csTicker?.cancel();
+    if (_activeServiceSession &&
+        _activeServiceSessionStatus == 'ACTIVE' &&
+        _communityRemainingSec > 0) {
+      final initialSec = _communityRemainingSec;
+      final syncTime = DateTime.now();
+
+      void tick() {
+        if (!mounted) return;
+        final elapsed = DateTime.now().difference(syncTime).inSeconds;
+        final currentRemaining = math.max(0, initialSec - elapsed);
+        setState(() {
+          _communityRemainingSec = currentRemaining;
+          _communityHours = currentRemaining / 3600.0;
+        });
+      }
+
+      tick();
+      _csTicker = Timer.periodic(const Duration(seconds: 1), (_) => tick());
+    }
   }
 
   String _greeting() {
@@ -129,11 +157,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _formatHours(double hours) {
-    if (hours <= 0) return '0h';
     final totalSeconds = (hours * 3600).round();
+    return _formatRemainingTime(totalSeconds);
+  }
+
+  String _formatRemainingTime(int totalSeconds) {
+    if (totalSeconds <= 0) return '0h';
     final h = totalSeconds ~/ 3600;
     final m = (totalSeconds % 3600) ~/ 60;
     final s = totalSeconds % 60;
+    if (h == 0 && m == 0) return '${s}s';
     return '${h}h ${m}m ${s}s';
   }
 
@@ -262,8 +295,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _unseenOffensesCount = summary.unseenOffensesCount;
         _lastMinorOffenseCount = summary.minorOffense;
         _activeServiceSession = summary.activeServiceSession;
+        _activeServiceSessionStatus = summary.activeServiceSessionStatus;
+        _communityRemainingSec = summary.communityServiceRemainingSec;
+        _communityHours = summary.communityServiceHours;
         _loading = false;
       });
+
+      _syncCsTicker();
 
       await _checkServiceSessionTransitions(summary);
 
@@ -363,6 +401,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!mounted) return;
 
       await _checkServiceSessionTransitions(summary);
+
+      if (mounted) {
+        setState(() {
+          _communityHours = summary.communityServiceHours;
+          _communityRemainingSec = summary.communityServiceRemainingSec;
+          _activeServiceSession = summary.activeServiceSession;
+          _activeServiceSessionStatus = summary.activeServiceSessionStatus;
+        });
+        _syncCsTicker();
+      }
 
       if (summary.unseenOffensesCount > _unseenOffensesCount &&
           summary.unseenOffensesCount > 0) {

@@ -94,6 +94,14 @@ class DashboardApi {
       communityServiceHours:
           double.tryParse((data['community_service_hours'] ?? 0).toString()) ??
           0,
+      communityServiceRemainingSec: int.tryParse(
+              (data['community_service_remaining_sec'] ?? 0).toString()) ??
+          ((double.tryParse((data['community_service_hours'] ?? 0).toString()) ??
+                      0) *
+                  3600)
+              .round(),
+      activeServiceSessionStatus:
+          (data['active_service_session_status'] ?? '').toString(),
       accountMode: (data['account_mode'] ?? 'FULL_ACCESS').toString(),
       accountMessage: (data['account_message'] ?? '').toString(),
       hearingNotice: hearingNotice,
@@ -210,6 +218,8 @@ class DashboardSummary {
   final int unseenOffensesCount;
   final int totalAlertsCount;
   final double communityServiceHours;
+  final int communityServiceRemainingSec;
+  final String activeServiceSessionStatus;
   final String accountMode;
   final String accountMessage;
   final HearingNotice? hearingNotice;
@@ -231,6 +241,8 @@ class DashboardSummary {
     required this.unseenOffensesCount,
     required this.totalAlertsCount,
     required this.communityServiceHours,
+    required this.communityServiceRemainingSec,
+    required this.activeServiceSessionStatus,
     required this.accountMode,
     required this.accountMessage,
     required this.hearingNotice,

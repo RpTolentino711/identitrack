@@ -188,7 +188,7 @@ $major += (int)($unlinkedMajorCount['c'] ?? 0);
 
 // Note: total reflects all individual offense records; we don't add the case count here to avoid double-counting.
 
-// Community service hours (ACTIVE requirements minus completed hours across all sessions minus active net elapsed)
+// Community service hours (ACTIVE requirements minus completed hours across active sessions minus active net elapsed)
 $activeReqs = db_all("
   SELECT requirement_id, hours_required
   FROM community_service_requirement
@@ -196,81 +196,83 @@ $activeReqs = db_all("
 ", [':sid' => $studentId]);
 
 $assignedSec = 0;
+$completedSec = 0;
+$activeNetSec = 0;
+$activeSessionStatus = '';
+
 if (!empty($activeReqs)) {
+  $reqIds = [];
   foreach ($activeReqs as $ar) {
     $assignedSec += (int)round((float)$ar['hours_required'] * 3600);
+    $reqIds[] = (int)$ar['requirement_id'];
   }
-} else {
-  $latestReq = db_one("
-    SELECT hours_required
-    FROM community_service_requirement
-    WHERE student_id = :sid AND status = 'COMPLETED'
-    ORDER BY assigned_at DESC LIMIT 1
+
+  $inClause = implode(',', array_map('intval', $reqIds));
+  $completedRow = db_one("
+    SELECT COALESCE(SUM(
+      CASE 
+        WHEN status = 'PAUSED' AND paused_at IS NOT NULL THEN
+          GREATEST(0, TIMESTAMPDIFF(SECOND, time_in, paused_at) - COALESCE(accum_paused_seconds, 0))
+        ELSE
+          GREATEST(0, TIMESTAMPDIFF(SECOND, time_in, time_out) - COALESCE(accum_paused_seconds, 0))
+      END
+    ), 0) AS completed_sec
+    FROM community_service_session
+    WHERE requirement_id IN ($inClause)
+      AND time_out IS NOT NULL
+  ");
+
+  $completedSec = (int)($completedRow['completed_sec'] ?? 0);
+
+  $activeSessionRow = db_one("
+    SELECT css.time_in, css.status, css.paused_at, css.accum_paused_seconds
+    FROM community_service_session css
+    JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
+    WHERE csr.student_id = :sid AND css.time_out IS NULL AND csr.status = 'ACTIVE'
+    ORDER BY css.time_in DESC LIMIT 1
   ", [':sid' => $studentId]);
-  if ($latestReq) {
-    $assignedSec = (int)round((float)$latestReq['hours_required'] * 3600);
+
+  if ($activeSessionRow) {
+    $activeSessionStatus = (string)($activeSessionRow['status'] ?? 'ACTIVE');
+    $tIn = strtotime($activeSessionRow['time_in']);
+    $pAt = !empty($activeSessionRow['paused_at']) ? strtotime($activeSessionRow['paused_at']) : time();
+    $acc = (int)($activeSessionRow['accum_paused_seconds'] ?? 0);
+    if ($activeSessionStatus === 'PAUSED') {
+      $activeNetSec = max(0, ($pAt - $tIn) - $acc);
+    } else {
+      $activeNetSec = max(0, (time() - $tIn) - $acc);
+    }
   }
-}
 
-$completedRow = db_one("
-  SELECT COALESCE(SUM(
-    CASE 
-      WHEN status = 'PAUSED' AND paused_at IS NOT NULL THEN
-        GREATEST(0, TIMESTAMPDIFF(SECOND, time_in, paused_at) - COALESCE(accum_paused_seconds, 0))
-      ELSE
-        GREATEST(0, TIMESTAMPDIFF(SECOND, time_in, time_out) - COALESCE(accum_paused_seconds, 0))
-    END
-  ), 0) AS completed_sec
-  FROM community_service_session
-  WHERE requirement_id IN (SELECT requirement_id FROM community_service_requirement WHERE student_id = :sid)
-    AND time_out IS NOT NULL
-", [':sid' => $studentId]);
+  $remainingSec = max(0, $assignedSec - $completedSec - $activeNetSec);
+  $communityHours = $remainingSec / 3600.0;
+} else {
+  // Service is done or no active requirement assigned -> 0 hours remaining!
+  $remainingSec = 0;
+  $communityHours = 0.0;
 
-$completedSec = (int)($completedRow['completed_sec'] ?? 0);
-
-$activeSessionRow = db_one("
-  SELECT css.time_in, css.status, css.paused_at, css.accum_paused_seconds
-  FROM community_service_session css
-  JOIN community_service_requirement csr ON csr.requirement_id = css.requirement_id
-  WHERE csr.student_id = :sid AND css.time_out IS NULL
-  ORDER BY css.time_in DESC LIMIT 1
-", [':sid' => $studentId]);
-
-$activeNetSec = 0;
-if ($activeSessionRow) {
-  $tIn = strtotime($activeSessionRow['time_in']);
-  $pAt = !empty($activeSessionRow['paused_at']) ? strtotime($activeSessionRow['paused_at']) : time();
-  $acc = (int)($activeSessionRow['accum_paused_seconds'] ?? 0);
-  if (($activeSessionRow['status'] ?? 'ACTIVE') === 'PAUSED') {
-    $activeNetSec = max(0, ($pAt - $tIn) - $acc);
-  } else {
-    $activeNetSec = max(0, (time() - $tIn) - $acc);
-  }
-}
-
-$remainingSec = max(0, $assignedSec - $completedSec - $activeNetSec);
-$communityHours = $remainingSec / 3600.0;
-
-// Check if any requirements exist for this student (active or completed)
-$reqExistsRow = db_one(
-  "SELECT COUNT(*) AS cnt 
-   FROM community_service_requirement 
-   WHERE student_id = :sid",
-  [':sid' => $studentId]
-);
-$reqExists = (int)($reqExistsRow['cnt'] ?? 0) > 0;
-
-// Fallback to case service hours for Category >= 2 if no requirement exists in database yet
-if (!$reqExists) {
-  $c2_case = db_one(
-    "SELECT punishment_details FROM upcc_case
-     WHERE student_id = :sid AND decided_category >= 2 AND status = 'RESOLVED'
-     ORDER BY case_id DESC LIMIT 1",
+  // Check if any requirements exist for this student (active or completed)
+  $reqExistsRow = db_one(
+    "SELECT COUNT(*) AS cnt 
+     FROM community_service_requirement 
+     WHERE student_id = :sid",
     [':sid' => $studentId]
   );
-  if ($c2_case) {
-    $c2_details = json_decode((string)$c2_case['punishment_details'], true) ?: [];
-    $communityHours = (float)($c2_details['service_hours'] ?? 0);
+  $reqExists = (int)($reqExistsRow['cnt'] ?? 0) > 0;
+
+  // Fallback to case service hours for Category >= 2 ONLY if no requirement record exists at all
+  if (!$reqExists) {
+    $c2_case = db_one(
+      "SELECT punishment_details FROM upcc_case
+       WHERE student_id = :sid AND decided_category >= 2 AND status = 'RESOLVED'
+       ORDER BY case_id DESC LIMIT 1",
+      [':sid' => $studentId]
+    );
+    if ($c2_case) {
+      $c2_details = json_decode((string)$c2_case['punishment_details'], true) ?: [];
+      $communityHours = (float)($c2_details['service_hours'] ?? 0);
+      $remainingSec = (int)round($communityHours * 3600);
+    }
   }
 }
 
@@ -559,6 +561,8 @@ json_out(true, 'Dashboard summary loaded.', [
   'unseen_offenses_count' => $unseenOffensesCount,
   'total_alerts_count' => $totalAlertsCount,
   'community_service_hours' => $communityHours,
+  'community_service_remaining_sec' => $remainingSec,
+  'active_service_session_status' => $activeSessionStatus,
   'account_mode' => $accountMode,
   'account_message' => $accountMessage,
   'hearing_notice' => $hearingNotice,
