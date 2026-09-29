@@ -622,7 +622,7 @@ $targetOffenseId = $hasActiveWorkflowRequest ? (int)($_GET['offense_id'] ?? $let
 
 if ($targetOffenseId > 0) {
     $offCheck = db_one(
-        "SELECT o.offense_id, o.level, o.student_id, o.guardian_notified_at, 
+        "SELECT o.offense_id, o.level, o.student_id, o.guardian_notified_at, o.evidence_file,
                 (SELECT COUNT(*) FROM upcc_case_offense uco JOIN upcc_case uc ON uc.case_id = uco.case_id WHERE uco.offense_id = o.offense_id AND uc.case_kind = 'SECTION4_MINOR_ESCALATION') AS is_section4_case 
          FROM offense o WHERE o.offense_id = :oid", 
         [':oid' => $targetOffenseId]
@@ -664,6 +664,12 @@ if ($targetOffenseId > 0) {
             $letterOffenseId = $targetOffenseId;
         }
     }
+}
+$existingOffenseEvidence = '';
+if (!empty($offCheck['evidence_file'])) {
+    $existingOffenseEvidence = (string)$offCheck['evidence_file'];
+} elseif (!empty($pendingGuardReport['evidence_file'])) {
+    $existingOffenseEvidence = (string)$pendingGuardReport['evidence_file'];
 }
 $letterMinorNo = (int)($_GET['minor_no'] ?? 0);
 if ($letterMinorNo <= 0 && !empty($studentIdPrefill)) {
@@ -3755,24 +3761,50 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; padding:0;">
         <div style="font-size:13.5px; color:#334155; line-height:1.5;">
-          Attach or select the official incident photo evidence for this offense record. This evidence will be accessible to the SDO Admin and UPCC Panel members:
+          Review or attach official incident photo evidence for this offense record. This evidence will be accessible to the SDO Admin and UPCC Panel members:
         </div>
 
-        <!-- Photo / Evidence File Upload Input Box -->
-        <div style="background:#eff6ff; border:2px dashed #2563eb; border-radius:14px; padding:20px; text-align:center;">
-          <div style="color:#2563eb; margin-bottom:8px;">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:38px; height:38px; margin:0 auto;"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <?php if (!empty($existingOffenseEvidence)): ?>
+          <!-- Display Guard / Attached Photo Evidence Preview -->
+          <div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:14px; padding:16px; text-align:center;">
+            <div style="font-size:12px; font-weight:800; color:#15803d; text-transform:uppercase; margin-bottom:10px; display:flex; align-items:center; justify-content:center; gap:6px;">
+              <span>✓</span> Guard / Record Photo Evidence Attached
+            </div>
+            <div style="max-height:220px; overflow:hidden; border-radius:10px; border:1px solid #bbf7d0; display:flex; justify-content:center; align-items:center; background:#ffffff; padding:6px;">
+              <?php if (preg_match('/\.(pdf)$/i', $existingOffenseEvidence)): ?>
+                <a href="../<?= htmlspecialchars($existingOffenseEvidence) ?>" target="_blank" style="font-weight:700; color:#2563eb; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                  📄 View Attached PDF Evidence
+                </a>
+              <?php else: ?>
+                <img src="../<?= htmlspecialchars($existingOffenseEvidence) ?>" alt="Incident Photo Evidence" style="max-width:100%; max-height:200px; object-fit:contain; border-radius:6px;" />
+              <?php endif; ?>
+            </div>
+            <div style="font-size:11.5px; color:#166534; margin-top:8px; font-weight:600;">
+              Photo attached during incident report creation by Security Guard / Admin.
+            </div>
           </div>
-          <label style="font-size:13px; font-weight:800; color:#1e40af; display:block; margin-bottom:8px;">
-            Upload Photo Evidence File (Optional)
-          </label>
-          <input type="file" id="modal_hearing_photo_file" accept="image/*,.pdf" style="width:100%; max-width:360px; padding:8px 12px; border-radius:8px; border:1px solid #bfdbfe; background:#ffffff; font-size:13px;">
-          <div style="font-size:11.5px; color:#475569; margin-top:8px;">Supported formats: JPG, PNG, WEBP, or PDF (Max 5MB).</div>
-        </div>
+          <div style="font-size:12px; color:#475569; text-align:center;">
+            Optional: Select a file below to replace existing photo:
+          </div>
+          <input type="file" id="modal_hearing_photo_file" accept="image/*,.pdf" style="width:100%; max-width:360px; margin:0 auto; padding:8px 12px; border-radius:8px; border:1px solid #bfdbfe; background:#ffffff; font-size:13px;">
+        <?php else: ?>
+          <!-- Photo / Evidence File Upload Input Box (Empty State) -->
+          <div style="background:#eff6ff; border:2px dashed #2563eb; border-radius:14px; padding:20px; text-align:center;">
+            <div style="color:#64748b; margin-bottom:8px;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:38px; height:38px; margin:0 auto;"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <label style="font-size:13px; font-weight:800; color:#1e40af; display:block; margin-bottom:4px;">
+              No Photo Evidence Attached
+            </label>
+            <div style="font-size:12px; color:#64748b; margin-bottom:12px;">No photo evidence was attached by the Guard for this incident. You may attach a photo now or proceed without photo.</div>
+            <input type="file" id="modal_hearing_photo_file" accept="image/*,.pdf" style="width:100%; max-width:360px; padding:8px 12px; border-radius:8px; border:1px solid #bfdbfe; background:#ffffff; font-size:13px;">
+            <div style="font-size:11.5px; color:#475569; margin-top:8px;">Supported formats: JPG, PNG, WEBP, or PDF (Max 5MB).</div>
+          </div>
+        <?php endif; ?>
       </div>
       <div class="modal-footer" style="margin-top:20px; border-top:1px solid #e2e8f0; padding-top:14px; display:flex; justify-content:flex-end; gap:10px;">
         <button type="button" class="btn" id="btnSaveHearingChoice" onclick="saveEvidencePhotoChoiceAndFinish()" style="background:#2563eb; color:#ffffff; font-weight:800; padding:11px 22px; border-radius:10px; border:none; font-size:13.5px; cursor:pointer; box-shadow:0 4px 12px rgba(37,99,235,0.3);">
-          ✓ Save Choice & Finish Registration
+          ✓ Save Choice &amp; Finish Registration
         </button>
       </div>
     </div>
@@ -4281,8 +4313,9 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   window.saveEvidencePhotoChoiceAndFinish = function() {
     const photoFileInput = document.getElementById('modal_hearing_photo_file');
     const hasFile = photoFileInput && photoFileInput.files && photoFileInput.files[0];
+    const hasExisting = <?php echo !empty($existingOffenseEvidence) ? 'true' : 'false'; ?>;
 
-    if (!hasFile) {
+    if (!hasFile && !hasExisting) {
       const choiceModal = document.getElementById('modal-evidence-photo-choice');
       if (choiceModal) {
         choiceModal.classList.remove('active');
@@ -4299,7 +4332,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       return;
     }
 
-    executeSaveEvidenceChoice(true);
+    executeSaveEvidenceChoice(hasFile || hasExisting);
   };
 
   async function executeSaveEvidenceChoice(hasFile) {
