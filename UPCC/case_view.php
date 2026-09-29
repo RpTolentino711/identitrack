@@ -429,9 +429,28 @@ function _closeRound(int $caseId, int $roundNo): void {
     db_exec($sql, [':c' => $caseId, ':r' => $roundNo]);
 }
 
+function _formatCsHoursStr(float|int|string $shVal): string {
+    $shVal = (float)$shVal;
+    if ($shVal <= 0) return '';
+    $hPart = (int)floor($shVal);
+    $mPart = (int)round(($shVal - $hPart) * 60);
+    if ($mPart >= 60) {
+        $hPart += 1;
+        $mPart = 0;
+    }
+    $parts = [];
+    if ($hPart > 0) {
+        $parts[] = $hPart . ' Hr' . ($hPart > 1 ? 's' : '');
+    }
+    if ($mPart > 0) {
+        $parts[] = $mPart . ' Min' . ($mPart > 1 ? 's' : '');
+    }
+    return !empty($parts) ? implode(' ', $parts) . ' CS' : '';
+}
+
 function _catLabel(int $cat, array $details = []): string {
     $hrsStr = !empty($details['service_hours']) && (float)$details['service_hours'] > 0
-        ? ' (' . (float)$details['service_hours'] . ' Hours CS)'
+        ? ' (' . _formatCsHoursStr($details['service_hours']) . ')'
         : '';
     $interventionsList = !empty($details['interventions']) && is_array($details['interventions'])
         ? ' (' . implode(', ', $details['interventions']) . ')'
@@ -1546,10 +1565,7 @@ hr{border-color:var(--border-glass);margin:16px 0}
                             <?php if ($consensusCategory === 2 && !empty($cda['interventions'])): ?>
                                 <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">
                                     Interventions: <?= htmlspecialchars(implode(', ', $cda['interventions'])) ?>
-                                    <?php if (!empty($cda['service_hours'])): ?>(<?php 
-                                      $shVal = (float)$cda['service_hours'];
-                                      echo ($shVal < 1.0 && $shVal > 0) ? round($shVal * 60) . ' mins' : $shVal . ' hrs';
-                                    ?>)<?php endif; ?>
+                                    <?php if (!empty($cda['service_hours'])): ?>(<?= _formatCsHoursStr($cda['service_hours']) ?>)<?php endif; ?>
                                 </div>
                             <?php endif; ?>
                             <?php if (!empty($cda['description'])): ?>
