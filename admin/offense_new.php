@@ -176,6 +176,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['_action_hint'] ?? 
       $evidenceFilePath = trim((string)$_POST['existing_evidence_file']);
     }
 
+    // Fallback: If registering from a Guard Report and evidenceFilePath is empty, pull photo directly from guard_violation_report
+    if (empty($evidenceFilePath) && !empty($_POST['pending_report_id'])) {
+      $pgrEv = db_one("SELECT evidence_file FROM guard_violation_report WHERE report_id = ?", [(int)$_POST['pending_report_id']]);
+      if (!empty($pgrEv['evidence_file'])) {
+        $evidenceFilePath = (string)$pgrEv['evidence_file'];
+      }
+    }
+
     $offenseStatus = ($level === 'DISMISSED') ? 'DISMISSED' : 'OPEN';
 
     $params = [
@@ -670,6 +678,20 @@ if (!empty($offCheck['evidence_file'])) {
     $existingOffenseEvidence = (string)$offCheck['evidence_file'];
 } elseif (!empty($pendingGuardReport['evidence_file'])) {
     $existingOffenseEvidence = (string)$pendingGuardReport['evidence_file'];
+}
+
+if (empty($existingOffenseEvidence) && $targetOffenseId > 0) {
+    // Check if linked UPCC case has photo evidence
+    $caseEv = db_one(
+        "SELECT uc.evidence_file FROM upcc_case_offense uco 
+         JOIN upcc_case uc ON uc.case_id = uco.case_id 
+         WHERE uco.offense_id = :oid AND uc.evidence_file IS NOT NULL AND uc.evidence_file <> '' 
+         LIMIT 1",
+        [':oid' => $targetOffenseId]
+    );
+    if (!empty($caseEv['evidence_file'])) {
+        $existingOffenseEvidence = (string)$caseEv['evidence_file'];
+    }
 }
 $letterMinorNo = (int)($_GET['minor_no'] ?? 0);
 if ($letterMinorNo <= 0 && !empty($studentIdPrefill)) {
@@ -2559,7 +2581,8 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   'guard_name' => (string)($pr['guard_name'] ?? ''),
                   'description' => (string)($pr['description'] ?? ''),
                   'created_at' => (string)($pr['created_at'] ?? ''),
-                  'date_committed' => (string)($pr['date_committed'] ?? '')
+                  'date_committed' => (string)($pr['date_committed'] ?? ''),
+                  'evidence_file' => (string)($pr['evidence_file'] ?? '')
               ];
           }
       }
@@ -2733,6 +2756,42 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             const dateInput = document.getElementById('date_committed');
             if (dateInput && r.created_at) {
                 dateInput.value = r.created_at.replace(' ', 'T').substring(0, 16);
+            }
+
+            const existingEvInput = document.getElementById('existing_evidence_file');
+            const previewBox = document.getElementById('formPhotoPreviewBox');
+            const thumbEl = document.getElementById('formPhotoThumbnail');
+            const fileNameEl = document.getElementById('formPhotoFileName');
+            const fileSizeEl = document.getElementById('formPhotoFileSize');
+            const badgeEl = document.getElementById('formPhotoBadge');
+            
+            if (r.evidence_file && r.evidence_file.trim() !== '') {
+                if (existingEvInput) existingEvInput.value = r.evidence_file;
+                const fileExt = r.evidence_file.split('.').pop().toLowerCase();
+                const isImg = ['jpg','jpeg','png','webp'].includes(fileExt);
+                if (thumbEl) {
+                    if (isImg) {
+                        thumbEl.innerHTML = `<img src="../${r.evidence_file}" style="width:100%; height:100%; object-fit:cover;" />`;
+                    } else {
+                        thumbEl.innerHTML = `<span style="font-size:20px; color:#2563eb;">📄</span>`;
+                    }
+                }
+                if (fileNameEl) fileNameEl.textContent = r.evidence_file.split('/').pop() + ' (Guard Report Photo)';
+                if (fileSizeEl) fileSizeEl.textContent = 'Auto-filled from Pending Guard Report #' + r.report_id;
+                if (badgeEl) {
+                    badgeEl.textContent = 'Guard Photo Auto-Filled ✓';
+                    badgeEl.style.background = '#dcfce7';
+                    badgeEl.style.color = '#15803d';
+                }
+                if (previewBox) previewBox.style.display = 'flex';
+            } else {
+                if (existingEvInput) existingEvInput.value = '';
+                if (previewBox) previewBox.style.display = 'none';
+                if (badgeEl) {
+                    badgeEl.textContent = 'No photo attached';
+                    badgeEl.style.background = '#f1f5f9';
+                    badgeEl.style.color = '#64748b';
+                }
             }
 
             // Update peeking right cards
