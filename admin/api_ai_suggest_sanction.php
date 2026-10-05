@@ -592,6 +592,18 @@ try {
             if ($cMetaRow) {
                 $case = array_merge($case, $cMetaRow);
             }
+        } else {
+            $cMetaRow = db_one("SELECT student_id, case_summary, case_kind FROM upcc_case WHERE case_id = :cid OR CAST(case_id AS CHAR) = :cid", [':cid' => $rawCaseId]);
+            if ($cMetaRow) {
+                $case = [
+                    'case_id' => $rawCaseId,
+                    'student_id' => $cMetaRow['student_id'],
+                    'offense_name' => !empty($cMetaRow['case_summary']) ? $cMetaRow['case_summary'] : 'Student Discipline Case',
+                    'offense_level' => (stripos($cMetaRow['case_kind'] ?? '', 'MAJOR') !== false) ? 'MAJOR' : 'MINOR',
+                    'offense_code' => 'UPCC_CASE',
+                    'offense_type_id' => 0
+                ];
+            }
         }
     }
 
@@ -599,7 +611,11 @@ try {
         $case = db_one("SELECT s.student_id,
                    o.offense_type_id, o.description as offense_description, ot.code as offense_code, ot.name as offense_name, ot.level as offense_level, ot.major_category
             FROM student s
-            LEFT JOIN offense o ON o.student_id = s.student_id
+            LEFT JOIN offense o ON o.student_id = s.student_id AND o.offense_id NOT IN (
+                SELECT uco.offense_id FROM upcc_case_offense uco
+                JOIN upcc_case uc ON uc.case_id = uco.case_id
+                WHERE uc.status IN ('RESOLVED', 'CLOSED', 'FINALIZED')
+            )
             LEFT JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
             WHERE s.student_id = :sid
             ORDER BY o.date_committed DESC LIMIT 1

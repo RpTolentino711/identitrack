@@ -4322,19 +4322,11 @@ async function runComsicePrediction() {
     }
 }
 
-// Auto-restore cached AI prediction on page load / hard refresh
+// Auto-run fresh AI prediction on page load / hard refresh
 document.addEventListener('DOMContentLoaded', function() {
     try {
         const caseId = <?= (int)$caseId ?>;
-        const currentCycle = document.getElementById('comsiceNumOffense')?.value || '';
-        const cached = sessionStorage.getItem('comsice_ai_prediction_case_' + caseId);
-        if (cached) {
-            const data = JSON.parse(cached);
-            if (data && data.number_of_offense && currentCycle.includes(data.number_of_offense)) {
-                renderComsiceResult(data);
-                return;
-            }
-        }
+        sessionStorage.removeItem('comsice_ai_prediction_case_' + caseId);
         runComsicePrediction();
     } catch(e) {
         runComsicePrediction();
