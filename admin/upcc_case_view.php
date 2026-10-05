@@ -2174,68 +2174,7 @@ body {
 
               <div class="section-label">Offenses in Current Case #<?= $case_id ?></div>
 
-              <!-- Incident Report & Photo Evidence Attachment Card -->
-              <?php 
-                $allEvidenceFiles = [];
-                if (!empty($case['evidence_file'])) {
-                    $allEvidenceFiles[] = [
-                        'label' => 'Case Evidence File',
-                        'file'  => $case['evidence_file']
-                    ];
-                }
-                if (!empty($offenses)) {
-                    foreach ($offenses as $off) {
-                        $evPath = $off['evidence_file'] ?? ($off['incident_photo'] ?? null);
-                        if (!empty($evPath)) {
-                            $already = false;
-                            foreach ($allEvidenceFiles as $item) {
-                                if ($item['file'] === $evPath) {
-                                    $already = true;
-                                    break;
-                                }
-                            }
-                            if (!$already) {
-                                $allEvidenceFiles[] = [
-                                    'label' => ($off['code'] ?? 'Offense') . ' Evidence',
-                                    'file'  => $evPath
-                                ];
-                            }
-                        }
-                    }
-                }
-              ?>
-              <?php if (!empty($allEvidenceFiles)): ?>
-                <div style="margin-top: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-                  <div style="background: #f8fafc; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
-                    <span style="font-size: 11px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
-                      <span>📷</span> Official Incident Report & Photo Evidence Attachment (<?= count($allEvidenceFiles) ?>)
-                    </span>
-                    <span style="font-size: 11px; color: #94a3b8;">Attached during case / offense registration</span>
-                  </div>
-                  <div style="padding: 16px; background: #fff; display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
-                  <?php foreach ($allEvidenceFiles as $evItem): 
-                    $evFile = $evItem['file'];
-                    $ext = strtolower(pathinfo($evFile, PATHINFO_EXTENSION));
-                    $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true);
-                  ?>
-                    <?php if ($isImg): ?>
-                      <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
-                        <a href="../<?= htmlspecialchars($evFile) ?>" target="_blank" title="Click to view full resolution evidence photo (<?= htmlspecialchars($evItem['label']) ?>)" style="display: block; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: transform 0.2s;">
-                          <img src="../<?= htmlspecialchars($evFile) ?>" style="max-width: 220px; max-height: 150px; width: auto; height: auto; display: block; object-fit: cover;">
-                        </a>
-                        <span style="font-size: 11px; font-weight: 700; color: #1e40af;"><?= htmlspecialchars($evItem['label']) ?></span>
-                      </div>
-                    <?php else: ?>
-                      <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <a href="../<?= htmlspecialchars($evFile) ?>" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; color: #334155; font-size: 12px; font-weight: 700;">
-                          <span>📄 View Document (<?= htmlspecialchars($evItem['label']) ?>)</span>
-                        </a>
-                      </div>
-                    <?php endif; ?>
-                  <?php endforeach; ?>
-                  </div>
-                </div>
-              <?php endif; ?>
+
               <?php if (empty($offenses)): ?>
                 <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;">No offenses recorded in this case.</div>
               <?php else: ?>
