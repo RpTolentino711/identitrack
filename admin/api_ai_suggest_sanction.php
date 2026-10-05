@@ -497,13 +497,25 @@ function queryAiEngine(string $systemPrompt, string $userPrompt, string $realNam
 
     $catNum = 1;
     $upperSanct = strtoupper($sanction);
-    if (strpos($upperSanct, 'CATEGORY 5') !== false || strpos($upperSanct, 'SUMMARY EXPULSION') !== false || strpos($upperSanct, 'POLICE') !== false) {
+    $numOffStr  = strtoupper((string)($caseMeta['number_of_offense'] ?? ''));
+    $catStr     = strtoupper((string)($caseMeta['category'] ?? ''));
+
+    // 1. Direct Handbook Rule Check for Section 4 Minor Escalation Cycles
+    if (strpos($numOffStr, 'CYCLE 3') !== false || strpos($catStr, 'CYCLE 3') !== false || strpos($numOffStr, '9 MINOR') !== false) {
+        $catNum = 3;
+    } elseif (strpos($numOffStr, 'CYCLE 2') !== false || strpos($catStr, 'CYCLE 2') !== false || strpos($numOffStr, '6 MINOR') !== false) {
+        $catNum = 2;
+    } elseif (strpos($numOffStr, 'CYCLE 1') !== false || strpos($catStr, 'CYCLE 1') !== false || strpos($numOffStr, '3 MINOR') !== false) {
+        $catNum = 1;
+    }
+    // 2. ML Prediction Text Match
+    elseif (strpos($upperSanct, 'CATEGORY 5') !== false || strpos($upperSanct, 'SUMMARY EXPULSION') !== false || strpos($upperSanct, 'POLICE') !== false) {
         $catNum = 5;
     } elseif (strpos($upperSanct, 'CATEGORY 4') !== false || strpos($upperSanct, 'EXCLUSION') !== false || strpos($upperSanct, 'MANDATORY DISMISSAL') !== false || strpos($upperSanct, 'PERMANENT') !== false) {
         $catNum = 4;
-    } elseif (strpos($upperSanct, 'CATEGORY 3') !== false || strpos($upperSanct, 'SUSPENSION') !== false || strpos($upperSanct, 'NON-READMISSION') !== false || strpos($upperSanct, 'CYCLE 2') !== false) {
+    } elseif (strpos($upperSanct, 'CATEGORY 3') !== false || strpos($upperSanct, 'SUSPENSION') !== false || strpos($upperSanct, 'NON-READMISSION') !== false) {
         $catNum = 3;
-    } elseif (strpos($upperSanct, 'CATEGORY 2') !== false || strpos($upperSanct, 'COMMUNITY SERVICE') !== false || strpos($upperSanct, 'FORMATIVE') !== false || strpos($upperSanct, 'HOURS') !== false || strpos($upperSanct, 'CYCLE 1') !== false) {
+    } elseif (strpos($upperSanct, 'CATEGORY 2') !== false || strpos($upperSanct, 'COMMUNITY SERVICE') !== false || strpos($upperSanct, 'FORMATIVE') !== false || strpos($upperSanct, 'HOURS') !== false) {
         $catNum = 2;
     } else {
         $catNum = 1;
@@ -926,7 +938,7 @@ try {
             $effectiveAttempt = max(2, $effectiveAttempt);
         }
 
-        $finalNumOffenseStr = ($effectiveAttempt >= 2) ? ($effectiveAttempt . ($effectiveAttempt === 2 ? 'nd Offense' : ($effectiveAttempt === 3 ? 'rd Offense' : 'th Offense'))) : "1st Offense";
+        $finalNumOffenseStr = !empty($pNumOffense) ? $pNumOffense : (($effectiveAttempt >= 2) ? ($effectiveAttempt . ($effectiveAttempt === 2 ? 'nd Offense' : ($effectiveAttempt === 3 ? 'rd Offense' : 'th Offense'))) : "1st Offense");
 
         $predictCaseMeta = array_merge($caseMeta, [
             'offense_name' => $pViolation,
