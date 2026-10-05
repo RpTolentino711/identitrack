@@ -1615,7 +1615,21 @@ function student_account_mode(string $studentId): array
       $messageParts[] = 'Selected interventions: ' . implode(', ', $interventions) . '.';
     }
     if ($serviceHours > 0 && in_array('University Service', $interventions, true)) {
-      $messageParts[] = 'University service hours required: ' . $serviceHours . '.';
+      $hPart = (int)floor($serviceHours);
+      $mPart = (int)round(($serviceHours - $hPart) * 60);
+      if ($mPart >= 60) {
+        $hPart += 1;
+        $mPart = 0;
+      }
+      $parts = [];
+      if ($hPart > 0) {
+        $parts[] = $hPart . ' ' . ($hPart === 1 ? 'hour' : 'hours');
+      }
+      if ($mPart > 0) {
+        $parts[] = $mPart . ' ' . ($mPart === 1 ? 'minute' : 'minutes');
+      }
+      $formattedHrsStr = !empty($parts) ? implode(' ', $parts) : ($serviceHours . ' hours');
+      $messageParts[] = 'University service hours required: ' . $formattedHrsStr . '.';
     }
     return [
       'mode' => 'SERVICE_TRACKING',
