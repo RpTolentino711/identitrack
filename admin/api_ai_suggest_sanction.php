@@ -554,7 +554,7 @@ try {
     $studentId = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
     $userQuery = trim((string)($_GET['query'] ?? $_POST['query'] ?? $_GET['user_query'] ?? $_POST['user_query'] ?? ''));
 
-    if ($rawCaseId === '' && $studentId === '' && $action !== 'global_chat') {
+    if ($rawCaseId === '' && $studentId === '') {
         echo json_encode(['ok' => false, 'error' => 'Case ID or Student ID required.']);
         exit;
     }
@@ -606,7 +606,7 @@ try {
         ", [':sid' => $studentId]);
     }
 
-    if (!$case && $action !== 'global_chat') {
+    if (!$case) {
         echo json_encode(['ok' => false, 'error' => 'Student record not found for hearing.']);
         exit;
     }
@@ -1004,26 +1004,7 @@ try {
         exit;
     }
 
-    // ── ACTION: global_chat — Standalone Global AI Precedent & Analytics Hub ──
-    if ($action === 'global_chat') {
-        if ($userQuery === '') {
-            echo json_encode(['ok' => false, 'error' => 'Please type a question for the AI Assistant.']);
-            exit;
-        }
 
-        $aiEngineRes = queryAiEngine('', $userQuery);
-
-        echo json_encode([
-            'ok' => true,
-            'action' => 'global_chat',
-            'query' => $userQuery,
-            'reply' => $aiEngineRes['text'],
-            'ai_available' => true,
-            'engine' => $aiEngineRes['engine'],
-            'privacy' => $aiEngineRes['privacy']
-        ]);
-        exit;
-    }
 
     echo json_encode(['ok' => false, 'error' => 'Unknown action.']);
 
