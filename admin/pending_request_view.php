@@ -641,7 +641,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="modal-divider"></div>
 
       <h3 id="modalTitle">Confirm Approval</h3>
-      <p class="modal-subtitle">Please input your password to approve and start this community service session.</p>
+      <p class="modal-subtitle"><?php echo $r['request_type'] === 'LOGIN' ? 'Please input your password to approve and start this community service session.' : 'Please input your password to approve and complete this manual logout request.'; ?></p>
 
       <div class="modal-input-wrap">
         <input type="password" id="modalPassword" placeholder="Enter your password" autocomplete="current-password" />
@@ -773,7 +773,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <div class="action-panel">
             <div class="action-panel-header">
               <h2>SDO Decision</h2>
-              <p>Approve to start the student's community service session now, or reject the request.</p>
+              <p><?php echo $r['request_type'] === 'LOGIN' ? "Approve to start the student's community service session now, or reject the request." : "Approve to validate and complete the student's manual logout request, or reject the request."; ?></p>
             </div>
             <div class="action-panel-body">
 
@@ -794,7 +794,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   <?php endif; ?>
                 <?php endif; ?>
                 <label class="field-label" for="notes">
-                  SDO Notes / Assignment Location 
+                  <?php echo $r['request_type'] === 'LOGIN' ? 'SDO Notes / Assignment Location' : 'SDO Notes'; ?> 
                   <?php if ($r['request_type'] === 'LOGIN'): ?>
                     <span style="font-weight:800; color:#dc3545;">(Required *)</span>
                   <?php else: ?>
@@ -820,7 +820,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    Approve &amp; Start Session
+                    <?php echo $r['request_type'] === 'LOGIN' ? 'Approve &amp; Start Session' : 'Approve &amp; Complete Logout'; ?>
                   </button>
 
                   <button class="btn btn-reject" type="submit" name="action" value="reject">
