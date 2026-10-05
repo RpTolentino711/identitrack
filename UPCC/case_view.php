@@ -799,12 +799,13 @@ $initials  = strtoupper(substr((string)$user['full_name'], 0, 1));
 $parts     = explode(' ', (string)$user['full_name']);
 if (count($parts) > 1) $initials .= strtoupper(substr((string)end($parts), 0, 1));
 
-$isSection4 = (string)($case['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION'
-    || stripos((string)($case['case_summary'] ?? ''), 'Section 4') !== false;
 $hasMajorOffense = false;
 foreach ($offenses as $off) {
     if (strtoupper((string)($off['level'] ?? '')) === 'MAJOR') { $hasMajorOffense = true; break; }
 }
+$cKindUpper = strtoupper((string)($case['case_kind'] ?? ''));
+$isSection4 = !$hasMajorOffense && ($cKindUpper === 'SECTION4_MINOR_ESCALATION'
+    || ($cKindUpper !== 'MAJOR_OFFENSE' && stripos((string)($case['case_summary'] ?? ''), 'Section 4 Minor Escalation') !== false));
 $decisionHint = $isSection4 ? 'Section 4 escalation case'
     : ($hasMajorOffense ? 'Major offense — Category 1–5 review' : 'Minor offense review');
 
@@ -4008,7 +4009,25 @@ function toggleDrawerWhyPanel() {
   <?php
     $autoFirstOffense = $offenses[0] ?? null;
     $autoLevel = !empty($autoFirstOffense['level']) ? strtoupper($autoFirstOffense['level']) : 'MINOR';
-    $isSec4 = (string)($case['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION' || stripos((string)($case['case_summary'] ?? ''), 'Section 4') !== false;
+    
+    $hasMajorOffenseInCase = false;
+    if (!empty($offenses) && is_array($offenses)) {
+        foreach ($offenses as $off) {
+            if (strtoupper((string)($off['level'] ?? '')) === 'MAJOR') {
+                $hasMajorOffenseInCase = true;
+                break;
+            }
+        }
+    }
+
+    $cKind = strtoupper((string)($case['case_kind'] ?? ''));
+    if ($cKind === 'MAJOR_OFFENSE' || $hasMajorOffenseInCase) {
+        $isSec4 = false;
+    } elseif ($cKind === 'SECTION4_MINOR_ESCALATION') {
+        $isSec4 = true;
+    } else {
+        $isSec4 = (stripos((string)($case['case_summary'] ?? ''), 'Section 4 Minor Escalation') !== false);
+    }
     
     $priorSec4Count = 0;
     $priorMajorCount = 0;
@@ -4021,6 +4040,13 @@ function toggleDrawerWhyPanel() {
             }
         }
     }
+
+    $priorSec4DbRow = db_one(
+        "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid AND case_id < :cid AND case_kind = 'SECTION4_MINOR_ESCALATION' AND status <> 'VOID'",
+        [':sid' => $case['student_id'], ':cid' => $caseId]
+    );
+    $priorSec4DbCount = (int)($priorSec4DbRow['cnt'] ?? 0);
+    $priorSec4Total = max((int)$priorSec4Count, $priorSec4DbCount);
 
     $priorCasesCountRow = db_one(
         "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid AND case_id < :cid",
@@ -4038,7 +4064,13 @@ function toggleDrawerWhyPanel() {
 
     if ($isSec4) {
         $autoCategory = 'Section 4 Minor Escalation';
-        $autoCaseTypeStr = ($priorSec4Count >= 1 || $effectivePriorCount >= 1) ? 'Section 4 - Cycle 2 (6 Minors Escalation)' : 'Section 4 - Cycle 1 (3 Minors Escalation)';
+        if ($priorSec4Total >= 2) {
+            $autoCaseTypeStr = 'Section 4 - Cycle 3 (9 Minors Escalation)';
+        } elseif ($priorSec4Total === 1) {
+            $autoCaseTypeStr = 'Section 4 - Cycle 2 (6 Minors Escalation)';
+        } else {
+            $autoCaseTypeStr = 'Section 4 - Cycle 1 (3 Minors Escalation)';
+        }
     } else {
         $autoCategory = 'Automatic Major Offenses';
         $attemptNum = $effectivePriorCount + 1;
