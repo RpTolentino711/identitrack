@@ -2176,45 +2176,63 @@ body {
 
               <!-- Incident Report & Photo Evidence Attachment Card -->
               <?php 
-                $caseEvidenceFile = $case['evidence_file'] ?? null;
-                if (!$caseEvidenceFile && !empty($offenses)) {
-                  foreach ($offenses as $off) {
-                    if (!empty($off['evidence_file'])) {
-                      $caseEvidenceFile = $off['evidence_file'];
-                      break;
+                $allEvidenceFiles = [];
+                if (!empty($case['evidence_file'])) {
+                    $allEvidenceFiles[] = [
+                        'label' => 'Case Evidence File',
+                        'file'  => $case['evidence_file']
+                    ];
+                }
+                if (!empty($offenses)) {
+                    foreach ($offenses as $off) {
+                        $evPath = $off['evidence_file'] ?? ($off['incident_photo'] ?? null);
+                        if (!empty($evPath)) {
+                            $already = false;
+                            foreach ($allEvidenceFiles as $item) {
+                                if ($item['file'] === $evPath) {
+                                    $already = true;
+                                    break;
+                                }
+                            }
+                            if (!$already) {
+                                $allEvidenceFiles[] = [
+                                    'label' => ($off['code'] ?? 'Offense') . ' Evidence',
+                                    'file'  => $evPath
+                                ];
+                            }
+                        }
                     }
-                  }
                 }
               ?>
-              <?php if (!empty($caseEvidenceFile)): ?>
+              <?php if (!empty($allEvidenceFiles)): ?>
                 <div style="margin-top: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
                   <div style="background: #f8fafc; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
                     <span style="font-size: 11px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
-                      <span>📷</span> Official Incident Report & Photo Evidence Attachment
+                      <span>📷</span> Official Incident Report & Photo Evidence Attachment (<?= count($allEvidenceFiles) ?>)
                     </span>
-                    <span style="font-size: 11px; color: #94a3b8;">Attached during case registration</span>
+                    <span style="font-size: 11px; color: #94a3b8;">Attached during case / offense registration</span>
                   </div>
-                  <div style="padding: 16px; background: #fff;">
-                  <?php 
-                    $ext = strtolower(pathinfo($caseEvidenceFile, PATHINFO_EXTENSION));
+                  <div style="padding: 16px; background: #fff; display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
+                  <?php foreach ($allEvidenceFiles as $evItem): 
+                    $evFile = $evItem['file'];
+                    $ext = strtolower(pathinfo($evFile, PATHINFO_EXTENSION));
                     $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true);
                   ?>
-                  <?php if ($isImg): ?>
-                    <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
-                      <a href="../<?= htmlspecialchars($caseEvidenceFile) ?>" target="_blank" title="Click to view full resolution evidence photo" style="display: block; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: transform 0.2s;">
-                        <img src="../<?= htmlspecialchars($caseEvidenceFile) ?>" style="max-width: 240px; max-height: 160px; display: block; object-fit: cover;">
-                      </a>
-                      <div style="font-size: 12px; color: #1e293b; line-height: 1.5;">
-                        <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">Incident Report Photo</div>
+                    <?php if ($isImg): ?>
+                      <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
+                        <a href="../<?= htmlspecialchars($evFile) ?>" target="_blank" title="Click to view full resolution evidence photo (<?= htmlspecialchars($evItem['label']) ?>)" style="display: block; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: transform 0.2s;">
+                          <img src="../<?= htmlspecialchars($evFile) ?>" style="max-width: 220px; max-height: 150px; width: auto; height: auto; display: block; object-fit: cover;">
+                        </a>
+                        <span style="font-size: 11px; font-weight: 700; color: #1e40af;"><?= htmlspecialchars($evItem['label']) ?></span>
                       </div>
-                    </div>
-                  <?php else: ?>
-                    <div>
-                      <a href="../<?= htmlspecialchars($caseEvidenceFile) ?>" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; color: #334155; font-size: 12px; font-weight: 700;">
-                        <span>📄 View Attached Incident Report Document (PDF)</span>
-                      </a>
-                    </div>
-                  <?php endif; ?>
+                    <?php else: ?>
+                      <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <a href="../<?= htmlspecialchars($evFile) ?>" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; color: #334155; font-size: 12px; font-weight: 700;">
+                          <span>📄 View Document (<?= htmlspecialchars($evItem['label']) ?>)</span>
+                        </a>
+                      </div>
+                    <?php endif; ?>
+                  <?php endforeach; ?>
                   </div>
                 </div>
               <?php endif; ?>
@@ -2242,6 +2260,28 @@ body {
                         <div>
                           <strong style="color:var(--ink-700); font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Description:</strong>
                           <div style="color:var(--ink-800); margin-top:2px; font-style:italic;">"<?= htmlspecialchars((string)$off['description']) ?>"</div>
+                        </div>
+                      <?php endif; ?>
+                      
+                      <?php 
+                        $offEv = $off['evidence_file'] ?? ($off['incident_photo'] ?? null);
+                        if (!empty($offEv)): 
+                          $ext = strtolower(pathinfo($offEv, PATHINFO_EXTENSION));
+                          $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true);
+                      ?>
+                        <div style="margin-top: 4px;">
+                          <strong style="color:var(--ink-700); font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Photo Evidence:</strong>
+                          <div style="margin-top: 4px;">
+                            <?php if ($isImg): ?>
+                              <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" title="Click to view full resolution evidence photo" style="display: inline-block;">
+                                <img src="../<?= htmlspecialchars($offEv) ?>" style="max-width: 200px; max-height: 130px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: cover; display: block; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
+                              </a>
+                            <?php else: ?>
+                              <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" style="color: #2563eb; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; text-decoration: underline;">
+                                <span>📄 View Attached Evidence Document</span>
+                              </a>
+                            <?php endif; ?>
+                          </div>
                         </div>
                       <?php endif; ?>
                       
