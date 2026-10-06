@@ -473,7 +473,11 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
             $sanction = preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', $sanction);
             $sanction = trim($sanction);
             $confidence = round((float)($resData['sanction_confidence'] ?? $resData['confidence_score'] ?? $resData['likelihood_percentage'] ?? 88.5), 1);
-            $severity = trim((string)($resData['severity'] ?? 'Medium'));
+            $catNum = (int)($resData['category_num'] ?? 0);
+            if ($catNum <= 0 && preg_match('/CATEGORY\s*(\d)/i', $sanction, $cm)) {
+                $catNum = (int)$cm[1];
+            }
+            if ($catNum <= 0) $catNum = 1;
             $usedMlModel = true;
         }
     }
@@ -494,26 +498,6 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
 
     $sanction = preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', $sanction);
     $sanction = trim($sanction);
-
-    $catNum = 1;
-    $upperSanct = strtoupper($sanction);
-    $numOffStr  = strtoupper((string)($caseMeta['number_of_offense'] ?? ''));
-    $catStr     = strtoupper((string)($caseMeta['category'] ?? ''));
-
-    // Parse Category Number directly from softeng_2-master ML Model predicted sanction
-    $catNum = 1;
-    $upperSanct = strtoupper($sanction);
-    if (preg_match('/CATEGORY\s*(\d)/', $upperSanct, $catMatch)) {
-        $catNum = (int)$catMatch[1];
-    } elseif (strpos($upperSanct, 'EXPULSION') !== false || strpos($upperSanct, 'POLICE') !== false) {
-        $catNum = 5;
-    } elseif (strpos($upperSanct, 'EXCLUSION') !== false || strpos($upperSanct, 'MANDATORY DISMISSAL') !== false) {
-        $catNum = 4;
-    } elseif (strpos($upperSanct, 'SUSPENSION') !== false || strpos($upperSanct, 'NON-READMISSION') !== false) {
-        $catNum = 3;
-    } elseif (strpos($upperSanct, 'COMMUNITY SERVICE') !== false || strpos($upperSanct, 'FORMATIVE') !== false) {
-        $catNum = 2;
-    }
     $catLabel = "Category {$catNum}";
 
     $totalDatasetCountStr = function_exists('get_total_ai_dataset_count') ? number_format(get_total_ai_dataset_count()) : "3,441";
