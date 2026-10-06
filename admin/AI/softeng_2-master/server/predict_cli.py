@@ -85,6 +85,28 @@ def main():
 
         combined_text = f"{scenario_clean} {category_clean} {violation_clean}"
 
+        # Standard vocabulary aliases mapping user terms to dataset terms
+        vocab_aliases = {
+            "bomb": "improvised explosive device ied",
+            "bombs": "improvised explosive device ied",
+            "explosive": "improvised explosive device ied",
+            "explosives": "improvised explosive device ied",
+            "gun": "deadly weapon firearm",
+            "guns": "deadly weapon firearm",
+            "knife": "deadly weapon blade",
+            "knives": "deadly weapon blade",
+            "weed": "illegal drugs marijuana",
+            "shabu": "illegal drugs methamphetamine",
+            "vape": "smoking e cigarette tobacco"
+        }
+        words = combined_text.split()
+        expanded = []
+        for w in words:
+            expanded.append(w)
+            if w in vocab_aliases:
+                expanded.append(vocab_aliases[w])
+        combined_text = " ".join(expanded)
+
         X_text = tfidf_vectorizer.transform([combined_text])
         X_numeric = csr_matrix([[num_offense]])
         X = hstack([X_text, X_numeric]).tocsr()
