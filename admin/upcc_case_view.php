@@ -4450,7 +4450,7 @@ syncLive();
 
       <div style="display:flex; gap:10px; justify-content:flex-end;">
         <button type="button" class="btn" onclick="closeDirectNteUploadModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
-        <button type="submit" id="btnSubmitDirectNte" class="btn btn-primary" style="background:#1b2b6b; border-color:#1b2b6b; padding:8px 20px; border-radius:8px; font-weight:700;">
+        <button type="submit" id="btnSubmitDirectNte" class="btn btn-primary" style="background:#1b2b6b; color:#ffffff !important; border-color:#1b2b6b; padding:8px 20px; border-radius:8px; font-weight:700;">
           📧 Upload & Send to Student Outlook
         </button>
       </div>
