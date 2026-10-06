@@ -537,10 +537,8 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
             } else {
                 $hStr = "{$m} " . ($m === 1 ? 'Minute' : 'Minutes');
             }
-        } else {
-            $hStr = "15 Hours";
+            $suggestedHoursLine = "• **Suggested Service Hours**: **{$hStr}** (based on SDO campus precedent records)\n";
         }
-        $suggestedHoursLine = "• **Suggested Service Hours**: **{$hStr}** (based on SDO campus precedent records)\n";
     }
 
     $totalDatasetCountStr = function_exists('get_total_ai_dataset_count') ? number_format(get_total_ai_dataset_count()) : "3,441";
