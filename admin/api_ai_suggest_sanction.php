@@ -500,25 +500,19 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
     $numOffStr  = strtoupper((string)($caseMeta['number_of_offense'] ?? ''));
     $catStr     = strtoupper((string)($caseMeta['category'] ?? ''));
 
-    // 1. Direct Handbook Rule Check for Section 4 Minor Escalation Cycles
-    if (strpos($numOffStr, 'CYCLE 3') !== false || strpos($catStr, 'CYCLE 3') !== false || strpos($numOffStr, '9 MINOR') !== false) {
-        $catNum = 3;
-    } elseif (strpos($numOffStr, 'CYCLE 2') !== false || strpos($catStr, 'CYCLE 2') !== false || strpos($numOffStr, '6 MINOR') !== false) {
-        $catNum = 2;
-    } elseif (strpos($numOffStr, 'CYCLE 1') !== false || strpos($catStr, 'CYCLE 1') !== false || strpos($numOffStr, '3 MINOR') !== false) {
-        $catNum = 1;
-    }
-    // 2. ML Prediction Text Match
-    elseif (strpos($upperSanct, 'CATEGORY 5') !== false || strpos($upperSanct, 'SUMMARY EXPULSION') !== false || strpos($upperSanct, 'POLICE') !== false) {
+    // Parse Category Number directly from softeng_2-master ML Model predicted sanction
+    $catNum = 1;
+    $upperSanct = strtoupper($sanction);
+    if (preg_match('/CATEGORY\s*(\d)/', $upperSanct, $catMatch)) {
+        $catNum = (int)$catMatch[1];
+    } elseif (strpos($upperSanct, 'EXPULSION') !== false || strpos($upperSanct, 'POLICE') !== false) {
         $catNum = 5;
-    } elseif (strpos($upperSanct, 'CATEGORY 4') !== false || strpos($upperSanct, 'EXCLUSION') !== false || strpos($upperSanct, 'MANDATORY DISMISSAL') !== false || strpos($upperSanct, 'PERMANENT') !== false) {
+    } elseif (strpos($upperSanct, 'EXCLUSION') !== false || strpos($upperSanct, 'MANDATORY DISMISSAL') !== false) {
         $catNum = 4;
-    } elseif (strpos($upperSanct, 'CATEGORY 3') !== false || strpos($upperSanct, 'SUSPENSION') !== false || strpos($upperSanct, 'NON-READMISSION') !== false) {
+    } elseif (strpos($upperSanct, 'SUSPENSION') !== false || strpos($upperSanct, 'NON-READMISSION') !== false) {
         $catNum = 3;
-    } elseif (strpos($upperSanct, 'CATEGORY 2') !== false || strpos($upperSanct, 'COMMUNITY SERVICE') !== false || strpos($upperSanct, 'FORMATIVE') !== false || strpos($upperSanct, 'HOURS') !== false) {
+    } elseif (strpos($upperSanct, 'COMMUNITY SERVICE') !== false || strpos($upperSanct, 'FORMATIVE') !== false) {
         $catNum = 2;
-    } else {
-        $catNum = 1;
     }
     $catLabel = "Category {$catNum}";
 
