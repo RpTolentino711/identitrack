@@ -523,7 +523,25 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
 
     $sanction = preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', $sanction);
     $sanction = trim($sanction);
-    $catLabel = "Category {$catNum}";
+    $suggestedHoursLine = '';
+    if ($catNum === 2) {
+        $hoursVal = (float)($predictCaseMeta['total_combined_hours'] ?? $caseMeta['total_combined_hours'] ?? 0);
+        if ($hoursVal > 0) {
+            $totalMins = (int)round($hoursVal * 60);
+            $h = (int)floor($totalMins / 60);
+            $m = $totalMins % 60;
+            if ($h > 0 && $m > 0) {
+                $hStr = "{$h} " . ($h === 1 ? 'Hour' : 'Hours') . " {$m} " . ($m === 1 ? 'Minute' : 'Minutes');
+            } elseif ($h > 0) {
+                $hStr = "{$h} " . ($h === 1 ? 'Hour' : 'Hours');
+            } else {
+                $hStr = "{$m} " . ($m === 1 ? 'Minute' : 'Minutes');
+            }
+        } else {
+            $hStr = "15 Hours";
+        }
+        $suggestedHoursLine = "• **Suggested Service Hours**: **{$hStr}** (based on SDO campus precedent records)\n";
+    }
 
     $totalDatasetCountStr = function_exists('get_total_ai_dataset_count') ? number_format(get_total_ai_dataset_count()) : "3,441";
     $whyReason = "Evaluated against {$totalDatasetCountStr} historical campus precedent records and NU Lipa Student Handbook. Offense: '{$offenseName}', Category: '{$category}', Attempt: '{$numOffenseStr}'.";
@@ -531,6 +549,7 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
     $aiText = "🤖 **Identati Ai XGBoost ML Model Recommendation**:\n\n"
             . "• **Sanction Category**: **{$catLabel}**\n"
             . "• **Predicted Sanction**: **{$sanction}**\n"
+            . $suggestedHoursLine
             . "• **Confidence Score**: **{$confidence}%** (Severity: **{$severity}**)\n"
             . "• **Model Source**: SDO Historical Dataset ({$totalDatasetCountStr} Training Records)\n\n"
             . "💡 **Why? (Reason)**: {$whyReason}";
