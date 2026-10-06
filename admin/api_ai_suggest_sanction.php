@@ -103,7 +103,7 @@ function getCategoryPrecedents(?int $majorCategory, int $offenseTypeId, int $exc
 /**
  * Data Privacy Act (RA 10173) Compliance:
  * Automatically anonymizes Personally Identifiable Information (PII)
- * (Names, Student IDs, Emails, Phone Numbers) from AI prompts before LLM inference.
+ * (Names, Student IDs, Emails, Phone Numbers) from AI prompts before ML inference.
  */
 function anonymizeAiPromptText(string $text, string $realName = '', string $studentId = ''): string
 {
@@ -379,7 +379,7 @@ function runNativePhpXgbPrediction(array $payload): ?array
 /**
  * COMSICE Machine Learning Engine Router (Port 5000 /predict)
  */
-function queryAiEngine(string $systemPrompt, string $userPrompt, string $realName = '', string $studentId = '', array $caseMeta = []): array
+function queryAiEngine(string $userPrompt, string $realName = '', string $studentId = '', array $caseMeta = []): array
 {
     load_env_vars();
     $apiUrl = get_env_var('AI_API_URL', 'http://127.0.0.1:5000');
@@ -966,7 +966,7 @@ try {
             'instance_count' => max($instanceCount, $effectiveAttempt)
         ]);
 
-        $aiEngineRes = queryAiEngine('', $pDescription ?: $pViolation, $studentName, $targetStudentId, $predictCaseMeta);
+        $aiEngineRes = queryAiEngine($pDescription ?: $pViolation, $studentName, $targetStudentId, $predictCaseMeta);
 
         if (empty($aiEngineRes['used_ml_model']) || !empty($aiEngineRes['error'])) {
             echo json_encode([
@@ -1006,7 +1006,7 @@ try {
             exit;
         }
 
-        $aiEngineRes = queryAiEngine('', $userQuery, $studentName, $targetStudentId, $caseMeta);
+        $aiEngineRes = queryAiEngine($userQuery, $studentName, $targetStudentId, $caseMeta);
 
         echo json_encode([
             'ok' => true,
