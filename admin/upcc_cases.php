@@ -355,6 +355,18 @@ function send_case_dismissal_email_to_panel(string $panelEmail, string $panelNam
 // ── All departments ─────────────────────────────────────────
 $departments = db_all("SELECT dept_id, dept_name, is_active FROM departments ORDER BY dept_name ASC");
 
+// ── All member roles (Standard + Custom DB roles) ───────────
+$allRoles = ['Chairperson', 'Vice Chair', 'Secretary', 'Member'];
+try {
+    $existingRoles = db_all("SELECT DISTINCT role FROM upcc_user WHERE role IS NOT NULL AND role != ''");
+    foreach ($existingRoles as $er) {
+        $rTitle = trim((string)$er['role']);
+        if ($rTitle !== '' && !in_array($rTitle, $allRoles, true)) {
+            $allRoles[] = $rTitle;
+        }
+    }
+} catch (\Throwable $exRoles) {}
+
 // ── Handle POST actions ─────────────────────────────────────
 $regError   = '';
 $regSuccess = '';
@@ -425,6 +437,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } elseif ($existingE) {
             $regError = 'Email address "' . htmlspecialchars($eCheck) . '" is already registered. Please choose a different email address.';
         } else {
+            $roleSubmitted = trim($_POST['role'] ?? 'Member');
+            if ($roleSubmitted === '__new_role__') {
+                $roleSubmitted = trim($_POST['custom_role'] ?? '');
+                if ($roleSubmitted === '') {
+                    $roleSubmitted = 'Member';
+                }
+            }
+
             $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
             $_SESSION['upcc_member_otp']      = $otp;
             $_SESSION['upcc_member_otp_time'] = time();
@@ -432,7 +452,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'full_name'     => trim($_POST['full_name'] ?? ''),
                 'username'      => $uCheck,
                 'email'         => $eCheck,
-                'role'          => trim($_POST['role']       ?? 'user'),
+                'role'          => $roleSubmitted,
                 'password'      => trim($_POST['password']   ?? ''),
                 'department_id' => isset($_POST['department_id']) ? (int)$_POST['department_id'] : null,
             ];
@@ -2230,12 +2250,15 @@ function fmt_case_id(int $id, string $created): string {
                     <div class="field-row">
                         <div class="field-group">
                             <label>Role</label>
-                            <select name="role">
-                                <option>Chairperson</option>
-                                <option>Vice Chair</option>
-                                <option>Secretary</option>
-                                <option selected>Member</option>
+                            <select name="role" id="add-member-role" onchange="handleRoleChange(this); updateMemberSubmitState();">
+                                <?php foreach ($allRoles as $r): ?>
+                                    <option value="<?= e($r) ?>" <?= $r === 'Member' ? 'selected' : '' ?>><?= e($r) ?></option>
+                                <?php endforeach; ?>
+                                <option value="__new_role__">+ Create New Role...</option>
                             </select>
+                            <div id="custom-role-container" style="display:none; margin-top:6px;">
+                                <input type="text" name="custom_role" id="add-member-custom-role" placeholder="Enter new role title..." style="width:100%; padding:8px 12px; border:2px solid #3b82f6; border-radius:8px; font-size:13px; background:#eff6ff;" oninput="updateMemberSubmitState()">
+                            </div>
                         </div>
                         <div class="field-group">
                             <label>Department</label>
@@ -3394,11 +3417,27 @@ function toggleAddMemberPassword() {
     }
 }
 
+function handleRoleChange(selectEl) {
+    const customContainer = document.getElementById('custom-role-container');
+    const customInput = document.getElementById('add-member-custom-role');
+    if (!customContainer || !customInput) return;
+
+    if (selectEl.value === '__new_role__') {
+        customContainer.style.display = 'block';
+        customInput.focus();
+    } else {
+        customContainer.style.display = 'none';
+        customInput.value = '';
+    }
+}
+
 function updateMemberSubmitState() {
     const fnInput   = document.getElementById('add-member-fullname');
     const uInput    = document.getElementById('add-member-username');
     const eInput    = document.getElementById('add-member-email');
     const pInput    = document.getElementById('add-member-password');
+    const rSelect   = document.getElementById('add-member-role');
+    const rCustom   = document.getElementById('add-member-custom-role');
     const btnSubmit = document.getElementById('btn-add-member-submit');
 
     if (!btnSubmit) return;
@@ -3408,12 +3447,17 @@ function updateMemberSubmitState() {
     const eVal  = eInput  ? eInput.value.trim()  : '';
     const pVal  = pInput  ? pInput.value.trim()  : '';
 
+    let isRoleOk = true;
+    if (rSelect && rSelect.value === '__new_role__') {
+        isRoleOk = rCustom ? rCustom.value.trim().length > 0 : false;
+    }
+
     const isFullNameOk = fnVal.length > 0;
     const isPasswordOk = pVal.length > 0;
     const isUsernameOk = isLiveUsernameValid && uVal.length >= 3;
     const isEmailOk    = isLiveEmailValid && eVal.includes('@') && eVal.includes('.');
 
-    const isAllValid = isFullNameOk && isUsernameOk && isEmailOk && isPasswordOk;
+    const isAllValid = isFullNameOk && isUsernameOk && isEmailOk && isPasswordOk && isRoleOk;
 
     btnSubmit.disabled = !isAllValid;
     btnSubmit.style.opacity = isAllValid ? '1' : '0.5';
