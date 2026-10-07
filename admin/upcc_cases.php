@@ -2396,7 +2396,7 @@ function fmt_case_id(int $id, string $created): string {
 </div>
 
 <!-- OTP Modal -->
-<div class="modal-overlay <?= isset($_SESSION['upcc_member_otp']) ? 'open' : '' ?>" id="modal-otp">
+<div class="modal-overlay <?= isset($_SESSION['upcc_member_otp']) ? 'open' : '' ?>" id="modal-otp" style="z-index: 2500;">
     <div class="modal">
         <button class="modal-close" onclick="closeModal('modal-otp')">&times;</button>
         <div class="modal-title">Verify OTP</div>
