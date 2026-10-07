@@ -3359,8 +3359,8 @@ function showConfirmStrip(id) { document.getElementById('cs-'+id).classList.add(
 function hideConfirmStrip(id) { document.getElementById('cs-'+id).classList.remove('show'); }
 
 let liveAvailTimer = null;
-let isLiveUsernameValid = true;
-let isLiveEmailValid = true;
+let isLiveUsernameValid = false;
+let isLiveEmailValid = false;
 
 async function liveCheckAvailability(type) {
     clearTimeout(liveAvailTimer);
@@ -3374,68 +3374,60 @@ async function liveCheckAvailability(type) {
         const usernameVal = uInput ? uInput.value.trim() : '';
         const emailVal = eInput ? eInput.value.trim() : '';
 
-        if (type === 'username') {
+        if (type === 'username' || type === 'all') {
             if (!usernameVal) {
-                uMsg.innerHTML = '';
-                uInput.style.borderColor = '';
+                if (uMsg) uMsg.innerHTML = '';
+                if (uInput) { uInput.style.border = '1px solid #d0d8ea'; uInput.style.background = '#fafbff'; }
                 isLiveUsernameValid = false;
             } else if (usernameVal.length < 3) {
-                uMsg.innerHTML = '⚠️ Username must be at least 3 characters.';
-                uMsg.style.color = '#eab308';
-                uInput.style.borderColor = '#eab308';
+                if (uMsg) { uMsg.innerHTML = '⚠️ Username must be at least 3 characters.'; uMsg.style.color = '#ca8a04'; }
+                if (uInput) { uInput.style.border = '2px solid #eab308'; uInput.style.background = '#fefce8'; }
                 isLiveUsernameValid = false;
             } else {
-                uMsg.innerHTML = '⏳ Checking username availability...';
-                uMsg.style.color = '#64748b';
+                if (uMsg) { uMsg.innerHTML = '⏳ Checking username availability...'; uMsg.style.color = '#64748b'; }
                 try {
                     const res = await fetch(`upcc_cases.php?action=check_member_availability&username=${encodeURIComponent(usernameVal)}`);
                     const data = await res.json();
                     if (data.username_taken) {
-                        uMsg.innerHTML = '❌ Username is already taken.';
-                        uMsg.style.color = '#ef4444';
-                        uInput.style.borderColor = '#ef4444';
+                        if (uMsg) { uMsg.innerHTML = '❌ Username is already taken.'; uMsg.style.color = '#ef4444'; }
+                        if (uInput) { uInput.style.border = '2px solid #ef4444'; uInput.style.background = '#fef2f2'; }
                         isLiveUsernameValid = false;
                     } else {
-                        uMsg.innerHTML = '✓ Username is available';
-                        uMsg.style.color = '#10b981';
-                        uInput.style.borderColor = '#10b981';
+                        if (uMsg) { uMsg.innerHTML = '✓ Username is available'; uMsg.style.color = '#10b981'; }
+                        if (uInput) { uInput.style.border = '2px solid #10b981'; uInput.style.background = '#f0fdf4'; }
                         isLiveUsernameValid = true;
                     }
                 } catch (err) {
-                    uMsg.innerHTML = '';
+                    if (uMsg) uMsg.innerHTML = '';
                 }
             }
         }
 
-        if (type === 'email') {
+        if (type === 'email' || type === 'all') {
             if (!emailVal) {
-                eMsg.innerHTML = '';
-                eInput.style.borderColor = '';
+                if (eMsg) eMsg.innerHTML = '';
+                if (eInput) { eInput.style.border = '1px solid #d0d8ea'; eInput.style.background = '#fafbff'; }
                 isLiveEmailValid = false;
             } else if (!emailVal.includes('@') || !emailVal.includes('.')) {
-                eMsg.innerHTML = '⚠️ Enter a valid email address.';
-                eMsg.style.color = '#eab308';
-                eInput.style.borderColor = '#eab308';
+                if (eMsg) { eMsg.innerHTML = '⚠️ Enter a valid email address.'; eMsg.style.color = '#ca8a04'; }
+                if (eInput) { eInput.style.border = '2px solid #eab308'; eInput.style.background = '#fefce8'; }
                 isLiveEmailValid = false;
             } else {
-                eMsg.innerHTML = '⏳ Checking email availability...';
-                eMsg.style.color = '#64748b';
+                if (eMsg) { eMsg.innerHTML = '⏳ Checking email availability...'; eMsg.style.color = '#64748b'; }
                 try {
                     const res = await fetch(`upcc_cases.php?action=check_member_availability&email=${encodeURIComponent(emailVal)}`);
                     const data = await res.json();
                     if (data.email_taken) {
-                        eMsg.innerHTML = '❌ Email is already registered.';
-                        eMsg.style.color = '#ef4444';
-                        eInput.style.borderColor = '#ef4444';
+                        if (eMsg) { eMsg.innerHTML = '❌ Email is already registered.'; eMsg.style.color = '#ef4444'; }
+                        if (eInput) { eInput.style.border = '2px solid #ef4444'; eInput.style.background = '#fef2f2'; }
                         isLiveEmailValid = false;
                     } else {
-                        eMsg.innerHTML = '✓ Email is available';
-                        eMsg.style.color = '#10b981';
-                        eInput.style.borderColor = '#10b981';
+                        if (eMsg) { eMsg.innerHTML = '✓ Email is available'; eMsg.style.color = '#10b981'; }
+                        if (eInput) { eInput.style.border = '2px solid #10b981'; eInput.style.background = '#f0fdf4'; }
                         isLiveEmailValid = true;
                     }
                 } catch (err) {
-                    eMsg.innerHTML = '';
+                    if (eMsg) eMsg.innerHTML = '';
                 }
             }
         }
@@ -3446,18 +3438,18 @@ async function liveCheckAvailability(type) {
             btnSubmit.style.opacity = hasError ? '0.5' : '1';
             btnSubmit.style.cursor = hasError ? 'not-allowed' : 'pointer';
         }
-    }, 250);
+    }, 200);
 }
 
 function validateMemberSubmit(e) {
     const uInput = document.getElementById('add-member-username');
     const eInput = document.getElementById('add-member-email');
-    if (uInput && uInput.style.borderColor === 'rgb(239, 68, 68)') {
+    if (uInput && (uInput.style.borderColor === 'rgb(239, 68, 68)' || uInput.style.borderColor === '#ef4444')) {
         if (e) e.preventDefault();
         alert('Cannot proceed: The username is already taken.');
         return false;
     }
-    if (eInput && eInput.style.borderColor === 'rgb(239, 68, 68)') {
+    if (eInput && (eInput.style.borderColor === 'rgb(239, 68, 68)' || eInput.style.borderColor === '#ef4444')) {
         if (e) e.preventDefault();
         alert('Cannot proceed: The email is already registered.');
         return false;
