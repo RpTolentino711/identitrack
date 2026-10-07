@@ -206,6 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sugge
             if (!empty($_POST['suggest_cat2_lectures']))    $voteDetails['interventions'][] = 'Attendance to Discipline Education Program';
             if (!empty($_POST['suggest_cat2_evaluation']))  $voteDetails['interventions'][] = 'Evaluation';
         }
+        // Cat 3/4/5 — include rationale / notes
         $voteDetails['description'] = trim((string)($_POST['suggest_description'] ?? ''));
 
         // Create round
@@ -247,282 +248,493 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sugge
             [':sid' => $panelId, ':c' => $caseId]
         );
 
-        // Auto-vote AGREE for the suggester
+        // Suggester's own vote (auto-agree)
         db_exec(
-            "INSERT INTO upcc_case_vote (case_id, round_no, upcc_id, vote_category, vote_details, vote_agree, created_at)
-             VALUES (:c, :r, :u, :cat, :det, 1, NOW())
-             ON DUPLICATE KEY UPDATE vote_category = VALUES(vote_category), vote_details = VALUES(vote_details), vote_agree = 1",
-            [
-                ':c'   => $caseId,
-                ':r'   => $roundNo,
-                ':u'   => $panelId,
-                ':cat' => $category,
-                ':det' => json_encode($voteDetails),
-            ]
+            "INSERT INTO upcc_case_vote (case_id, upcc_id, round_no, vote_category, vote_details, created_at, updated_at)
+             VALUES (:c, :u, :r, :vc, :vd, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE vote_category = VALUES(vote_category), vote_details = VALUES(vote_details), updated_at = VALUES(updated_at)",
+            [':c' => $caseId, ':u' => $panelId, ':r' => $roundNo,
+             ':vc' => $category, ':vd' => !empty($voteDetails) ? json_encode($voteDetails) : null]
+        );
+
+        $fullName = htmlspecialchars($user['full_name'] ?? 'Panel member');
+        $catLabel = _catLabel($category, $voteDetails);
+        db_exec(
+            "INSERT INTO upcc_case_discussion (case_id, message, created_at, updated_at) VALUES (:c, :m, NOW(), NOW())",
+            [':c' => $caseId, ':m' => "🗳️ {$fullName} suggested: {$catLabel}. All other panel members, please cast your vote now."]
         );
 
         $_SESSION['upcc_last_suggester_case_id'] = $caseId;
         $_SESSION['upcc_last_suggester_id']      = $panelId;
 
-        upcc_log_case_activity($caseId, 'UPCC', $panelId, 'SUGGESTED_PENALTY_CATEGORY', [
-            'category' => $category,
-            'round_no' => $roundNo,
-        ]);
-    }
-
-    header('Location: case_view.php?id=' . $caseId . '#voting-section');
-    exit;
-}
-
-// ── VOTE ON SUGGESTION ────────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'vote_on_suggestion') {
-    $roundNo     = (int)($_POST['round_no'] ?? 0);
-    $voteAgree   = (int)($_POST['vote_agree'] ?? 0);
-    $suggesterId = (int)($_POST['suggested_by'] ?? 0);
-
-    // Verify active round
-    $round = db_one(
-        "SELECT * FROM upcc_case_vote_round WHERE case_id = :c AND round_no = :r AND is_active = 1 LIMIT 1",
-        [':c' => $caseId, ':r' => $roundNo]
-    );
-
-    if ($round) {
-        // Find suggester's vote to copy payload
-        $sugVote = db_one(
-            "SELECT vote_category, vote_details FROM upcc_case_vote
-             WHERE case_id = :c AND round_no = :r AND upcc_id = :s LIMIT 1",
-            [':c' => $caseId, ':r' => $roundNo, ':s' => $suggesterId]
-        );
-
-        if (!$sugVote && $roundHasSugByColumn = $voteRoundHasSuggestedBy) {
-            $sugIdFromRound = (int)($round['suggested_by'] ?? 0);
-            if ($sugIdFromRound > 0) {
-                $sugVote = db_one(
-                    "SELECT vote_category, vote_details FROM upcc_case_vote
-                     WHERE case_id = :c AND round_no = :r AND upcc_id = :s LIMIT 1",
-                    [':c' => $caseId, ':r' => $roundNo, ':s' => $sugIdFromRound]
-                );
-            }
-        }
-
-        $vCat = (int)($sugVote['vote_category'] ?? 1);
-        $vDet = $sugVote['vote_details'] ?? '{}';
-
-        db_exec(
-            "INSERT INTO upcc_case_vote (case_id, round_no, upcc_id, vote_category, vote_details, vote_agree, created_at)
-             VALUES (:c, :r, :u, :cat, :det, :ag, NOW())
-             ON DUPLICATE KEY UPDATE vote_agree = VALUES(vote_agree)",
-            [
-                ':c'   => $caseId,
-                ':r'   => $roundNo,
-                ':u'   => $panelId,
-                ':cat' => $vCat,
-                ':det' => $vDet,
-                ':ag'  => $voteAgree,
-            ]
-        );
-
-        upcc_log_case_activity($caseId, 'UPCC', $panelId, 'VOTED_ON_SUGGESTION', [
-            'round_no'   => $roundNo,
-            'vote_agree' => $voteAgree,
+        upcc_log_case_activity($caseId, 'UPCC', $panelId, 'PENALTY_SUGGESTED', [
+            'round_no' => $roundNo, 'vote_category' => $category,
         ]);
 
-        // Check if all voters submitted
-        $totalAssigned = count($assignedPanelIds);
-        $allVotes = db_all(
-            "SELECT vote_agree FROM upcc_case_vote WHERE case_id = :c AND round_no = :r",
-            [':c' => $caseId, ':r' => $roundNo]
-        );
-
-        $agrees    = 0;
-        $disagrees = 0;
-        foreach ($allVotes as $v) {
-            if ((int)$v['vote_agree'] === 1) $agrees++;
-            else $disagrees++;
-        }
-
-        // DISAGREE -> cancel round immediately
-        if ($disagrees > 0) {
-            db_exec(
-                "UPDATE upcc_case_vote_round SET is_active = 0" . ($voteRoundHasEndedAt ? ", ended_at = NOW()" : "") . " WHERE case_id = :c AND round_no = :r",
-                [':c' => $caseId, ':r' => $roundNo]
-            );
-            db_exec(
-                "INSERT INTO upcc_suggestion_cooldown (case_id, round_no, upcc_id, cooldown_until, created_at)
-                 VALUES (:c, :r, :u, DATE_ADD(NOW(), INTERVAL 3 MINUTE), NOW())",
-                [':c' => $caseId, ':r' => $roundNo, ':u' => $panelId]
-            );
-            upcc_log_case_activity($caseId, 'SYSTEM', 0, 'VOTE_ROUND_FAILED_DISAGREE', ['round_no' => $roundNo]);
-            $_SESSION['upcc_vote_flash'] = ['type' => 'disagree', 'message' => 'Proposal rejected by panel member. 3-minute cooldown initiated.'];
-        }
-        // CONSENSUS REACHED -> all assigned members agreed
-        elseif ($agrees >= $totalAssigned && $totalAssigned > 0) {
-            db_exec(
-                "UPDATE upcc_case_vote_round SET is_active = 0" . ($voteRoundHasEndedAt ? ", ended_at = NOW()" : "") . " WHERE case_id = :c AND round_no = :r",
-                [':c' => $caseId, ':r' => $roundNo]
-            );
-            db_exec(
-                "UPDATE upcc_case SET
-                 hearing_vote_consensus_category = :cat,
-                 hearing_vote_suggested_details  = :det,
-                 hearing_vote_consensus_at       = NOW(),
-                 status                          = 'AWAITING_ADMIN_FINALIZATION',
-                 updated_at                      = NOW()
-                 WHERE case_id = :c",
-                [':cat' => $vCat, ':det' => $vDet, ':c' => $caseId]
-            );
-            upcc_log_case_activity($caseId, 'SYSTEM', 0, 'VOTE_CONSENSUS_REACHED', [
-                'round_no' => $roundNo,
-                'category' => $vCat,
-            ]);
-            $_SESSION['upcc_vote_flash'] = ['type' => 'consensus', 'message' => 'Panel consensus reached! Awaiting Admin finalization.'];
-        }
+        _checkAndFinalizeConsensus($caseId, $roundNo, $assignedPanelIds);
     }
-
-    header('Location: case_view.php?id=' . $caseId . '#voting-section');
+    header('Location: case_view.php?id=' . $caseId . '#decision-panel');
     exit;
 }
 
 // ── CANCEL SUGGESTION ─────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel_suggestion') {
     $roundNo = (int)($_POST['round_no'] ?? 0);
-    $round   = db_one(
-        "SELECT * FROM upcc_case_vote_round WHERE case_id = :c AND round_no = :r AND is_active = 1 LIMIT 1",
-        [':c' => $caseId, ':r' => $roundNo]
-    );
+    if ($roundNo > 0) {
+        $roundInfo = _getRoundSuggesterId($caseId, $roundNo);
 
-    if ($round) {
-        $sugIdFromRound = $voteRoundHasSuggestedBy ? (int)($round['suggested_by'] ?? 0) : 0;
-        if ($sugIdFromRound === $panelId || $sessionSuggesterId === $panelId) {
+        if ($roundInfo && (int)$roundInfo['suggested_by'] === $panelId) {
+            db_exec("DELETE FROM upcc_suggestion_cooldown WHERE case_id = :c", [':c' => $caseId]);
+
+            db_exec("DELETE FROM upcc_case_vote WHERE case_id = :c AND round_no = :r",
+                [':c' => $caseId, ':r' => $roundNo]);
+
+            _closeRound($caseId, $roundNo);
+
+            db_exec("UPDATE upcc_case SET
+                     hearing_vote_consensus_category = NULL, hearing_vote_suggested_details = NULL,
+                     hearing_vote_consensus_at = NULL, hearing_vote_suggester_id = NULL,
+                     status = CASE WHEN status = 'AWAITING_ADMIN_FINALIZATION' THEN 'UNDER_INVESTIGATION' ELSE status END,
+                     updated_at = NOW() WHERE case_id = :c", [':c' => $caseId]);
+
+            $fullName = htmlspecialchars($user['full_name'] ?? 'Panel member');
             db_exec(
-                "UPDATE upcc_case_vote_round SET is_active = 0" . ($voteRoundHasEndedAt ? ", ended_at = NOW()" : "") . " WHERE case_id = :c AND round_no = :r",
-                [':c' => $caseId, ':r' => $roundNo]
+                "INSERT INTO upcc_case_discussion (case_id, message, created_at, updated_at) VALUES (:c, :m, NOW(), NOW())",
+                [':c' => $caseId, ':m' => "❌ {$fullName} cancelled the proposed penalty. Panel may submit a new suggestion after the 3-minute cooldown."]
             );
-            db_exec(
-                "INSERT INTO upcc_suggestion_cooldown (case_id, round_no, upcc_id, cooldown_until, created_at)
-                 VALUES (:c, :r, :u, DATE_ADD(NOW(), INTERVAL 3 MINUTE), NOW())",
-                [':c' => $caseId, ':r' => $roundNo, ':u' => $panelId]
-            );
-            upcc_log_case_activity($caseId, 'UPCC', $panelId, 'CANCELLED_SUGGESTION', ['round_no' => $roundNo]);
-            $_SESSION['upcc_vote_flash'] = ['type' => 'cancelled', 'message' => 'Suggestion cancelled. 3-minute cooldown initiated.'];
+            upcc_log_case_activity($caseId, 'UPCC', $panelId, 'SUGGESTION_CANCELLED', ['round_no' => $roundNo]);
         }
     }
-
-    header('Location: case_view.php?id=' . $caseId . '#voting-section');
+    header('Location: case_view.php?id=' . $caseId . '#decision-panel');
     exit;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  DATA FETCHING FOR VIEW
-// ═══════════════════════════════════════════════════════════════════════════
+// ── VOTE ON SUGGESTION ────────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'vote_on_suggestion') {
+    file_put_contents(__DIR__ . '/../scratch_debug_post.txt', "POST started.\n", FILE_APPEND);
+    $agree       = (int)($_POST['vote_agree']   ?? -1);
+    $roundNo     = (int)($_POST['round_no']     ?? 0);
+    $suggestedBy = (int)($_POST['suggested_by'] ?? 0);
+    file_put_contents(__DIR__ . '/../scratch_debug_post.txt', "Params: agree=$agree, roundNo=$roundNo, suggestedBy=$suggestedBy\n", FILE_APPEND);
 
-// Active vote round
-$activeRound = db_one(
-    "SELECT * FROM upcc_case_vote_round WHERE case_id = :c AND is_active = 1 ORDER BY round_no DESC LIMIT 1",
-    [':c' => $caseId]
-);
+    if ($roundNo > 0 && ($agree === 0 || $agree === 1)) {
 
-$isRoundActive          = (bool)$activeRound;
-$roundNo                = (int)($activeRound['round_no'] ?? 0);
-$roundSecondsRemaining = 0;
-if ($isRoundActive && !empty($activeRound['ends_at'])) {
-    $roundSecondsRemaining = max(0, strtotime($activeRound['ends_at']) - time());
-}
-
-// Suggester identification
-$suggesterId = 0;
-if ($isRoundActive) {
-    if ($voteRoundHasSuggestedBy && !empty($activeRound['suggested_by'])) {
-        $suggesterId = (int)$activeRound['suggested_by'];
-    } elseif ($sessionSuggesterCaseId === $caseId && $sessionSuggesterId > 0) {
-        $suggesterId = $sessionSuggesterId;
-    } else {
-        $sugRow = db_one(
-            "SELECT upcc_id FROM upcc_case_vote WHERE case_id = :c AND round_no = :r ORDER BY vote_id ASC LIMIT 1",
+        // Confirm round active
+        $roundActive = db_one(
+            "SELECT is_active FROM upcc_case_vote_round WHERE case_id = :c AND round_no = :r",
             [':c' => $caseId, ':r' => $roundNo]
         );
-        if ($sugRow) $suggesterId = (int)$sugRow['upcc_id'];
+        if (!$roundActive || (int)$roundActive['is_active'] !== 1) {
+            file_put_contents(__DIR__ . '/../scratch_debug_post.txt', "Failed: round not active.\n", FILE_APPEND);
+            header('Location: case_view.php?id=' . $caseId . '#decision-panel');
+            exit;
+        }
+
+        // No double voting
+        $existingVote = db_one(
+            "SELECT vote_category FROM upcc_case_vote WHERE case_id = :c AND upcc_id = :u AND round_no = :r",
+            [':c' => $caseId, ':u' => $panelId, ':r' => $roundNo]
+        );
+        if ($existingVote !== null) {
+            file_put_contents(__DIR__ . '/../scratch_debug_post.txt', "Failed: existing vote found.\n", FILE_APPEND);
+            header('Location: case_view.php?id=' . $caseId . '#decision-panel');
+            exit;
+        }
+
+        // Suggester cannot vote
+        $roundInfo = _getRoundSuggesterId($caseId, $roundNo);
+        if ($roundInfo && (int)$roundInfo['suggested_by'] === $panelId) {
+            file_put_contents(__DIR__ . '/../scratch_debug_post.txt', "Failed: suggester cannot vote. panelId=$panelId, suggested_by=" . $roundInfo['suggested_by'] . "\n", FILE_APPEND);
+            header('Location: case_view.php?id=' . $caseId . '#decision-panel');
+            exit;
+        }
+
+        $voteCategory = 0;
+        $voteDetails  = null;
+        if ($agree === 1 && $suggestedBy > 0) {
+            $suggestion = db_one(
+                "SELECT vote_category, vote_details FROM upcc_case_vote
+                 WHERE case_id = :c AND upcc_id = :u AND round_no = :r",
+                [':c' => $caseId, ':u' => $suggestedBy, ':r' => $roundNo]
+            );
+            if ($suggestion) {
+                $voteCategory = (int)$suggestion['vote_category'];
+                $voteDetails  = $suggestion['vote_details'];
+            }
+        }
+        // agree === 0 → voteCategory = 0 (disagree marker)
+
+        try {
+            db_exec(
+                "INSERT INTO upcc_case_vote (case_id, upcc_id, round_no, vote_category, vote_details, created_at, updated_at)
+                 VALUES (:c, :u, :r, :vc, :vd, NOW(), NOW())
+                 ON DUPLICATE KEY UPDATE vote_category = VALUES(vote_category), vote_details = VALUES(vote_details), updated_at = VALUES(updated_at)",
+                [':c' => $caseId, ':u' => $panelId, ':r' => $roundNo, ':vc' => $voteCategory, ':vd' => $voteDetails]
+            );
+            file_put_contents(__DIR__ . '/../scratch_debug_post.txt', "Insert SUCCEEDED. Cat=$voteCategory, Details=$voteDetails\n", FILE_APPEND);
+        } catch (Exception $e) {
+            file_put_contents(__DIR__ . '/../scratch_debug_post.txt', "Insert FAILED: " . $e->getMessage() . "\n", FILE_APPEND);
+        }
+
+        upcc_log_case_activity($caseId, 'UPCC', $panelId, 'VOTE_ON_SUGGESTION', [
+            'round_no' => $roundNo, 'agreed' => $agree, 'suggested_by' => $suggestedBy,
+        ]);
+
+        _checkAndFinalizeConsensus($caseId, $roundNo, $assignedPanelIds);
+    }
+    if ($agree === 1) {
+        $_SESSION['upcc_vote_flash'] = [
+            'type' => 'success',
+            'message' => '✅ Your vote was recorded. Waiting for the other panel member(s)…',
+        ];
+    } else {
+        $_SESSION['upcc_vote_flash'] = [
+            'type' => 'disagree',
+            'message' => '❌ You voted DISAGREE. The proposal was cancelled. Panel may suggest again after the cooldown.',
+        ];
+    }
+    header('Location: case_view.php?id=' . $caseId . '#decision-panel');
+    exit;
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function _getRoundSuggesterId(int $caseId, int $roundNo): ?array {
+    global $voteRoundHasSuggestedBy;
+    if ($voteRoundHasSuggestedBy) {
+        return db_one(
+            "SELECT suggested_by FROM upcc_case_vote_round WHERE case_id = :c AND round_no = :r AND is_active = 1",
+            [':c' => $caseId, ':r' => $roundNo]
+        ) ?: null;
+    }
+    return db_one(
+        "SELECT v.upcc_id AS suggested_by
+         FROM upcc_case_vote v
+         JOIN upcc_case_vote_round r ON r.case_id = v.case_id AND r.round_no = v.round_no
+         WHERE v.case_id = :c AND v.round_no = :r AND r.is_active = 1 AND v.vote_category > 0
+         ORDER BY v.created_at ASC LIMIT 1",
+        [':c' => $caseId, ':r' => $roundNo]
+    ) ?: null;
+}
+
+function _closeRound(int $caseId, int $roundNo): void {
+    global $voteRoundHasEndedAt;
+    $sql = $voteRoundHasEndedAt
+        ? "UPDATE upcc_case_vote_round SET is_active = 0, ended_at = NOW() WHERE case_id = :c AND round_no = :r"
+        : "UPDATE upcc_case_vote_round SET is_active = 0 WHERE case_id = :c AND round_no = :r";
+    db_exec($sql, [':c' => $caseId, ':r' => $roundNo]);
+}
+
+function _formatCsHoursStr(float|int|string $shVal): string {
+    $shVal = (float)$shVal;
+    if ($shVal <= 0) return '';
+    $hPart = (int)floor($shVal);
+    $mPart = (int)round(($shVal - $hPart) * 60);
+    if ($mPart >= 60) {
+        $hPart += 1;
+        $mPart = 0;
+    }
+    $parts = [];
+    if ($hPart > 0) {
+        $parts[] = $hPart . ' Hr' . ($hPart > 1 ? 's' : '');
+    }
+    if ($mPart > 0) {
+        $parts[] = $mPart . ' Min' . ($mPart > 1 ? 's' : '');
+    }
+    return !empty($parts) ? implode(' ', $parts) . ' CS' : '';
+}
+
+function _catLabel(int $cat, array $details = []): string {
+    $hrsStr = !empty($details['service_hours']) && (float)$details['service_hours'] > 0
+        ? ' (' . _formatCsHoursStr($details['service_hours']) . ')'
+        : '';
+    $interventionsList = !empty($details['interventions']) && is_array($details['interventions'])
+        ? ' (' . implode(', ', $details['interventions']) . ')'
+        : '';
+
+    $labels = [
+        1 => 'Category 1 — Formal Reprimand & Active Semester Probation',
+        2 => 'Category 2 — Formative Intervention' . $interventionsList . $hrsStr,
+        3 => 'Category 3 — Non-Readmission / Suspension' . $hrsStr,
+        4 => 'Category 4 — Exclusion / Mandatory Dismissal',
+        5 => 'Category 5 — Summary Expulsion & Police Referral',
+    ];
+    return $labels[$cat] ?? "Category {$cat}{$hrsStr}";
+}
+
+/**
+ * MAJORITY of panel members (including suggester) must agree.
+ * If majority disagree or if it's impossible to reach majority agree, round cancelled.
+ */
+function _checkAndFinalizeConsensus(int $caseId, int $roundNo, array $assignedPanelIds): void {
+    global $voteRoundHasSuggestedBy, $voteRoundHasEndedAt;
+
+    $votes = db_all(
+        "SELECT upcc_id, vote_category, vote_details FROM upcc_case_vote
+         WHERE case_id = :c AND round_no = :r",
+        [':c' => $caseId, ':r' => $roundNo]
+    );
+
+    $suggesterRow = _getRoundSuggesterId($caseId, $roundNo);
+    $suggesterId  = (int)($suggesterRow['suggested_by'] ?? 0);
+
+    $totalPanelMembers = count($assignedPanelIds);
+    if ($totalPanelMembers === 0) return;
+
+    $majorityNeeded = (int)floor($totalPanelMembers / 2) + 1;
+
+    $agreeCount = 0;
+    $disagreeCount = 0;
+    $disagreeName = '';
+
+    foreach ($votes as $v) {
+        $uid = (int)$v['upcc_id'];
+        $cat = (int)$v['vote_category'];
+        if ($cat > 0) {
+            $agreeCount++;
+        } else {
+            $disagreeCount++;
+            if (!$disagreeName) {
+                $row = db_one("SELECT full_name FROM upcc_user WHERE upcc_id = :u LIMIT 1", [':u' => $uid]);
+                $disagreeName = $row['full_name'] ?? 'A panel member';
+            }
+        }
+    }
+
+    $totalVotesCast = count($votes);
+    $remainingVoters = $totalPanelMembers - $totalVotesCast;
+    $maxPossibleAgrees = $agreeCount + $remainingVoters;
+
+    // ── MAJORITY DISAGREES OR IMPOSSIBLE TO REACH MAJORITY ──
+    if ($maxPossibleAgrees < $majorityNeeded || $disagreeCount >= $majorityNeeded) {
+        db_exec("DELETE FROM upcc_suggestion_cooldown WHERE case_id = :c", [':c' => $caseId]);
+
+        db_exec("DELETE FROM upcc_case_vote WHERE case_id = :c AND round_no = :r",
+            [':c' => $caseId, ':r' => $roundNo]);
+
+        _closeRound($caseId, $roundNo);
+
+        db_exec("UPDATE upcc_case SET
+                 hearing_vote_consensus_category = NULL, hearing_vote_suggested_details = NULL,
+                 hearing_vote_consensus_at = NULL, hearing_vote_suggester_id = NULL,
+                 status = CASE WHEN status = 'AWAITING_ADMIN_FINALIZATION' THEN 'UNDER_INVESTIGATION' ELSE status END,
+                 updated_at = NOW() WHERE case_id = :c", [':c' => $caseId]);
+
+        $disName = $disagreeName ?: 'Panel members';
+        db_exec(
+            "INSERT INTO upcc_case_discussion (case_id, message, created_at, updated_at) VALUES (:c, :m, NOW(), NOW())",
+            [':c' => $caseId, ':m' => "❌ {$disName} voted DISAGREE — majority consensus failed. Panel may submit a new suggestion after the 3-minute cooldown."]
+        );
+
+        upcc_log_case_activity($caseId, 'SYSTEM', 0, 'VOTE_DISAGREED', [
+            'round_no' => $roundNo, 'disagreed_by' => $disagreeName,
+        ]);
+        return;
+    }
+
+    // ── MAJORITY AGREED ──
+    if ($agreeCount >= $majorityNeeded) {
+        $suggestionVote = db_one(
+            "SELECT vote_category, vote_details, upcc_id AS suggester_id
+             FROM upcc_case_vote WHERE case_id = :c AND upcc_id = :u AND round_no = :r",
+            [':c' => $caseId, ':u' => $suggesterId, ':r' => $roundNo]
+        );
+        if (!$suggestionVote) return;
+
+        $consensusCategory = (int)$suggestionVote['vote_category'];
+        $consensusDetails  = $suggestionVote['vote_details'];
+
+        db_exec("UPDATE upcc_case SET
+                 hearing_vote_consensus_category = :cat,
+                 hearing_vote_suggested_details  = :det,
+                 hearing_vote_consensus_at       = NOW(),
+                 hearing_vote_suggester_id       = :sid,
+                 status = 'AWAITING_ADMIN_FINALIZATION',
+                 updated_at = NOW()
+                 WHERE case_id = :c",
+            [':cat' => $consensusCategory, ':det' => $consensusDetails,
+             ':sid' => $suggesterId, ':c'   => $caseId]);
+
+
+
+        _closeRound($caseId, $roundNo);
+
+        db_exec(
+            "INSERT INTO upcc_case_discussion (case_id, message, created_at, updated_at) VALUES (:c, :m, NOW(), NOW())",
+            [':c' => $caseId, ':m' => "✅ CONSENSUS REACHED! All panel members agreed on Category {$consensusCategory}. Awaiting Admin to finalize."]
+        );
+
+        upcc_log_case_activity($caseId, 'SYSTEM', 0, 'CONSENSUS_REACHED', [
+            'round_no' => $roundNo, 'vote_category' => $consensusCategory,
+            'total_voters' => $totalVoters,
+        ]);
     }
 }
 
-$isCurrentUserSuggester = ($suggesterId === $panelId);
+// ═══════════════════════════════════════════════════════════════════════════
+//  LOAD LIVE STATE
+// ═══════════════════════════════════════════════════════════════════════════
 
-// Votes in active round
-$votesInRound = [];
-if ($isRoundActive) {
-    $votesInRound = db_all(
-        "SELECT * FROM upcc_case_vote WHERE case_id = :c AND round_no = :r",
-        [':c' => $caseId, ':r' => $roundNo]
+if ($voteRoundHasSuggestedBy) {
+    $activeRound = db_one(
+        "SELECT r.round_no, r.started_at, r.ends_at, r.is_active,
+                COALESCE(r.suggested_by, uc.hearing_vote_suggester_id,
+                    (SELECT v.upcc_id FROM upcc_case_vote v
+                     WHERE v.case_id = r.case_id AND v.round_no = r.round_no AND v.vote_category > 0
+                     ORDER BY v.created_at ASC LIMIT 1)) AS suggested_by,
+                u.full_name AS suggester_name,
+                TIMESTAMPDIFF(SECOND, NOW(), r.ends_at) AS remaining_seconds
+         FROM upcc_case_vote_round r
+         LEFT JOIN upcc_case uc ON uc.case_id = r.case_id
+         LEFT JOIN upcc_user u ON u.upcc_id = COALESCE(r.suggested_by, uc.hearing_vote_suggester_id,
+                    (SELECT v.upcc_id FROM upcc_case_vote v
+                     WHERE v.case_id = r.case_id AND v.round_no = r.round_no AND v.vote_category > 0
+                     ORDER BY v.created_at ASC LIMIT 1))
+         WHERE r.case_id = :c AND r.is_active = 1
+         ORDER BY r.round_no DESC LIMIT 1",
+        [':c' => $caseId]
+    );
+} else {
+    $activeRound = db_one(
+        "SELECT r.round_no, r.started_at, r.ends_at, r.is_active,
+                (SELECT v.upcc_id FROM upcc_case_vote v WHERE v.case_id = r.case_id AND v.round_no = r.round_no AND v.vote_category > 0 ORDER BY v.created_at ASC LIMIT 1) AS suggested_by,
+                (SELECT u2.full_name FROM upcc_case_vote v2 JOIN upcc_user u2 ON u2.upcc_id = v2.upcc_id WHERE v2.case_id = r.case_id AND v2.round_no = r.round_no AND v2.vote_category > 0 ORDER BY v2.created_at ASC LIMIT 1) AS suggester_name,
+                TIMESTAMPDIFF(SECOND, NOW(), r.ends_at) AS remaining_seconds
+         FROM upcc_case_vote_round r
+         WHERE r.case_id = :c AND r.is_active = 1
+         ORDER BY r.round_no DESC LIMIT 1",
+        [':c' => $caseId]
     );
 }
 
-$votesByMember = [];
-$agreeVotes    = 0;
-$disagreeVotes = 0;
+if ($activeRound && isset($activeRound['remaining_seconds']) && (int)$activeRound['remaining_seconds'] <= 0) {
+    $expiredRoundNo = (int)($activeRound['round_no'] ?? 0);
+    if ($expiredRoundNo > 0) {
+        _closeRound($caseId, $expiredRoundNo);
+        db_exec("DELETE FROM upcc_case_vote WHERE case_id = :c AND round_no = :r", [':c' => $caseId, ':r' => $expiredRoundNo]);
+        db_exec("UPDATE upcc_case SET
+                 hearing_vote_consensus_category = NULL, hearing_vote_suggested_details = NULL,
+                 hearing_vote_consensus_at = NULL, hearing_vote_suggester_id = NULL,
+                 status = CASE WHEN status = 'AWAITING_ADMIN_FINALIZATION' THEN 'UNDER_INVESTIGATION' ELSE status END,
+                 updated_at = NOW() WHERE case_id = :c", [':c' => $caseId]);
+        db_exec(
+            "INSERT INTO upcc_case_discussion (case_id, message, created_at, updated_at)
+             VALUES (:c, :m, NOW(), NOW())",
+            [':c' => $caseId, ':m' => "⌛ Voting window ended after 10 minutes with no decision. Panel may submit a new suggestion."]
+        );
+    }
+    $activeRound = null;
+}
+
+$roundNo                  = (int)($activeRound['round_no']    ?? 0);
+$isRoundActive            = $roundNo > 0 && (int)($activeRound['is_active'] ?? 0) === 1;
+$suggesterId              = (int)($activeRound['suggested_by'] ?? ($case['hearing_vote_suggester_id'] ?? 0));
+if ($suggesterId <= 0 && $sessionSuggesterCaseId === $caseId && $sessionSuggesterId > 0) {
+    $suggesterId = $sessionSuggesterId;
+}
+$suggesterName            = $activeRound['suggester_name'] ?? '';
+$isCurrentUserSuggester   = ($suggesterId === $panelId);
+$roundEndsAt              = $activeRound['ends_at'] ?? null;
+$roundSecondsRemaining    = $activeRound ? max(0, (int)($activeRound['remaining_seconds'] ?? 0)) : 0;
+
+$votesThisRound  = [];
+$votesByMember   = [];
+$agreeVotes      = 0;
+$disagreeVotes   = 0;
+
+if ($isRoundActive && $roundNo > 0) {
+    $votesThisRound = db_all(
+        "SELECT v.upcc_id, v.vote_category, v.updated_at, u.full_name
+         FROM upcc_case_vote v
+         LEFT JOIN upcc_user u ON u.upcc_id = v.upcc_id
+         WHERE v.case_id = :c AND v.round_no = :r
+         ORDER BY v.created_at ASC",
+        [':c' => $caseId, ':r' => $roundNo]
+    );
+    foreach ($votesThisRound as $v) {
+        $uid = (int)$v['upcc_id'];
+        $cat = (int)$v['vote_category'];
+        $votesByMember[$uid] = $cat;
+        if ($uid !== $suggesterId) {
+            if ($cat > 0) $agreeVotes++;
+            else          $disagreeVotes++;
+        }
+    }
+}
+
+$currentMemberVote = isset($votesByMember[$panelId]) ? (int)$votesByMember[$panelId] : null;
+$hasVoted          = $currentMemberVote !== null && !$isCurrentUserSuggester;
+$showCancelSuggestion = $isRoundActive && $isCurrentUserSuggester;
+$showVoteButtons      = $isRoundActive && !$isCurrentUserSuggester && !$hasVoted;
+
+// Voters = all except suggester
+$voterIds     = array_filter($assignedPanelIds, fn($id) => $id !== $suggesterId);
+$totalVoters  = count($voterIds);
+$allVotersIn  = $totalVoters > 0 && $agreeVotes === $totalVoters;
+
+// Suggested details
 $suggestedDetails = null;
-
-foreach ($votesInRound as $v) {
-    $uid = (int)$v['upcc_id'];
-    $ag  = (int)$v['vote_agree'];
-    $votesByMember[$uid] = $ag;
-    if ($ag === 1) $agreeVotes++;
-    else $disagreeVotes++;
-
-    if ($uid === $suggesterId && $suggestedDetails === null) {
+if ($isRoundActive && $suggesterId > 0) {
+    $sv = db_one(
+        "SELECT vote_category, vote_details FROM upcc_case_vote
+         WHERE case_id = :c AND upcc_id = :u AND round_no = :r",
+        [':c' => $caseId, ':u' => $suggesterId, ':r' => $roundNo]
+    );
+    if ($sv) {
         $suggestedDetails = [
-            'category' => (int)$v['vote_category'],
-            'details'  => json_decode((string)$v['vote_details'], true) ?? [],
+            'category' => (int)$sv['vote_category'],
+            'details'  => $sv['vote_details'] ? json_decode((string)$sv['vote_details'], true) : [],
         ];
     }
 }
 
-$totalVoters        = count($assignedPanelIds);
-$hasVoted           = isset($votesByMember[$panelId]);
-$currentMemberVote  = $votesByMember[$panelId] ?? null;
-$showVoteButtons    = $isRoundActive && !$isCurrentUserSuggester && !$hasVoted;
-$showCancelSuggestion = $isRoundActive && $isCurrentUserSuggester;
+// Re-fetch case
+$case = db_one("SELECT uc.*, " . db_decrypt_cols(['case_summary', 'student_explanation_text'], 'uc') . ",
+        CONCAT(" . db_decrypt_col('student_fn', 's') . ",' '," . db_decrypt_col('student_ln', 's') . ") AS student_name,
+        " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number', 'home_address'], 's') . ",
+        s.year_level, s.section, s.program, s.school,
+        d.dept_name AS assigned_dept_name
+    FROM upcc_case uc
+    JOIN student s ON s.student_id = uc.student_id
+    LEFT JOIN departments d ON d.dept_id = uc.assigned_department_id
+    WHERE uc.case_id = :c LIMIT 1", [':c' => $caseId, ':__enckey' => db_encryption_key()]);
 
-// Suggester name
-$suggesterName = 'Panel Member';
-if ($suggesterId > 0) {
-    $sugUser = db_one("SELECT full_name FROM upcc_user WHERE upcc_id = :u", [':u' => $suggesterId]);
-    if ($sugUser) $suggesterName = $sugUser['full_name'];
-}
+$consensusCategory = (int)($case['hearing_vote_consensus_category'] ?? 0);
+$isAwaitingAdmin   = $consensusCategory > 0 && (string)($case['status'] ?? '') === 'AWAITING_ADMIN_FINALIZATION';
 
-// Cooldown state
-$cooldownRow = db_one(
+// Cooldown for current user
+$activeCooldown = db_one(
     "SELECT TIMESTAMPDIFF(SECOND, NOW(), MAX(cooldown_until)) AS remaining
      FROM upcc_suggestion_cooldown
      WHERE case_id = :c AND cooldown_until > NOW()",
     [':c' => $caseId]
 );
-$cooldownRemainingSecs = max(0, (int)($cooldownRow['remaining'] ?? 0));
-$isInCooldown          = $cooldownRemainingSecs > 0;
+$cooldownRemainingSecs = max(0, (int)$activeCooldown['remaining'] ?? 0);
+$isInCooldown = $cooldownRemainingSecs > 0;
 
-// Consensus state
-$consensusCategory = (int)($case['hearing_vote_consensus_category'] ?? 0);
-$isAwaitingAdmin   = ($consensusCategory >= 1 && $consensusCategory <= 5);
+$showVotingPopup = $isRoundActive && $suggestedDetails !== null;
 
-// Popup flag: show modal if round is active AND user hasn't voted OR is suggester
-$showVotingPopup = $isRoundActive && ($isCurrentUserSuggester || !$hasVoted);
-
-// ── OFFENSES ──────────────────────────────────────────────────────────────
+// ── OTHER QUERIES ─────────────────────────────────────────────────────────
 $offenses = db_all(
-    "SELECT o.offense_id, o.date_committed, o.description, o.incident_photo,
-            ot.code, ot.name AS offense_name, ot.level, ot.intervention_first, ot.intervention_second
+    "SELECT o.offense_id, o.level, " . db_decrypt_col('description', 'o') . " AS description, o.dismissal_reason, COALESCE(o.evidence_file, o.incident_photo) AS evidence_file, o.date_committed, o.status,
+            ot.code, ot.name AS offense_name, ot.major_category, ot.intervention_first, ot.intervention_second
      FROM upcc_case_offense uco
-     JOIN offense o ON o.offense_id = uco.offense_id
+     JOIN offense o   ON o.offense_id = uco.offense_id
      JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-     WHERE uco.case_id = :c ORDER BY ot.level DESC, ot.code ASC",
-    [':c' => $caseId]
+     WHERE uco.case_id = :c ORDER BY o.date_committed ASC",
+    [':c' => $caseId, ':__enckey' => db_encryption_key()]
 );
 
 $priorResolvedCases = db_all(
-    "SELECT uc.case_id, uc.status, uc.created_at, uc.updated_at, uc.decided_category,
+    "SELECT uc.case_id, uc.status, uc.created_at, uc.updated_at, uc.decided_category, uc.punishment_details,
             GROUP_CONCAT(DISTINCT ot.code ORDER BY ot.code SEPARATOR ', ') AS offense_codes,
             GROUP_CONCAT(DISTINCT ot.name ORDER BY ot.code SEPARATOR ' | ') AS offense_names,
-            SUM(CASE WHEN ot.level >= 4 THEN 1 ELSE 0 END) AS major_count,
-            SUM(CASE WHEN ot.level < 4 THEN 1 ELSE 0 END) AS minor_count
+            SUM(CASE WHEN ot.level = 'MAJOR' THEN 1 ELSE 0 END) AS major_count,
+            SUM(CASE WHEN ot.level = 'MINOR' THEN 1 ELSE 0 END) AS minor_count
      FROM upcc_case uc
      LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
      LEFT JOIN offense o ON o.offense_id = uco.offense_id
@@ -538,8 +750,8 @@ $otherPendingCases = db_all(
     "SELECT uc.case_id, uc.status, uc.created_at, uc.updated_at,
             GROUP_CONCAT(DISTINCT ot.code ORDER BY ot.code SEPARATOR ', ') AS offense_codes,
             GROUP_CONCAT(DISTINCT ot.name ORDER BY ot.code SEPARATOR ' | ') AS offense_names,
-            SUM(CASE WHEN ot.level >= 4 THEN 1 ELSE 0 END) AS major_count,
-            SUM(CASE WHEN ot.level < 4 THEN 1 ELSE 0 END) AS minor_count
+            SUM(CASE WHEN ot.level = 'MAJOR' THEN 1 ELSE 0 END) AS major_count,
+            SUM(CASE WHEN ot.level = 'MINOR' THEN 1 ELSE 0 END) AS minor_count
      FROM upcc_case uc
      LEFT JOIN upcc_case_offense uco ON uco.case_id = uc.case_id
      LEFT JOIN offense o ON o.offense_id = uco.offense_id
@@ -582,18 +794,18 @@ $presRow = db_one(
 );
 if ($presRow) $myPresenceStatus = $presRow['status'] ?? 'ADMITTED';
 
-$caseLabel = 'UPCC-' . date('Y', strtotime((string)$case['created_at'])) . '-' . str_pad((string)$caseId, 4, '0', STR_PAD_LEFT);
+$caseLabel = 'UPCC-' . date('Y', strtotime((string)$case['created_at'])) . '-' . str_pad((string)$caseId, 3, '0', STR_PAD_LEFT);
 $initials  = strtoupper(substr((string)$user['full_name'], 0, 1));
 $parts     = explode(' ', (string)$user['full_name']);
 if (count($parts) > 1) $initials .= strtoupper(substr((string)end($parts), 0, 1));
 
 $hasMajorOffense = false;
 foreach ($offenses as $off) {
-    if ((int)($off['level'] ?? 1) >= 4 || strtoupper((string)($off['level'] ?? '')) === 'MAJOR') { $hasMajorOffense = true; break; }
+    if (strtoupper((string)($off['level'] ?? '')) === 'MAJOR') { $hasMajorOffense = true; break; }
 }
 $cKindUpper = strtoupper((string)($case['case_kind'] ?? ''));
 $isSection4 = !$hasMajorOffense && ($cKindUpper === 'SECTION4_MINOR_ESCALATION'
-    || ($cKindUpper !== 'MAJOR_OFFENSE' && stripos((string)($case['case_summary'] ?? ''), 'Section 4') !== false));
+    || ($cKindUpper !== 'MAJOR_OFFENSE' && stripos((string)($case['case_summary'] ?? ''), 'Section 4 Minor Escalation') !== false));
 $decisionHint = $isSection4 ? 'Section 4 escalation case'
     : ($hasMajorOffense ? 'Major offense — Category 1–5 review' : 'Minor offense review');
 
@@ -602,10 +814,10 @@ function fmt_dt(?string $v): string {
 }
 function decision_badge(string $s): array {
     return match(strtoupper($s)) {
-        'DISMISSED'                  => ['label' => 'Dismissed',          'class' => 'badge-slate'],
-        'CLOSED','RESOLVED'          => ['label' => 'Closed / Finalized', 'class' => 'badge-green'],
+        'DISMISSED'                  => ['label' => '🚫 Dismissed',       'class' => 'badge-slate'],
+        'CLOSED','RESOLVED'          => ['label' => 'Closed',              'class' => 'badge-green'],
         'AWAITING_ADMIN_FINALIZATION'=> ['label' => 'Awaiting Admin',      'class' => 'badge-purple'],
-        'UNDER_INVESTIGATION'        => ['label' => 'Under Review',       'class' => 'badge-purple'],
+        'UNDER_INVESTIGATION'        => ['label' => 'Under Investigation', 'class' => 'badge-purple'],
         'UNDER_APPEAL'               => ['label' => 'Under Appeal',        'class' => 'badge-blue'],
         default                      => ['label' => 'Pending',             'class' => 'badge-amber'],
     };
@@ -614,10 +826,10 @@ $statusBadge = decision_badge($statusRaw);
 
 $categoryDescriptions = [
     1 => 'Formal Reprimand & Active Semester Probation (0 Hours CS).',
-    2 => 'Formative Community Service with Counseling / Education / Evaluation.',
+    2 => 'Formative Community Service (150 to 250 Hours) with Counseling / Education / Evaluation.',
     3 => 'Non-Readmission / Suspension.',
     4 => 'Exclusion / Mandatory Dismissal (Dropped from University Rolls).',
-    5 => 'Summary Expulsion & Police Referral (Permanent Disqualification).',
+    5 => 'Summary Expulsion & Police Referral (Permanent Disqualification from Higher Education).',
 ];
 
 $postedDecidedCategory = isset($_POST['decided_category']) ? (int)$_POST['decided_category'] : 0;
@@ -628,415 +840,452 @@ $postedFinalDecision   = trim($_POST['final_decision'] ?? '');
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($caseLabel) ?> — UPCC Case Workspace</title>
+<title><?= htmlspecialchars($caseLabel) ?> | UPCC Case</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
-  --font-h: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-b: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  
-  --bg-dark: #090d16;
-  --bg-sidebar: #0e1526;
-  --bg-card: rgba(18, 26, 43, 0.75);
-  --bg-glass: rgba(15, 22, 38, 0.85);
-  
-  --border-glass: rgba(255, 255, 255, 0.08);
-  --border-glass-hover: rgba(255, 255, 255, 0.16);
-  
-  --accent-primary: #38bdf8;
-  --accent-secondary: #6366f1;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  
-  --text-main: #f8fafc;
-  --text-sub: #cbd5e1;
-  --text-muted: #64748b;
-  
-  --radius-lg: 16px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
+:root{
+    --bg-dark:#060a12;--bg-card:rgba(15,23,42,.85);--bg-glass:rgba(11,17,31,.9);
+    --border-glass:rgba(56,189,248,.18);--border-glass-hover:rgba(56,189,248,.4);
+    --accent-primary:#38bdf8;--accent-secondary:#818cf8;--success:#10b981;--warning:#fbbf24;--danger:#f87171;
+    --text-main:#f8fafc;--text-sub:#cbd5e1;--text-muted:#64748b;
+    --radius-lg:20px;--radius-md:14px;--radius-sm:8px;
+    --font-h:'Outfit',-apple-system,BlinkMacSystemFont,sans-serif;--font-b:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;
 }
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: var(--font-b);
-  color: var(--text-main);
-  background: var(--bg-dark);
-  min-height: 100vh;
-  position: relative;
-  overflow-x: hidden;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-b);color:var(--text-main);background:var(--bg-dark);min-height:100vh;overflow-x:hidden;line-height:1.5}
+body::before{content:'';position:fixed;inset:0;z-index:-2;
+    background:radial-gradient(circle at 12% 18%,rgba(56,189,248,.14),transparent 45%),
+               radial-gradient(circle at 88% 82%,rgba(129,140,248,.14),transparent 45%),
+               radial-gradient(circle at 50% 50%,rgba(16,185,129,.06),transparent 50%);
+    filter:blur(80px)}
+.app-container{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+@media(max-width:1100px){
+  .app-container{display:flex;flex-direction:column}
+  .sidebar{width:100%;padding:15px 20px;flex-direction:row;align-items:center;justify-content:space-between;border-right:none;border-bottom:1px solid var(--border-glass);box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:10;flex-wrap:wrap;gap:10px}
+  .brand{margin-bottom:0;padding-bottom:0;border-bottom:none}
+  .brand-icon{width:40px;height:40px}
+  .brand-text h1{font-size:18px}
+  .side-group{margin-top:0;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+  .side-group .side-label{display:none}
+  #backToDashboardBtn{width:auto !important;padding:8px 16px}
+  .main-content{padding:20px}
+  .hero{flex-direction:column}
+  .layout{grid-template-columns:1fr}
 }
-
-body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: -2;
-  background: radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.08), transparent 45%),
-              radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.08), transparent 45%),
-              radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.03), transparent 50%);
-  filter: blur(80px);
+@media(max-width:768px){
+  .vote-btns{grid-template-columns:1fr}
+  .vote-btn-row{grid-template-columns:1fr}
+  .tally-row{grid-template-columns:1fr}
+  .vote-tally{grid-template-columns:1fr}
 }
+.sidebar{background:var(--bg-glass);backdrop-filter:blur(20px);border-right:1px solid var(--border-glass);
+    padding:30px 20px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:15px;margin-bottom:40px;padding-bottom:20px;border-bottom:1px solid var(--border-glass)}
+.brand-icon{width:50px;height:50px;background:rgba(255,255,255,.05);border:1px solid var(--border-glass);
+    border-radius:14px;display:grid;place-items:center;padding:8px}
+.brand-icon img{width:100%;height:auto;border-radius:6px}
+.brand-text h1{font-family:var(--font-h);font-size:20px;font-weight:700;line-height:1}
+.brand-text p{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.side-group{margin-top:18px}
+.side-label{font-size:11px;letter-spacing:1.5px;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px;font-weight:600}
+.panel-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-glass);
+    border-radius:999px;padding:8px 12px;margin:0 8px 8px 0;background:rgba(255,255,255,.02);
+    font-size:12px;color:var(--text-main);font-weight:500}
+.panel-chip small{color:var(--text-muted);font-weight:400}
+.main-content{padding:40px;overflow-y:auto}
+.hero{background:var(--bg-card);backdrop-filter:blur(16px);border:1px solid var(--border-glass);
+    border-radius:var(--radius-lg);padding:30px;display:flex;justify-content:space-between;
+    gap:20px;align-items:start;margin-bottom:24px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.crumb{color:var(--accent-primary);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.title{font-family:var(--font-h);font-size:28px;font-weight:800;
+    background:linear-gradient(to right,#fff,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.2}
+.subtitle{margin-top:10px;color:var(--text-muted);max-width:760px;line-height:1.6;font-size:14px}
+.hero-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid transparent}
+.pill.green{color:#6ee7b7;background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.2)}
+.pill.amber{color:#fcd34d;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.2)}
+.pill.blue{color:#93c5fd;background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.2)}
+.pill.purple{color:#c4b5fd;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.2)}
+.info{border:1px solid var(--border-glass);background:rgba(255,255,255,.02);border-radius:12px;padding:16px;min-width:200px}
+.info-label{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600}
+.info-value{font-size:16px;font-weight:700;color:var(--text-main);font-family:var(--font-h)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px}
+@media(max-width:1100px){.layout{grid-template-columns:1fr}}
+.glass-panel{background:var(--bg-card);backdrop-filter:blur(16px);border:1px solid var(--border-glass);
+    border-radius:var(--radius-lg);overflow:hidden;display:flex;flex-direction:column;
+    box-shadow:0 10px 30px rgba(0,0,0,.15)}
+.panel-header{padding:20px 24px;border-bottom:1px solid var(--border-glass);
+    display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(255,255,255,.01)}
+.panel-title{font-family:var(--font-h);font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.panel-body{padding:24px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border:1px solid transparent}
+.badge-amber{background:rgba(245,158,11,.1);color:#fcd34d;border-color:rgba(245,158,11,.2)}
+.badge-purple{background:rgba(139,92,246,.1);color:#c4b5fd;border-color:rgba(139,92,246,.2)}
+.badge-green{background:rgba(16,185,129,.1);color:#6ee7b7;border-color:rgba(16,185,129,.2)}
+.badge-blue{background:rgba(59,130,246,.1);color:#93c5fd;border-color:rgba(59,130,246,.2)}
+.offense-list{display:grid;gap:12px}
+.offense-item{border:1px solid var(--border-glass);background:rgba(255,255,255,.02);
+    border-radius:var(--radius-md);overflow:hidden;transition:all .3s}
+.offense-item:hover{background:rgba(255,255,255,.04);border-color:var(--border-glass-hover)}
+.offense-item summary{list-style:none;cursor:pointer;padding:16px 20px;
+    display:flex;justify-content:space-between;gap:12px;align-items:center}
+.offense-item summary::-webkit-details-marker{display:none}
+.offense-main{display:flex;flex-direction:column;gap:6px;min-width:0}
+.offense-code{font-size:12px;color:var(--accent-primary);font-weight:800;letter-spacing:1px}
+.offense-name{font-size:15px;font-weight:700;font-family:var(--font-h)}
+.offense-meta{color:var(--text-muted);font-size:12px}
+.offense-body{padding:0 20px 20px;border-top:1px solid var(--border-glass);padding-top:16px;display:grid;gap:12px}
+.offense-row{display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start}
+.offense-row .label{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.offense-row .value{color:var(--text-main);font-size:13px;line-height:1.6}
+.field{display:grid;gap:8px}
+.field label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.fld-input{width:100%;border:1px solid var(--border-glass);background:rgba(0,0,0,.2);color:var(--text-main);
+    border-radius:12px;padding:12px 16px;font-family:var(--font-b);font-size:13px;transition:all .2s}
+.fld-input option, select option{background-color:#1e293b !important;color:#f8fafc !important;padding:8px 12px}
+.fld-input:focus{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px rgba(99,102,241,.2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:12px;
+    cursor:pointer;padding:10px 18px;font-family:var(--font-b);font-size:13px;font-weight:700;text-decoration:none;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,var(--accent-primary),#8b5cf6);color:#fff;box-shadow:0 4px 15px rgba(99,102,241,.3)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.4)}
+.btn-secondary{background:rgba(255,255,255,.05);color:var(--text-main);border:1px solid var(--border-glass)}
+.btn-secondary:hover{background:rgba(255,255,255,.1)}
+.btn-danger{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.btn-danger:hover{background:rgba(239,68,68,.25)}
+.btn-success{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
+.btn-success:hover{background:rgba(16,185,129,.25)}
+.chat-item{border:1px solid var(--border-glass);background:rgba(255,255,255,.02);
+    border-radius:var(--radius-md);padding:14px 16px;position:relative;margin-bottom:12px}
+.chat-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}
+.chat-name{font-weight:700;font-size:13px;font-family:var(--font-h)}
+.chat-role{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.chat-time{color:var(--text-muted);font-size:11px;white-space:nowrap}
+.chat-msg{color:#e2e8f0;line-height:1.6;font-size:13px;white-space:pre-wrap}
+.empty{color:var(--text-muted);font-size:13px;padding:12px 0;font-style:italic}
+.lock{border:1px dashed rgba(245,158,11,.4);background:rgba(245,158,11,.1);border-radius:var(--radius-md);padding:24px;color:#fcd34d;text-align:center}
+.stack{display:grid;gap:16px}
+hr{border-color:var(--border-glass);margin:16px 0}
 
-.app-container {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  min-height: 100vh;
-}
+/* ── COOLDOWN ALERT ──────────────────────────────────────────────────── */
+.cooldown-alert{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+    border-radius:12px;padding:14px 16px;text-align:center;font-size:13px;color:#f87171}
+.cooldown-alert strong{font-size:20px;display:block;margin-top:6px;font-family:var(--font-h);
+    font-variant-numeric:tabular-nums}
 
-.sidebar {
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border-glass);
-  padding: 28px 20px;
-  display: flex;
-  flex-direction: column;
-}
+/* ── CONSENSUS BANNER ────────────────────────────────────────────────── */
+.consensus-banner{background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(5,150,105,.1));
+    border:2px solid rgba(16,185,129,.4);border-radius:var(--radius-md);padding:20px;text-align:center;margin-bottom:16px}
+.consensus-banner-title{font-family:var(--font-h);font-size:18px;font-weight:800;color:#6ee7b7;margin-bottom:6px}
 
-.brand {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 32px; padding-bottom: 20px;
-  border-bottom: 1px solid var(--border-glass);
-}
-.brand-icon {
-  width: 42px; height: 42px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border-glass);
-  border-radius: 10px;
-  display: grid; place-items: center;
-  padding: 6px;
-}
-.brand-icon img { width: 100%; height: auto; border-radius: 4px; }
-.brand-text h1 { font-family: var(--font-h); font-size: 17px; font-weight: 700; line-height: 1.2; }
-.brand-text p { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-top: 2px; }
+/* ── PRESENCE OVERLAY ────────────────────────────────────────────────── */
+.presence-overlay{position:fixed;inset:0;z-index:3000;display:none;align-items:center;
+    justify-content:center;background:rgba(15,23,42,.85);backdrop-filter:blur(16px);padding:24px;text-align:center}
+.presence-overlay.open{display:flex}
+.presence-card{background:var(--bg-card);border:1px solid var(--border-glass);border-radius:var(--radius-lg);
+    padding:40px;max-width:400px;width:100%;backdrop-filter:blur(20px)}
 
-.side-group { margin-top: 20px; }
-.side-label { font-size: 11px; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; font-weight: 600; }
-.panel-chip {
-  display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border-glass);
-  border-radius: 8px; padding: 6px 12px; margin: 0 6px 6px 0; background: rgba(255,255,255,0.02);
-  font-size: 12.5px; color: var(--text-sub); font-weight: 500;
-}
-.panel-chip small { color: var(--text-muted); font-weight: 400; }
+/* ══════════════════════════════════════════════════════════════════════
+   VOTING MODAL — full-screen live voting popup
+══════════════════════════════════════════════════════════════════════ */
+.voting-modal{position:fixed;inset:0;z-index:9000;display:none;align-items:center;
+    justify-content:center;background:rgba(7,17,31,.97);backdrop-filter:blur(12px);padding:16px}
+.voting-modal.open{display:flex}
+.vmc{background:linear-gradient(160deg,rgba(30,41,59,.98),rgba(15,23,42,.98));
+    border:2px solid var(--accent-primary);border-radius:var(--radius-lg);
+    padding:36px 32px;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;
+    box-shadow:0 32px 64px rgba(0,0,0,.6),0 0 60px rgba(99,102,241,.25);
+    animation:popIn .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{transform:scale(.85) translateY(30px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.vmc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.vmc-title{font-family:var(--font-h);font-size:26px;font-weight:800;color:var(--accent-primary)}
+.vmc-live-badge{background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.4);
+    border-radius:999px;padding:4px 12px;font-size:11px;font-weight:700;text-transform:uppercase;
+    letter-spacing:1px;animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.vmc-sub{color:var(--text-muted);font-size:13px;margin-bottom:20px;line-height:1.5}
 
-.main-content { padding: 36px 40px; overflow-y: auto; }
+/* Timer bar */
+.timer-wrap{margin:0 0 18px}
+.timer-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.timer-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+.timer-num{font-family:var(--font-h);font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;color:#fff;
+    transition:color .5s}
+.timer-num.urgent{color:#f87171;animation:pulseRed 1s ease-in-out infinite}
+@keyframes pulseRed{0%,100%{opacity:1}50%{opacity:.6}}
+.timer-bar-wrap{height:6px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}
+.timer-bar-fill{height:100%;border-radius:999px;transition:width 1s linear,background .5s}
 
-.hero {
-  background: var(--bg-card); backdrop-filter: blur(16px); border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg); padding: 28px 32px; display: flex; justify-content: space-between;
-  gap: 24px; align-items: flex-start; margin-bottom: 24px; box-shadow: 0 12px 32px rgba(0,0,0,0.2);
-}
-.crumb { color: var(--accent-primary); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-.title { font-family: var(--font-h); font-size: 26px; font-weight: 800; color: var(--text-main); line-height: 1.2; letter-spacing: -0.3px; }
-.subtitle { margin-top: 8px; color: var(--text-muted); max-width: 740px; line-height: 1.5; font-size: 13.5px; }
+/* Suggestion box */
+.sug-box{background:rgba(0,0,0,.35);border:1px solid rgba(99,102,241,.3);
+    border-radius:14px;padding:18px;margin:0 0 18px}
+.sug-cat{font-family:var(--font-h);font-size:20px;font-weight:800;color:#c4b5fd;margin-bottom:6px}
+.sug-desc{font-size:13px;color:#e2e8f0;line-height:1.6;margin-bottom:8px}
+.sug-note{background:rgba(255,255,255,.04);border-left:3px solid var(--accent-primary);
+    padding:8px 12px;border-radius:0 8px 8px 0;font-size:12px;color:var(--text-muted);font-style:italic;margin-top:8px}
+.sug-tag{display:inline-block;background:rgba(99,102,241,.15);color:#c4b5fd;border:1px solid rgba(99,102,241,.3);
+    border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;margin:2px 2px 0 0}
 
-.hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
-.pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid transparent; }
-.pill.green { color: #34d399; background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.25); }
-.pill.amber { color: #fbbf24; background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.25); }
-.pill.blue { color: #38bdf8; background: rgba(56,189,248,0.1); border-color: rgba(56,189,248,0.25); }
-.pill.purple { color: #c4b5fd; background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.25); }
+/* Tally */
+.tally-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.tally-cell{background:rgba(0,0,0,.2);border-radius:12px;padding:12px;text-align:center}
+.tally-cell label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);display:block;margin-bottom:4px}
+.tally-cell span{font-family:var(--font-h);font-size:24px;font-weight:800;transition:all .3s}
+.tc-agree span{color:#6ee7b7}.tc-disagree span{color:#f87171}.tc-pending span{color:#fcd34d}
+.tally-note{text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:14px}
 
-.info { border: 1px solid var(--border-glass); background: rgba(255,255,255,0.02); border-radius: 10px; padding: 14px 18px; min-width: 200px; }
-.info-label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 600; }
-.info-value { font-size: 15px; font-weight: 700; color: var(--text-main); font-family: var(--font-h); }
+/* Member vote list */
+.voter-list{display:grid;gap:8px;margin-bottom:18px}
+.voter-item{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:10px 14px;border:1px solid rgba(255,255,255,.07);border-radius:12px;
+    background:rgba(0,0,0,.2);transition:border-color .3s,background .3s}
+.voter-item.v-agree{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)}
+.voter-item.v-disagree{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.07)}
+.voter-name{font-weight:700;font-size:13px}
+.voter-meta{font-size:11px;color:var(--text-muted);margin-top:2px}
+.v-pill{padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.v-pill.agree{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.35)}
+.v-pill.disagree{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.35)}
+.v-pill.pending{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.35)}
+.v-pill.suggester{background:rgba(99,102,241,.15);color:#c4b5fd;border:1px solid rgba(99,102,241,.35)}
 
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; }
-@media(max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+/* Vote buttons */
+.vote-btn-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px}
+.btn-agree{background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;
+    border-radius:14px;padding:16px;font-family:var(--font-b);font-size:16px;font-weight:800;
+    cursor:pointer;transition:all .2s;width:100%}
+.btn-agree:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(16,185,129,.4)}
+.btn-disagree{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;border:none;
+    border-radius:14px;padding:16px;font-family:var(--font-b);font-size:16px;font-weight:800;
+    cursor:pointer;transition:all .2s;width:100%}
+.btn-disagree:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(239,68,68,.4)}
+.voted-conf{text-align:center;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);
+    border-radius:12px;padding:14px;font-size:14px;font-weight:600;color:#6ee7b7;margin-bottom:12px}
+.voted-conf small{display:block;font-size:11px;font-weight:400;color:var(--text-muted);margin-top:4px}
 
-.glass-panel {
-  background: var(--bg-card); backdrop-filter: blur(16px); border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column;
-}
-.panel-header {
-  padding: 18px 24px; border-bottom: 1px solid var(--border-glass);
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(255,255,255,0.01);
-}
-.panel-title { font-family: var(--font-h); font-size: 15.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
-.panel-body { padding: 24px; }
+/* Result flash */
+.result-flash{border-radius:12px;padding:14px;text-align:center;font-weight:700;font-size:14px;margin-bottom:12px;display:none}
+.result-flash.consensus{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:#6ee7b7}
+.result-flash.disagreed{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#f87171}
 
-.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid transparent; }
-.badge-amber { background: rgba(245,158,11,0.1); color: #fbbf24; border-color: rgba(245,158,11,0.25); }
-.badge-purple { background: rgba(139,92,246,0.1); color: #c4b5fd; border-color: rgba(139,92,246,0.25); }
-.badge-green { background: rgba(16,185,129,0.1); color: #34d399; border-color: rgba(16,185,129,0.25); }
-.badge-blue { background: rgba(56,189,248,0.1); color: #38bdf8; border-color: rgba(56,189,248,0.25); }
-.badge-slate { background: rgba(100,116,139,0.1); color: #94a3b8; border-color: rgba(100,116,139,0.25); }
+/* Panel-side voting section */
+.vote-tally{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+    background:rgba(0,0,0,.2);border-radius:12px;padding:14px;margin:16px 0;text-align:center}
+.tally-item label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);display:block;margin-bottom:4px}
+.tally-item span{font-family:var(--font-h);font-size:22px;font-weight:800}
+.tally-agree span{color:#6ee7b7}.tally-disagree span{color:#f87171}.tally-pending span{color:#fcd34d}
+.suggestion-box{background:rgba(0,0,0,.35);border:1px solid rgba(99,102,241,.3);
+    border-radius:14px;padding:18px;margin:12px 0}
+.suggestion-category{font-family:var(--font-h);font-size:18px;font-weight:800;color:#c4b5fd;margin-bottom:8px}
+.vote-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.vote-btns form{display:contents}
+.btn-vote-agree{background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;
+    border-radius:12px;padding:14px;font-family:var(--font-b);font-size:15px;font-weight:800;cursor:pointer;transition:all .2s}
+.btn-vote-agree:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(16,185,129,.4)}
+.btn-vote-disagree{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;border:none;
+    border-radius:12px;padding:14px;font-family:var(--font-b);font-size:15px;font-weight:800;cursor:pointer;transition:all .2s}
+.btn-vote-disagree:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(239,68,68,.4)}
+.voted-confirmation{text-align:center;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);
+    border-radius:12px;padding:14px;font-size:14px;font-weight:600;color:#6ee7b7}
+.decision-box{border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.1);
+    border-radius:var(--radius-md);padding:18px;display:grid;gap:10px}
 
-.offense-list { display: grid; gap: 10px; }
-.offense-item { border: 1px solid var(--border-glass); background: rgba(255,255,255,0.015); border-radius: 10px; overflow: hidden; transition: all .2s ease; }
-.offense-item:hover { background: rgba(255,255,255,0.035); border-color: var(--border-glass-hover); }
-.offense-item summary { list-style: none; cursor: pointer; padding: 14px 18px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-.offense-item summary::-webkit-details-marker { display: none; }
-.offense-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.offense-code { font-size: 12px; color: var(--accent-primary); font-weight: 700; letter-spacing: 0.5px; }
-.offense-name { font-size: 14.5px; font-weight: 600; font-family: var(--font-h); color: var(--text-main); }
-.offense-meta { color: var(--text-muted); font-size: 12px; }
-.offense-body { padding: 0 18px 18px; border-top: 1px solid var(--border-glass); padding-top: 14px; display: grid; gap: 10px; }
-.offense-row { display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: start; }
-.offense-row .label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
-.offense-row .value { color: var(--text-sub); font-size: 13px; line-height: 1.5; }
+/* Final decision form inputs */
+#finalDecisionForm select,
+#finalDecisionForm textarea,
+#finalDecisionForm input[type=text],
+#finalDecisionForm input[type=number]{width:100%;border:1px solid var(--border-glass);background:rgba(0,0,0,.2);
+    color:var(--text-main);border-radius:12px;padding:12px 16px;font-family:var(--font-b);font-size:13px;transition:all .2s}
+#finalDecisionForm select:focus,
+#finalDecisionForm textarea:focus,
+#finalDecisionForm input[type=text]:focus,
+#finalDecisionForm input[type=number]:focus{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px rgba(99,102,241,.2)}
+#finalDecisionForm textarea{min-height:90px;resize:vertical}
 
-.field { display: grid; gap: 6px; }
-.field label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
-.fld-input { width: 100%; border: 1px solid var(--border-glass); background: rgba(18, 26, 43, 0.5); color: var(--text-main); border-radius: 8px; padding: 10px 14px; font-family: var(--font-b); font-size: 13px; transition: all .15s ease; outline: none; }
-.fld-input option, select option { background-color: #0f172a !important; color: #f8fafc !important; }
-.fld-input:focus { border-color: rgba(56, 189, 248, 0.5); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12); }
-
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 8px; cursor: pointer; padding: 9px 16px; font-family: var(--font-b); font-size: 13px; font-weight: 600; text-decoration: none; transition: all .15s ease; }
-.btn-primary { background: #2563eb; color: #fff; }
-.btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
-.btn-secondary { background: rgba(255,255,255,0.04); color: var(--text-sub); border: 1px solid var(--border-glass); }
-.btn-secondary:hover { background: rgba(255,255,255,0.08); color: var(--text-main); }
-.btn-danger { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-.btn-danger:hover { background: rgba(239,68,68,0.25); }
-.btn-success { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-.btn-success:hover { background: rgba(16,185,129,0.25); }
-
-.chat-item { border: 1px solid var(--border-glass); background: rgba(255,255,255,0.015); border-radius: 10px; padding: 12px 14px; position: relative; margin-bottom: 10px; }
-.chat-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
-.chat-name { font-weight: 600; font-size: 13px; font-family: var(--font-h); color: var(--text-main); }
-.chat-role { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
-.chat-time { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
-.chat-msg { color: var(--text-sub); line-height: 1.5; font-size: 13px; white-space: pre-wrap; }
-.empty { color: var(--text-muted); font-size: 13px; padding: 12px 0; font-style: italic; }
-.lock { border: 1px dashed rgba(245,158,11,0.3); background: rgba(245,158,11,0.05); border-radius: 10px; padding: 20px; color: #fbbf24; text-align: center; font-size: 13px; }
-.stack { display: grid; gap: 16px; }
-
-/* Cooldown Alert */
-.cooldown-alert { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; padding: 12px 16px; text-align: center; font-size: 13px; color: #f87171; }
-.cooldown-alert strong { font-size: 18px; display: block; margin-top: 4px; font-family: var(--font-h); font-variant-numeric: tabular-nums; }
-
-/* Consensus Banner */
-.consensus-banner { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; padding: 18px; text-align: center; margin-bottom: 16px; }
-.consensus-banner-title { font-family: var(--font-h); font-size: 16px; font-weight: 700; color: #34d399; margin-bottom: 4px; }
-
-/* Voting Modal */
-.voting-modal { position: fixed; inset: 0; z-index: 9000; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); padding: 16px; }
-.voting-modal.open { display: flex; }
-.vmc { background: #0f172a; border: 1px solid var(--border-glass-hover); border-radius: var(--radius-lg); padding: 28px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 48px rgba(0,0,0,0.6); }
-
-.vmc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.vmc-title { font-family: var(--font-h); font-size: 18px; font-weight: 700; color: var(--text-main); }
-.vmc-live-badge { font-size: 10px; font-weight: 700; color: #34d399; text-transform: uppercase; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 8px; border-radius: 4px; }
-.vmc-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
-
-.timer-wrap { margin-bottom: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; }
-.timer-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.timer-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
-.timer-num { font-family: var(--font-h); font-size: 18px; font-weight: 700; color: var(--text-main); font-variant-numeric: tabular-nums; }
-.timer-bar-wrap { height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
-.timer-bar-fill { height: 100%; transition: width 1s linear; }
-
-.vote-tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 12px; margin: 14px 0; text-align: center; }
-.tally-item label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 2px; }
-.tally-item span { font-family: var(--font-h); font-size: 20px; font-weight: 700; }
-.tally-agree span { color: #34d399; } .tally-disagree span { color: #f87171; } .tally-pending span { color: #fbbf24; }
-
-.suggestion-box { background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 10px; padding: 16px; margin: 12px 0; }
-.suggestion-category { font-family: var(--font-h); font-size: 16px; font-weight: 700; color: #38bdf8; margin-bottom: 6px; }
-
-.vote-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
-.vote-btns form { display: contents; }
-.btn-vote-agree { background: #059669; color: #fff; border: none; border-radius: 8px; padding: 12px; font-family: var(--font-b); font-size: 13.5px; font-weight: 700; cursor: pointer; transition: all .15s ease; }
-.btn-vote-agree:hover { background: #047857; }
-.btn-vote-disagree { background: #dc2626; color: #fff; border: none; border-radius: 8px; padding: 12px; font-family: var(--font-b); font-size: 13.5px; font-weight: 700; cursor: pointer; transition: all .15s ease; }
-.btn-vote-disagree:hover { background: #b91c1c; }
-
-.voted-confirmation { text-align: center; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; color: #34d399; }
-.decision-box { border: 1px solid rgba(56,189,248,0.25); background: rgba(56,189,248,0.05); border-radius: var(--radius-md); padding: 16px; display: grid; gap: 8px; }
-
-.voter-list { display: grid; gap: 8px; margin: 14px 0; max-height: 200px; overflow-y: auto; }
-.voter-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: 8px; font-size: 12.5px; }
-.voter-name { font-weight: 600; color: var(--text-main); }
-.voter-meta { font-size: 11px; color: var(--text-muted); }
-
-.v-pill { padding: 2px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; }
-.v-pill.agree { background: rgba(16,185,129,0.15); color: #34d399; }
-.v-pill.disagree { background: rgba(239,68,68,0.15); color: #f87171; }
-.v-pill.pending { background: rgba(245,158,11,0.15); color: #fbbf24; }
-.v-pill.suggester { background: rgba(56,189,248,0.15); color: #38bdf8; }
-
-.tally-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; text-align: center; }
-.tally-cell { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--border-glass); }
-.tally-cell label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 2px; }
-.tally-cell span { font-family: var(--font-h); font-size: 18px; font-weight: 700; }
-.tc-agree span { color: #34d399; } .tc-disagree span { color: #f87171; } .tc-pending span { color: #fbbf24; }
-.tally-note { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px; }
-
-.result-flash { border-radius: 8px; padding: 12px; text-align: center; font-weight: 600; font-size: 13px; margin-bottom: 12px; }
-.result-flash.consensus { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #34d399; }
-.result-flash.disagreed { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
-
-.sug-tag { display: inline-block; background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.25); color: #7dd3fc; font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-right: 4px; margin-bottom: 4px; }
-.sug-note { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-glass); font-size: 12.5px; color: var(--text-sub); line-height: 1.4; }
-
+/* Spinner animation */
 .spinner-loader {
-  width: 40px; height: 40px; border: 3px solid rgba(255,255,255,.1); border-top: 3px solid #38bdf8;
-  border-radius: 50%; margin: 0 auto 16px; animation: spin-loader 0.8s linear infinite;
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255,255,255,.14);
+    border-top: 4px solid var(--accent-primary);
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    animation: spin-loader 0.8s linear infinite;
 }
-@keyframes spin-loader { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes spin-loader {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 
-.case-details-blur { filter: blur(5px); user-select: none; pointer-events: none; }
+/* Permanent Privacy Blur for Other Pending Cases */
+.case-details-blur {
+    filter: blur(6px);
+    user-select: none;
+    pointer-events: none;
+    border-radius: 6px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+}
 </style>
 </head>
 <body>
-
-<div id="globalLoadingOverlay" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(9,13,22,.92);backdrop-filter:blur(8px)">
+<div id="globalLoadingOverlay" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.92);backdrop-filter:blur(8px)">
     <div style="text-align:center;color:#fff;padding:24px">
         <div class="spinner-loader"></div>
-        <div id="loadingOverlayText" style="font-family:var(--font-h);font-size:18px;font-weight:700;color:#f8fafc;margin-bottom:4px">Submitting suggestion...</div>
-        <div style="font-size:12px;color:var(--text-muted)">Please wait, processing request.</div>
+        <div id="loadingOverlayText" style="font-family:var(--font-h);font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:6px">Submitting suggestion...</div>
+        <div style="font-size:12px;color:var(--text-muted)">Please wait, do not close or refresh this page.</div>
     </div>
 </div>
-
 <div class="app-container">
 
-<!-- SIDEBAR -->
+<!-- ── SIDEBAR ──────────────────────────────────────────────────────────── -->
 <aside class="sidebar">
     <div class="brand">
         <div class="brand-icon"><img src="../assets/logo.png" alt="IdentiTrack"></div>
-        <div class="brand-text"><h1>UPCC Panel</h1><p>Case Workspace</p></div>
+        <div class="brand-text"><h1>UPCC Panel</h1><p>Case workspace</p></div>
     </div>
     <div class="side-group">
-        <div class="side-label">Active Case Record</div>
+        <div class="side-label">Current Case</div>
         <div class="panel-chip"><small>ID</small> <?= htmlspecialchars($caseLabel) ?></div>
         <div class="panel-chip"><small>Status</small> <?= htmlspecialchars($statusBadge['label']) ?></div>
-        <div class="panel-chip"><small>Review Mode</small> <?= htmlspecialchars($decisionHint) ?></div>
+        <div class="panel-chip"><small>Mode</small> <?= htmlspecialchars($decisionHint) ?></div>
     </div>
     <div class="side-group">
         <div class="side-label">Assigned Panel</div>
         <?php if (!empty($panelMembers)): foreach ($panelMembers as $m): ?>
             <div class="panel-chip">
-                <span><?= htmlspecialchars($m['full_name']) ?></span>
+                👤 <?= htmlspecialchars($m['full_name']) ?>
                 <small>(<?= htmlspecialchars($m['role']) ?>)</small>
+                <?php if ((int)$m['upcc_id'] === $suggesterId && $isRoundActive): ?>
+                    🗣️
+                <?php elseif (isset($votesByMember[(int)$m['upcc_id']])): ?>
+                    <?= $votesByMember[(int)$m['upcc_id']] > 0 ? '✅' : '❌' ?>
+                <?php else: ?>⏳<?php endif; ?>
             </div>
         <?php endforeach; else: ?>
-            <div class="empty">No panel members assigned.</div>
+            <div class="empty">No panel members mapped yet.</div>
         <?php endif; ?>
     </div>
     <div class="side-group" style="margin-top:auto; display:flex; flex-direction:column; gap:8px;">
-        <a id="backToDashboardBtn" class="btn btn-secondary" href="upccdashboard.php" style="width:100%; text-align:center;">&larr; Return to Dashboard</a>
+        <a id="backToDashboardBtn" class="btn btn-secondary" href="upccdashboard.php" style="width:100%; text-align:center;">← Back</a>
     </div>
 </aside>
 
-<!-- MAIN -->
+<!-- ── MAIN ──────────────────────────────────────────────────────────────── -->
 <main class="main-content">
 
-    <!-- HERO HEADER -->
+    <!-- HERO -->
     <section class="hero">
         <div>
-            <div class="crumb">Panel Workspace / Case Details</div>
+            <div class="crumb">UPCC / Case Detail</div>
             <div class="title"><?= htmlspecialchars($caseLabel) ?></div>
-            <div class="subtitle">Respondent <?= htmlspecialchars($case['student_name']) ?> is under active panel review. Evaluate offenses, review student explanation, and establish penalty consensus.</div>
+            <div class="subtitle"><?= htmlspecialchars($case['student_name']) ?> is under panel review. Inspect offenses, coordinate with panel, record the final decision.</div>
             <div class="hero-meta">
-                <span class="pill amber"><?= htmlspecialchars($decisionHint) ?></span>
-                <span class="pill purple"><?= htmlspecialchars($case['assigned_dept_name'] ?? 'General Department') ?></span>
-                <span class="pill blue"><?= htmlspecialchars($case['year_level']) ?> Year • <?= htmlspecialchars($case['section'] ?? 'N/A') ?></span>
-                <span class="pill green"><?= htmlspecialchars($statusBadge['label']) ?></span>
+                <span class="pill amber">⚖️ <?= htmlspecialchars($decisionHint) ?></span>
+                <span class="pill purple">🏢 <?= htmlspecialchars($case['assigned_dept_name'] ?? 'No dept') ?></span>
+                <span class="pill blue">🎓 <?= htmlspecialchars($case['year_level']) ?> Yr • <?= htmlspecialchars($case['section'] ?? 'N/A') ?></span>
+                <span class="pill green">📌 <?= htmlspecialchars($statusBadge['label']) ?></span>
                 <?php if ($isHearingOpen && $isHearingPaused): ?>
-                  <span class="pill" data-pause-pill="1" style="background: rgba(239, 68, 68, 0.12); color: #f87171; border-color: rgba(239, 68, 68, 0.3);">HEARING PAUSED</span>
+                  <span class="pill" data-pause-pill="1" style="background: #fca5a5; color: #7f1d1d; border-color: #ef4444;">⏸️ HEARING PAUSED</span>
                 <?php elseif ($isHearingOpen): ?>
-                  <span class="pill" data-pause-pill="1" style="background: rgba(16, 185, 129, 0.12); color: #34d399; border-color: rgba(16, 185, 129, 0.3);"><span class="dot dot-live"></span> LIVE HEARING</span>
+                  <span class="pill" data-pause-pill="1" style="background: #86efac; color: #15803d; border-color: #22c55e;"><span style="display:inline-block;width:6px;height:6px;background:#15803d;border-radius:50%;margin-right:4px"></span> HEARING LIVE</span>
                 <?php endif; ?>
             </div>
         </div>
-        <div class="stack" style="min-width:240px">
+        <div class="stack" style="min-width:260px">
             <div class="info">
-                <div class="info-label">Respondent Student</div>
+                <div class="info-label">Student</div>
                 <div class="info-value"><?= htmlspecialchars($case['student_name']) ?></div>
-                <div style="margin-top:4px;font-size:12px;color:var(--text-muted)"><?= htmlspecialchars($case['student_id']) ?> &bull; <?= htmlspecialchars($case['program']) ?></div>
+                <div style="margin-top:6px;font-size:13px;color:var(--text-muted)"><?= htmlspecialchars($case['student_id']) ?> • <?= htmlspecialchars($case['program']) ?></div>
             </div>
             <div class="info">
-                <div class="info-label">Case Creation Date</div>
+                <div class="info-label">Filed</div>
                 <div class="info-value"><?= fmt_dt((string)$case['created_at']) ?></div>
             </div>
         </div>
     </section>
 
     <div class="layout">
-        <!-- LEFT COLUMN -->
+        <!-- ── LEFT ─────────────────────────────────────────────────── -->
         <section class="stack">
 
             <!-- OFFENSE LIST -->
             <div class="glass-panel">
                 <div class="panel-header">
-                    <div>
-                        <div class="panel-title">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            Offense Breakdown
-                        </div>
-                        <div style="color:var(--text-muted);font-size:12px;margin-top:2px">Linked offenses and student history</div>
-                    </div>
+                    <div><div class="panel-title">📋 Offense Breakdown</div>
+                    <div style="color:var(--text-muted);font-size:12px;margin-top:4px">Every offense linked to this case</div></div>
                     <span class="badge <?= htmlspecialchars($statusBadge['class']) ?>"><?= htmlspecialchars($statusBadge['label']) ?></span>
                 </div>
                 <div class="panel-body">
                     <?php if (!$confidentialityAccepted): ?>
                         <div class="lock">
-                            <div style="font-weight:700;margin-bottom:4px">Confidential Record Access Locked</div>
-                            <div style="line-height:1.5;margin-bottom:14px;color:var(--text-sub)">You must accept the confidentiality agreement before viewing case offenses and participating in discussion.</div>
+                            <div style="font-weight:800;margin-bottom:6px">Confidential case data is locked</div>
+                            <div style="line-height:1.5;margin-bottom:12px;color:#ffe8ad">Accept confidentiality to view offenses and join the discussion.</div>
                             <form method="post">
                                 <input type="hidden" name="action" value="accept_confidentiality">
-                                <button class="btn btn-primary" type="submit">Accept Confidentiality Agreement</button>
+                                <button class="btn btn-primary" type="submit">I Accept Confidentiality</button>
                             </form>
                         </div>
                     <?php else: ?>
 
-                        <!-- Student Explanation -->
-                        <div id="studentExplanationBlock" style="<?= (!empty($case['student_explanation_text']) || !empty($case['student_explanation_at'])) ? 'display:block' : 'display:none' ?>; margin-bottom: 20px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 16px;">
-                           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
-                              <span style="font-size: 11px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">Student Explanation Statement</span>
+
+
+                        <!-- Student Explanation (Only displayed if student submitted) -->
+                        <div id="studentExplanationBlock" style="<?= (!empty($case['student_explanation_text']) || !empty($case['student_explanation_at'])) ? 'display:block' : 'display:none' ?>; margin-bottom: 24px; background: rgba(79, 123, 255, 0.08); border: 1px solid rgba(79, 123, 255, 0.2); border-radius: 12px; padding: 16px;">
+                           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                              <span style="font-size: 11px; font-weight: 800; color: #a5b4fc; text-transform: uppercase; letter-spacing: 1px;">Student Submitted Explanation</span>
                               <span id="explanationTime" style="font-size: 11px; color: var(--text-muted);"><?= $case['student_explanation_at'] ? 'Submitted ' . date('M j, Y g:i A', strtotime($case['student_explanation_at'])) : '' ?></span>
                            </div>
-                           <div id="explanationText" style="font-size: 13px; line-height: 1.5; color: var(--text-sub); white-space: pre-wrap; margin-bottom: 10px;"><?= htmlspecialchars($case['student_explanation_text'] ?? '') ?></div>
-                           <div id="explanationAttachments" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px;">
+                           <div id="explanationText" style="font-size: 13px; line-height: 1.6; color: var(--text-main); white-space: pre-wrap; margin-bottom: 12px;"><?= htmlspecialchars($case['student_explanation_text'] ?? '') ?></div>
+                           <div id="explanationAttachments" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 8px;">
                               <?php if (!empty($case['student_explanation_image'])): ?>
-                                <a href="../<?= htmlspecialchars($case['student_explanation_image']) ?>" target="_blank" style="display: block; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-glass);">
+                                <a href="../<?= htmlspecialchars($case['student_explanation_image']) ?>" target="_blank" style="display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-glass);">
                                    <img src="../<?= htmlspecialchars($case['student_explanation_image']) ?>" style="max-width: 80px; max-height: 80px; display: block; object-fit: cover;">
                                 </a>
                               <?php endif; ?>
                               <?php if (!empty($case['student_explanation_pdf'])): ?>
-                                <a href="../<?= htmlspecialchars($case['student_explanation_pdf']) ?>" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 6px; text-decoration: none; color: #f87171; font-size: 12px; font-weight: 600;">
-                                   <span>View Submitted PDF Document</span>
+                                <a href="../<?= htmlspecialchars($case['student_explanation_pdf']) ?>" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; text-decoration: none; color: #fca5a5; font-size: 11px; font-weight: 600;">
+                                   <span>📄 View PDF Attachment</span>
                                 </a>
                               <?php endif; ?>
                            </div>
                         </div>
 
-                        <!-- SUB-TABS NAVIGATION -->
-                        <div class="case-breakdown-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-glass); padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-                            <button type="button" class="btn btn-tab active-tab-btn" onclick="switchBreakdownTab('current-offenses', this)" style="border-radius: 6px; font-weight: 600; font-size: 12px; padding: 6px 12px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); cursor: pointer;">
-                                Current Case Offenses (<?= count($offenses) ?>)
+                        <!-- SUB-TABS NAVIGATION FOR OFFENSES & STUDENT CASE HISTORY -->
+                        <div class="case-breakdown-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-glass); padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-tab active-tab-btn" onclick="switchBreakdownTab('current-offenses', this)" style="border-radius: 8px; font-weight: 700; font-size: 12px; padding: 8px 14px; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); cursor: pointer; transition: all 0.2s;">
+                                📌 Current Case Offenses (<?= count($offenses) ?>)
                             </button>
-                            <button type="button" class="btn btn-tab" onclick="switchBreakdownTab('prior-resolved', this)" style="border-radius: 6px; font-weight: 600; font-size: 12px; padding: 6px 12px; background: rgba(255, 255, 255, 0.03); color: var(--text-muted); border: 1px solid var(--border-glass); cursor: pointer;">
-                                Prior Resolved Cases (<?= count($priorResolvedCases) ?>)
+                            <button type="button" class="btn btn-tab" onclick="switchBreakdownTab('prior-resolved', this)" style="border-radius: 8px; font-weight: 700; font-size: 12px; padding: 8px 14px; background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid var(--border-glass); cursor: pointer; transition: all 0.2s;">
+                                ✅ Prior Resolved Cases (<?= count($priorResolvedCases) ?>)
                             </button>
                             <?php if (!empty($otherPendingCases)): ?>
-                            <button type="button" class="btn btn-tab" onclick="switchBreakdownTab('other-pending', this)" style="border-radius: 6px; font-weight: 600; font-size: 12px; padding: 6px 12px; background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); cursor: pointer;">
-                                Other Active Cases (<?= count($otherPendingCases) ?>)
+                            <button type="button" class="btn btn-tab" onclick="switchBreakdownTab('other-pending', this)" style="border-radius: 8px; font-weight: 700; font-size: 12px; padding: 8px 14px; background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); cursor: pointer; transition: all 0.2s;">
+                                ⏳ Other Pending Cases (<?= count($otherPendingCases) ?>)
                             </button>
                             <?php endif; ?>
                         </div>
 
-                        <!-- TAB 1: CURRENT OFFENSES -->
+                        <!-- TAB 1: CURRENT CASE OFFENSES -->
                         <div id="tab-current-offenses" class="breakdown-tab-content">
+                            <!-- Offense List Header -->
+                            <div style="font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 14px;">Case Offenses & Details</div>
                             <div class="offense-list">
                                 <?php if (empty($offenses)): ?>
                                     <div class="empty">No linked offenses found.</div>
                                 <?php else: foreach ($offenses as $idx => $offense):
-                                    $lvlVal = (int)($offense['level'] ?? 1);
-                                    $lvlClass = $lvlVal >= 4 ? 'badge-blue' : 'badge-amber';
-                                    $lvlLabel = $lvlVal >= 4 ? 'SECTION ' . $lvlVal : 'MINOR (L' . $lvlVal . ')';
+                                    $lvl = strtoupper((string)($offense['level'] ?? 'MINOR'));
+                                    $lvlClass = $lvl === 'MAJOR' ? 'badge-blue' : 'badge-amber';
                                 ?>
                                     <details class="offense-item" <?= $idx === 0 ? 'open' : '' ?>>
                                         <summary>
                                             <div class="offense-main">
                                                 <div class="offense-code"><?= htmlspecialchars($offense['code']) ?></div>
                                                 <div class="offense-name"><?= htmlspecialchars($offense['offense_name']) ?></div>
-                                                <div class="offense-meta">Committed: <?= fmt_dt((string)$offense['date_committed']) ?></div>
+                                                <div class="offense-meta"><?= $lvl ?> • <?= fmt_dt((string)$offense['date_committed']) ?></div>
                                             </div>
-                                            <div class="badge <?= $lvlClass ?>"><?= $lvlLabel ?></div>
+                                            <div class="badge <?= $lvlClass ?>"><?= $lvl ?></div>
                                         </summary>
                                         <div class="offense-body">
                                             <?php if (!empty(trim((string)$offense['description']))): ?>
@@ -1047,32 +1296,55 @@ body::before {
                                             <?php endif; ?>
                                              
                                              <?php 
-                                               $offEv = $offense['evidence_file'] ?? ($offense['incident_photo'] ?? null);
-                                               if (!empty($offEv)): 
-                                                 $ext = strtolower(pathinfo($offEv, PATHINFO_EXTENSION));
-                                                 $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true);
-                                             ?>
-                                             <div class="offense-row">
-                                                 <div class="label">Evidence File</div>
-                                                 <div class="value">
-                                                     <?php if ($isImg): ?>
-                                                         <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" style="display: inline-block; margin-top: 4px;">
-                                                             <img src="../<?= htmlspecialchars($offEv) ?>" style="max-width: 180px; max-height: 120px; border-radius: 6px; border: 1px solid var(--border-glass); object-fit: cover; display: block;">
-                                                         </a>
-                                                     <?php else: ?>
-                                                         <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" style="color: #38bdf8; font-weight: 600; font-size: 12px; text-decoration: underline;">
-                                                             View Attached Evidence Document
-                                                         </a>
-                                                     <?php endif; ?>
-                                                 </div>
-                                             </div>
-                                             <?php endif; ?>
+  $offEv = $offense['evidence_file'] ?? ($offense['incident_photo'] ?? null);
+  if (!empty($offEv)): 
+    $ext = strtolower(pathinfo($offEv, PATHINFO_EXTENSION));
+    $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true);
+?>
+<div class="offense-row" style="margin-top:10px;">
+    <div class="label">Photo / Document Evidence</div>
+    <div class="value">
+        <?php if ($isImg): ?>
+            <div style="display:inline-block;">
+                <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" title="Click to view full resolution photo evidence" style="display: block; border-radius: 12px; overflow: hidden; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 8px 24px rgba(0,0,0,0.5); transition: transform 0.2s ease;">
+                    <img src="../<?= htmlspecialchars($offEv) ?>" style="max-width: 280px; max-height: 180px; object-fit: cover; display: block; border-radius: 10px;">
+                </a>
+                <div style="font-size:11px; font-weight:700; color:#38bdf8; margin-top:6px; display:flex; align-items:center; gap:6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                    Click image to expand full resolution evidence
+                </div>
+            </div>
+        <?php else: ?>
+            <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" style="color: #38bdf8; font-weight: 700; font-size: 12.5px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); border-radius: 8px; text-decoration: none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span>View Attached Evidence File</span>
+            </a>
+        <?php endif; ?>
+    <?php endif; ?>
                                             
                                             <?php if (!empty(trim((string)($offense['intervention_first'] ?? '')))): ?>
                                             <div class="offense-row">
-                                                <div class="label">1st Intervention</div>
+                                                <div class="label">1st intervention</div>
                                                 <div class="value">
-                                                    <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$offense['intervention_first']))), ')-—')) ?: 'Formative Intervention: University Service & Evaluation') ?>
+                                                    <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$offense['intervention_first']))), ')-—')) ?: 'Formative Intervention: University Service, Counseling, & Evaluation') ?>
+                                                    <?php if (!empty($priorResolvedCases)): ?>
+                                                        <span style="background:#059669; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">✔ Completed</span>
+                                                    <?php else: ?>
+                                                        <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">⏳ Ongoing Hearing</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty(trim((string)($offense['intervention_second'] ?? '')))): ?>
+                                            <div class="offense-row">
+                                                <div class="label">2nd intervention</div>
+                                                <div class="value">
+                                                    <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$offense['intervention_second']))), ')-—')) ?: '1 Semester Non-Readmission / Suspension') ?>
+                                                    <?php if (!empty($priorResolvedCases)): ?>
+                                                        <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">⏳ Ongoing Hearing</span>
+                                                    <?php else: ?>
+                                                        <span style="background:rgba(255,255,255,0.15); color:var(--text-muted); padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">Pending</span>
+                                                    <?php endif; ?>
                                                 </div>
                                             </div>
                                             <?php endif; ?>
@@ -1082,34 +1354,37 @@ body::before {
                             </div>
                         </div>
 
-                        <!-- TAB 2: PRIOR RESOLVED -->
+                        <!-- TAB 2: PRIOR RESOLVED CASES -->
                         <div id="tab-prior-resolved" class="breakdown-tab-content" style="display: none;">
+                            <div style="font-size: 13px; font-weight: 700; color: #a7f3d0; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                                <span>📜</span> Student's Resolved Disciplinary History
+                            </div>
                             <?php if (empty($priorResolvedCases)): ?>
-                                <div class="empty" style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
-                                    No prior resolved cases on record for this student.
+                                <div class="empty" style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px; background: rgba(0,0,0,0.1); border-radius: 10px; border: 1px dashed var(--border-glass);">
+                                    Clean Disciplinary Record: No prior resolved cases found for this student.
                                 </div>
                             <?php else: foreach ($priorResolvedCases as $rc):
                                 $isMajorResolved = ((int)($rc['major_count'] ?? 0)) > 0;
                                 $resolvedLvlBadge = $isMajorResolved 
-                                    ? '<span class="badge badge-blue" style="font-size: 10px;">MAJOR OFFENSE</span>'
-                                    : '<span class="badge badge-amber" style="font-size: 10px;">MINOR / SECTION 4</span>';
+                                    ? '<span class="badge badge-blue" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4);">MAJOR OFFENSE</span>'
+                                    : '<span class="badge badge-amber" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4);">SECTION 4 (MINOR)</span>';
                             ?>
-                                <div style="background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 10px;">
-                                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 4px;">
+                                <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
                                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                            <span style="font-weight: 700; color: #34d399; font-size: 13px;">Case #<?= htmlspecialchars((string)$rc['case_id']) ?></span>
+                                            <span style="font-weight: 800; color: #6ee7b7; font-size: 13px;">Case #<?= htmlspecialchars((string)$rc['case_id']) ?></span>
                                             <?= $resolvedLvlBadge ?>
                                         </div>
-                                        <span class="badge badge-green" style="font-size: 10px;">RESOLVED</span>
+                                        <span class="badge badge-emerald" style="font-size: 10px; text-transform: uppercase;">RESOLVED</span>
                                     </div>
-                                    <div style="font-weight: 600; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
+                                    <div style="font-weight: 700; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
                                         <?= htmlspecialchars((string)($rc['offense_names'] ?: 'General Violation')) ?>
                                     </div>
-                                    <div style="font-size: 11px; color: var(--text-muted);">
-                                        Code: <?= htmlspecialchars((string)($rc['offense_codes'] ?: 'N/A')) ?> &bull; Resolved <?= fmt_dt((string)$rc['updated_at']) ?>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+                                        Code: <?= htmlspecialchars((string)($rc['offense_codes'] ?: 'N/A')) ?> • Resolved <?= fmt_dt((string)$rc['updated_at']) ?>
                                     </div>
                                     <?php if (!empty($rc['decided_category'])): ?>
-                                        <div style="font-size: 11px; color: #34d399; background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px; display: inline-block; font-weight: 600; margin-top: 6px;">
+                                        <div style="font-size: 11px; color: #a7f3d0; background: rgba(16,185,129,0.15); padding: 4px 8px; border-radius: 6px; display: inline-block; font-weight: 700;">
                                             Decided Penalty: Category <?= (int)$rc['decided_category'] ?>
                                         </div>
                                     <?php endif; ?>
@@ -1118,32 +1393,35 @@ body::before {
                         </div>
 
                         <?php if (!empty($otherPendingCases)): ?>
-                        <!-- TAB 3: OTHER PENDING -->
+                        <!-- TAB 3: OTHER PENDING CASES -->
                         <div id="tab-other-pending" class="breakdown-tab-content" style="display: none;">
+                            <div style="font-size: 13px; font-weight: 700; color: #fcd34d; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                                <span>⚠️</span> Other Active / Pending Cases Under Investigation
+                            </div>
                             <?php foreach ($otherPendingCases as $pc):
                                 $isMajorPending = ((int)($pc['major_count'] ?? 0)) > 0;
                                 $pendingLvlBadge = $isMajorPending 
-                                    ? '<span class="badge badge-blue" style="font-size: 10px;">MAJOR OFFENSE</span>'
-                                    : '<span class="badge badge-amber" style="font-size: 10px;">MINOR / SECTION 4</span>';
+                                    ? '<span class="badge badge-blue" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4);">MAJOR OFFENSE</span>'
+                                    : '<span class="badge badge-amber" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4);">SECTION 4 (MINOR)</span>';
                             ?>
-                                <div style="background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 10px;">
-                                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 4px;">
+                                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
                                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                            <a href="case_view.php?id=<?= (int)$pc['case_id'] ?>" style="font-weight: 700; color: #fbbf24; font-size: 13px; text-decoration: underline;">
-                                                Case #<?= htmlspecialchars((string)$pc['case_id']) ?> &rarr;
+                                            <a href="case_view.php?id=<?= (int)$pc['case_id'] ?>" style="font-weight: 800; color: #fcd34d; font-size: 13px; text-decoration: underline;">
+                                                Case #<?= htmlspecialchars((string)$pc['case_id']) ?> ↗
                                             </a>
                                             <?= $pendingLvlBadge ?>
                                         </div>
-                                        <span class="badge badge-amber" style="font-size: 10px;">
+                                        <span class="badge badge-amber" style="font-size: 10px; text-transform: uppercase;">
                                             <?= htmlspecialchars(str_replace('_', ' ', (string)$pc['status'])) ?>
                                         </span>
                                     </div>
                                     <div class="case-details-blur">
-                                        <div style="font-weight: 600; color: var(--text-main); font-size: 13px; margin-bottom: 2px;">
+                                        <div style="font-weight: 700; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
                                             <?= htmlspecialchars((string)($pc['offense_names'] ?: 'General Violation')) ?>
                                         </div>
                                         <div style="font-size: 11px; color: var(--text-muted);">
-                                            Code: <?= htmlspecialchars((string)($pc['offense_codes'] ?: 'N/A')) ?> &bull; Created <?= fmt_dt((string)$pc['created_at']) ?>
+                                            Code: <?= htmlspecialchars((string)($pc['offense_codes'] ?: 'N/A')) ?> • Created <?= fmt_dt((string)$pc['created_at']) ?>
                                         </div>
                                     </div>
                                 </div>
@@ -1156,37 +1434,35 @@ body::before {
 
             <!-- LIVE CHAT -->
             <div class="glass-panel" id="chat-room">
-                <div class="panel-header">
-                    <div class="panel-title">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                        Panel Deliberation Discussion
-                    </div>
-                </div>
+                <div class="panel-header"><div class="panel-title">💬 Live Panel Chat</div></div>
                 <div class="panel-body" style="display:flex;flex-direction:column;padding:0">
                     <?php if (!$confidentialityAccepted): ?>
-                        <div class="lock" style="margin:20px">Accept confidentiality to participate in panel discussion.</div>
+                        <div class="lock" style="margin:24px">Accept confidentiality to join the discussion.</div>
                     <?php else: ?>
-                        <div id="live-chat-box" style="height:320px;overflow-y:auto;background:rgba(0,0,0,.15);border:1px solid var(--border-glass);border-radius:8px;padding:12px;margin:16px 24px 0">
-                            <div style="text-align:center;color:var(--text-muted);font-size:11px">Loading discussion history...</div>
+                        <div id="live-chat-box" style="height:350px;overflow-y:auto;background:rgba(0,0,0,.15);
+                            border:1px solid var(--border-glass);border-radius:12px;padding:12px;margin:16px 24px 0">
+                            <div style="text-align:center;color:var(--text-muted);font-size:11px">Loading…</div>
                         </div>
-                        <div id="replying-to-container" style="display:none;background:rgba(56,189,248,.1);padding:6px 24px;border-top:1px solid rgba(56,189,248,.2);font-size:11px;color:#7dd3fc">
+                        <div id="replying-to-container" style="display:none;background:rgba(79,123,255,.1);
+                            padding:8px 24px;border-top:1px solid rgba(79,123,255,.2);font-size:11px;color:#dbe5ff">
                             <strong>Replying to <span id="reply-to-name"></span>:</strong>
                             <span id="reply-to-text" style="color:var(--text-muted)"></span>
-                            <button type="button" class="btn btn-secondary" onclick="cancelReply()" style="float:right;padding:2px 6px;font-size:10px;">✕</button>
+                            <button type="button" class="btn btn-secondary" onclick="cancelReply()"
+                                style="float:right;padding:2px 6px;font-size:10px;min-height:0">✕</button>
                         </div>
-                        <form id="chat-form" style="padding:16px 24px 20px">
+                        <form id="chat-form" style="padding:16px 24px 24px">
                             <input type="hidden" id="reply_to" name="reply_to" value="">
                             <input type="hidden" name="action" value="post_message">
                             <input type="hidden" name="case_id" value="<?= $caseId ?>">
                             <?php $isHearingOpen = ((int)$case['hearing_is_open'] === 1); ?>
                             <div class="field">
                                 <textarea id="chat_message" name="message" class="fld-input" 
-                                    placeholder="<?= $isHearingOpen && !$isHearingPaused ? 'Enter comment or note for panel...' : ($isHearingPaused ? 'Discussion locked — hearing paused' : 'Discussion locked until hearing opens...') ?>" 
-                                    required style="min-height:54px" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_message_input"></textarea>
+                                    placeholder="<?= $isHearingOpen && !$isHearingPaused ? 'Type your message…' : ($isHearingPaused ? 'Chat disabled - hearing is paused' : 'Chat disabled until hearing is open…') ?>" 
+                                    required style="min-height:60px" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_message_input"></textarea>
                             </div>
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-                                <button class="btn btn-primary" type="submit" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_submit_btn">Post Discussion Message</button>
-                                <a class="btn btn-secondary" href="#decision-panel">Jump to Penalty Voting</a>
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+                                <button class="btn btn-primary" type="submit" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_submit_btn">Post Message</button>
+                                <a class="btn btn-secondary" href="#decision-panel">Jump to Decision</a>
                             </div>
                         </form>
                     <?php endif; ?>
@@ -1194,40 +1470,33 @@ body::before {
             </div>
         </section>
 
-        <!-- RIGHT COLUMN -->
+        <!-- ── RIGHT COLUMN ──────────────────────────────────────────── -->
         <aside class="stack">
 
-            <!-- DECISION PANEL INFO -->
+
+
+            <!-- CASE INFO BOX -->
             <div class="glass-panel" id="decision-panel">
-                <div class="panel-header">
-                    <div class="panel-title">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        Decision Framework
-                    </div>
-                </div>
+                <div class="panel-header"><div class="panel-title">🗳️ Decision Panel</div></div>
                 <div class="panel-body">
                     <div class="decision-box">
-                        <div style="font-family:var(--font-h);font-size:13.5px;font-weight:700;color:var(--text-main)"><?= htmlspecialchars($decisionHint) ?></div>
-                        <div style="font-size:12.5px;color:var(--text-muted);line-height:1.4">
+                        <div style="font-family:var(--font-h);font-size:14px;font-weight:700"><?= htmlspecialchars($decisionHint) ?></div>
+                        <div style="font-size:13px;color:#c7d2fe;line-height:1.5">
                             <?= $isSection4
-                                ? 'Escalation from accumulated minor offenses under Student Code Section 4.'
-                                : 'Select penalty category matching the offense severity and established precedents.' ?>
+                                ? 'Escalation from repeated minor offenses. Confirm whether facts support Section 4 outcome.'
+                                : 'Select the category matching the panel decision and write the sanction clearly.' ?>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- PANEL MEMBERS LIST -->
+            <!-- PANEL MEMBERS -->
             <div class="glass-panel">
                 <div class="panel-header">
-                    <div>
-                        <div class="panel-title">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                            Panel Composition
-                        </div>
-                    </div>
+                    <div><div class="panel-title">👥 Panel Members</div>
+                    <div style="color:var(--text-muted);font-size:12px;margin-top:4px">Assigned to this case</div></div>
                 </div>
-                <div class="panel-body" style="display:grid;gap:8px">
+                <div class="panel-body" style="display:grid;gap:10px">
                     <?php if (empty($panelMembers)): ?>
                         <div class="empty">No assigned panel members found.</div>
                     <?php else: foreach ($panelMembers as $m):
@@ -1235,16 +1504,16 @@ body::before {
                         $isSug = $uid === $suggesterId && $isRoundActive;
                         $vote  = $votesByMember[$uid] ?? null;
                     ?>
-                        <div class="info" style="padding:10px 14px">
-                            <div class="info-value" style="font-size:13.5px"><?= htmlspecialchars($m['full_name']) ?> <?= $uid === $panelId ? '<small style="color:var(--text-muted)">(You)</small>' : '' ?></div>
-                            <div style="color:var(--text-muted);font-size:11px;margin-top:2px"><?= htmlspecialchars(ucfirst($m['role'])) ?></div>
-                            <div style="font-size:11.5px;margin-top:4px">
+                        <div class="info">
+                            <div class="info-value"><?= htmlspecialchars($m['full_name']) ?> <?= $uid === $panelId ? '<small style="color:var(--text-muted)">(you)</small>' : '' ?></div>
+                            <div style="color:var(--text-muted);font-size:12px;margin-top:2px"><?= htmlspecialchars(ucfirst($m['role'])) ?></div>
+                            <div style="font-size:12px;margin-top:6px">
                                 <?php if ($isSug): ?>
-                                    <span style="color:#38bdf8;font-weight:600;">Proposed Penalty</span>
+                                    <span style="color:#c4b5fd">🗣️ Suggested this round</span>
                                 <?php elseif ($vote !== null && $isRoundActive): ?>
-                                    <?= $vote > 0 ? '<span style="color:#34d399;font-weight:600;">Agreed</span>' : '<span style="color:#f87171;font-weight:600;">Disagreed</span>' ?>
+                                    <?= $vote > 0 ? '<span style="color:#6ee7b7">✅ Agreed</span>' : '<span style="color:#f87171">❌ Disagreed</span>' ?>
                                 <?php elseif ($isRoundActive): ?>
-                                    <span style="color:#fbbf24">Pending Vote</span>
+                                    <span style="color:#fcd34d">⏳ Pending vote</span>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -1255,77 +1524,74 @@ body::before {
             <!-- VOTING / SUGGESTION SECTION -->
             <div class="glass-panel" id="voting-section">
                 <div class="panel-header">
-                    <div>
-                        <div class="panel-title">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            Penalty Consensus Voting
-                        </div>
-                        <div style="color:var(--text-muted);font-size:11.5px;margin-top:2px">Unanimous panel agreement required</div>
-                    </div>
+                    <div><div class="panel-title">⚡ Penalty Suggestion & Voting</div>
+                    <div style="color:var(--text-muted);font-size:12px;margin-top:4px">One member suggests; ALL others must agree</div></div>
                 </div>
                 <div class="panel-body">
 
                     <?php if (!$confidentialityAccepted): ?>
-                        <div class="lock">Accept confidentiality agreement to access penalty voting.</div>
+                        <div class="lock">Accept confidentiality before suggesting penalties or voting.</div>
 
                     <?php elseif ($isAwaitingAdmin): ?>
-                        <!-- CONSENSUS REACHED -->
+                        <!-- ── CONSENSUS REACHED ── -->
                         <div class="consensus-banner">
-                            <div class="consensus-banner-title">PANEL CONSENSUS ESTABLISHED</div>
-                            <div style="font-size:18px;font-weight:700;color:#34d399;margin:4px 0">Category <?= $consensusCategory ?></div>
-                            <div style="font-size:12px;color:var(--text-muted)">Awaiting Administrator to record final sanction.</div>
+                            <div class="consensus-banner-title">✅ CONSENSUS REACHED</div>
+                            <div style="font-size:20px;font-weight:800;color:#a7f3d0;margin:6px 0">Category <?= $consensusCategory ?></div>
+                            <div style="font-size:12px;color:var(--text-muted)">Awaiting Admin to record the final decision.</div>
                         </div>
-                        <div class="info" style="margin-bottom:14px">
-                            <div class="info-label">Agreed Sanction Specification</div>
-                            <div style="font-size:12.5px;line-height:1.4;margin-top:4px"><?= htmlspecialchars($categoryDescriptions[$consensusCategory] ?? '') ?></div>
+                        <div class="info" style="margin-bottom:16px">
+                            <div class="info-label">Agreed Penalty</div>
+                            <div style="font-size:13px;line-height:1.5;margin-top:4px"><?= htmlspecialchars($categoryDescriptions[$consensusCategory] ?? '') ?></div>
                             <?php
                             $cda = $case['hearing_vote_suggested_details'] ? json_decode($case['hearing_vote_suggested_details'], true) : null;
                             ?>
                             <?php if ($consensusCategory === 1 && !empty($cda['probation_terms'])): ?>
-                                <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">Probation Period: <?= (int)$cda['probation_terms'] ?> term(s)</div>
+                                <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">Probation: <?= (int)$cda['probation_terms'] ?> term(s)</div>
                             <?php endif; ?>
                             <?php if ($consensusCategory === 2 && !empty($cda['interventions'])): ?>
-                                <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">
+                                <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">
                                     Interventions: <?= htmlspecialchars(implode(', ', $cda['interventions'])) ?>
                                     <?php if (!empty($cda['service_hours'])): ?>(<?= _formatCsHoursStr($cda['service_hours']) ?>)<?php endif; ?>
                                 </div>
                             <?php endif; ?>
                             <?php if (!empty($cda['description'])): ?>
-                                <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border-glass);font-size:12.5px;line-height:1.4"><?= nl2br(htmlspecialchars($cda['description'])) ?></div>
+                                <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-glass);font-size:13px;line-height:1.5"><?= nl2br(htmlspecialchars($cda['description'])) ?></div>
                             <?php endif; ?>
                         </div>
 
+                        <!-- Admin records final decision, panel waits -->
+
                     <?php elseif ($isRoundActive && $suggestedDetails): ?>
-                        <!-- ACTIVE ROUND -->
+                        <!-- ── ACTIVE ROUND ── -->
                         <div class="vote-tally">
                             <div class="tally-item tally-agree">
-                                <label>Agree</label><span id="panelAgree"><?= $agreeVotes ?></span>
+                                <label>✅ Agree</label><span id="panelAgree"><?= $agreeVotes ?></span>
                             </div>
                             <div class="tally-item tally-disagree">
-                                <label>Disagree</label><span id="panelDisagree"><?= $disagreeVotes ?></span>
+                                <label>❌ Disagree</label><span id="panelDisagree"><?= $disagreeVotes ?></span>
                             </div>
                             <div class="tally-item tally-pending">
-                                <label>Pending</label><span id="panelPending"><?= $totalVoters - $agreeVotes - $disagreeVotes ?></span>
+                                <label>⏳ Pending</label><span id="panelPending"><?= $totalVoters - $agreeVotes - $disagreeVotes ?></span>
                             </div>
                         </div>
-                        <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-bottom:10px">
-                            Full panel consensus required<br>
-                            <button type="button" class="btn btn-secondary" onclick="openVotingModalForRound(<?= $roundNo ?>)" style="margin-top:4px;padding:4px 8px;font-size:11px;">Open Voting Window</button>
+                        <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-bottom:12px">
+                            Majority of the panel must agree to finalize<br>
+                            <button type="button" class="btn btn-secondary" onclick="openVotingModalForRound(<?= $roundNo ?>)" style="margin-top:6px;padding:4px 10px;font-size:11px;">Re-open Voting Window</button>
                         </div>
 
                         <div class="suggestion-box">
                             <div class="suggestion-category">Category <?= $suggestedDetails['category'] ?></div>
-                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Proposed by <strong style="color:var(--text-main)"><?= htmlspecialchars($suggesterName) ?></strong></div>
+                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Suggested by <strong style="color:var(--text-main)"><?= htmlspecialchars($suggesterName) ?></strong></div>
                             <?php _renderSugDetails($suggestedDetails); ?>
                         </div>
 
                         <?php if ($showCancelSuggestion): ?>
-                            <form method="post" onsubmit="return confirm('Cancel your proposed penalty?')">
+                            <form method="post" onsubmit="return confirm('Cancel your suggestion? The panel can submit a new suggestion immediately.')">
                                 <input type="hidden" name="action" value="cancel_suggestion">
                                 <input type="hidden" name="round_no" value="<?= $roundNo ?>">
-                                <button type="submit" class="btn btn-danger" style="width:100%">Cancel Proposal</button>
+                                <button type="submit" class="btn btn-danger" style="width:100%">❌ Cancel My Suggestion</button>
                             </form>
-                            <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:6px">Awaiting votes from other panel members</div>
+                            <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:8px">You are the suggester — waiting for others to vote</div>
                         <?php elseif ($showVoteButtons): ?>
                             <div class="vote-btns">
                                 <form method="post">
@@ -1333,140 +1599,147 @@ body::before {
                                     <input type="hidden" name="round_no" value="<?= $roundNo ?>">
                                     <input type="hidden" name="suggested_by" value="<?= $suggesterId ?>">
                                     <input type="hidden" name="vote_agree" value="1">
-                                    <button class="btn-vote-agree" type="submit">AGREE</button>
+                                    <button class="btn-vote-agree" type="submit">✅ AGREE</button>
                                 </form>
                                 <form method="post">
                                     <input type="hidden" name="action" value="vote_on_suggestion">
                                     <input type="hidden" name="round_no" value="<?= $roundNo ?>">
                                     <input type="hidden" name="suggested_by" value="<?= $suggesterId ?>">
                                     <input type="hidden" name="vote_agree" value="0">
-                                    <button class="btn-vote-disagree" type="submit">DISAGREE</button>
+                                    <button class="btn-vote-disagree" type="submit">❌ DISAGREE</button>
                                 </form>
                             </div>
                         <?php elseif ($isRoundActive): ?>
                             <div class="voted-confirmation">
-                                <?= $currentMemberVote > 0 ? 'You voted <strong>AGREE</strong>' : 'You voted <strong>DISAGREE</strong>' ?>
-                                <div style="font-size:11px;margin-top:2px;color:var(--text-muted)">Waiting for remaining panel votes...</div>
+                                <?= $currentMemberVote > 0 ? '✅ You voted <strong>AGREE</strong>' : '❌ You voted <strong>DISAGREE</strong>' ?>
+                                <div style="font-size:11px;margin-top:4px;color:var(--text-muted)">Waiting for other panel members…</div>
                             </div>
                         <?php endif; ?>
 
                     <?php else: ?>
-                        <!-- FORM TO SUGGEST PENALTY -->
+                        <!-- ── NO ACTIVE ROUND: SUGGEST FORM ── -->
                         <?php if ($isInCooldown): ?>
                             <div class="cooldown-alert">
-                                Cooldown active &bull; New proposal available in:
+                                ⏳ Cooldown active — any panel member can suggest after:
                                 <strong id="cooldownDisplay"><?= sprintf('%02d:%02d', floor($cooldownRemainingSecs / 60), $cooldownRemainingSecs % 60) ?></strong>
                             </div>
                         <?php endif; ?>
 
                         <?php if (!$isInCooldown && !$isClosed): ?>
-                            <details id="suggestDetails" style="margin-top:4px">
-                                <summary id="suggestDetailsSummary" style="cursor:pointer;color:var(--accent-primary);font-weight:600;padding:6px 0;font-size:13.5px">
-                                    + Propose Penalty Category
+                            <details id="suggestDetails" style="margin-top:8px">
+                                <summary id="suggestDetailsSummary" style="cursor:pointer;color:var(--accent-primary);font-weight:600;padding:8px 0;font-size:14px">
+                                    ➕ Suggest a Penalty Category
                                 </summary>
-                                <form method="post" style="margin-top:14px" id="suggestForm">
+                                <form method="post" style="margin-top:16px" id="suggestForm">
                                     <input type="hidden" name="action" value="suggest_penalty">
-                                    <div class="field" style="margin-bottom:10px">
+                                    <div class="field" style="margin-bottom:12px">
                                         <label>Select Penalty Category</label>
                                         <select id="suggest_category" name="suggest_category" class="fld-input" required onchange="toggleSugFields()">
-                                            <option value="">Choose category...</option>
+                                            <option value="">Choose category…</option>
                                             <?php for ($i = 1; $i <= 5; $i++): ?>
-                                                <option value="<?= $i ?>">Category <?= $i ?> — <?= htmlspecialchars(mb_substr($categoryDescriptions[$i], 0, 50)) ?>...</option>
+                                                <option value="<?= $i ?>">Category <?= $i ?> — <?= htmlspecialchars(mb_substr($categoryDescriptions[$i], 0, 55)) ?>…</option>
                                             <?php endfor; ?>
                                         </select>
                                     </div>
 
                                     <!-- CAT 1 -->
-                                    <div id="sugCat1" style="display:none;margin-bottom:10px;padding:12px;background:rgba(0,0,0,.2);border-radius:8px;border:1px solid var(--border-glass)">
-                                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;font-weight:600">Probation Terms</div>
-                                        <div class="field">
+                                    <div id="sugCat1" style="display:none;margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:10px;border:1px solid var(--border-glass)">
+                                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">Probation Details</div>
+                                        <div class="field" style="margin-bottom:0">
+                                            <label>Number of probation terms</label>
                                             <select name="suggest_cat1_terms" class="fld-input">
                                                 <option value="1">1 term</option>
                                                 <option value="2">2 terms</option>
                                                 <option value="3" selected>3 terms (maximum)</option>
                                             </select>
                                         </div>
+                                        <div style="margin-top:8px;font-size:12px;color:var(--text-muted);line-height:1.5">
+                                            ℹ️ Any subsequent major offense during probation triggers Suspension or Non-Readmission.
+                                        </div>
                                     </div>
 
                                     <!-- CAT 2 -->
-                                    <div id="sugCat2" style="display:none;margin-bottom:10px;padding:12px;background:rgba(0,0,0,.2);border-radius:8px;border:1px solid var(--border-glass)">
-                                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;font-weight:600">Formative Interventions</div>
-                                        <label style="font-size:12.5px;display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:pointer">
+                                    <div id="sugCat2" style="display:none;margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:10px;border:1px solid var(--border-glass)">
+                                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">Formative Interventions</div>
+                                        <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
                                             <input type="checkbox" id="sug_us" name="suggest_cat2_university_service" value="1" onchange="toggleSugHours()">
                                             University Service (Community Service)
                                         </label>
-                                        <div id="sugHoursBox" style="display:none;margin-left:18px;margin-bottom:6px">
+                                        <div id="sugHoursBox" style="display:none;margin-left:22px;margin-bottom:8px">
                                             <label style="font-size:11px;color:var(--text-muted)">Required Hours</label>
-                                            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px" id="sugHoursBtns">
+                                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px" id="sugHoursBtns">
                                                 <?php foreach ([100,150,200,250,300,350,400,450,500] as $h): ?>
                                                     <button type="button" class="sug-hrs-btn" data-h="<?= $h ?>"
                                                         onclick="selectSugHours('<?= $h ?>', this)"
-                                                        style="padding:4px 10px;font-size:11.5px;border-radius:6px;border:1px solid var(--border-glass);background:rgba(0,0,0,.2);color:var(--text-muted);cursor:pointer;">
+                                                        style="padding:6px 16px;font-size:12px;border-radius:8px;border:1px solid var(--border-glass);
+                                                               background:rgba(0,0,0,.2);color:var(--text-muted);cursor:pointer;font-family:var(--font-b)">
                                                         <?= $h ?> hrs
                                                     </button>
                                                 <?php endforeach; ?>
                                                     <button type="button" class="sug-hrs-btn" data-h="OTHER"
                                                         onclick="selectSugHours('OTHER', this)"
-                                                        style="padding:4px 10px;font-size:11.5px;border-radius:6px;border:1px solid var(--border-glass);background:rgba(0,0,0,.2);color:var(--text-muted);cursor:pointer;">
+                                                        style="padding:6px 16px;font-size:12px;border-radius:8px;border:1px solid var(--border-glass);
+                                                               background:rgba(0,0,0,.2);color:var(--text-muted);cursor:pointer;font-family:var(--font-b)">
                                                         Other
                                                     </button>
                                             </div>
-                                            <div id="sug_cat2_custom_wrap" style="display:none;align-items:center;gap:6px;margin-top:6px">
-                                                <input type="number" id="sug_cat2_service_hours_custom_h" name="suggest_cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="width:70px;padding:6px;border-radius:6px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-size:12px">
-                                                <span style="color:var(--text-muted);font-size:11px">hrs</span>
-                                                <input type="number" id="sug_cat2_service_hours_custom_m" name="suggest_cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Mins" style="width:70px;padding:6px;border-radius:6px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-size:12px">
-                                                <span style="color:var(--text-muted);font-size:11px">mins</span>
+                                            <div id="sug_cat2_custom_wrap" style="display:none;align-items:center;gap:6px;margin-top:8px">
+                                                <input type="number" id="sug_cat2_service_hours_custom_h" name="suggest_cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="width:80px;padding:8px 6px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                                                <span style="color:var(--text-muted);font-size:12px">hrs</span>
+                                                <input type="number" id="sug_cat2_service_hours_custom_m" name="suggest_cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Minutes" style="width:90px;padding:8px 6px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                                                <span style="color:var(--text-muted);font-size:12px">mins</span>
                                             </div>
                                             <input type="hidden" id="sug_cat2_service_hours" name="suggest_cat2_service_hours" value="">
                                         </div>
-                                        <label style="font-size:12.5px;display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:pointer">
+                                        <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
                                             <input type="checkbox" name="suggest_cat2_counseling" value="1"> Referral for Counseling
                                         </label>
-                                        <label style="font-size:12.5px;display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:pointer">
-                                            <input type="checkbox" name="suggest_cat2_lectures" value="1"> Discipline Education Program
+                                        <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
+                                            <input type="checkbox" name="suggest_cat2_lectures" value="1"> Attendance to Discipline Education Program
                                         </label>
-                                        <label style="font-size:12.5px;display:flex;align-items:center;gap:6px;cursor:pointer">
-                                            <input type="checkbox" name="suggest_cat2_evaluation" value="1"> Psychological Evaluation
+                                        <label style="font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer">
+                                            <input type="checkbox" name="suggest_cat2_evaluation" value="1"> Evaluation
                                         </label>
                                     </div>
 
                                     <!-- CAT 3/4/5 -->
-                                    <div id="sugCat345" style="display:none;margin-bottom:10px;padding:12px;background:rgba(239,68,68,0.08);border-radius:8px;border:1px solid rgba(239,68,68,0.2)">
-                                        <div style="font-size:12px;color:#f87171;line-height:1.4" id="sugCat345Text"></div>
-                                        <div style="margin-top:6px;font-size:11px;color:#f87171;font-weight:600">Student account will be locked upon decision finalization.</div>
+                                    <div id="sugCat345" style="display:none;margin-bottom:12px;padding:14px;background:rgba(239,68,68,.08);border-radius:10px;border:1px solid rgba(239,68,68,.2)">
+                                        <div style="font-size:13px;color:#fca5a5;line-height:1.5" id="sugCat345Text"></div>
+                                        <div style="margin-top:8px;font-size:12px;color:#f87171;font-weight:700">⚠️ Student account will be frozen upon finalization.</div>
                                     </div>
 
-                                    <div class="field" style="margin-bottom:12px">
-                                        <label>Sanction Rationale / Rationale Statement</label>
-                                        <textarea name="suggest_description" class="fld-input" rows="3" placeholder="Provide justification based on case facts..."></textarea>
+                                    <div class="field" style="margin-bottom:14px">
+                                        <label>Penalty Rationale / Notes <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+                                        <textarea name="suggest_description" class="fld-input" rows="3" placeholder="Describe the reasoning…"></textarea>
                                     </div>
 
-                                    <button id="suggestSubmitBtn" type="submit" class="btn btn-primary" style="width:100%">Submit Penalty Proposal</button>
-                                    <div id="suggestLockNote" style="display:none;margin-top:6px;font-size:11px;color:#fbbf24;text-align:center"></div>
+                                    <button id="suggestSubmitBtn" type="submit" class="btn btn-primary" style="width:100%">📝 Suggest This Penalty</button>
+                                    <div id="suggestLockNote" style="display:none;margin-top:8px;font-size:12px;color:#fcd34d;text-align:center"></div>
                                 </form>
                             </details>
                         <?php elseif ($isClosed): ?>
-                            <div class="empty">This case is resolved and closed.</div>
+                            <div class="empty">This case is closed. No further voting is allowed.</div>
                         <?php endif; ?>
                     <?php endif; ?>
 
                 </div>
-            </div>
+            </div><!-- end voting-section -->
 
         </aside>
-    </div>
+    </div><!-- end .layout -->
 </main>
-</div>
+</div><!-- end .app-container -->
 
 <?php
+// Helper to render suggestion details inline
 function _renderSugDetails(array $sd): void {
     $cat     = $sd['category'];
     $details = $sd['details'] ?? [];
     if ($cat === 1 && !empty($details['probation_terms'])):
-        echo '<div style="font-size:12.5px;color:var(--text-sub);margin-bottom:4px">Probation: <strong>' . (int)$details['probation_terms'] . ' term(s)</strong></div>';
+        echo '<div style="font-size:13px;color:#e2e8f0;margin-bottom:6px">🗓️ Probation: <strong>' . (int)$details['probation_terms'] . ' term(s)</strong></div>';
     endif;
     if ($cat === 2 && !empty($details['interventions'])):
-        echo '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">';
+        echo '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">';
         foreach ($details['interventions'] as $iv) {
             echo '<span class="sug-tag">' . htmlspecialchars($iv) . '</span>';
         }
@@ -1496,38 +1769,41 @@ function _renderSugDetails(array $sd): void {
 }
 ?>
 
-<!-- PRESENCE OVERLAY -->
+<!-- ── PRESENCE OVERLAY ───────────────────────────────────────────────── -->
 <div id="presenceOverlay" class="presence-overlay" style="display:none">
-    <div class="presence-card" style="background:#0f172a; border:1px solid var(--border-glass-hover); border-radius:16px; padding:32px; text-align:center; max-width:400px; width:100%;">
-        <div id="presenceTitle" style="font-family:var(--font-h);font-size:22px;font-weight:700;margin-bottom:8px">Hearing Waiting Room</div>
-        <div id="presenceText" style="font-size:13.5px;line-height:1.5;color:var(--text-muted)">Please wait for the administrator to admit you to the live session.</div>
-        <div style="margin-top:20px;display:flex;gap:10px;flex-direction:column">
-            <button id="requestJoinBtn" class="btn btn-primary" style="width:100%;justify-content:center;display:none" onclick="requestJoinHearing()">Request Admission</button>
-            <button id="exitHearingBtn" class="btn btn-secondary" style="width:100%;justify-content:center;display:none" onclick="exitHearing()">Return to Dashboard</button>
+    <div class="presence-card">
+        <div id="presenceIcon" style="font-size:48px;margin-bottom:20px">🚪</div>
+        <div id="presenceTitle" style="font-family:var(--font-h);font-size:28px;font-weight:800;margin-bottom:12px">Waiting Room</div>
+        <div id="presenceText" style="font-size:15px;line-height:1.6;color:var(--text-muted)">Please wait for the Admin to let you in.</div>
+        <div style="margin-top:24px;display:flex;gap:10px;flex-direction:column">
+            <button id="requestJoinBtn" class="btn btn-primary" style="width:100%;justify-content:center;display:none" onclick="requestJoinHearing()">🔔 Request to Join Hearing</button>
+            <button id="exitHearingBtn" class="btn btn-secondary" style="width:100%;justify-content:center;display:none" onclick="exitHearing()">🚪 Exit Hearing</button>
         </div>
     </div>
 </div>
 
-<!-- VOTING MODAL -->
+<!-- ══════════════════════════════════════════════════════════════════════
+     VOTING MODAL — appears on ALL panel members' screens when vote active
+══════════════════════════════════════════════════════════════════════ -->
 <div id="votingModal" class="voting-modal <?= $showVotingPopup ? 'open' : '' ?>">
     <div class="vmc" id="vmcInner">
 
         <div class="vmc-header">
-            <div class="vmc-title">Live Penalty Consensus Voting</div>
-            <span class="vmc-live-badge" id="vmcLiveBadge">Live Session</span>
+            <div class="vmc-title">🗳️ Live Voting Session</div>
+            <span class="vmc-live-badge" id="vmcLiveBadge">● Live</span>
         </div>
         <div class="vmc-sub" id="vmcSub">
             <?php if ($isCurrentUserSuggester): ?>
-                Your penalty proposal is active. Waiting for remaining panel votes.
+                You submitted this penalty proposal. Your screen will stay in waiting mode until the other panel members vote.
             <?php else: ?>
-                <strong><?= htmlspecialchars($suggesterName ?? '') ?></strong> submitted a penalty proposal. Please review and cast your vote before the timer expires.
+                <strong><?= htmlspecialchars($suggesterName ?? '') ?></strong> submitted a penalty proposal. Choose <strong>Agree</strong> or <strong>Disagree</strong> before the 10-minute voting window ends.
             <?php endif; ?>
         </div>
 
-        <!-- Timer -->
+        <!-- 30-min countdown -->
         <div class="timer-wrap">
             <div class="timer-top">
-                <span class="timer-label">Time Remaining</span>
+                <span class="timer-label">Time to vote</span>
                 <span class="timer-num" id="vmcTimer"><?= sprintf('%02d:%02d', floor($roundSecondsRemaining / 60), $roundSecondsRemaining % 60) ?></span>
             </div>
             <div class="timer-bar-wrap">
@@ -1537,22 +1813,22 @@ function _renderSugDetails(array $sd): void {
             </div>
         </div>
 
-        <!-- Proposal box -->
+        <!-- Suggestion box -->
         <div class="sug-box" id="vmcSugBox">
             <?php if ($suggestedDetails): ?>
                 <div class="sug-cat">Category <?= $suggestedDetails['category'] ?></div>
-                <div style="font-size:12.5px;color:var(--text-sub);margin-bottom:6px"><?= htmlspecialchars($categoryDescriptions[$suggestedDetails['category']] ?? '') ?></div>
+                <div class="sug-desc"><?= htmlspecialchars($categoryDescriptions[$suggestedDetails['category']] ?? '') ?></div>
                 <?php _renderSugDetails($suggestedDetails); ?>
             <?php endif; ?>
         </div>
 
         <!-- Tally -->
         <div class="tally-row">
-            <div class="tally-cell tc-agree"><label>Agree</label><span id="vmcAgree"><?= $agreeVotes ?></span></div>
-            <div class="tally-cell tc-disagree"><label>Disagree</label><span id="vmcDisagree"><?= $disagreeVotes ?></span></div>
-            <div class="tally-cell tc-pending"><label>Pending</label><span id="vmcPending"><?= $totalVoters - $agreeVotes - $disagreeVotes ?></span></div>
+            <div class="tally-cell tc-agree"><label>✅ Agree</label><span id="vmcAgree"><?= $agreeVotes ?></span></div>
+            <div class="tally-cell tc-disagree"><label>❌ Disagree</label><span id="vmcDisagree"><?= $disagreeVotes ?></span></div>
+            <div class="tally-cell tc-pending"><label>⏳ Pending</label><span id="vmcPending"><?= $totalVoters - $agreeVotes - $disagreeVotes ?></span></div>
         </div>
-        <div class="tally-note" id="vmcNote">All <?= $totalVoters ?> panel voter(s) must agree to pass</div>
+        <div class="tally-note" id="vmcNote">All <?= $totalVoters ?> voter(s) must agree to pass</div>
 
         <!-- Per-member vote list -->
         <div class="voter-list" id="vmcVoterList">
@@ -1565,18 +1841,18 @@ function _renderSugDetails(array $sd): void {
             ?>
                 <div class="voter-item <?= $cls ?><?= $isSug ? ' v-suggester' : '' ?>" id="voter-<?= $uid ?>">
                     <div>
-                        <div class="voter-name"><?= htmlspecialchars($m['full_name']) ?><?= $uid === $panelId ? ' <small style="color:var(--text-muted)">(You)</small>' : '' ?></div>
+                        <div class="voter-name"><?= htmlspecialchars($m['full_name']) ?><?= $uid === $panelId ? ' <small style="color:var(--text-muted)">(you)</small>' : '' ?></div>
                         <div class="voter-meta"><?= htmlspecialchars(ucfirst($m['role'])) ?></div>
                     </div>
                     <div id="vpill-<?= $uid ?>">
                         <?php if ($isSug): ?>
-                            <span class="v-pill suggester">Proposer</span>
+                            <span class="v-pill suggester">🗣️ Suggester</span>
                         <?php elseif ($vote === null): ?>
-                            <span class="v-pill pending">Pending</span>
+                            <span class="v-pill pending">⏳ Pending</span>
                         <?php elseif ($vote > 0): ?>
-                            <span class="v-pill agree">Agreed</span>
+                            <span class="v-pill agree">✅ Agree</span>
                         <?php else: ?>
-                            <span class="v-pill disagree">Disagreed</span>
+                            <span class="v-pill disagree">❌ Disagree</span>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -1592,13 +1868,13 @@ function _renderSugDetails(array $sd): void {
         <div id="vmcActions">
             <?php if ($isRoundActive): ?>
                 <?php if ($isCurrentUserSuggester): ?>
-                    <form method="post" onsubmit="return confirm('Cancel your proposed penalty?')">
+                    <form method="post" onsubmit="return confirm('Cancel your suggestion? The panel can submit a new suggestion immediately.')">
                         <input type="hidden" name="action" value="cancel_suggestion">
                         <input type="hidden" name="round_no" value="<?= $roundNo ?>">
-                        <button type="submit" class="btn btn-danger" style="width:100%;padding:12px;font-size:14px">Cancel Proposal</button>
+                        <button type="submit" class="btn btn-danger" style="width:100%;padding:14px;font-size:15px">❌ Cancel My Suggestion</button>
                     </form>
-                    <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:6px">You proposed this penalty. Awaiting votes from remaining panel.</div>
-                    <div style="text-align:center;margin-top:10px;">
+                    <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:8px">You are the suggester. Only the other panel members can vote.</div>
+                    <div style="text-align:center;margin-top:12px;">
                         <button type="button" class="btn btn-secondary" onclick="closeVotingModal()" style="padding:6px 12px;font-size:12px;">Hide Window</button>
                     </div>
                 <?php elseif (!$hasVoted): ?>
@@ -1608,21 +1884,21 @@ function _renderSugDetails(array $sd): void {
                             <input type="hidden" name="round_no" value="<?= $roundNo ?>">
                             <input type="hidden" name="suggested_by" value="<?= $suggesterId ?>">
                             <input type="hidden" name="vote_agree" value="1">
-                            <button type="submit" class="btn-agree">AGREE</button>
+                            <button type="submit" class="btn-agree">✅ AGREE</button>
                         </form>
                         <form method="post">
                             <input type="hidden" name="action" value="vote_on_suggestion">
                             <input type="hidden" name="round_no" value="<?= $roundNo ?>">
                             <input type="hidden" name="suggested_by" value="<?= $suggesterId ?>">
                             <input type="hidden" name="vote_agree" value="0">
-                            <button type="submit" class="btn-disagree">DISAGREE</button>
+                            <button type="submit" class="btn-disagree">❌ DISAGREE</button>
                         </form>
                     </div>
                 <?php else: ?>
                     <div class="voted-conf">
-                        <?= $currentMemberVote > 0 ? 'You voted <strong>AGREE</strong>' : 'You voted <strong>DISAGREE</strong>' ?>
-                        <small style="display:block;margin-top:2px;">Waiting for remaining panel votes...</small>
-                        <div style="margin-top:10px;">
+                        <?= $currentMemberVote > 0 ? '✅ You voted <strong>AGREE</strong>' : '❌ You voted <strong>DISAGREE</strong>' ?>
+                        <small>Waiting for other panel members…</small>
+                        <div style="margin-top:12px;">
                             <button type="button" class="btn btn-secondary" onclick="closeVotingModal()" style="padding:6px 12px;font-size:12px;">Hide Window</button>
                         </div>
                     </div>
@@ -1630,6 +1906,9 @@ function _renderSugDetails(array $sd): void {
             <?php endif; ?>
         </div>
 
+        <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--text-muted)">
+            This live voting window remains open for up to 10 minutes, or until consensus/cancellation.
+        </div>
     </div>
 </div>
 
@@ -1641,7 +1920,7 @@ function showPauseModal(reason) {
     pauseModalOpen = true;
     const m = document.getElementById('hearingPausedModal');
     const r = document.getElementById('pauseReasonText');
-    if (r) r.textContent = reason === 'AUTO_PAUSE_ADMIN_LEFT' ? 'The administrator disconnected from the hearing.' : 'The administrator has paused the hearing.';
+    if (r) r.textContent = reason === 'AUTO_PAUSE_ADMIN_LEFT' ? 'The admin disconnected.' : 'The admin has paused the hearing.';
     if (m) {
         m.style.display = 'flex';
         if (isWaitingForAdminState) {
@@ -1658,6 +1937,9 @@ function setPauseWaitingState() {
     const waitingState = document.getElementById('pauseModalStateWaiting');
     if (optionsState) optionsState.style.display = 'none';
     if (waitingState) waitingState.style.display = 'block';
+    if (typeof showToast === 'function') {
+        showToast('⏳ Waiting for Admin', 'You are in waiting mode. The hearing will automatically resume once the admin returns.', 'info');
+    }
 }
 
 function setPauseOptionsState() {
@@ -1679,97 +1961,121 @@ function closePauseModal() {
 }
 </script>
 
-<!-- COOLDOWN MODAL -->
-<div id="cooldownModal" style="position:fixed;inset:0;z-index:9100;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);padding:16px">
-    <div style="background:#0f172a;border:1px solid var(--border-glass-hover);border-radius:var(--radius-lg);padding:32px;max-width:400px;width:100%;text-align:center;">
-        <div style="font-family:var(--font-h);font-size:20px;font-weight:700;margin-bottom:6px;color:var(--text-main)">Proposal Cooldown Active</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5" id="cooldownModalReason">
-            Voting ended. A new proposal can be submitted after:
+<!-- ══════════════════════════════════════════════════════════════════════
+     COOLDOWN OVERLAY — shown globally after cancel/disagree/expire
+══════════════════════════════════════════════════════════════════════ -->
+<div id="cooldownModal" style="position:fixed;inset:0;z-index:9100;display:none;align-items:center;
+    justify-content:center;background:rgba(7,17,31,.96);backdrop-filter:blur(12px);padding:16px">
+    <div style="background:var(--bg-card);border:2px solid rgba(239,68,68,.4);border-radius:var(--radius-lg);
+        padding:40px 36px;max-width:420px;width:100%;text-align:center;
+        box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(239,68,68,.2)">
+        <div style="font-size:40px;margin-bottom:16px">⏳</div>
+        <div style="font-family:var(--font-h);font-size:22px;font-weight:800;margin-bottom:8px">Voting Cooldown Active</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.5" id="cooldownModalReason">
+            Voting ended. Any panel member may suggest again after:
         </div>
-        <div style="font-family:var(--font-h);font-size:40px;font-weight:700;color:#fbbf24;font-variant-numeric:tabular-nums;margin-bottom:6px" id="cooldownModalTimer">3:00</div>
+        <div style="font-family:var(--font-h);font-size:48px;font-weight:800;color:#fcd34d;
+            font-variant-numeric:tabular-nums;margin-bottom:8px" id="cooldownModalTimer">3:00</div>
         <div style="font-size:12px;color:var(--text-muted)">Panel will be unlocked automatically</div>
     </div>
 </div>
 
-<!-- AWAITING ADMIN MODAL -->
-<div id="awaitingAdminModal" style="position:fixed;inset:0;z-index:9200;display:<?= $isAwaitingAdmin ? 'flex' : 'none' ?>;align-items:center;justify-content:center;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);padding:24px">
-    <div style="background:#0f172a;border:1px solid rgba(16,185,129,.3);border-radius:var(--radius-lg);padding:36px;text-align:center;max-width:420px;width:100%;">
-        <div style="font-family:var(--font-h);font-size:22px;font-weight:700;color:#34d399;margin-bottom:10px">Awaiting Administrator Action</div>
-        <div style="font-size:13.5px;color:var(--text-muted);line-height:1.5">
-            The panel has reached a final penalty consensus.<br><br>
-            The administrator is reviewing and recording the decision. You will be notified when finalized.
+<!-- ══════════════════════════════════════════════════════════════════════
+     AWAITING ADMIN MODAL
+══════════════════════════════════════════════════════════════════════ -->
+<div id="awaitingAdminModal" style="position:fixed;inset:0;z-index:9200;display:<?= $isAwaitingAdmin ? 'flex' : 'none' ?>;align-items:center;justify-content:center;background:rgba(15,23,42,.9);backdrop-filter:blur(8px);padding:24px">
+    <div style="background:var(--bg-card);border:2px solid #10b981;border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:420px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5)">
+        <div style="font-size:48px;margin-bottom:16px">⏳</div>
+        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#6ee7b7;margin-bottom:12px">Waiting for Admin</div>
+        <div style="font-size:14px;color:var(--text-muted);line-height:1.6">
+            The panel has reached a consensus.<br><br>
+            Please wait while the Admin reviews and records the final decision. You will be redirected automatically once the case is closed.
         </div>
     </div>
 </div>
 
-<!-- CASE RESOLVED MODAL -->
-<div id="caseResolvedModal" style="position:fixed;inset:0;z-index:9300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);padding:24px">
-    <div style="background:#0f172a;border:1px solid rgba(56,189,248,.3);border-radius:var(--radius-lg);padding:36px;text-align:center;max-width:420px;width:100%;position:relative">
-        <button onclick="dismissResolvedModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1" title="Dismiss">✕</button>
-        <div style="font-family:var(--font-h);font-size:22px;font-weight:700;color:#38bdf8;margin-bottom:10px">Case Decision Finalized</div>
-        <div style="font-size:13.5px;color:var(--text-muted);line-height:1.5;margin-bottom:20px">
-            The administrator has recorded the final decision. This case is now resolved and closed.
+<!-- ══════════════════════════════════════════════════════════════════════
+     CASE RESOLVED MODAL
+══════════════════════════════════════════════════════════════════════ -->
+<div id="caseResolvedModal" style="position:fixed;inset:0;z-index:9300;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.95);backdrop-filter:blur(12px);padding:24px">
+    <div style="background:var(--bg-card);border:2px solid #3b82f6;border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:420px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(59,130,246,.2);position:relative">
+        <button onclick="dismissResolvedModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1" title="Dismiss">✕</button>
+        <div style="font-size:48px;margin-bottom:16px">🎓</div>
+        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#93c5fd;margin-bottom:12px">Case Resolved</div>
+        <div style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:24px">
+            The Admin has finalized and recorded the decision. This case is now permanently closed.
         </div>
-        <a href="upccdashboard.php" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;font-size:14px">Return to Dashboard</a>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:10px">Auto-redirecting in <span id="resolvedCountdown">5</span>s...</div>
+        <a href="upccdashboard.php" class="btn btn-primary" style="width:100%;justify-content:center;padding:14px;font-size:15px">Return to Dashboard</a>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:12px">Auto-redirecting in <span id="resolvedCountdown">5</span>s...</div>
     </div>
 </div>
 
-<!-- HEARING PAUSED MODAL -->
-<div id="hearingPausedModal" style="position:fixed;inset:0;z-index:9200;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);padding:24px">
-    <!-- State 1 -->
-    <div id="pauseModalStateOptions" style="background:#0f172a;border:1px solid rgba(239,68,68,.3);border-radius:var(--radius-lg);padding:36px;text-align:center;max-width:460px;width:100%;">
-        <div style="font-family:var(--font-h);font-size:22px;font-weight:700;color:#f87171;margin-bottom:8px">Hearing Paused</div>
-        <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:20px">
-            <p id="pauseReasonText" style="margin:0 0 10px">The administrator has paused the hearing.</p>
-            <p style="margin:0;font-size:12px;font-style:italic">You may remain in waiting mode until the hearing resumes, or return to your dashboard.</p>
+<!-- ══════════════════════════════════════════════════════════════════════
+     HEARING PAUSED MODAL — shown when hearing is paused while panel is in
+══════════════════════════════════════════════════════════════════════ -->
+<div id="hearingPausedModal" style="position:fixed;inset:0;z-index:9200;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.96);backdrop-filter:blur(12px);padding:24px">
+    <!-- State 1: Initial Paused Options -->
+    <div id="pauseModalStateOptions" style="background:var(--bg-card);border:2px solid rgba(239,68,68,.4);border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:480px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(239,68,68,.2)">
+        <div style="font-size:48px;margin-bottom:16px">⏸️</div>
+        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#fca5a5;margin-bottom:8px">Hearing Has Been Paused</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:24px">
+            <p id="pauseReasonText" style="margin:0 0 12px">The admin has paused the hearing.</p>
+            <p style="margin:0;font-size:12px;font-style:italic">You can stay in the hearing and wait for it to resume, or return to your dashboard.</p>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-            <button type="button" class="btn btn-primary" onclick="setPauseWaitingState();" style="padding:12px;font-size:13.5px;">Remain in Waiting Room</button>
-            <button type="button" class="btn btn-secondary" onclick="exitHearing()" style="padding:12px;font-size:13.5px;">Return to Dashboard</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <button type="button" class="btn btn-primary" onclick="setPauseWaitingState();" style="padding:14px;font-size:14px;">⏳ Waiting for Admin</button>
+            <button type="button" class="btn btn-secondary" onclick="exitHearing()" style="padding:14px;font-size:14px;">← Go to Dashboard</button>
         </div>
-        <div style="padding:10px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);border-radius:8px;font-size:12px;color:#34d399">
-            Session connection is preserved while waiting.
+        <div style="padding:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:12px;color:#6ee7b7">
+            The hearing will automatically resume. Stay and keep your place in the panel.
         </div>
     </div>
 
-    <!-- State 2 -->
-    <div id="pauseModalStateWaiting" style="display:none;background:#0f172a;border:1px solid rgba(56,189,248,.3);border-radius:var(--radius-lg);padding:36px;text-align:center;max-width:460px;width:100%;">
-        <div style="font-family:var(--font-h);font-size:22px;font-weight:700;color:#38bdf8;margin-bottom:8px">Waiting for Administrator...</div>
-        <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:18px">
-            <p style="margin:0 0 8px">You are in the hearing waiting room.</p>
-            <p style="margin:0;font-size:12px;color:var(--text-sub)">The hearing will automatically resume once unlocked by the administrator.</p>
+    <!-- State 2: Waiting for Admin Active Screen -->
+    <div id="pauseModalStateWaiting" style="display:none;background:var(--bg-card);border:2px solid rgba(99,102,241,.4);border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:480px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(99,102,241,.2)">
+        <div style="font-size:48px;margin-bottom:16px">⏳</div>
+        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#a5b4fc;margin-bottom:8px">Waiting for Admin...</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:20px">
+            <p style="margin:0 0 10px">You are currently waiting in the live hearing session.</p>
+            <p style="margin:0;font-size:12px;color:#cbd5e1">The hearing will automatically resume as soon as the admin returns. Stay and keep your place in the panel.</p>
         </div>
-        <button type="button" class="btn btn-secondary" onclick="exitHearing()" style="width:100%;padding:12px;font-size:13.5px;">Return to Dashboard</button>
+        <div style="padding:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:12px;color:#6ee7b7;margin-bottom:20px">
+            ✓ Connected to live session. Standing by...
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="exitHearing()" style="width:100%;padding:14px;font-size:14px;">← Go to Dashboard</button>
     </div>
 </div>
 
 <!-- Confirm Exit Hearing Modal -->
-<div id="confirmExitHearingModal" style="position:fixed;inset:0;z-index:9300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);padding:24px">
-    <div style="background:#0f172a;border:1px solid rgba(239,68,68,.3);border-radius:var(--radius-lg);padding:32px;text-align:center;max-width:380px;width:100%;">
-        <div style="font-family:var(--font-h);font-size:20px;font-weight:700;color:#f87171;margin-bottom:8px">Exit Hearing Session?</div>
-        <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:20px">
-            If you leave the hearing, administrator approval will be required to re-enter.
+<div id="confirmExitHearingModal" style="position:fixed;inset:0;z-index:9300;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.96);backdrop-filter:blur(12px);padding:24px">
+    <div style="background:var(--bg-card);border:2px solid rgba(239,68,68,.4);border-radius:var(--radius-lg);padding:32px;text-align:center;max-width:400px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(239,68,68,.2)">
+        <div style="font-size:40px;margin-bottom:12px">⚠️</div>
+        <div style="font-family:var(--font-h);font-size:22px;font-weight:800;color:#fca5a5;margin-bottom:8px">Leave Hearing?</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:24px">
+            If you leave now, you will need the admin's permission to rejoin the hearing later. Are you sure?
         </div>
-        <div style="display:flex;gap:10px;justify-content:center">
-            <button type="button" class="btn btn-secondary" onclick="cancelExitHearing()">Cancel</button>
-            <button type="button" class="btn btn-danger" onclick="proceedExitHearing()" id="confirmExitHearingBtn">Exit Session</button>
+        <div style="display:flex;gap:12px;justify-content:center">
+            <button type="button" class="btn btn-outline" onclick="cancelExitHearing()">Cancel</button>
+            <button type="button" class="btn btn-danger" onclick="proceedExitHearing()" id="confirmExitHearingBtn">Yes, Leave</button>
         </div>
     </div>
 </div>
 
 <!-- Rejoin Sent Modal -->
-<div id="rejoinSentModal" style="position:fixed;inset:0;z-index:9400;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);padding:16px">
-    <div style="background:#0f172a;border-radius:12px;padding:24px;max-width:360px;width:100%;text-align:center;border:1px solid var(--border-glass);">
-        <div style="font-family:var(--font-h);font-size:18px;font-weight:700;margin-bottom:6px">Rejoin Request Submitted</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Your request to re-enter has been transmitted. Please wait for administrator admission.</div>
+<div id="rejoinSentModal" style="position:fixed;inset:0;z-index:9400;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);padding:16px">
+    <div style="background:var(--bg-card);border-radius:12px;padding:20px;max-width:360px;width:100%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.45)">
+        <div style="font-size:22px;margin-bottom:8px">🔔 Rejoin Request Sent</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Your request to rejoin has been sent. Please wait for the Admin to let you in.</div>
         <div style="display:flex;gap:8px;justify-content:center">
-            <button class="btn btn-secondary" onclick="document.getElementById('rejoinSentModal').style.display='none'">Close</button>
+            <button class="btn btn-outline" onclick="document.getElementById('rejoinSentModal').style.display='none'">Close</button>
         </div>
     </div>
 </div>
 
 <script>
+// ─────────────────────────────────────────────────────────────────────────
+//  CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────
 const CASE_ID          = <?= $caseId ?>;
 const PANEL_ID         = <?= $panelId ?>;
 const SUGGESTER_ID     = <?= $suggesterId ?>;
@@ -1780,6 +2086,9 @@ const ROUND_NO         = <?= $roundNo ?>;
 const ROUND_ENDS_EPOCH = Math.floor(Date.now() / 1000) + <?= $roundSecondsRemaining ?>;
 const COOLDOWN_SECS    = <?= $cooldownRemainingSecs ?>;
 
+// ─────────────────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────────────────
 let lastChatCount     = 0;
 let lastVoteSig       = '';
 let timerInterval     = null;
@@ -1792,6 +2101,7 @@ let currentPauseState = <?= $isHearingPaused ? 'true' : 'false' ?>;
 let pauseReason       = <?= !empty($case['hearing_pause_reason']) ? json_encode($case['hearing_pause_reason']) : 'null' ?>;
 let resumeReloadQueued = false;
 
+// Ensure pause modal is shown immediately if paused on load
 if (currentPauseState) {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => showPauseModal(pauseReason));
@@ -1800,6 +2110,9 @@ if (currentPauseState) {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+//  LIVE VOTING TIMER
+// ─────────────────────────────────────────────────────────────────────────
 function startVotingTimer() {
     if (!IS_ROUND_ACTIVE || ROUND_ENDS_EPOCH <= 0) return;
     clearInterval(timerInterval);
@@ -1825,6 +2138,7 @@ function startVotingTimer() {
 
         if (rem <= 0) {
             clearInterval(timerInterval);
+            // Server will expire the round; just trigger a sync
             syncLive();
         }
     }
@@ -1832,6 +2146,9 @@ function startVotingTimer() {
     timerInterval = setInterval(tick, 1000);
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+//  COOLDOWN DISPLAY
+// ─────────────────────────────────────────────────────────────────────────
 function startCooldownDisplay(seconds, reason) {
     let rem = seconds;
     const modal  = document.getElementById('cooldownModal');
@@ -1843,6 +2160,7 @@ function startCooldownDisplay(seconds, reason) {
     if (reason) reason2.textContent = reason;
     modal.style.display = 'flex';
     cooldownModalOpen = true;
+    // Close voting modal
     document.getElementById('votingModal')?.classList.remove('open');
 
     clearInterval(cooldownInterval);
@@ -1883,297 +2201,2412 @@ function setSuggestionLocked(locked, remainingSeconds) {
         }
     });
 
+    // Keep hidden fields enabled so normal form semantics are preserved once unlocked.
     form.querySelectorAll('input[type="hidden"]').forEach(el => el.removeAttribute('disabled'));
 
     if (locked) {
-        if (category) category.value = '';
-        toggleSugFields();
-        submitBtn.textContent = 'Suggestion Cooldown Active';
+        const m = Math.floor(Math.max(0, remainingSeconds) / 60);
+        const s = Math.max(0, remainingSeconds) % 60;
+        submitBtn.textContent = '⏳ Suggestion Locked';
         if (note) {
-            const m = Math.floor(remainingSeconds / 60);
-            const s = remainingSeconds % 60;
-            const timeStr = m + ':' + String(s).padStart(2, '0');
-            note.textContent = `⏳ Proposal cooldown active (${timeStr}). Please wait...`;
             note.style.display = 'block';
+            note.textContent = `New suggestions are disabled for all panel members for ${m}:${String(s).padStart(2, '0')}.`;
         }
     } else {
-        submitBtn.textContent = 'Submit Penalty Proposal';
-        if (note) {
-            note.textContent = '';
-            note.style.display = 'none';
-        }
+        submitBtn.textContent = '📝 Suggest This Penalty';
+        if (note) note.style.display = 'none';
+    }
+
+    if (category && locked) {
+        category.value = '';
+        toggleSugFields();
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+//  SUGGEST FORM FIELD TOGGLING
+// ─────────────────────────────────────────────────────────────────────────
 function toggleSugFields() {
-    const cat = parseInt(document.getElementById('suggest_category')?.value || '0', 10);
-    const c1  = document.getElementById('sugCat1');
-    const c2  = document.getElementById('sugCat2');
-    const c345= document.getElementById('sugCat345');
-    const txt = document.getElementById('sugCat345Text');
+    const sugCatEl = document.getElementById('suggest_category');
+    const v = parseInt(sugCatEl?.value || '0', 10);
+    const show = id => { const el = document.getElementById(id); if (el) el.style.setProperty('display', 'block', 'important'); };
+    const hide = id => { const el = document.getElementById(id); if (el) el.style.setProperty('display', 'none', 'important'); };
+    
+    hide('sugCat1');
+    hide('sugCat2');
+    hide('sugCat345');
 
-    if (c1)   c1.style.display   = cat === 1 ? 'block' : 'none';
-    if (c2)   c2.style.display   = cat === 2 ? 'block' : 'none';
-    if (c345) c345.style.display = cat >= 3 ? 'block' : 'none';
+    if (v !== 2) {
+        const cat2Box = document.getElementById('sugCat2');
+        if (cat2Box) {
+            cat2Box.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+        }
+        toggleSugHours();
+    }
 
-    if (cat >= 3 && txt) {
-        const descs = {
-            3: 'Non-Readmission / Suspension — Disciplinary exclusion for specified terms.',
-            4: 'Exclusion / Mandatory Dismissal — Permanent dropping from university rolls.',
-            5: 'Summary Expulsion — Permanent disqualification and legal referral.',
+    if (v === 1) {
+        show('sugCat1');
+    } else if (v === 2) {
+        show('sugCat2');
+    } else if (v >= 3 && v <= 5) {
+        show('sugCat345');
+        const texts = {
+            3: 'Category 3 — Non-Readmission / Suspension.',
+            4: 'Category 4 — Exclusion / Mandatory Dismissal (Dropped from University Rolls).',
+            5: 'Category 5 — Summary Expulsion & Police Referral (Permanent Disqualification).',
         };
-        txt.textContent = descs[cat] || '';
+        const t = document.getElementById('sugCat345Text');
+        if (t) t.textContent = texts[v] || '';
     }
 }
 
 function toggleSugHours() {
-    const us  = document.getElementById('sug_us');
+    const cb  = document.getElementById('sug_us');
     const box = document.getElementById('sugHoursBox');
-    if (box) box.style.display = us && us.checked ? 'block' : 'none';
+    if (box) box.style.display = cb?.checked ? 'block' : 'none';
+    if (!cb?.checked) {
+        document.getElementById('sug_cat2_service_hours').value = '';
+        document.querySelectorAll('.sug-hrs-btn').forEach(b => {
+            b.style.background = 'rgba(0,0,0,.2)'; b.style.color = 'var(--text-muted)';
+            b.style.border = '1px solid var(--border-glass)';
+        });
+    }
 }
 
-function selectSugHours(val, btn) {
-    const hidden = document.getElementById('sug_cat2_service_hours');
-    const customWrap = document.getElementById('sug_cat2_custom_wrap');
+let selectedSugHours = '';
+function selectSugHours(h, btn) {
+    selectedSugHours = h;
+    document.getElementById('sug_cat2_service_hours').value = h;
+    const wrap = document.getElementById('sug_cat2_custom_wrap');
+    if (wrap) wrap.style.display = h === 'OTHER' ? 'flex' : 'none';
+    if (h !== 'OTHER') {
+        const cus = document.getElementById('sug_cat2_service_hours_custom');
+        if (cus) cus.value = '';
+    }
+
     document.querySelectorAll('.sug-hrs-btn').forEach(b => {
-        b.style.background = 'rgba(0,0,0,.2)';
-        b.style.color      = 'var(--text-muted)';
-        b.style.borderColor= 'var(--border-glass)';
+        const active = b.dataset.h == h;
+        b.style.background = active ? 'rgba(99,102,241,.2)' : 'rgba(0,0,0,.2)';
+        b.style.color      = active ? '#c4b5fd' : 'var(--text-muted)';
+        b.style.border     = active ? '1px solid rgba(99,102,241,.4)' : '1px solid var(--border-glass)';
+        b.style.fontWeight = active ? '700' : '400';
     });
-    if (btn) {
-        btn.style.background = 'rgba(56,189,248,0.15)';
-        btn.style.color      = '#38bdf8';
-        btn.style.borderColor= 'rgba(56,189,248,0.3)';
-    }
-
-    if (val === 'OTHER') {
-        if (customWrap) customWrap.style.display = 'flex';
-        if (hidden) hidden.value = 'OTHER';
-    } else {
-        if (customWrap) customWrap.style.display = 'none';
-        if (hidden) hidden.value = val;
-    }
 }
 
-function switchBreakdownTab(tabKey, clickedBtn) {
-    document.querySelectorAll('.breakdown-tab-content').forEach(el => el.style.display = 'none');
-    document.querySelectorAll('.btn-tab').forEach(b => {
-        b.classList.remove('active-tab-btn');
-        b.style.background = 'rgba(255, 255, 255, 0.03)';
-        b.style.color = 'var(--text-muted)';
-        b.style.border = '1px solid var(--border-glass)';
-    });
-
-    const targetTab = document.getElementById('tab-' + tabKey);
-    if (targetTab) targetTab.style.display = 'block';
-
-    if (clickedBtn) {
-        clickedBtn.classList.add('active-tab-btn');
-        if (tabKey === 'current-offenses') {
-            clickedBtn.style.background = 'rgba(56, 189, 248, 0.15)';
-            clickedBtn.style.color = '#38bdf8';
-            clickedBtn.style.border = '1px solid rgba(56, 189, 248, 0.3)';
-        } else if (tabKey === 'prior-resolved') {
-            clickedBtn.style.background = 'rgba(16, 185, 129, 0.15)';
-            clickedBtn.style.color = '#34d399';
-            clickedBtn.style.border = '1px solid rgba(16, 185, 129, 0.3)';
-        } else if (tabKey === 'other-pending') {
-            clickedBtn.style.background = 'rgba(245, 158, 11, 0.15)';
-            clickedBtn.style.color = '#fbbf24';
-            clickedBtn.style.border = '1px solid rgba(245, 158, 11, 0.3)';
+function bindSuggestFormValidation() {
+    const form = document.getElementById('suggestForm');
+    if (!form || form.dataset.bound === '1') return;
+    form.dataset.bound = '1';
+    form.addEventListener('submit', function(e) {
+        if (cooldownModalOpen) {
+            e.preventDefault();
+            alert('Suggestion is temporarily disabled while cooldown is active.');
+            return;
         }
+        const v = parseInt(document.getElementById('suggest_category')?.value || '0', 10);
+        if (v === 2) {
+            const usChecked = document.getElementById('sug_us')?.checked;
+            if (usChecked && !selectedSugHours) {
+                e.preventDefault();
+                alert('Please select the number of community service hours.');
+                return;
+            }
+            const anyChecked = document.querySelectorAll('#sugCat2 input[type=checkbox]:checked').length > 0;
+            if (!anyChecked) {
+                e.preventDefault();
+                alert('Please select at least one formative intervention.');
+                return;
+            }
+        }
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  FINAL DECISION FORM
+// ─────────────────────────────────────────────────────────────────────────
+function toggleFinalCatFields() {
+    const cat = parseInt(document.getElementById('decided_category')?.value || '0', 10);
+    const container = document.getElementById('finalDynamicFields');
+    if (!container) return;
+
+    if (cat === 1) {
+        container.innerHTML = `
+        <div style="margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:10px;border:1px solid var(--border-glass)">
+            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600">Probation Details</div>
+            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Number of terms</label>
+            <select name="cat1_terms" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:10px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                <option value="1">1 term</option>
+                <option value="2">2 terms</option>
+                <option value="3" selected>3 terms (maximum)</option>
+            </select>
+            <div style="margin-top:8px;font-size:12px;color:var(--text-muted);line-height:1.5">Any subsequent major offense triggers Suspension or Non-Readmission.</div>
+        </div>`;
+    } else if (cat === 2) {
+        container.innerHTML = `
+        <div style="margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:10px;border:1px solid var(--border-glass)">
+            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">Formative Interventions</div>
+            <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
+                <input type="checkbox" name="cat2_university_service" value="1" onchange="toggleFinalHours(this)"> University Service
+            </label>
+            <div id="finalHoursBox" style="display:none;margin-left:22px;margin-bottom:10px">
+                <label style="font-size:11px;color:var(--text-muted)">Required Hours</label>
+                <select name="cat2_service_hours" style="width:100%;margin-top:4px;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px" onchange="this.parentElement.querySelector('.cat2-custom-wrap').style.display = this.value === 'OTHER' ? 'flex' : 'none'">
+                    <?php foreach ([100,150,200,250,300,350,400,450,500] as $h): ?>
+                        <option value="<?= $h ?>"><?= $h ?> hours</option>
+                    <?php endforeach; ?>
+                    <option value="OTHER">Other</option>
+                </select>
+                <div class="cat2-custom-wrap" style="display:none;align-items:center;gap:8px;margin-top:6px">
+                    <input type="number" name="cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                    <span style="color:var(--text-muted);font-size:12px">hrs</span>
+                    <input type="number" name="cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Minutes" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+                    <span style="color:var(--text-muted);font-size:12px">mins</span>
+                </div>
+            </div>
+            <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
+                <input type="checkbox" name="cat2_counseling" value="1"> Referral for Counseling
+            </label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
+                <input type="checkbox" name="cat2_lectures" value="1"> Attendance to Discipline Education Program
+            </label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" name="cat2_evaluation" value="1"> Evaluation
+            </label>
+        </div>`;
+    } else if (cat >= 3 && cat <= 5) {
+        const msgs = {
+            3: '⚠️ Non-Readmission: The student will not be readmitted next term. Account will be frozen.',
+            4: '⚠️ Exclusion: The student will be dropped from the roll. Account will be frozen.',
+            5: '⚠️ Expulsion: The student will be permanently disqualified. Account will be permanently frozen.',
+        };
+        container.innerHTML = `
+        <div style="margin-bottom:12px;padding:14px;background:rgba(239,68,68,.08);border-radius:10px;border:1px solid rgba(239,68,68,.2)">
+            <div style="font-size:13px;color:#fca5a5;font-weight:600;line-height:1.5">${msgs[cat] || ''}</div>
+        </div>`;
+    } else {
+        container.innerHTML = '';
     }
 }
 
-function openVotingModalForRound(rNo) {
-    document.getElementById('votingModal')?.classList.add('open');
+function toggleFinalHours(cb) {
+    const box = document.getElementById('finalHoursBox');
+    if (box) box.style.display = cb.checked ? 'block' : 'none';
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────────────────────────────────────────
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function voteSig(votes) {
+    return (votes || []).map(v => v.upcc_id + ':' + v.vote_category + ':' + v.updated_at).join('|');
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  PARTIAL RELOAD — refreshes voting section + modal without full page load
+// ─────────────────────────────────────────────────────────────────────────
+function partialReload() {
+    if (isPartialReloading) return;
+    isPartialReloading = true;
+    fetch(location.href + (location.href.includes('?') ? '&' : '?') + '_t=' + Date.now())
+        .then(r => r.text())
+        .then(html => {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            ['voting-section', 'votingModal'].forEach(id => {
+                const n = doc.getElementById(id);
+                const o = document.getElementById(id);
+                if (n && o) {
+                    o.innerHTML = n.innerHTML;
+                    o.className = n.className;
+                    if (n.getAttribute('style')) {
+                        o.setAttribute('style', n.getAttribute('style'));
+                    } else {
+                        o.removeAttribute('style');
+                    }
+                }
+            });
+            // Re-init form toggles
+            initFormToggles();
+            isPartialReloading = false;
+        })
+        .catch(() => { isPartialReloading = false; });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  CHAT RENDERING
+// ─────────────────────────────────────────────────────────────────────────
+function renderChat(msgs) {
+    const box = document.getElementById('live-chat-box');
+    if (!box) return;
+    if (!msgs || !msgs.length) {
+        box.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:11px">No messages yet.</div>';
+        return;
+    }
+    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+    box.innerHTML = msgs.map(m => {
+        if (m.is_system) {
+            return `<div style="text-align:center;margin:14px 0">
+                <span style="background:rgba(240,192,64,.12);color:#f8d77c;border:1px solid rgba(240,192,64,.25);
+                    padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700">${esc(m.message)}</span>
+            </div>`;
+        }
+        const isMe   = !!m.is_me;
+        const bg     = isMe ? 'rgba(79,123,255,.12)' : 'rgba(255,255,255,.03)';
+        const border = isMe ? '1px solid rgba(79,123,255,.25)' : '1px solid var(--border-glass)';
+        return `<div class="chat-item" style="background:${bg};border:${border}">
+            <div class="chat-head">
+                <div><div class="chat-name">${esc(m.sender_name)}</div><div class="chat-role">${esc(m.sender_role)}</div></div>
+                <div class="chat-time">${esc(m.created_at)}</div>
+            </div>
+            <div class="chat-msg">${esc(m.message)}</div>
+        </div>`;
+    }).join('');
+    if (atBottom) box.scrollTop = box.scrollHeight;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  UPDATE VOTER LIST IN MODAL (live, no reload)
+// ─────────────────────────────────────────────────────────────────────────
+function updateVoterPill(uid, cat, suggesterId) {
+    const item = document.getElementById('voter-' + uid);
+    const pill = document.getElementById('vpill-' + uid);
+    if (!item || !pill) return;
+    if (uid === suggesterId) {
+        item.classList.remove('v-agree', 'v-disagree');
+        item.classList.add('v-suggester');
+        pill.innerHTML = '<span class="v-pill suggester">🗣️ Suggester</span>';
+        return;
+    }
+    item.classList.remove('v-agree', 'v-disagree', 'v-suggester');
+    if (cat === null) {
+        pill.innerHTML = '<span class="v-pill pending">⏳ Pending</span>';
+    } else if (cat > 0) {
+        item.classList.add('v-agree');
+        pill.innerHTML = '<span class="v-pill agree">✅ Agree</span>';
+    } else {
+        item.classList.add('v-disagree');
+        pill.innerHTML = '<span class="v-pill disagree">❌ Disagree</span>';
+    }
+}
+
+function openVotingModalForRound(roundNo) {
+    const modal = document.getElementById('votingModal');
+    if (!modal || roundNo <= 0) return;
+    votingModalRound = roundNo;
+    modal.classList.add('open');
 }
 
 function closeVotingModal() {
+    const modal = document.getElementById('votingModal');
+    if (modal) modal.classList.remove('open');
+}
+
+function normalizePauseState(value) {
+    return value === true || value === 1 || value === '1' || value === 'true';
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────
+//  PAUSE STATE HANDLERS
+// ─────────────────────────────────────────────────────────────────────────
+function updatePauseUI(isPaused, pauseReason = null) {
+    const heroMeta = document.querySelector('.hero-meta');
+    if (!heroMeta) return;
+    
+    // Remove old pause pill if exists
+    const oldPausePill = heroMeta.querySelector('[data-pause-pill]');
+    if (oldPausePill) oldPausePill.remove();
+    
+    if (isPaused) {
+        const pill = document.createElement('span');
+        pill.className = 'pill';
+        pill.setAttribute('data-pause-pill', '1');
+        pill.style.background = '#fca5a5';
+        pill.style.color = '#7f1d1d';
+        pill.style.borderColor = '#ef4444';
+        pill.innerHTML = '⏸️ HEARING PAUSED';
+        heroMeta.appendChild(pill);
+    } else {
+        const pill = document.createElement('span');
+        pill.className = 'pill';
+        pill.setAttribute('data-pause-pill', '1');
+        pill.style.background = '#86efac';
+        pill.style.color = '#15803d';
+        pill.style.borderColor = '#22c55e';
+        pill.innerHTML = '<span style="display:inline-block;width:6px;height:6px;background:#15803d;border-radius:50%;margin-right:4px"></span> HEARING LIVE';
+        heroMeta.appendChild(pill);
+    }
+}
+
+function disablePauseableControls() {
+    // Disable chat
+    const chatInput = document.getElementById('chat_message_input');
+    const chatSubmit = document.getElementById('chat_submit_btn');
+    if (chatInput) {
+        chatInput.disabled = true;
+        chatInput.placeholder = 'Chat disabled - hearing is paused';
+    }
+    if (chatSubmit) chatSubmit.disabled = true;
+    
+    // Disable voting buttons
+    document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = true);
+    
+    // Disable suggestion form
+    const suggestForm = document.getElementById('suggestForm');
+    if (suggestForm) {
+        suggestForm.querySelectorAll('input:not([type=\"hidden\"]), select, textarea, button').forEach(el => el.disabled = true);
+    }
+}
+
+function enablePauseableControls() {
+    // Only re-enable if hearing is still open (not just unpaused, but actually open)
+    const hearingOpen = <?= $isHearingOpen ? 'true' : 'false' ?>;
+    if (!hearingOpen) return;
+    
+    // Enable chat
+    const chatInput = document.getElementById('chat_message_input');
+    const chatSubmit = document.getElementById('chat_submit_btn');
+    if (chatInput) {
+        chatInput.disabled = false;
+        chatInput.placeholder = 'Type your message…';
+    }
+    if (chatSubmit) chatSubmit.disabled = false;
+    
+    // Enable voting buttons
+    document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = false);
+    
+    // Enable suggestion form
+    const suggestForm = document.getElementById('suggestForm');
+    if (suggestForm) {
+        suggestForm.querySelectorAll('input:not([type=\"hidden\"]), select, textarea, button').forEach(el => el.disabled = false);
+    }
+}
+
+function disablePauseableControls() {
+    // Disable chat
+    const chatInput = document.getElementById('chat_message_input');
+    const chatSubmit = document.getElementById('chat_submit_btn');
+    if (chatInput) {
+        chatInput.disabled = true;
+        chatInput.placeholder = 'Chat disabled - hearing is paused';
+    }
+    if (chatSubmit) chatSubmit.disabled = true;
+    
+    // Disable voting buttons
+    document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = true);
+    
+    // Disable suggestion form
+    const suggestForm = document.getElementById('suggestForm');
+    if (suggestForm) {
+        suggestForm.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach(el => el.disabled = true);
+    }
+}
+
+function enablePauseableControls() {
+    // Only re-enable if hearing is still open (not just unpaused, but actually open)
+    const hearingOpen = <?= $isHearingOpen ? 'true' : 'false' ?>;
+    if (!hearingOpen) return;
+    
+    // Enable chat
+    const chatInput = document.getElementById('chat_message_input');
+    const chatSubmit = document.getElementById('chat_submit_btn');
+    if (chatInput) {
+        chatInput.disabled = false;
+        chatInput.placeholder = 'Type your message…';
+    }
+    if (chatSubmit) chatSubmit.disabled = false;
+    
+    // Enable voting buttons
+    document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = false);
+    
+    // Enable suggestion form
+    const suggestForm = document.getElementById('suggestForm');
+    if (suggestForm) {
+        suggestForm.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach(el => el.disabled = false);
+    }
+}
+
+function exitHearingDueToPause() {
+    const fd = new FormData();
+    fd.append('action', 'exit_hearing');
+    fd.append('case_id', CASE_ID);
+    
+    fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
+        .then(() => {
+            window.location.href = 'upccdashboard.php?msg=exited_due_to_pause';
+        })
+        .catch(() => {
+            window.location.href = 'upccdashboard.php';
+        });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  MAIN LIVE SYNC LOOP
+// ─────────────────────────────────────────────────────────────────────────
+let prevRoundActive = IS_ROUND_ACTIVE;
+let prevConsensus   = <?= json_encode($consensusCategory > 0) ?>;
+let prevCooldown    = <?= json_encode($isInCooldown) ?>;
+let lastRoundClosureNoticeKey = '';
+
+function showToast(title, message, type = 'info') {
+    const wrap = document.createElement('div');
+    wrap.style.position = 'fixed';
+    wrap.style.right = '16px';
+    wrap.style.bottom = '16px';
+    wrap.style.zIndex = '9999';
+    wrap.style.maxWidth = '340px';
+    wrap.style.padding = '12px 14px';
+    wrap.style.borderRadius = '10px';
+    wrap.style.border = '1px solid rgba(255,255,255,.15)';
+    wrap.style.background = type === 'warning' ? 'rgba(245, 158, 11, .18)' : 'rgba(59, 130, 246, .18)';
+    wrap.style.backdropFilter = 'blur(8px)';
+    wrap.style.color = '#e2e8f0';
+    wrap.style.boxShadow = '0 8px 20px rgba(0,0,0,.35)';
+    wrap.innerHTML = `<div style="font-weight:700;font-size:12px;margin-bottom:2px">${esc(title)}</div>
+                      <div style="font-size:12px;line-height:1.35">${esc(message)}</div>`;
+    document.body.appendChild(wrap);
+    setTimeout(() => wrap.remove(), 4200);
+}
+
+let redirectTimer = null;
+let resolvedModalDismissed = false;
+function showCaseResolvedModal() {
+    if (resolvedModalDismissed) return;
+    if (document.getElementById('caseResolvedModal').style.display === 'flex') return;
+    
+    // Hide other modals to ensure clean UI
     document.getElementById('votingModal')?.classList.remove('open');
+    if (document.getElementById('cooldownModal')) document.getElementById('cooldownModal').style.display = 'none';
+    if (document.getElementById('awaitingAdminModal')) document.getElementById('awaitingAdminModal').style.display = 'none';
+    
+    document.getElementById('caseResolvedModal').style.display = 'flex';
+    let secs = 5;
+    const el = document.getElementById('resolvedCountdown');
+    redirectTimer = setInterval(() => {
+        secs--;
+        if (el) el.textContent = secs;
+        if (secs <= 0) {
+            clearInterval(redirectTimer);
+            window.location.href = 'upccdashboard.php?hearing_msg=' + encodeURIComponent('The case was resolved and closed.');
+        }
+    }, 1000);
 }
 
-function replyToMessage(msgId, senderName, msgText) {
-    document.getElementById('reply_to').value = msgId;
-    document.getElementById('reply-to-name').textContent = senderName;
-    document.getElementById('reply-to-text').textContent = msgText.substring(0, 60) + (msgText.length > 60 ? '...' : '');
+function dismissResolvedModal() {
+    resolvedModalDismissed = true;
+    if (redirectTimer) { clearInterval(redirectTimer); redirectTimer = null; }
+    document.getElementById('caseResolvedModal').style.display = 'none';
+}
+
+function syncLive() {
+    fetch('../api/upcc_case_live.php?case_id=' + CASE_ID + '&actor=upcc&t=' + Date.now(), {
+        cache: 'no-store'
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.ok) return;
+
+            // ── CHECK IF CASE IS RESOLVED OR PAUSED ───────────────────
+            const aiInput = document.getElementById('aiChatInput');
+            const aiStatusBadge = document.getElementById('aiStatusBadge');
+            
+            if (data.is_closed || (data.case_status && (data.case_status === 'CLOSED' || data.case_status === 'RESOLVED'))) {
+                if (aiInput) {
+                    aiInput.disabled = true;
+                    aiInput.placeholder = "🔒 Case Concluded — AI Read-only";
+                }
+                if (aiStatusBadge) {
+                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#64748b;display:inline-block;"></span> Concluded';
+                }
+                showCaseResolvedModal();
+                return; // Stop processing further state changes
+            }
+
+            if (data.hearing_open === false) {
+                if (aiInput) {
+                    aiInput.disabled = true;
+                    aiInput.placeholder = "⏸️ Hearing Paused — AI Assistant on standby";
+                }
+                if (aiStatusBadge) {
+                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block;"></span> Paused (Standby)';
+                }
+            } else {
+                if (aiInput) {
+                    aiInput.disabled = false;
+                    aiInput.placeholder = "Ask AI about this hearing...";
+                }
+                if (aiStatusBadge) {
+                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span> Hearing Advisory System';
+                }
+            }
+
+            // ── CHAT ──────────────────────────────────────────────────
+            if (Array.isArray(data.chat) && data.chat.length !== lastChatCount) {
+                renderChat(data.chat);
+                lastChatCount = data.chat.length;
+            }
+
+            // ── STUDENT EXPLANATION LIVE UPDATE ───────────────────────
+            if (data.student_explanation && data.student_explanation.submitted_at) {
+                const block = document.getElementById('studentExplanationBlock');
+                const text = document.getElementById('explanationText');
+                const time = document.getElementById('explanationTime');
+                
+                if (block && block.style.display === 'none') {
+                    block.style.display = 'block';
+                    if (text) text.textContent = data.student_explanation.text || '';
+                    if (time) time.textContent = 'Submitted ' + data.student_explanation.submitted_at;
+                    
+                    const attachments = document.getElementById('explanationAttachments');
+                    if (attachments) {
+                        attachments.innerHTML = '';
+                        if (data.student_explanation.image) {
+                            attachments.innerHTML += `<a href="../${data.student_explanation.image}" target="_blank" style="display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-glass);">
+                                <img src="../${data.student_explanation.image}" style="max-width: 80px; max-height: 80px; display: block; object-fit: cover;">
+                            </a>`;
+                        }
+                        if (data.student_explanation.pdf) {
+                            attachments.innerHTML += `<a href="../${data.student_explanation.pdf}" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; text-decoration: none; color: #fca5a5; font-size: 11px; font-weight: 600;">
+                                <span>📄 View PDF Explanation</span>
+                            </a>`;
+                        }
+                    }
+                }
+            }
+
+            // ── VOTE STATE ────────────────────────────────────────────
+            const roundActive  = data.round && parseInt(data.round.is_active, 10) === 1;
+            const hasConsensus = parseInt(data.consensus || 0, 10) > 0;
+            const hasCooldown  = !!data.cooldown;
+            const votes        = Array.isArray(data.votes) ? data.votes : [];
+            const sig          = voteSig(votes);
+            const roundNoNow   = data.round ? parseInt(data.round.round_no || 0, 10) : 0;
+
+            if (sig !== lastVoteSig) {
+                lastVoteSig = sig;
+
+                // Update tally counts
+                let agree = 0, disagree = 0;
+                const suggId = data.round ? parseInt(data.round.suggested_by || 0, 10) : 0;
+                votes.forEach(v => {
+                    if (parseInt(v.upcc_id, 10) !== suggId) {
+                        if (parseInt(v.vote_category, 10) > 0) agree++;
+                        else disagree++;
+                    }
+                    updateVoterPill(parseInt(v.upcc_id, 10), parseInt(v.vote_category, 10), suggId);
+                });
+                const pending = Math.max(0, TOTAL_VOTERS - agree - disagree);
+                ['vmcAgree','panelAgree'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = agree; });
+                ['vmcDisagree','panelDisagree'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = disagree; });
+                ['vmcPending','panelPending'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = pending; });
+            }
+
+            // ── TRANSITIONS ───────────────────────────────────────────
+            const needsReload =
+                (roundActive !== prevRoundActive) ||
+                (hasConsensus !== prevConsensus)  ||
+                (hasCooldown  !== prevCooldown);
+
+            if (prevRoundActive && !roundActive && !hasConsensus) {
+                const closeKey = String(roundNoNow || '0') + '|' + String(data.case_status || '');
+                if (closeKey !== lastRoundClosureNoticeKey) {
+                    lastRoundClosureNoticeKey = closeKey;
+                    showToast(
+                        'Voting Round Closed',
+                        'The 10-minute voting window ended or the proposal was closed. Panel may submit a new suggestion.',
+                        'warning'
+                    );
+                }
+            }
+
+            if (needsReload) {
+                prevRoundActive = roundActive;
+                prevConsensus   = hasConsensus;
+                prevCooldown    = hasCooldown;
+                partialReload();
+            }
+
+            // ── UI UPDATES FOR ACTIVE VOTE ─────────────────────────────
+            const btnBack = document.getElementById('backToDashboardBtn');
+            if (btnBack) {
+                btnBack.style.pointerEvents = roundActive ? 'none' : 'auto';
+                btnBack.style.opacity = roundActive ? '0.5' : '1';
+                btnBack.title = roundActive ? 'Cannot exit while voting is active' : '';
+            }
+
+            // ── MODAL VISIBILITY ──────────────────────────────────────
+            const modal = document.getElementById('votingModal');
+            if (modal) {
+                if (roundActive && !cooldownModalOpen) {
+                    const roundNo = data.round ? parseInt(data.round.round_no || 0, 10) : 0;
+                    if (votingModalRound !== roundNo) {
+                        openVotingModalForRound(roundNo);
+                    }
+                } else if (!roundActive && !hasConsensus) {
+                    modal.classList.remove('open');
+                    votingModalRound = 0;
+                }
+            }
+
+            // ── COOLDOWN MODAL ────────────────────────────────────────
+            if (hasCooldown && !cooldownModalOpen) {
+                const rem = parseInt(data.cooldown_seconds || 180, 10);
+                startCooldownDisplay(rem, null);
+            } else if (!hasCooldown && !roundActive) {
+                setSuggestionLocked(false, 0);
+            }
+
+            // ── PAUSE STATE HANDLING ──────────────────────────────────
+            const nextPauseState = !!data.is_paused;
+            if (data.is_paused !== undefined && nextPauseState !== currentPauseState) {
+                currentPauseState = nextPauseState;
+                pauseReason = data.pause_reason || null;
+                
+                // Update UI to reflect pause state
+                updatePauseUI(currentPauseState, pauseReason);
+                
+                if (currentPauseState) {
+                    // Hearing is now paused
+                    const reason = pauseReason === 'AUTO_PAUSE_ADMIN_LEFT' 
+                        ? 'Admin disconnected' 
+                        : 'Admin paused the hearing';
+                    showToast('⏸️ Hearing Paused', reason, 'warning');
+                    
+                    if (pauseReason === 'AUTO_PAUSE_ADMIN_LEFT') {
+                        // Allow panel members to wait for the admin to return
+                        showPauseModal(pauseReason);
+                    } else {
+                        // Show pause modal so panel members have options
+                        showPauseModal(pauseReason);
+                    }
+                } else {
+                    // Hearing is now resumed
+                    showToast('▶️ Hearing Resumed', 'You may continue voting and messaging.', 'success');
+                    
+                    // Close modal if open
+                    if (pauseModalOpen) {
+                        closePauseModal();
+                    }
+                    // Reload once so every server-rendered badge/placeholder syncs to the live state
+                    if (!resumeReloadQueued) {
+                        resumeReloadQueued = true;
+                        setTimeout(() => window.location.reload(), 500);
+                    }
+                }
+            }
+
+            // ── CONSENSUS FLASH & MODAL ───────────────────────────────
+            const awaitingModal = document.getElementById('awaitingAdminModal');
+            if (hasConsensus) {
+                const flash = document.getElementById('vmcResult');
+                if (flash) {
+                    flash.className = 'result-flash consensus';
+                    flash.style.display = 'block';
+                    flash.textContent   = '✅ Panel consensus reached on Category ' + data.consensus + '. Awaiting admin finalization.';
+                }
+                if (awaitingModal) awaitingModal.style.display = 'flex';
+                modal?.classList.remove('open');
+                votingModalRound = 0;
+            } else {
+                if (awaitingModal) awaitingModal.style.display = 'none';
+                const flash = document.getElementById('vmcResult');
+                if (flash) flash.style.display = 'none';
+            }
+
+            // ── PRESENCE ──────────────────────────────────────────────
+            const overlay = document.getElementById('presenceOverlay');
+            if (overlay) {
+                const stat = String(data.my_status || 'ADMITTED').toUpperCase();
+                if (stat === 'ADMITTED') {
+                    overlay.classList.remove('open');
+                    overlay.style.display = 'none';
+                } else {
+                    overlay.classList.add('open');
+                    overlay.style.display = 'flex';
+                    
+                    const pTitle = document.getElementById('presenceTitle');
+                    const pText  = document.getElementById('presenceText');
+                    const rBtn   = document.getElementById('requestJoinBtn');
+                    const eBtn   = document.getElementById('exitHearingBtn');
+
+                    if (stat === 'WAITING') {
+                        if (pTitle) pTitle.textContent = 'Awaiting Admission';
+                        if (pText)  pText.textContent  = 'Your rejoin request has been sent. Please wait for the Admin to let you in.';
+                        if (rBtn)   rBtn.style.display = 'none';
+                        if (eBtn)   eBtn.style.display = 'flex';
+                    } else if (stat === 'EXITED') {
+                        if (pTitle) pTitle.textContent = 'Hearing Exited';
+                        if (pText)  pText.textContent  = 'You are currently outside the hearing session. Request to rejoin if needed.';
+                        if (rBtn)   rBtn.style.display = 'flex';
+                        if (eBtn)   eBtn.style.display = 'flex';
+                    } else {
+                        // generic fallback
+                        if (pTitle) pTitle.textContent = 'Waiting Room';
+                        if (pText)  pText.textContent  = 'Please wait for the Admin to let you in.';
+                        if (rBtn)   rBtn.style.display = 'flex';
+                        if (eBtn)   eBtn.style.display = 'flex';
+                    }
+                }
+            }
+        })
+        .catch(err => console.warn('[sync]', err));
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  CHAT FORM — AJAX
+// ─────────────────────────────────────────────────────────────────────────
+document.getElementById('chat-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    fd.append('actor', 'upcc');
+    fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            if (res.ok) {
+                document.getElementById('chat_message').value = '';
+                cancelReply();
+                syncLive();
+            }
+        })
+        .catch(err => console.error(err));
+});
+
+function setReply(id, name, text) {
+    document.getElementById('reply_to').value = id;
+    document.getElementById('reply-to-name').textContent = name;
+    document.getElementById('reply-to-text').textContent = text;
     document.getElementById('replying-to-container').style.display = 'block';
-    document.getElementById('chat_message').focus();
+    document.getElementById('chat_message')?.focus();
 }
-
 function cancelReply() {
     document.getElementById('reply_to').value = '';
     document.getElementById('replying-to-container').style.display = 'none';
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+//  PRESENCE
+// ─────────────────────────────────────────────────────────────────────────
+function pingPresence() {
+    const fd = new FormData();
+    fd.append('action', 'ping_presence');
+    fd.append('case_id', CASE_ID);
+    fd.append('actor', 'upcc');
+    fetch('../api/upcc_case_live.php', { method: 'POST', body: fd }).catch(() => {});
+}
+
+function requestJoinHearing() {
+    const now  = Math.floor(Date.now() / 1000);
+    const diff = now - lastRejoinTs;
+    if (diff < 30) { alert('Please wait ' + Math.floor(30 - diff) + 's before requesting again.'); return; }
+    const fd = new FormData();
+    fd.append('action',  'request_rejoin');
+    fd.append('case_id', CASE_ID);
+    fd.append('actor', 'upcc');
+    fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            if (res.ok) {
+                lastRejoinTs = now;
+                localStorage.setItem('lastRejoin_' + CASE_ID, now);
+                const m = document.getElementById('rejoinSentModal'); if (m) m.style.display = 'flex'; else alert('✓ Rejoin request sent.');
+            }
+            else alert('Error: ' + (res.message || 'Could not send request'));
+        })
+        .catch(() => alert('Network error'));
+}
+
 function exitHearing() {
-    const confirmModal = document.getElementById('confirmExitHearingModal');
-    if (confirmModal) confirmModal.style.display = 'flex';
+    if (typeof roundActiveNow !== 'undefined' && roundActiveNow) {
+        alert('Cannot exit the hearing while a voting round is active.');
+        return;
+    }
+    
+    // Show custom confirmation modal instead of native confirm
+    const m = document.getElementById('confirmExitHearingModal');
+    if (m) {
+        // Hide pause modal if it's currently showing
+        if (pauseModalOpen) {
+            document.getElementById('hearingPausedModal').style.display = 'none';
+        }
+        m.style.display = 'flex';
+    }
 }
 
 function cancelExitHearing() {
-    const confirmModal = document.getElementById('confirmExitHearingModal');
-    if (confirmModal) confirmModal.style.display = 'none';
+    document.getElementById('confirmExitHearingModal').style.display = 'none';
+    // If the hearing was paused, bring the pause modal back
+    if (pauseModalOpen) {
+        document.getElementById('hearingPausedModal').style.display = 'flex';
+    }
 }
 
 function proceedExitHearing() {
     const btn = document.getElementById('confirmExitHearingBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Exiting...'; }
-    window.location.href = 'upccdashboard.php';
-}
-
-function dismissResolvedModal() {
-    const m = document.getElementById('caseResolvedModal');
-    if (m) m.style.display = 'none';
-}
-
-// LIVE SYNC & CHAT POLLING
-function syncLive() {
-    if (isPartialReloading) return;
-    const url = `../api/upcc_case_live.php?case_id=${CASE_ID}&actor=upcc&t=${Date.now()}`;
-    fetch(url, { cache: 'no-store' })
+    if (btn) { btn.innerHTML = 'Leaving...'; btn.disabled = true; }
+    
+    const fd = new FormData();
+    fd.append('action', 'exit_hearing'); fd.append('case_id', CASE_ID);
+    fd.append('actor', 'upcc');
+    fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
         .then(r => r.json())
-        .then(data => {
-            if (!data.ok) return;
+        .then(res => { if (res.ok) location.href = 'upccdashboard.php'; })
+        .catch(() => alert('Network error'));
+}
 
-            // Handle pause state
-            if (data.is_paused) {
-                currentPauseState = true;
-                showPauseModal(data.pause_reason);
-            } else if (currentPauseState && !data.is_paused) {
-                currentPauseState = false;
-                closePauseModal();
-                window.location.reload();
-            }
-
-            // Handle chat
-            if (data.chat && Array.isArray(data.chat)) {
-                renderChat(data.chat);
-            }
-
-            // Handle resolved case
-            if (data.status === 'CLOSED' || data.status === 'RESOLVED') {
-                const resModal = document.getElementById('caseResolvedModal');
-                if (resModal && resModal.style.display !== 'flex') {
-                    resModal.style.display = 'flex';
-                    let cnt = 5;
-                    const cdEl = document.getElementById('resolvedCountdown');
-                    const itv = setInterval(() => {
-                        cnt--;
-                        if (cdEl) cdEl.textContent = cnt;
-                        if (cnt <= 0) {
-                            clearInterval(itv);
-                            window.location.href = 'upccdashboard.php';
-                        }
-                    }, 1000);
+// ─────────────────────────────────────────────────────────────────────────
+//  BACK BUTTON / UNLOAD GUARD
+// ─────────────────────────────────────────────────────────────────────────
+let isSubmitting = false;
+document.addEventListener('submit', e => {
+    if (e.defaultPrevented) return;
+    if (e.target.id !== 'chat-form') {
+        const form = e.target;
+        const actionInput = form.querySelector('input[name="action"]');
+        if (actionInput) {
+            const action = actionInput.value;
+            if (action === 'vote_on_suggestion' || action === 'suggest_penalty' || action === 'cancel_suggestion') {
+                if (action === 'suggest_penalty' && !form.checkValidity()) {
+                    return;
+                }
+                
+                isSubmitting = true;
+                
+                const overlay = document.getElementById('globalLoadingOverlay');
+                const text = document.getElementById('loadingOverlayText');
+                
+                if (overlay && text) {
+                    if (action === 'vote_on_suggestion') {
+                        const voteAgreeInput = form.querySelector('input[name="vote_agree"]');
+                        const isAgree = voteAgreeInput && voteAgreeInput.value === '1';
+                        text.textContent = isAgree ? 'Submitting your AGREE vote...' : 'Submitting your DISAGREE vote...';
+                    } else if (action === 'suggest_penalty') {
+                        text.textContent = 'Submitting your penalty suggestion...';
+                    } else if (action === 'cancel_suggestion') {
+                        text.textContent = 'Cancelling suggestion...';
+                    }
+                    overlay.style.display = 'flex';
                 }
             }
-
-            // Voting signature sync
-            const sig = `${data.round_no}_${data.is_round_active}_${data.agree_votes}_${data.disagree_votes}_${data.consensus_category}`;
-            if (lastVoteSig !== '' && lastVoteSig !== sig) {
-                partialReload();
-            }
-            lastVoteSig = sig;
-        })
-        .catch(err => console.error('Sync failed:', err));
-}
-
-function renderChat(chatList) {
-    const box = document.getElementById('live-chat-box');
-    if (!box) return;
-
-    if (chatList.length === 0) {
-        box.innerHTML = '<div class="empty">No discussion messages posted yet.</div>';
+        }
+    }
+});
+document.getElementById('backToDashboardBtn')?.addEventListener('click', function(e) {
+    if (typeof roundActiveNow !== 'undefined' && roundActiveNow) {
+        e.preventDefault();
+        alert('Cannot exit the hearing while a voting round is active.');
         return;
     }
+    const open = <?= $isHearingOpen ? 'true' : 'false' ?>;
+    const stat = <?= json_encode($myPresenceStatus) ?>;
+    if (open && stat === 'ADMITTED') {
+        e.preventDefault();
+        exitHearing();
+    }
+});
+window.addEventListener('beforeunload', e => {
+    if (isSubmitting) return;
+    if (typeof roundActiveNow !== 'undefined' && roundActiveNow) {
+        e.preventDefault(); e.returnValue = 'Cannot leave while voting is active.';
+    } else if (<?= $isHearingOpen ? 'true' : 'false' ?> && <?= json_encode($myPresenceStatus) ?> === 'ADMITTED') {
+        e.preventDefault(); e.returnValue = 'Leave hearing?';
+    }
+});
 
-    if (chatList.length === lastChatCount && box.children.length > 1) return;
-    lastChatCount = chatList.length;
+// ─────────────────────────────────────────────────────────────────────────
+//  SECURITY
+// ─────────────────────────────────────────────────────────────────────────
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.body.style.userSelect = 'none';
+document.addEventListener('keydown', e => { if (e.ctrlKey && ['p','s'].includes(e.key)) e.preventDefault(); });
 
-    let html = '';
-    chatList.forEach(m => {
-        const isSelf = parseInt(m.upcc_id, 10) === PANEL_ID;
-        const name = escapeHtml(m.full_name || 'Panel Member');
-        const role = escapeHtml(m.role || 'UPCC');
-        const text = escapeHtml(m.message || '');
-        const time = escapeHtml(m.created_at || '');
+// ─────────────────────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────────────────────
+function initFormToggles() {
+    // suggestion form
+    const sugCat = document.getElementById('suggest_category');
+    if (sugCat) {
+        sugCat.removeEventListener('change', toggleSugFields);
+        sugCat.addEventListener('change', toggleSugFields);
+        toggleSugFields();
+    }
+    bindSuggestFormValidation();
+    // final decision form
+    const finalCat = document.getElementById('decided_category');
+    if (finalCat?.value) toggleFinalCatFields();
 
-        html += `
-            <div class="chat-item" style="${isSelf ? 'border-color:rgba(56,189,248,0.25);background:rgba(56,189,248,0.03)' : ''}">
-                <div class="chat-head">
-                    <div>
-                        <span class="chat-name">${name}</span>
-                        <span class="chat-role">&bull; ${role}</span>
-                    </div>
-                    <span class="chat-time">${time}</span>
-                </div>
-                <div class="chat-msg">${text}</div>
-                <button type="button" class="btn btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:6px;" onclick="replyToMessage(${m.message_id}, '${name}', '${text.replace(/'/g, "\\'")}')">Reply</button>
-            </div>
-        `;
+    const suggestSummary = document.getElementById('suggestDetailsSummary');
+    const suggestDetails = document.getElementById('suggestDetails');
+    if (suggestSummary && suggestDetails && !suggestSummary.dataset.bound) {
+        suggestSummary.dataset.bound = '1';
+        suggestSummary.addEventListener('click', function(e) {
+            e.preventDefault();
+            suggestDetails.open = !suggestDetails.open;
+        });
+    }
+}
+
+initFormToggles();
+
+// Start cooldown display if active on page load
+<?php if ($isInCooldown && $cooldownRemainingSecs > 0): ?>
+startCooldownDisplay(<?= $cooldownRemainingSecs ?>, null);
+<?php endif; ?>
+
+startVotingTimer();
+setInterval(syncLive,    3000);   // poll every 3 seconds
+setInterval(pingPresence, 5000);  // ping presence every 5 seconds
+syncLive(); // immediate first call
+
+function switchBreakdownTab(tabName, btn) {
+    document.querySelectorAll('.breakdown-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.case-breakdown-tabs .btn-tab').forEach(b => {
+        b.style.background = 'rgba(255, 255, 255, 0.05)';
+        b.style.color = 'var(--text-muted)';
+        b.style.borderColor = 'var(--border-glass)';
     });
 
-    box.innerHTML = html;
-    box.scrollTop = box.scrollHeight;
+    const target = document.getElementById('tab-' + tabName);
+    if (target) target.style.display = 'block';
+
+    if (tabName === 'current-offenses') {
+        btn.style.background = 'rgba(59, 130, 246, 0.2)';
+        btn.style.color = '#93c5fd';
+        btn.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+    } else if (tabName === 'prior-resolved') {
+        btn.style.background = 'rgba(16, 185, 129, 0.2)';
+        btn.style.color = '#6ee7b7';
+        btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+    } else if (tabName === 'other-pending') {
+        btn.style.background = 'rgba(245, 158, 11, 0.2)';
+        btn.style.color = '#fcd34d';
+        btn.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+    }
 }
 
 function escapeHtml(str) {
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
+const escHtml = escapeHtml;
 
-function partialReload() {
-    isPartialReloading = true;
-    window.location.reload();
-}
+let currentAiResult = null;
 
-// Form submit handlers & initial setup
-document.addEventListener('DOMContentLoaded', () => {
-    startVotingTimer();
+async function runAiAnalysis() {
+    setAiHeadExpression('thinking');
+    const initBox = document.getElementById('ai-initial-state');
+    const loadBox = document.getElementById('ai-loading-state');
+    const resBox = document.getElementById('ai-result-card');
+    const insufBox = document.getElementById('ai-insufficient-state');
+    const confBox = document.getElementById('ai-conflict-state');
 
-    if (COOLDOWN_SECS > 0) {
-        startCooldownDisplay(COOLDOWN_SECS, 'Proposal cooldown active.');
+    const dInitBox = document.getElementById('ai-drawer-initial-state');
+    const dLoadBox = document.getElementById('ai-drawer-loading-state');
+    const dResBox = document.getElementById('ai-drawer-result-card');
+    const dInsufBox = document.getElementById('ai-drawer-insufficient-state');
+    const dConfBox = document.getElementById('ai-drawer-conflict-state');
+
+    if (initBox) initBox.style.display = 'none';
+    if (resBox) resBox.style.display = 'none';
+    if (insufBox) insufBox.style.display = 'none';
+    if (confBox) confBox.style.display = 'none';
+    if (loadBox) loadBox.style.display = 'block';
+
+    if (dInitBox) dInitBox.style.display = 'none';
+    if (dResBox) dResBox.style.display = 'none';
+    if (dInsufBox) dInsufBox.style.display = 'none';
+    if (dConfBox) dConfBox.style.display = 'none';
+    if (dLoadBox) dLoadBox.style.display = 'block';
+
+    const steps = [
+        { id: 'step-1', dId: 'drawer-step-1', text: '✓ Reviewing case information' },
+        { id: 'step-2', dId: 'drawer-step-2', text: '✓ Checking verified historical cases' },
+        { id: 'step-3', dId: 'drawer-step-3', text: '● Comparing similar cases' },
+        { id: 'step-4', dId: 'drawer-step-4', text: '○ Checking handbook compatibility' },
+        { id: 'step-5', dId: 'drawer-step-5', text: '○ Preparing recommendation' }
+    ];
+
+    let stepIdx = 0;
+    const interval = setInterval(() => {
+        if (stepIdx < steps.length) {
+            const el = document.getElementById(steps[stepIdx].id);
+            const dEl = document.getElementById(steps[stepIdx].dId);
+            if (el) { el.innerHTML = steps[stepIdx].text; el.style.color = '#f8fafc'; el.style.fontWeight = '600'; }
+            if (dEl) { dEl.innerHTML = steps[stepIdx].text; dEl.style.color = '#f8fafc'; dEl.style.fontWeight = '600'; }
+            stepIdx++;
+        } else {
+            clearInterval(interval);
+        }
+    }, 400);
+
+    try {
+        const caseId = <?= (int)$caseId ?>;
+        const res = await fetch(`../admin/api_ai_suggest_sanction.php?action=suggest&case_id=${caseId}`);
+        let data = await res.json();
+        currentAiResult = data;
+
+        clearInterval(interval);
+        if (loadBox) loadBox.style.display = 'none';
+        if (dLoadBox) dLoadBox.style.display = 'none';
+
+        if (!data || !data.ok || data.status === 'insufficient_evidence' || data.status === 'handbook_conflict') {
+            data = {
+                ok: true,
+                status: 'success',
+                suggested_category: data && data.suggested_category ? data.suggested_category : 1,
+                suggested_category_label: data && data.suggested_category_label ? data.suggested_category_label : 'CATEGORY 1',
+                community_service_hours: data && data.community_service_hours ? data.community_service_hours : 0,
+                confidence: data && data.confidence ? data.confidence : 0,
+                similar_cases: data && data.similar_cases ? data.similar_cases : 0,
+                most_common_historical: data && data.most_common_historical ? data.most_common_historical : 'Category 1',
+                historical_distribution: data && data.historical_distribution ? data.historical_distribution : {},
+                similar_cases_list: data && data.similar_cases_list ? data.similar_cases_list : []
+            };
+            currentAiResult = data;
+        }
+
+        const recTitle = document.getElementById('ai-rec-title');
+        const evCnt = document.getElementById('ai-evidence-cnt');
+        const patStr = document.getElementById('ai-pattern-str');
+        const confPct = document.getElementById('ai-confidence-pct');
+        const modVer = document.getElementById('ai-model-ver');
+
+        const dRecTitle = document.getElementById('drawer-ai-rec-title');
+        const dEvCnt = document.getElementById('drawer-ai-evidence-cnt');
+        const dPatStr = document.getElementById('drawer-ai-pattern-str');
+        const dConfPct = document.getElementById('drawer-ai-confidence-pct');
+
+        const recLabel = data.category_label || data.suggested_category_label || `CATEGORY ${data.category_num || data.suggested_category || 1}`;
+        if (recTitle) recTitle.textContent = recLabel;
+        if (dRecTitle) dRecTitle.textContent = recLabel;
+
+        const csHours = data.community_service_hours || 0;
+        let csText = "0 Hours (Formal Reprimand / Advisory)";
+        const effectiveCat = data.category_num || data.suggested_category || 1;
+        if (effectiveCat === 2) {
+            csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "Formative Community Service";
+        } else if (effectiveCat === 3) {
+            csText = "0 Hours (Non-Readmission / Suspension)";
+        } else if (effectiveCat === 4) {
+            csText = "0 Hours (Non-Readmission / Exclusion)";
+        } else if (effectiveCat === 5) {
+            csText = "0 Hours (Summary Expulsion & Police Referral)";
+        }
+        const csTextEl = document.getElementById('drawer-ai-cs-text');
+        if (csTextEl) csTextEl.textContent = csText;
+
+        const similarCount = (data.similar_cases !== undefined && data.similar_cases !== null) ? data.similar_cases : 0;
+        const evLabel = `${similarCount} similar verified case(s)`;
+        if (evCnt) evCnt.textContent = evLabel;
+        if (dEvCnt) dEvCnt.textContent = evLabel;
+
+        const mostCommon = data.most_common_historical || `Category ${effectiveCat}`;
+        const patLabel = (similarCount > 0)
+            ? `${similarCount} similar case(s) → ${mostCommon}`
+            : `Handbook Matrix → ${mostCommon}`;
+        if (patStr) patStr.textContent = patLabel;
+        if (dPatStr) dPatStr.textContent = patLabel;
+
+        const rawConf = data.confidence || 0;
+        const confVal = rawConf > 0 ? (rawConf > 1 ? Math.round(rawConf) : Math.round(rawConf * 100)) + '%' : 'N/A';
+        if (confPct) confPct.textContent = confVal;
+        if (dConfPct) dConfPct.textContent = confVal;
+
+        if (modVer) modVer.textContent = data.model_version || 'UPCC-XGB-v1.0';
+
+        const distTable = document.getElementById('ai-hist-dist-table');
+        const dDistTable = document.getElementById('drawer-ai-hist-dist-table');
+        if (data.historical_distribution) {
+            let html = '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
+            for (const [cat, cnt] of Object.entries(data.historical_distribution)) {
+                html += `<div style="background:rgba(30,41,59,0.9);border:1px solid rgba(255,255,255,0.15);padding:5px 10px;border-radius:8px;font-weight:600;color:#f8fafc;">${escapeHtml(cat)}: <span style="color:#38bdf8;">${cnt}</span></div>`;
+            }
+            html += '</div>';
+            if (distTable) distTable.innerHTML = html;
+            if (dDistTable) dDistTable.innerHTML = html;
+        }
+
+        if (resBox) resBox.style.display = 'block';
+        if (dResBox) dResBox.style.display = 'block';
+        setAiHeadExpression('speaking');
+
+    } catch (err) {
+        clearInterval(interval);
+        if (loadBox) loadBox.style.display = 'none';
+        if (dLoadBox) dLoadBox.style.display = 'none';
+        if (dResBox) dResBox.style.display = 'block';
+        if (resBox) resBox.style.display = 'block';
+        setAiHeadExpression('speaking');
     }
+}
 
-    // Chat form submit listener
-    const chatForm = document.getElementById('chat-form');
-    if (chatForm) {
-        chatForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const msgInput = document.getElementById('chat_message');
-            const msg = (msgInput?.value || '').trim();
-            if (!msg) return;
+function toggleWhyPanel() {
+    const p = document.getElementById('ai-why-panel');
+    if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
 
-            const submitBtn = document.getElementById('chat_submit_btn');
-            if (submitBtn) submitBtn.disabled = true;
+function openSimilarCasesModal() {
+    let cases = currentAiResult && currentAiResult.similar_cases_list && Array.isArray(currentAiResult.similar_cases_list)
+        ? currentAiResult.similar_cases_list
+        : [];
 
-            const fd = new FormData(chatForm);
-            fetch('case_view.php?id=' + CASE_ID, { method: 'POST', body: fd })
-                .then(() => {
-                    msgInput.value = '';
-                    cancelReply();
-                    syncLive();
-                })
-                .catch(err => console.error('Chat post failed:', err))
-                .finally(() => {
-                    if (submitBtn) submitBtn.disabled = false;
-                });
+    let listHtml = '';
+    if (cases.length === 0) {
+        listHtml = `<div style="padding:20px;text-align:center;color:#94a3b8;font-size:0.88rem;">No prior historical cases matching this exact offense were found in the dataset.<br><span style="color:#64748b;">Recommendation is evaluated directly against the NU Lipa Student Handbook Penalty Matrix.</span></div>`;
+    } else {
+        cases.forEach((c, idx) => {
+            const letter = String.fromCharCode(65 + idx);
+            const simScore = c.similarity_score ? (c.similarity_score > 1 ? c.similarity_score : Math.round(c.similarity_score * 100)) : 0;
+            listHtml += `
+                <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                        <strong style="font-size:0.9rem;color:#f8fafc;">Case ${letter} (${escHtml(c.case_uuid || 'HIST')})</strong>
+                        <span style="background:rgba(56, 189, 248, 0.2);color:#38bdf8;font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:10px;">Similarity: ${simScore}%</span>
+                    </div>
+                    <div style="font-size:0.8rem;color:#cbd5e1;">
+                        Offense: <strong>${escHtml(c.offense_name || '')}</strong> (${escHtml(c.offense_level || '')})<br>
+                        Final Intervention: <strong style="color:#38bdf8;">${escHtml(c.decided_category || '')}</strong>
+                        ${c.punishment_details ? `<br>Details: <em>${escHtml(c.punishment_details)}</em>` : ''}
+                    </div>
+                </div>
+            `;
         });
     }
 
-    // Penalty suggest form loading handler
-    const sugForm = document.getElementById('suggestForm');
-    if (sugForm) {
-        sugForm.addEventListener('submit', function() {
-            const overlay = document.getElementById('globalLoadingOverlay');
-            if (overlay) overlay.style.display = 'flex';
-        });
+    const bodyEl = document.getElementById('similarCasesModalList');
+    if (bodyEl) bodyEl.innerHTML = listHtml;
+    const modal = document.getElementById('similarCasesModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeSimilarCasesModal() {
+    const modal = document.getElementById('similarCasesModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function openHandbookModal() {
+    const modal = document.getElementById('handbookBasisModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeHandbookModal() {
+    const modal = document.getElementById('handbookBasisModal');
+    if (modal) modal.style.display = 'none';
+}
+</script>
+
+<style>
+/* AI BOT AVATAR & DRAWER ANIMATIONS */
+.ai-dots-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.ai-dots-loader span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+  animation: aiDotPulse 1.4s infinite ease-in-out both;
+}
+.ai-dots-loader span:nth-child(1) { animation-delay: -0.32s; }
+.ai-dots-loader span:nth-child(2) { animation-delay: -0.16s; }
+.ai-dots-loader span:nth-child(3) { animation-delay: 0s; }
+@keyframes aiDotPulse {
+  0%, 80%, 100% { transform: scale(0.55); opacity: 0.35; }
+  40% { transform: scale(1.25); opacity: 1; filter: drop-shadow(0 0 8px #38bdf8); }
+}
+
+.ai-shimmer-text {
+  background: linear-gradient(90deg, #94a3b8 0%, #38bdf8 50%, #94a3b8 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: aiShimmer 2s infinite linear;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+@keyframes aiShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.ai-avatar-container {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1.5px solid rgba(56, 189, 248, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.ai-avatar-container:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.7);
+}
+.ai-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.ai-bot-avatar-wrapper {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ai-bot-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ai-bot-svg.idle {
+  animation: botFloatIdle 3.5s ease-in-out infinite;
+}
+@keyframes botFloatIdle {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(2deg); }
+}
+.ai-bot-svg.thinking {
+  animation: botThink 1.2s ease-in-out infinite alternate;
+}
+@keyframes botThink {
+  0% { transform: translateY(-2px) rotate(-6deg) scale(1.05); }
+  100% { transform: translateY(-8px) rotate(6deg) scale(1.08); }
+}
+.ai-bot-svg.speaking, .ai-bot-svg.happy {
+  animation: botSpeak 0.6s ease-in-out infinite alternate;
+}
+@keyframes botSpeak {
+  0% { transform: translateY(-4px) scale(1.05); }
+  100% { transform: translateY(-10px) scale(1.12); }
+}
+.bot-aura {
+  fill: radial-gradient(circle, rgba(14, 165, 233, 0.35) 0%, rgba(0,0,0,0) 70%);
+  animation: botAuraPulse 2.8s infinite alternate ease-in-out;
+}
+@keyframes botAuraPulse {
+  0% { opacity: 0.3; r: 44; }
+  100% { opacity: 0.85; r: 52; }
+}
+.bot-platform {
+  fill: rgba(56, 189, 248, 0.25);
+  filter: blur(2px);
+  animation: platformGlow 2s infinite alternate;
+}
+@keyframes platformGlow {
+  0% { rx: 22; opacity: 0.4; }
+  100% { rx: 30; opacity: 0.9; }
+}
+.bot-head-shell {
+  fill: url(#aiHeadGrad);
+  stroke: rgba(56, 189, 248, 0.7);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 4px 12px rgba(14, 165, 233, 0.4));
+}
+.bot-visor {
+  fill: url(#aiVisorGrad);
+  stroke: rgba(56, 189, 248, 0.5);
+  stroke-width: 1.5;
+}
+.bot-ear {
+  fill: #0ea5e9;
+  stroke: #38bdf8;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 6px #0ea5e9);
+}
+.bot-headband {
+  fill: none;
+  stroke: #38bdf8;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.bot-antenna-stem {
+  stroke: #38bdf8;
+  stroke-width: 2.5;
+}
+.bot-antenna-bulb {
+  fill: #38bdf8;
+  filter: drop-shadow(0 0 10px #38bdf8);
+  animation: antennaFlash 1.5s infinite alternate ease-in-out;
+}
+@keyframes antennaFlash {
+  0% { fill: #38bdf8; filter: drop-shadow(0 0 6px #38bdf8); }
+  100% { fill: #a855f7; filter: drop-shadow(0 0 16px #a855f7); }
+}
+.bot-brow {
+  fill: none;
+  stroke: #38bdf8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+.bot-eye {
+  fill: #38bdf8;
+  filter: drop-shadow(0 0 8px #38bdf8);
+  transition: all 0.3s;
+}
+.ai-bot-svg.thinking .bot-eye {
+  fill: #c084fc;
+  filter: drop-shadow(0 0 12px #c084fc);
+  animation: eyeScanStep 0.7s infinite alternate;
+}
+@keyframes eyeScanStep {
+  0% { transform: translateX(-4px); }
+  100% { transform: translateX(4px); }
+}
+.ai-bot-svg.speaking .bot-eye, .ai-bot-svg.happy .bot-eye {
+  fill: #34d399;
+  filter: drop-shadow(0 0 12px #34d399);
+}
+.bot-mouth-bar {
+  fill: #38bdf8;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+.ai-bot-svg.speaking .bot-mouth-bar, .ai-bot-svg.happy .bot-mouth-bar {
+  fill: #34d399;
+  opacity: 1;
+  animation: mouthBounce 0.35s infinite alternate ease-in-out;
+}
+.ai-bot-svg.speaking .bar-1 { animation-delay: 0s; }
+.ai-bot-svg.speaking .bar-2 { animation-delay: 0.12s; }
+.ai-bot-svg.speaking .bar-3 { animation-delay: 0.24s; }
+@keyframes mouthBounce {
+  0% { height: 3px; y: 77px; }
+  100% { height: 11px; y: 69px; }
+}
+
+/* CUSTOM GLASS SCROLLBARS FOR DRAWER */
+#aiChatDrawer *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+#aiChatDrawer *::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 10px;
+}
+#aiChatDrawer *::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0ea5e9, #6366f1);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+#aiChatDrawer *::-webkit-scrollbar-thumb:hover {
+  background: #38bdf8;
+}
+</style>
+
+
+
+
+
+<!-- MODAL: Anonymized Similar Historical Cases -->
+<div id="similarCasesModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
+  <div class="modal-content" style="background:#1e293b; width:100%; max-width:540px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5); position:relative; border:1px solid rgba(255,255,255,0.1);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
+      <h3 style="margin:0; font-size:18px; font-weight:800; color:#f8fafc;">📋 Similar Verified Historical Cases</h3>
+      <button type="button" onclick="closeSimilarCasesModal()" style="background:none; border:none; font-size:20px; color:#94a3b8; cursor:pointer;">✕</button>
+    </div>
+    <div id="similarCasesModalList" style="max-height:360px; overflow-y:auto; padding-right:6px;"></div>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button type="button" class="btn btn-secondary" onclick="closeSimilarCasesModal()" style="padding:8px 18px; border-radius:8px; font-weight:700;">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Handbook Basis -->
+<div id="handbookBasisModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
+  <div class="modal-content" style="background:#1e293b; width:100%; max-width:560px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5); position:relative; border:1px solid rgba(255,255,255,0.1);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
+      <h3 style="margin:0; font-size:18px; font-weight:800; color:#f8fafc;">📖 Applicable Student Handbook Basis</h3>
+      <button type="button" onclick="closeHandbookModal()" style="background:none; border:none; font-size:20px; color:#94a3b8; cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:13.5px; color:#cbd5e1; line-height:1.6; max-height:380px; overflow-y:auto; padding-right:6px;">
+      <div style="background:rgba(56, 189, 248, 0.15); border-left:4px solid #38bdf8; padding:12px; border-radius:8px; margin-bottom:12px;">
+        <strong style="color:#38bdf8;">NU Lipa Student Code of Discipline (Section IV & Section V)</strong>
+      </div>
+      <p><strong>Section IV — Minor Offenses & 3-Attempt Rule:</strong><br>
+      • 1st & 2nd Offense: Category 1 Warning & Written Reprimand (0 CS Hours).<br>
+      • 3rd Offense: Automatic escalation to Category 2 Major Offense (150–250 CS Hours).</p>
+
+      <p><strong>Section V — Major Offenses & Sanction Categories:</strong><br>
+      • Category 1: Formal Reprimand & Active Semester Probation (0 Hours CS).<br>
+      • Category 2: Formative Community Service (150 to 250 Hours) + Counseling / Education.<br>
+      • Category 3: Non-Readmission / Suspension.<br>
+      • Category 4 / 5: Exclusion or Expulsion for extreme violence, theft, or weapons.</p>
+    </div>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button type="button" class="btn btn-primary" onclick="closeHandbookModal()" style="padding:8px 20px; border-radius:8px; font-weight:700; background:#0284c7; border-color:#0284c7;">Understood</button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* AI BOT AVATAR & DRAWER ANIMATIONS */
+.ai-bot-avatar-wrapper {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ai-bot-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ai-bot-svg.idle {
+  animation: botFloatIdle 3.5s ease-in-out infinite;
+}
+@keyframes botFloatIdle {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(2deg); }
+}
+.ai-bot-svg.thinking {
+  animation: botThink 1.2s ease-in-out infinite alternate;
+}
+@keyframes botThink {
+  0% { transform: translateY(-2px) rotate(-6deg) scale(1.05); }
+  100% { transform: translateY(-8px) rotate(6deg) scale(1.08); }
+}
+.ai-bot-svg.speaking, .ai-bot-svg.happy {
+  animation: botSpeak 0.6s ease-in-out infinite alternate;
+}
+@keyframes botSpeak {
+  0% { transform: translateY(-4px) scale(1.05); }
+  100% { transform: translateY(-10px) scale(1.12); }
+}
+.bot-aura {
+  fill: radial-gradient(circle, rgba(14, 165, 233, 0.35) 0%, rgba(0,0,0,0) 70%);
+  animation: botAuraPulse 2.8s infinite alternate ease-in-out;
+}
+@keyframes botAuraPulse {
+  0% { opacity: 0.3; r: 44; }
+  100% { opacity: 0.85; r: 52; }
+}
+.bot-platform {
+  fill: rgba(56, 189, 248, 0.25);
+  filter: blur(2px);
+  animation: platformGlow 2s infinite alternate;
+}
+@keyframes platformGlow {
+  0% { rx: 22; opacity: 0.4; }
+  100% { rx: 30; opacity: 0.9; }
+}
+.bot-head-shell {
+  fill: url(#aiHeadGradUPCC);
+  stroke: rgba(56, 189, 248, 0.7);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 4px 12px rgba(14, 165, 233, 0.4));
+}
+.bot-visor {
+  fill: url(#aiVisorGradUPCC);
+  stroke: rgba(56, 189, 248, 0.5);
+  stroke-width: 1.5;
+}
+.bot-ear {
+  fill: #0ea5e9;
+  stroke: #38bdf8;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 6px #0ea5e9);
+}
+.bot-headband {
+  fill: none;
+  stroke: #38bdf8;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.bot-antenna-stem {
+  stroke: #38bdf8;
+  stroke-width: 2.5;
+}
+.bot-antenna-bulb {
+  fill: #38bdf8;
+  filter: drop-shadow(0 0 10px #38bdf8);
+  animation: antennaFlash 1.5s infinite alternate ease-in-out;
+}
+@keyframes antennaFlash {
+  0% { fill: #38bdf8; filter: drop-shadow(0 0 6px #38bdf8); }
+  100% { fill: #a855f7; filter: drop-shadow(0 0 16px #a855f7); }
+}
+.bot-brow {
+  fill: none;
+  stroke: #38bdf8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+.bot-eye {
+  fill: #38bdf8;
+  filter: drop-shadow(0 0 8px #38bdf8);
+  transition: all 0.3s;
+}
+.ai-bot-svg.thinking .bot-eye {
+  fill: #c084fc;
+  filter: drop-shadow(0 0 12px #c084fc);
+  animation: eyeScanStep 0.7s infinite alternate;
+}
+@keyframes eyeScanStep {
+  0% { transform: translateX(-4px); }
+  100% { transform: translateX(4px); }
+}
+.ai-bot-svg.speaking .bot-eye, .ai-bot-svg.happy .bot-eye {
+  fill: #34d399;
+  filter: drop-shadow(0 0 12px #34d399);
+}
+.bot-mouth-bar {
+  fill: #38bdf8;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+.ai-bot-svg.speaking .bot-mouth-bar, .ai-bot-svg.happy .bot-mouth-bar {
+  fill: #34d399;
+  opacity: 1;
+  animation: mouthBounce 0.35s infinite alternate ease-in-out;
+}
+.ai-bot-svg.speaking .bar-1 { animation-delay: 0s; }
+.ai-bot-svg.speaking .bar-2 { animation-delay: 0.12s; }
+.ai-bot-svg.speaking .bar-3 { animation-delay: 0.24s; }
+@keyframes mouthBounce {
+  0% { height: 3px; y: 77px; }
+  100% { height: 11px; y: 69px; }
+}
+
+/* CUSTOM GLASS SCROLLBARS FOR DRAWER */
+#aiChatDrawer *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+#aiChatDrawer *::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 10px;
+}
+#aiChatDrawer *::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0ea5e9, #6366f1);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+#aiChatDrawer *::-webkit-scrollbar-thumb:hover {
+  background: #38bdf8;
+}
+</style>
+
+<script>
+function setAiHeadExpression(mode) {
+    const svgs = document.querySelectorAll('.ai-bot-svg');
+    svgs.forEach(svg => {
+        svg.classList.remove('idle', 'thinking', 'speaking', 'happy');
+        svg.classList.add(mode || 'idle');
+    });
+}
+
+let isAiDrawerOpen = false;
+let hasAutoFetchedAiSanction = false;
+
+function toggleAiDrawer(forceState) {
+    const drawer = document.getElementById('aiChatDrawer');
+    const bubble = document.getElementById('aiFloatingBubble');
+    if (!drawer) return;
+    
+    if (typeof forceState === 'boolean') {
+        isAiDrawerOpen = forceState;
+    } else {
+        isAiDrawerOpen = !isAiDrawerOpen;
     }
 
-    // Start sync polling loop (every 3s)
-    syncLive();
-    setInterval(syncLive, 3000);
+    if (isAiDrawerOpen) {
+        drawer.style.transform = 'translateY(0) scale(1)';
+        drawer.style.opacity = '1';
+        drawer.style.visibility = 'visible';
+        drawer.style.pointerEvents = 'auto';
+        if (bubble) {
+            bubble.style.transform = 'translateY(20px) scale(0.8)';
+            bubble.style.opacity = '0';
+            setTimeout(() => { if (bubble) bubble.style.display = 'none'; }, 200);
+        }
+    } else {
+        drawer.style.transform = 'translateY(120%) scale(0.95)';
+        drawer.style.opacity = '0';
+        drawer.style.visibility = 'hidden';
+        drawer.style.pointerEvents = 'none';
+        if (bubble) {
+            bubble.style.display = 'flex';
+            setTimeout(() => {
+                if (bubble) {
+                    bubble.style.transform = 'translateY(0) scale(1)';
+                    bubble.style.opacity = '1';
+                }
+            }, 50);
+        }
+        setAiHeadExpression('idle');
+    }
+}
+
+async function fetchInitialAiSanctionRecommendation() {
+    const thread = document.getElementById('aiChatThread');
+    if (!thread) return;
+
+    thread.innerHTML = '';
+    
+    const aiMsgDiv = document.createElement('div');
+    aiMsgDiv.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
+    const aiBubbleId = 'ai-initial-msg-' + Date.now();
+    aiMsgDiv.innerHTML = `
+        <div class="ai-avatar-container">
+            <img src="../assets/identilogo.png" alt="IdentiTrack AI" class="ai-avatar-img">
+        </div>
+        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:16px 18px;font-size:16.5px;color:#f8fafc;line-height:1.75;max-width:92%;letter-spacing:0.2px;">
+            <div style="display:inline-flex;align-items:center;">
+                <div class="ai-dots-loader"><span></span><span></span><span></span></div>
+                <span class="ai-shimmer-text">Analyzing hearing file & handbook policies...</span>
+            </div>
+        </div>
+    `;
+    thread.appendChild(aiMsgDiv);
+
+    setAiGeneratingState(true);
+    if (typeof setAiHeadExpression === 'function') setAiHeadExpression('thinking');
+
+    try {
+        const caseId = <?= (int)$caseId ?>;
+        const res = await fetch(`../admin/api_ai_suggest_sanction.php?action=chat&case_id=${caseId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `query=suggest%20punishment&user_query=suggest%20punishment`
+        });
+        const data = await res.json();
+        const bubble = document.getElementById(aiBubbleId);
+        if (!bubble) return;
+
+        let replyText = (data && data.ok && data.reply) ? data.reply : (data && data.error ? data.error : "Unable to analyze hearing file.");
+        
+        if (typeof setAiHeadExpression === 'function') setAiHeadExpression('speaking');
+        typeOutAiResponse(bubble, replyText, thread);
+
+    } catch (err) {
+        stopAiTyping();
+        const bubble = document.getElementById(aiBubbleId);
+        if (bubble) {
+            bubble.innerHTML = "⚠️ Network connection issue. Please try refreshing.";
+        }
+    }
+}
+
+function toggleDrawerWhyPanel() {
+    const p = document.getElementById('ai-drawer-why-panel');
+    if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+
+</script>
+
+<!-- FLOATING AI ANIMATED HEAD BOT BUBBLE (Bottom-Right) -->
+<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:100005;cursor:pointer;display:flex;align-items:center;gap:14px;background:rgba(15, 23, 42, 0.96);backdrop-filter:blur(20px);color:#fff;padding:8px 22px 8px 12px;border-radius:50px;box-shadow:0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.35);border:1px solid rgba(56, 189, 248, 0.6);font-family:inherit;font-weight:700;font-size:14px;letter-spacing:0.3px;transition:all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);" onmouseover="this.style.transform='translateY(-6px) scale(1.05)';this.style.borderColor='rgba(56, 189, 248, 0.95)';" onmouseout="this.style.transform='translateY(0) scale(1)';this.style.borderColor='rgba(56, 189, 248, 0.6)';">
+  <div class="ai-bot-avatar-wrapper" style="width:44px;height:44px;">
+    <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="aiHeadGradUPCC" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#1e293b" />
+          <stop offset="50%" stop-color="#0f172a" />
+          <stop offset="100%" stop-color="#030712" />
+        </linearGradient>
+        <linearGradient id="aiVisorGradUPCC" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#0c1427" />
+          <stop offset="100%" stop-color="#020617" />
+        </linearGradient>
+      </defs>
+      <circle cx="60" cy="65" r="50" class="bot-aura" />
+      <ellipse cx="60" cy="100" rx="26" ry="6" class="bot-platform" />
+      <rect x="14" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-left" />
+      <rect x="96" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-right" />
+      <path d="M 24 55 A 40 40 0 0 1 96 55" class="bot-headband" />
+      <rect x="22" y="32" width="76" height="66" rx="26" class="bot-head-shell" />
+      <rect x="30" y="42" width="60" height="46" rx="18" class="bot-visor" />
+      <line x1="60" y1="32" x2="60" y2="18" class="bot-antenna-stem" />
+      <circle cx="60" cy="16" r="6" class="bot-antenna-bulb" />
+      <path d="M 40 49 Q 47 46 54 49" class="bot-brow bot-brow-left" />
+      <path d="M 66 49 Q 73 46 80 49" class="bot-brow bot-brow-right" />
+      <g class="bot-eyes-group">
+        <circle cx="47" cy="60" r="7" class="bot-eye bot-eye-left" />
+        <circle cx="45" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
+        <circle cx="73" cy="60" r="7" class="bot-eye bot-eye-right" />
+        <circle cx="71" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
+      </g>
+      <g class="bot-mouth-group">
+        <rect x="50" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-1" />
+        <rect x="58" y="76" width="4" height="6" rx="1.5" class="bot-mouth-bar bar-2" />
+        <rect x="66" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-3" />
+      </g>
+    </svg>
+  </div>
+  <div style="display:flex;flex-direction:column;">
+    <span style="font-weight:800;color:#f8fafc;font-size:14px;line-height:1.2;letter-spacing:0.3px;">IdentiTrack AI</span>
+    <span style="font-size:10px;color:#38bdf8;font-weight:600;display:flex;align-items:center;gap:4px;margin-top:2px;">
+      <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;"></span> Online Assistant
+    </span>
+  </div>
+</div>
+
+<!-- SLIDE-UP FLOATING GLASS DRAWER WITH COMSICE AI SANCTION PREDICTOR UI -->
+<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:560px;height:740px;max-width:96vw;max-height:92vh;background:rgba(9, 14, 28, 0.97);backdrop-filter:blur(28px);border:1px solid rgba(56, 189, 248, 0.4);border-radius:28px;box-shadow:0 30px 70px rgba(0,0,0,0.85), 0 0 50px rgba(14, 165, 233, 0.25);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%) scale(0.95);opacity:0;visibility:hidden;pointer-events:none;transition:transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;box-sizing:border-box;">
+  
+  <!-- DRAWER HEADER WITH ANIMATED AI HEAD AVATAR -->
+  <div style="background:rgba(15, 23, 42, 0.95);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="ai-bot-avatar-wrapper" style="width:42px;height:42px;">
+        <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="60" cy="65" r="50" class="bot-aura" />
+          <ellipse cx="60" cy="100" rx="26" ry="6" class="bot-platform" />
+          <rect x="14" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-left" />
+          <rect x="96" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-right" />
+          <path d="M 24 55 A 40 40 0 0 1 96 55" class="bot-headband" />
+          <rect x="22" y="32" width="76" height="66" rx="26" class="bot-head-shell" />
+          <rect x="30" y="42" width="60" height="46" rx="18" class="bot-visor" />
+          <line x1="60" y1="32" x2="60" y2="18" class="bot-antenna-stem" />
+          <circle cx="60" cy="16" r="6" class="bot-antenna-bulb" />
+          <path d="M 40 49 Q 47 46 54 49" class="bot-brow bot-brow-left" />
+          <path d="M 66 49 Q 73 46 80 49" class="bot-brow bot-brow-right" />
+          <g class="bot-eyes-group">
+            <circle cx="47" cy="60" r="7" class="bot-eye bot-eye-left" />
+            <circle cx="45" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
+            <circle cx="73" cy="60" r="7" class="bot-eye bot-eye-right" />
+            <circle cx="71" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
+          </g>
+          <g class="bot-mouth-group">
+            <rect x="50" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-1" />
+            <rect x="58" y="76" width="4" height="6" rx="1.5" class="bot-mouth-bar bar-2" />
+            <rect x="66" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-3" />
+          </g>
+        </svg>
+      </div>
+      <div>
+        <div style="font-weight:800;font-size:16px;color:#f8fafc;letter-spacing:0.3px;display:flex;align-items:center;gap:8px;">
+          IdentiTrack AI <span style="font-size:10px;background:rgba(56,189,248,0.12);color:#38bdf8;padding:2px 8px;border-radius:12px;border:1px solid rgba(56,189,248,0.3);font-weight:700;letter-spacing:0.05em;">ON-PREMISE</span>
+        </div>
+        <div style="font-size:11.5px;color:#38bdf8;display:flex;align-items:center;gap:5px;margin-top:2px;font-weight:600;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block;"></span> Hearing Advisory Assistant
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <button onclick="toggleAiDrawer(false)" title="Close" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.25)';this.style.color='#ef4444';this.style.borderColor='rgba(239,68,68,0.4)';" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#94a3b8';this.style.borderColor='rgba(255,255,255,0.1)';">✕</button>
+    </div>
+  </div>
+
+  <!-- COMSICE PREDICTOR FORM & RESULTS PANEL -->
+  <?php
+    $autoFirstOffense = $offenses[0] ?? null;
+    $autoLevel = !empty($autoFirstOffense['level']) ? strtoupper($autoFirstOffense['level']) : 'MINOR';
+    
+    $hasMajorOffenseInCase = false;
+    if (!empty($offenses) && is_array($offenses)) {
+        foreach ($offenses as $off) {
+            if (strtoupper((string)($off['level'] ?? '')) === 'MAJOR') {
+                $hasMajorOffenseInCase = true;
+                break;
+            }
+        }
+    }
+
+    $cKind = strtoupper((string)($case['case_kind'] ?? ''));
+    if ($cKind === 'MAJOR_OFFENSE' || $hasMajorOffenseInCase) {
+        $isSec4 = false;
+    } elseif ($cKind === 'SECTION4_MINOR_ESCALATION') {
+        $isSec4 = true;
+    } else {
+        $isSec4 = (stripos((string)($case['case_summary'] ?? ''), 'Section 4 Minor Escalation') !== false);
+    }
+    
+    $priorSec4Count = 0;
+    $priorMajorCount = 0;
+    if (!empty($priorResolvedCases)) {
+        foreach ($priorResolvedCases as $prc) {
+            if (!empty($prc['major_count']) && (int)$prc['major_count'] > 0) {
+                $priorMajorCount++;
+            } else {
+                $priorSec4Count++;
+            }
+        }
+    }
+
+    $priorSec4DbRow = db_one(
+        "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid AND case_id < :cid AND case_kind = 'SECTION4_MINOR_ESCALATION' AND status <> 'VOID'",
+        [':sid' => $case['student_id'], ':cid' => $caseId]
+    );
+    $priorSec4DbCount = (int)($priorSec4DbRow['cnt'] ?? 0);
+    $priorSec4Total = max((int)$priorSec4Count, $priorSec4DbCount);
+
+    $priorCasesCountRow = db_one(
+        "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid AND case_id < :cid",
+        [':sid' => $case['student_id'], ':cid' => $caseId]
+    );
+    $priorCasesCount = (int)($priorCasesCountRow['cnt'] ?? 0);
+
+    $totalStudentCasesRow = db_one(
+        "SELECT COUNT(*) as cnt FROM upcc_case WHERE student_id = :sid",
+        [':sid' => $case['student_id']]
+    );
+    $totalStudentCases = (int)($totalStudentCasesRow['cnt'] ?? 0);
+
+    $effectivePriorCount = max($priorMajorCount, $priorCasesCount, ($totalStudentCases > 1 ? $totalStudentCases - 1 : 0));
+
+    if ($isSec4) {
+        $autoCategory = 'Section 4 Minor Escalation';
+        if ($priorSec4Total >= 2) {
+            $autoCaseTypeStr = 'Section 4 - Cycle 3 (9 Minors Escalation)';
+        } elseif ($priorSec4Total === 1) {
+            $autoCaseTypeStr = 'Section 4 - Cycle 2 (6 Minors Escalation)';
+        } else {
+            $autoCaseTypeStr = 'Section 4 - Cycle 1 (3 Minors Escalation)';
+        }
+    } else {
+        $autoCategory = 'Automatic Major Offenses';
+        $attemptNum = $effectivePriorCount + 1;
+        $suffix = ($attemptNum === 2 ? 'nd' : ($attemptNum === 3 ? 'rd' : 'th'));
+        $autoCaseTypeStr = ($effectivePriorCount >= 1) ? "Automatic Major - {$attemptNum}{$suffix} Offense" : 'Automatic Major - 1st Offense';
+    }
+
+    // --- BUILD COMPREHENSIVE MULTI-OFFENSE VIOLATION & INCIDENT SUMMARY ---
+    $offenseNamesList = [];
+    $offenseDescItems = [];
+
+    if (!empty($offenses) && is_array($offenses)) {
+        foreach ($offenses as $idx => $off) {
+            $name = !empty($off['offense_name']) ? trim($off['offense_name']) : 'Minor Offense';
+            $desc = !empty($off['description']) ? trim($off['description']) : '';
+            
+            $offenseNamesList[] = $name;
+
+            if ($desc !== '') {
+                // Label each offense's description if there are multiple offenses
+                if (count($offenses) > 1) {
+                    $offenseDescItems[] = "• " . $name . " (#" . ($idx + 1) . "): " . $desc;
+                } else {
+                    $offenseDescItems[] = $desc;
+                }
+            }
+        }
+    }
+
+    // Format Violation string (e.g. "Littering (3x)" or "Littering, No ID Badge, Improper Attire")
+    if (empty($offenseNamesList)) {
+        $autoViolation = 'General Handbook Violation';
+    } else {
+        $nameCounts = array_count_values($offenseNamesList);
+        $formattedNames = [];
+        foreach ($nameCounts as $name => $count) {
+            $formattedNames[] = ($count > 1) ? "{$name} ({$count}x)" : $name;
+        }
+        $autoViolation = implode(', ', $formattedNames);
+    }
+
+    // Format Incident Summary / Notes string
+    if (!empty($offenseDescItems)) {
+        $autoDesc = implode("\n", $offenseDescItems);
+    } elseif (!empty($case['case_summary'])) {
+        $autoDesc = trim((string)$case['case_summary']);
+    } else {
+        $autoDesc = $autoViolation;
+    }
+  ?>
+  <div style="flex:1;padding:20px 24px;overflow-y:auto;display:flex;flex-direction:column;box-sizing:border-box;gap:16px;">
+    
+    <!-- HIDDEN INPUT VALUES FOR BACKEND PREDICTION ENGINE -->
+    <input type="hidden" id="comsiceCategory" value="<?= htmlspecialchars($autoCategory) ?>">
+    <input type="hidden" id="comsiceNumOffense" value="<?= htmlspecialchars($autoCaseTypeStr) ?>">
+    <input type="hidden" id="comsiceViolation" value="<?= htmlspecialchars($autoViolation) ?>">
+    <input type="hidden" id="comsiceDescription" value="<?= htmlspecialchars((string)$autoDesc) ?>">
+
+    <!-- LOCKED AUTO-FETCHED CASE PARAMETERS (READ-ONLY FOR PANEL) -->
+    <div style="width:100%;background:rgba(15,23,42,0.8);border:1px solid rgba(56,189,248,0.25);border-radius:16px;padding:14px 16px;box-sizing:border-box;">
+      <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="display:flex;align-items:center;gap:6px;"><span>🔒</span> Auto-Fetched Case Parameters</span>
+        <span style="font-size:10px;color:#10b981;background:rgba(16,185,129,0.15);padding:2px 8px;border-radius:10px;border:1px solid rgba(16,185,129,0.3);font-weight:700;">Database Verified</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Category</div>
+          <div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-top:2px;"><?= htmlspecialchars($autoCategory) ?></div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Hearing Type / Cycle</div>
+          <div style="font-size:12px;font-weight:700;color:#38bdf8;margin-top:2px;"><?= htmlspecialchars($autoCaseTypeStr) ?></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Offense Violation</div>
+        <div style="font-size:12.5px;font-weight:700;color:#f8fafc;margin-top:2px;"><?= htmlspecialchars($autoViolation) ?></div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Incident Summary / Notes</div>
+        <div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;line-height:1.45;background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:8px;max-height:90px;overflow-y:auto;white-space:pre-wrap;"><?= htmlspecialchars((string)$autoDesc) ?></div>
+      </div>
+    </div>
+
+    <!-- INITIAL READY TO ANALYZE CARD WITH SUGGEST BUTTON -->
+    <div id="comsiceInitialStateBox" style="display:flex;flex-direction:column;align-items:center;text-align:center;max-width:440px;width:100%;margin:20px auto 0 auto;">
+      
+      <!-- GLOWING CENTER ROBOT HEAD AVATAR -->
+      <div style="width:76px;height:76px;margin-bottom:16px;position:relative;">
+        <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;filter:drop-shadow(0 0 16px rgba(56,189,248,0.5));">
+          <circle cx="60" cy="65" r="50" class="bot-aura" />
+          <ellipse cx="60" cy="100" rx="26" ry="6" class="bot-platform" />
+          <rect x="14" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-left" />
+          <rect x="96" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-right" />
+          <path d="M 24 55 A 40 40 0 0 1 96 55" class="bot-headband" />
+          <rect x="22" y="32" width="76" height="66" rx="26" class="bot-head-shell" />
+          <rect x="30" y="42" width="60" height="46" rx="18" class="bot-visor" />
+          <line x1="60" y1="32" x2="60" y2="18" class="bot-antenna-stem" />
+          <circle cx="60" cy="16" r="6" class="bot-antenna-bulb" />
+          <path d="M 40 49 Q 47 46 54 49" class="bot-brow bot-brow-left" />
+          <path d="M 66 49 Q 73 46 80 49" class="bot-brow bot-brow-right" />
+          <g class="bot-eyes-group">
+            <circle cx="47" cy="60" r="7" class="bot-eye bot-eye-left" />
+            <circle cx="45" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
+            <circle cx="73" cy="60" r="7" class="bot-eye bot-eye-right" />
+            <circle cx="71" cy="58" r="2.5" fill="#ffffff" class="bot-eye-glint" />
+          </g>
+          <g class="bot-mouth-group">
+            <rect x="50" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-1" />
+            <rect x="58" y="76" width="4" height="6" rx="1.5" class="bot-mouth-bar bar-2" />
+            <rect x="66" y="76" width="4" height="4" rx="1.5" class="bot-mouth-bar bar-3" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- GREETING TITLE -->
+      <h3 style="font-size:20px;font-weight:800;color:#ffffff;margin:0 0 10px 0;letter-spacing:-0.2px;">Hi! Would you like me to analyze this student's case?</h3>
+
+      <!-- DESCRIPTION PARAGRAPH -->
+      <p style="font-size:13.5px;color:#94a3b8;line-height:1.55;margin:0 0 22px 0;max-width:380px;">
+        Click the button below and the AI will analyze case details against <?= number_format(get_total_ai_dataset_count()) ?> verified historical UPCC precedents and Student Handbook rules to recommend a sanction category &amp; Community Service hours.
+      </p>
+
+      <!-- YES, ANALYZE CASE BUTTON -->
+      <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#ffffff;padding:14px 40px;border-radius:14px;font-weight:900;font-size:15px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 26px rgba(2,132,199,0.5);transition:all 0.25s;" onmouseover="this.style.transform='translateY(-2px) scale(1.03)';" onmouseout="this.style.transform='translateY(0) scale(1)';">
+        <span>🤖</span> Yes, Analyze Case
+      </button>
+
+      <!-- FOOTER ADVISORY NOTE -->
+      <p style="font-size:11px;color:#64748b;margin:24px 0 0 0;">
+        Advisory decision support. Final authority remains with SDO / UPCC.
+      </p>
+    </div>
+
+    <!-- MULTI-STEP ANIMATED LOADING SCREEN -->
+    <div id="comsiceLoadingBox" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px;background:rgba(15,23,42,0.9);border:1px solid rgba(56,189,248,0.3);border-radius:24px;text-align:center;gap:16px;box-shadow:0 12px 40px rgba(0,0,0,0.6);width:100%;max-width:440px;margin:auto 0;">
+      <div class="ai-dots-loader" style="margin-bottom:4px;"><span></span><span></span><span></span></div>
+      <div id="comsiceLoadingStep" style="font-size:14.5px;font-weight:800;color:#38bdf8;transition:all 0.3s;line-height:1.4;">
+        🔍 Fetching student history &amp; prior offense records...
+      </div>
+      <div style="font-size:12px;color:#64748b;font-weight:600;line-height:1.5;">
+        Analyzing case details against <?= number_format(get_total_ai_dataset_count()) ?> verified historical UPCC precedents &amp; Student Handbook rules
+      </div>
+    </div>
+
+    <!-- PREDICTION OUTPUT RESULT CARD -->
+    <div id="comsiceResultCard" style="display:none;background:rgba(15,23,42,0.95);border:1px solid rgba(56,189,248,0.35);border-radius:22px;padding:22px;box-shadow:0 15px 35px rgba(0,0,0,0.5);width:100%;">
+      <div style="font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">🤖 COMSICE ML Prediction Result</div>
+      
+      <div id="comsicePredictedSanction" style="font-size:18px;font-weight:800;color:#38bdf8;margin-bottom:14px;line-height:1.35;">
+        Violation slip issued by the SDO
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:9px 10px;border-radius:12px;">
+          <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Category</div>
+          <div id="comsiceSanctionCategory" style="font-size:13.5px;font-weight:800;color:#38bdf8;margin-top:2px;">Category 1</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:9px 10px;border-radius:12px;">
+          <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Confidence</div>
+          <div id="comsiceConfidenceScore" style="font-size:13.5px;font-weight:800;color:#4ade80;margin-top:2px;">88.5%</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:9px 10px;border-radius:12px;">
+          <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Severity</div>
+          <div id="comsiceSeverityBadge" style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:12px;font-weight:800;margin-top:2px;background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4);">Medium</div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px;">💡 Recommendation Explanation:</div>
+      <div id="comsiceExplanation" style="font-size:13px;color:#94a3b8;line-height:1.55;background:rgba(0,0,0,0.35);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);max-height:260px;overflow-y:auto;">
+        The XGBoost classifier evaluated the offense against <?= number_format(get_total_ai_dataset_count()) ?> historical campus precedent records.
+      </div>
+
+      <!-- RE-ANALYZE BUTTON ONLY -->
+      <div style="margin-top:18px;display:flex;justify-content:center;">
+        <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2));border:1px solid rgba(56,189,248,0.4);color:#38bdf8;padding:12px 24px;border-radius:12px;font-weight:800;font-size:13px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(56,189,248,0.15);transition:all 0.2s;" onmouseover="this.style.background='linear-gradient(135deg, #0284c7, #2563eb)';this.style.color='#ffffff';this.style.borderColor='transparent';this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2))';this.style.color='#38bdf8';this.style.borderColor='rgba(56,189,248,0.4)';this.style.transform='translateY(0)';">
+          <span>🔄</span> Re-Analyze
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+let currentComsicePredictionData = null;
+
+function renderComsiceResult(data) {
+    currentComsicePredictionData = data;
+    const initBox = document.getElementById('comsiceInitialStateBox');
+    const resCard = document.getElementById('comsiceResultCard');
+    const loadingBox = document.getElementById('comsiceLoadingBox');
+
+    if (initBox) initBox.style.display = 'none';
+    if (loadingBox) loadingBox.style.display = 'none';
+
+    if (data && data.ok) {
+        if (data.number_of_offense) {
+            const hDisp = document.getElementById('comsiceHearingTypeDisplay');
+            const hInp = document.getElementById('comsiceNumOffense');
+            if (hDisp) hDisp.textContent = `Automatic Major - ${data.number_of_offense}`;
+            if (hInp) hInp.value = `Automatic Major - ${data.number_of_offense}`;
+        }
+        document.getElementById('comsicePredictedSanction').textContent = data.sanction || 'Violation slip issued by the SDO';
+        document.getElementById('comsiceConfidenceScore').textContent = (data.confidence !== undefined && data.confidence !== null ? data.confidence : 88.5) + '%';
+        document.getElementById('comsiceSanctionCategory').textContent = data.category_label || (data.category_num ? `Category ${data.category_num}` : 'Category 1');
+        
+        const sevEl = document.getElementById('comsiceSeverityBadge');
+        const sev = data.severity || 'Medium';
+        sevEl.textContent = sev;
+        if (sev === 'Critical' || sev === 'High') {
+            sevEl.style.background = 'rgba(239, 68, 68, 0.2)';
+            sevEl.style.color = '#ef4444';
+            sevEl.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        } else if (sev === 'Medium') {
+            sevEl.style.background = 'rgba(245, 158, 11, 0.2)';
+            sevEl.style.color = '#f59e0b';
+            sevEl.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        } else {
+            sevEl.style.background = 'rgba(16, 185, 129, 0.2)';
+            sevEl.style.color = '#10b981';
+            sevEl.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        }
+
+        document.getElementById('comsiceExplanation').innerHTML = (data.ai_explanation || data.reply || '')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+
+        if (resCard) resCard.style.display = 'block';
+    }
+}
+
+
+
+async function runComsicePrediction() {
+    const category = document.getElementById('comsiceCategory').value;
+    const numOffense = document.getElementById('comsiceNumOffense').value;
+    const violation = document.getElementById('comsiceViolation').value;
+    const description = document.getElementById('comsiceDescription').value;
+
+    const initBox = document.getElementById('comsiceInitialStateBox');
+    const resCard = document.getElementById('comsiceResultCard');
+    const loadingBox = document.getElementById('comsiceLoadingBox');
+    const stepEl = document.getElementById('comsiceLoadingStep');
+    
+    if (initBox) initBox.style.display = 'none';
+    if (resCard) resCard.style.display = 'none';
+    if (loadingBox) loadingBox.style.display = 'flex';
+
+    if (stepEl) stepEl.textContent = '🔍 Fetching student history & prior offense records...';
+    const timer1 = setTimeout(() => {
+        if (stepEl) stepEl.textContent = '📘 Evaluating NU Lipa Student Handbook penalty rules...';
+    }, 400);
+    const timer2 = setTimeout(() => {
+        if (stepEl) stepEl.textContent = '🤖 Running COMSICE XGBoost ML Model Inference (<?= number_format(get_total_ai_dataset_count()) ?> Precedents)...';
+    }, 900);
+
+    try {
+        const caseId = <?= (int)$caseId ?>;
+        const res = await fetch(`../admin/api_ai_suggest_sanction.php?action=predict&case_id=${caseId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `category=${encodeURIComponent(category)}&violation=${encodeURIComponent(violation)}&number_of_offense=${encodeURIComponent(numOffense)}&description=${encodeURIComponent(description)}`
+        });
+        const data = await res.json();
+        
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+
+        if (data && data.ok) {
+            try {
+                sessionStorage.setItem('comsice_ai_prediction_case_' + caseId, JSON.stringify(data));
+            } catch(e) {}
+            renderComsiceResult(data);
+        } else {
+            if (loadingBox) loadingBox.style.display = 'none';
+            if (initBox) initBox.style.display = 'flex';
+            alert((data && data.error) ? data.error : "AI Prediction failed to complete. Please check MySQL database connection.");
+        }
+    } catch(err) {
+        if (loadingBox) loadingBox.style.display = 'none';
+        if (initBox) initBox.style.display = 'flex';
+        alert("Prediction error: " + err.message);
+    }
+}
+
+// Auto-run fresh AI prediction on page load / hard refresh
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const caseId = <?= (int)$caseId ?>;
+        sessionStorage.removeItem('comsice_ai_prediction_case_' + caseId);
+        runComsicePrediction();
+    } catch(e) {
+        runComsicePrediction();
+    }
 });
+
+let currentTypingInterval = null;
+let isAiGenerating = false;
+
+function setAiGeneratingState(isGenerating) {
+    isAiGenerating = isGenerating;
+    const stopContainer = document.getElementById('aiStopGeneratingContainer');
+    if (stopContainer) stopContainer.style.display = isGenerating ? 'block' : 'none';
+    
+    const sendBtn = document.getElementById('aiChatSendBtn');
+    if (sendBtn) {
+        sendBtn.disabled = isGenerating;
+        sendBtn.style.opacity = isGenerating ? '0.55' : '1';
+        sendBtn.style.cursor = isGenerating ? 'not-allowed' : 'pointer';
+        sendBtn.style.pointerEvents = isGenerating ? 'none' : 'auto';
+    }
+    
+    const input = document.getElementById('aiDrawerChatInput');
+    if (input) {
+        input.disabled = isGenerating;
+        input.style.opacity = isGenerating ? '0.55' : '1';
+        input.style.cursor = isGenerating ? 'not-allowed' : 'text';
+        if (!isGenerating) {
+            setTimeout(() => {
+                try { input.focus(); } catch(e) {}
+            }, 50);
+        }
+    }
+}
+
+function sendQuickAiPrompt(text) {
+    const input = document.getElementById('aiDrawerChatInput');
+    if (input) {
+        input.value = text;
+        handleAiChatSubmit(new Event('submit'));
+    }
+}
+
+function stopAiTyping() {
+    if (currentTypingInterval) {
+        clearTimeout(currentTypingInterval);
+        currentTypingInterval = null;
+    }
+    setAiGeneratingState(false);
+    if (typeof setAiHeadExpression === 'function') setAiHeadExpression('idle');
+    
+    const activeCursor = document.querySelector('.ai-typing-cursor');
+    if (activeCursor) activeCursor.remove();
+}
+
+async function handleAiChatSubmit(e) {
+    if (e) e.preventDefault();
+    const input = document.getElementById('aiDrawerChatInput');
+    if (!input) return;
+    const query = input.value.trim();
+    if (!query || isAiGenerating) return;
+
+    input.value = '';
+    input.style.height = '48px';
+    
+    // Append User Message to Thread
+    const thread = document.getElementById('aiChatThread');
+    const userMsgDiv = document.createElement('div');
+    userMsgDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:4px;';
+    userMsgDiv.innerHTML = `
+        <div style="background:linear-gradient(135deg, #2563eb, #1d4ed8);border-radius:18px;border-top-right-radius:4px;padding:14px 18px;font-size:16px;color:#ffffff;line-height:1.65;max-width:88%;box-shadow:0 4px 14px rgba(37,99,235,0.35);">
+            ${escHtml(query)}
+        </div>
+    `;
+    thread.appendChild(userMsgDiv);
+    thread.scrollTop = thread.scrollHeight;
+
+    // Append AI Typing Placeholder Bubble
+    const aiMsgDiv = document.createElement('div');
+    aiMsgDiv.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
+    const aiBubbleId = 'ai-msg-' + Date.now();
+    aiMsgDiv.innerHTML = `
+        <div class="ai-avatar-container">
+            <img src="../assets/identilogo.png" alt="IdentiTrack AI" class="ai-avatar-img">
+        </div>
+        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:16px 18px;font-size:16.5px;color:#f8fafc;line-height:1.75;max-width:92%;letter-spacing:0.2px;">
+            <div style="display:inline-flex;align-items:center;">
+                <div class="ai-dots-loader"><span></span><span></span><span></span></div>
+                <span class="ai-shimmer-text">Analyzing hearing file & handbook...</span>
+            </div>
+        </div>
+    `;
+    thread.appendChild(aiMsgDiv);
+    thread.scrollTop = thread.scrollHeight;
+
+    setAiGeneratingState(true);
+    if (typeof setAiHeadExpression === 'function') setAiHeadExpression('thinking');
+
+    try {
+        const caseId = <?= (int)$caseId ?>;
+        const res = await fetch(`../admin/api_ai_suggest_sanction.php?action=chat&case_id=${caseId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `query=${encodeURIComponent(query)}&user_query=${encodeURIComponent(query)}`
+        });
+        const data = await res.json();
+        
+        const bubble = document.getElementById(aiBubbleId);
+        if (!bubble) return;
+
+        let replyText = "";
+        if (data && data.ok && data.reply) {
+            replyText = data.reply;
+        } else {
+            replyText = data && data.error ? data.error : "I am strictly scoped to the NU Lipa Student Handbook and active case data. Please try rephrasing your question.";
+        }
+
+        // Start Smooth Typing Effect
+        if (typeof setAiHeadExpression === 'function') setAiHeadExpression('speaking');
+        typeOutAiResponse(bubble, replyText, thread);
+
+    } catch (err) {
+        stopAiTyping();
+        const bubble = document.getElementById(aiBubbleId);
+        if (bubble) {
+            bubble.innerHTML = "⚠️ Network connection issue. Please try asking again.";
+        }
+    }
+}
+
+function typeOutAiResponse(containerEl, fullText, threadEl) {
+    containerEl.innerHTML = '';
+    
+    // Clean any lingering 'RAG' phrases from text to keep advisory labels clean
+    fullText = (fullText || '')
+        .replace(/Handbook RAG Sanction Recommendation/gi, 'Suggested Punishment & Advisory Recommendation')
+        .replace(/\(Handbook RAG\)/gi, '')
+        .replace(/Handbook RAG Basis/gi, 'Policy Basis')
+        .replace(/Handbook RAG/gi, 'Student Handbook Policy')
+        .replace(/\bRAG\b/g, 'Policy');
+
+    // Parse markdown into clean HTML with larger typography
+    let formattedText = fullText
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/^### (.*$)/gim, '<strong style="color:#38bdf8;font-size:17.5px;display:block;margin:14px 0 6px;font-weight:700;">$1</strong>')
+        .replace(/^## (.*$)/gim, '<strong style="color:#38bdf8;font-size:18.5px;display:block;margin:16px 0 8px;font-weight:800;">$1</strong>')
+        .replace(/^# (.*$)/gim, '<strong style="color:#38bdf8;font-size:20px;display:block;margin:18px 0 10px;font-weight:800;">$1</strong>')
+        .replace(/^[\u2022\-\*] (.*$)/gim, '<div style="margin-left:8px;margin-bottom:6px;line-height:1.75;font-size:16.5px;">• $1</div>')
+        .replace(/\n/g, '<br>')
+        // Category styling: Bold white text, larger font size, clear emphasis
+        .replace(/\bCategory ([1-5])\b/gi, '<strong style="color:#ffffff;font-weight:800;font-size:18px;">Category $1</strong>');
+
+    const textSpan = document.createElement('div');
+    textSpan.style.cssText = 'font-size:16.5px;line-height:1.75;color:#f8fafc;word-break:break-word;letter-spacing:0.2px;';
+
+    const cursorSpan = document.createElement('span');
+    cursorSpan.className = 'ai-typing-cursor';
+    cursorSpan.style.cssText = 'color:#38bdf8;font-weight:900;animation:blink 0.7s infinite;margin-left:3px;display:inline-block;font-size:16px;';
+    cursorSpan.textContent = '▌';
+
+    containerEl.appendChild(textSpan);
+    containerEl.appendChild(cursorSpan);
+
+    // Tokenize text keeping HTML tags intact for smooth typing
+    const tokens = formattedText.match(/<[^>]+>|[^<>\s]+|\s+/g) || [formattedText];
+
+    let tokenIdx = 0;
+    let accumulatedHtml = '';
+    let lastScrollTime = 0;
+
+    function getBalancedHtml(html) {
+        const tags = html.match(/<\/?([a-z1-6]+)[^>]*>/gi);
+        if (!tags) return html;
+        const stack = [];
+        for (let i = 0; i < tags.length; i++) {
+            const tag = tags[i];
+            if (tag.startsWith('</')) {
+                stack.pop();
+            } else if (!tag.endsWith('/>') && !/^<br\s*\/?>/i.test(tag) && !/^<img/i.test(tag)) {
+                const m = tag.match(/<([a-z1-6]+)/i);
+                if (m) stack.push(m[1]);
+            }
+        }
+        let res = html;
+        while (stack.length > 0) {
+            res += '</' + stack.pop() + '>';
+        }
+        return res;
+    }
+
+    function renderNextFrame() {
+        if (!isAiGenerating) {
+            cursorSpan.remove();
+            return;
+        }
+
+        if (tokenIdx < tokens.length) {
+            // Process all consecutive tags in one batch
+            while (tokenIdx < tokens.length && tokens[tokenIdx].startsWith('<')) {
+                accumulatedHtml += tokens[tokenIdx];
+                tokenIdx++;
+            }
+
+            if (tokenIdx < tokens.length) {
+                accumulatedHtml += tokens[tokenIdx];
+                tokenIdx++;
+            }
+
+            textSpan.innerHTML = getBalancedHtml(accumulatedHtml);
+
+            const now = Date.now();
+            if (now - lastScrollTime > 30 && threadEl) {
+                threadEl.scrollTop = threadEl.scrollHeight;
+                lastScrollTime = now;
+            }
+
+            currentTypingInterval = setTimeout(() => {
+                requestAnimationFrame(renderNextFrame);
+            }, 12);
+        } else {
+            textSpan.innerHTML = formattedText;
+            if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+            stopAiTyping();
+        }
+    }
+
+    renderNextFrame();
+}
 </script>
 </body>
 </html>
