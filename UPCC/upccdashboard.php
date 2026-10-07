@@ -243,7 +243,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
                   <?php if ($myPresenceStatus === 'WAITING'): ?>
                     <span class="badge badge-warning" style="font-size:10px; padding:5px 12px;">Awaiting Admin Admission</span>
                   <?php else: ?>
-                    <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 12px;">Request Rejoin</button>
+                    <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="action-btn btn-rejoin" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 12px;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 2px rgba(255,255,255,0.4));"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Request Rejoin
+                    </button>
                   <?php endif; ?>
                 </div>
               <?php else: ?>
@@ -857,6 +859,42 @@ body{
 .btn-join{background:linear-gradient(180deg,#5c8a6c,#4c7760);color:#fff;border-color:#4c7760}
 .btn-join:hover{background:linear-gradient(180deg,#6ba075,#5c8a6c)}
 
+.btn-rejoin{
+    background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    color:#ffffff !important;
+    border:1px solid #fcd34d !important;
+    border-radius:4px;
+    font-weight:800 !important;
+    letter-spacing:0.8px;
+    text-transform:uppercase;
+    cursor:pointer;
+    box-shadow:0 0 14px rgba(245, 158, 11, 0.55), 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.4) !important;
+    text-shadow:0 1px 2px rgba(0,0,0,0.5);
+    animation:rejoin-glow-pulse 2s infinite ease-in-out;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    transition:all .2s ease;
+}
+.btn-rejoin:hover{
+    background:linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+    border-color:#fef08a !important;
+    box-shadow:0 0 22px rgba(251, 191, 36, 0.85), 0 0 8px rgba(245, 158, 11, 0.7), inset 0 1px 2px rgba(255,255,255,0.6) !important;
+    transform:translateY(-1px) scale(1.02);
+    color:#ffffff !important;
+}
+.btn-rejoin:active{
+    transform:translateY(0) scale(0.99);
+}
+@keyframes rejoin-glow-pulse{
+    0%, 100%{
+        box-shadow:0 0 12px rgba(245, 158, 11, 0.45), 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.35);
+    }
+    50%{
+        box-shadow:0 0 22px rgba(245, 158, 11, 0.8), 0 0 8px rgba(251, 191, 36, 0.65), 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.45);
+    }
+}
+
 .btn-ack-yes{
     background:var(--sage-soft);color:#9dc5a8;
     border:1px solid rgba(110,158,126,.4);
@@ -1384,7 +1422,9 @@ body{
                               <?php if ($myPresenceStatus === 'WAITING'): ?>
                                 <span class="badge badge-warning" style="padding:6px 12px;">Awaiting Admission</span>
                               <?php else: ?>
-                                <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="action-btn badge-warning" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 12px;">Request Rejoin</button>
+                                <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="action-btn btn-rejoin" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 12px;">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 2px rgba(255,255,255,0.4));"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Request Rejoin
+                                </button>
                               <?php endif; ?>
                             </div>
                           <?php else: ?>
@@ -1519,7 +1559,7 @@ body{
       </div>
       <div id="rejoinRetryArea" style="display:none;">
         <p style="color:#dfb87c; font-size:12.5px; font-weight:600; margin-bottom:12px;">Admin response pending. You may resend the request.</p>
-        <button type="button" class="action-btn" style="background:linear-gradient(180deg,var(--gold),var(--gold-soft));color:#0a1220;" onclick="resendRejoinRequest()">Resend Request</button>
+        <button type="button" class="action-btn btn-rejoin" onclick="resendRejoinRequest()">Resend Request</button>
       </div>
       <button type="button" class="action-btn" style="background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--text); margin-top:12px;" onclick="closeRejoinModal()">Cancel</button>
     </div>
