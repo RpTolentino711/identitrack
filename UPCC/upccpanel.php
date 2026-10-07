@@ -1360,46 +1360,6 @@ function startLockoutCountdown(seconds) {
     lockoutTimer = setInterval(updateMsg, 1000);
 }
 
-<?php if ($isLocked && $secondsLeft > 0): ?>
-startLockoutCountdown(<?= $secondsLeft ?>);
-<?php endif; ?>
-
-document.getElementById('loginForm').addEventListener('submit', function(e) {
-    if (step === 1) {
-        e.preventDefault();
-        const usernameInput = document.getElementById('username');
-        const username = usernameInput.value.trim();
-        const alertBox = document.getElementById('alertBox');
-        const alertText = document.getElementById('alertText');
-        const btnSubmit = document.getElementById('btnSubmit');
-        const recoveryBox = document.getElementById('recoveryLinkBox');
-
-        if (!username) {
-            alertText.textContent = 'Please enter your username.';
-            alertBox.style.display = 'flex';
-            return;
-        }
-
-        btnSubmit.disabled = true;
-        btnSubmit.innerHTML = '<span class="spinner"></span>Checking...';
-        alertBox.style.display = 'none';
-
-        const params = new URLSearchParams();
-        params.append('action', 'check_username');
-        params.append('username', username);
-
-        fetch('upccpanel.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: params.toString()
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.locked) {
-                startLockoutCountdown(data.seconds_left);
-                return;
-            }
-
 function checkFtPwStrength() {
     const pw = document.getElementById('ftNewPassword').value;
     const confirmPw = document.getElementById('ftConfirmPassword').value;
@@ -1550,6 +1510,46 @@ function verifyFirstTimeOtp() {
         alertBox.style.display = 'flex';
     });
 }
+
+<?php if ($isLocked && $secondsLeft > 0): ?>
+startLockoutCountdown(<?= $secondsLeft ?>);
+<?php endif; ?>
+
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    if (step === 1) {
+        e.preventDefault();
+        const usernameInput = document.getElementById('username');
+        const username = usernameInput.value.trim();
+        const alertBox = document.getElementById('alertBox');
+        const alertText = document.getElementById('alertText');
+        const btnSubmit = document.getElementById('btnSubmit');
+        const recoveryBox = document.getElementById('recoveryLinkBox');
+
+        if (!username) {
+            alertText.textContent = 'Please enter your username.';
+            alertBox.style.display = 'flex';
+            return;
+        }
+
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<span class="spinner"></span>Checking...';
+        alertBox.style.display = 'none';
+
+        const params = new URLSearchParams();
+        params.append('action', 'check_username');
+        params.append('username', username);
+
+        fetch('upccpanel.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString()
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.locked) {
+                startLockoutCountdown(data.seconds_left);
+                return;
+            }
 
             btnSubmit.disabled = false;
             if (data.ok) {
