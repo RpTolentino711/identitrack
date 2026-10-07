@@ -743,6 +743,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     if ($form['student_fn'] === '')                                           $errors[] = 'First name is required.';
     if ($form['student_ln'] === '')                                           $errors[] = 'Last name is required.';
     if ($form['year_level'] === '' || !ctype_digit($form['year_level']))      $errors[] = 'Year level is required.';
+    if ($form['department'] === '')                                           $errors[] = 'Department is required.';
     if ($form['section'] === '')                                              $errors[] = 'Section is required.';
     if ($form['student_email'] === '')                                        $errors[] = 'Student email is required.';
     if ($form['guardian_email'] === '')                                       $errors[] = 'Guardian email is required.';
@@ -818,6 +819,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     if ($form['student_fn'] === '')                                           $errors[] = 'First name is required.';
     if ($form['student_ln'] === '')                                           $errors[] = 'Last name is required.';
     if ($form['year_level'] === '' || !ctype_digit($form['year_level']))      $errors[] = 'Year level is required.';
+    if ($form['department'] === '')                                           $errors[] = 'Department is required.';
     if ($form['section'] === '')                                              $errors[] = 'Section is required.';
     if ($form['student_email'] === '')                                        $errors[] = 'Student email is required.';
     if ($form['guardian_email'] === '')                                       $errors[] = 'Guardian email is required.';
@@ -1065,6 +1067,12 @@ $nfcMappings = db_all(
       text-transform: uppercase;
       letter-spacing: .6px;
       color: var(--slate-600);
+    }
+
+    .req-star {
+      color: #dc2626;
+      font-weight: 700;
+      margin-left: 2px;
     }
 
     input, select {
@@ -1697,7 +1705,7 @@ $nfcMappings = db_all(
               <?php endif; ?>
 
               <!-- Student Form ─────────────────────────────────────────── -->
-              <form method="post">
+              <form id="studentRegistrationForm" method="post">
                 <input type="hidden" name="action" value="<?php echo $editMode ? 'update_student' : 'register_student'; ?>"/>
                 <?php if ($editMode): ?>
                   <input type="hidden" name="original_student_id" value="<?php echo htmlspecialchars($form['student_id']); ?>"/>
@@ -1706,14 +1714,14 @@ $nfcMappings = db_all(
                 <div class="form-grid">
 
                   <div class="field-group">
-                    <label for="student_id">Student ID</label>
+                    <label for="student_id">Student ID <span class="req-star">*</span></label>
                     <input id="student_id" name="student_id" value="<?php echo htmlspecialchars($form['student_id']); ?>" required inputmode="numeric" pattern="[0-9\-]+" <?php echo $editMode ? 'readonly' : ''; ?>/>
                     <div class="field-hint">Numbers and hyphen only.</div>
                     <div id="student_id_status" class="field-status"></div>
                   </div>
 
                   <div class="field-group">
-                    <label for="academic_group">School Group</label>
+                    <label for="academic_group">School Group <span class="req-star">*</span></label>
                     <select id="academic_group" name="academic_group" required>
                       <option value="COLLEGE" <?php echo $form['academic_group'] === 'COLLEGE' ? 'selected' : ''; ?>>College</option>
                       <option value="SHS"     <?php echo $form['academic_group'] === 'SHS'     ? 'selected' : ''; ?>>Senior High School (SHS)</option>
@@ -1721,17 +1729,17 @@ $nfcMappings = db_all(
                   </div>
 
                   <div class="field-group">
-                    <label for="student_fn">First Name</label>
+                    <label for="student_fn">First Name <span class="req-star">*</span></label>
                     <input id="student_fn" name="student_fn" value="<?php echo htmlspecialchars($form['student_fn']); ?>" required/>
                   </div>
 
                   <div class="field-group">
-                    <label for="student_ln">Last Name</label>
+                    <label for="student_ln">Last Name <span class="req-star">*</span></label>
                     <input id="student_ln" name="student_ln" value="<?php echo htmlspecialchars($form['student_ln']); ?>" required/>
                   </div>
 
                   <div class="field-group">
-                    <label for="year_level">Year Level</label>
+                    <label for="year_level">Year Level <span class="req-star">*</span></label>
                     <select id="year_level" name="year_level" required>
                       <option value="">Select year level</option>
                       <?php $yearLimit = $form['academic_group'] === 'SHS' ? 2 : 11; ?>
@@ -1746,7 +1754,7 @@ $nfcMappings = db_all(
                   <div id="deptWrap" class="field-group">
                     <div style="display: flex; gap: 8px; align-items: flex-end;">
                       <div style="flex: 1;">
-                        <label for="department">Department</label>
+                        <label for="department">Department <span class="req-star">*</span></label>
                         <select id="department" name="department" required>
                           <option value="">Select department</option>
                         </select>
@@ -1758,8 +1766,8 @@ $nfcMappings = db_all(
                   <div id="collegeWrap" class="field-group">
                     <div style="display: flex; gap: 8px; align-items: flex-end;">
                       <div style="flex: 1;">
-                        <label for="college_department">Course</label>
-                        <select id="college_department" name="college_department">
+                        <label for="college_department">Course <span class="req-star">*</span></label>
+                        <select id="college_department" name="college_department" required>
                           <option value="">Select course</option>
                         </select>
                       </div>
@@ -1770,7 +1778,7 @@ $nfcMappings = db_all(
                   <div class="field-group">
                     <div style="display: flex; gap: 8px; align-items: flex-end;">
                       <div style="flex: 1;">
-                        <label for="section">Section</label>
+                        <label for="section">Section <span class="req-star">*</span></label>
                         <select id="section" name="section" required>
                           <option value="">Select section</option>
                         </select>
@@ -1780,7 +1788,7 @@ $nfcMappings = db_all(
                   </div>
 
                   <div id="shsWrap" class="field-group hidden">
-                    <label for="shs_track">Track / Strand (SHS)</label>
+                    <label for="shs_track">Track / Strand (SHS) <span class="req-star">*</span></label>
                     <select id="shs_track" name="shs_track">
                       <option value="">Select SHS track</option>
                       <?php foreach (['STEM', 'ABM', 'HUMSS', 'GAS', 'TVL'] as $track): ?>
@@ -1790,19 +1798,19 @@ $nfcMappings = db_all(
                   </div>
 
                   <div class="field-group">
-                    <label for="student_email">Student Email</label>
+                    <label for="student_email">Student Email <span class="req-star">*</span></label>
                     <input id="student_email" name="student_email" type="email" value="<?php echo htmlspecialchars($form['student_email']); ?>" required/>
                     <div id="student_email_status" class="field-status"></div>
                   </div>
 
                   <div class="field-group">
-                    <label for="guardian_email">Guardian Email</label>
+                    <label for="guardian_email">Guardian Email <span class="req-star">*</span></label>
                     <input id="guardian_email" name="guardian_email" type="email" value="<?php echo htmlspecialchars($form['guardian_email']); ?>" required/>
                     <div id="guardian_email_status" class="field-status"></div>
                   </div>
 
                   <div class="field-group full">
-                    <label for="phone_number">Phone Number</label>
+                    <label for="phone_number">Phone Number <span class="req-star">*</span></label>
                     <input id="phone_number" name="phone_number" value="<?php echo htmlspecialchars($form['phone_number']); ?>" required inputmode="numeric" autocomplete="off" maxlength="16" placeholder="09XXXXXXXXX"/>
                     <div id="phone_number_status" class="field-status"></div>
                   </div>
@@ -1810,7 +1818,7 @@ $nfcMappings = db_all(
                 </div><!-- .form-grid -->
 
                 <div class="btn-row">
-                  <button id="studentSaveBtn" class="btn btn-primary" type="submit">
+                  <button id="studentSaveBtn" class="btn btn-primary" type="submit" <?php echo $editMode ? '' : 'disabled'; ?> title="<?php echo $editMode ? '' : 'Please fill in all required fields to proceed'; ?>">
                     <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                     <?php echo $editMode ? 'Update Student Info' : 'Save & Continue to NFC'; ?>
                   </button>
@@ -2159,6 +2167,7 @@ $nfcMappings = db_all(
           if (s === cur) opt.selected = true;
           sectionSel.appendChild(opt);
         });
+        if (window.updateSaveAvailability) window.updateSaveAvailability();
       });
     }
 
@@ -2484,19 +2493,28 @@ $nfcMappings = db_all(
     });
   })();
 
-  // ── Live field availability checks ────────────────────────────────────
+  // ── Live field availability & form completion checks ─────────────────
   (function () {
     'use strict';
 
-    var studentIdInput   = document.getElementById('student_id');
-    var studentEmailInput = document.getElementById('student_email');
+    var studentIdInput     = document.getElementById('student_id');
+    var academicGroupInput = document.getElementById('academic_group');
+    var studentFnInput     = document.getElementById('student_fn');
+    var studentLnInput     = document.getElementById('student_ln');
+    var yearLevelInput     = document.getElementById('year_level');
+    var deptInput          = document.getElementById('department');
+    var collegeDepInput    = document.getElementById('college_department');
+    var shsTrackInput      = document.getElementById('shs_track');
+    var sectionInput       = document.getElementById('section');
+    var studentEmailInput  = document.getElementById('student_email');
     var guardianEmailInput = document.getElementById('guardian_email');
-    var phoneInput       = document.getElementById('phone_number');
-    var phoneStatus      = document.getElementById('phone_number_status');
-    var saveBtn          = document.getElementById('studentSaveBtn');
-    var studentIdStatus  = document.getElementById('student_id_status');
+    var phoneInput         = document.getElementById('phone_number');
+    var phoneStatus        = document.getElementById('phone_number_status');
+    var saveBtn            = document.getElementById('studentSaveBtn');
+    var studentIdStatus    = document.getElementById('student_id_status');
     var studentEmailStatus = document.getElementById('student_email_status');
     var guardianEmailStatus = document.getElementById('guardian_email_status');
+    var studentForm        = document.getElementById('studentRegistrationForm') || (saveBtn ? saveBtn.closest('form') : null);
 
     var excludeStudentId = <?php echo json_encode($editMode ? (string) $form['student_id'] : ''); ?>;
 
@@ -2514,20 +2532,82 @@ $nfcMappings = db_all(
       el.dataset.state = '';
     }
 
-    function updateSaveAvailability() {
-      if (!saveBtn) return;
-      var blocked = (studentIdStatus   && studentIdStatus.dataset.state   === 'used') ||
-                    (studentEmailStatus && studentEmailStatus.dataset.state === 'used') ||
-                    (phoneStatus       && phoneStatus.dataset.state        === 'used');
-      saveBtn.disabled = !!blocked;
-    }
-
     function sanitizePhone(v) {
       var c = String(v || '').replace(/[^0-9+]/g, '');
       if ((c.match(/\+/g) || []).length > 1) c = c.replace(/\+/g, '');
       if (c.indexOf('+') > 0)                c = c.replace(/\+/g, '');
       return c.slice(0, 16);
     }
+
+    function isFieldFilledAndValid() {
+      // 1. Student ID
+      var sid = studentIdInput ? String(studentIdInput.value || '').trim() : '';
+      if (!sid || !/^[0-9\-]+$/.test(sid)) return false;
+      if (studentIdStatus && (studentIdStatus.dataset.state === 'used' || studentIdStatus.dataset.state === 'loading')) return false;
+
+      // 2. School Group
+      var group = academicGroupInput ? String(academicGroupInput.value || '').trim() : '';
+      if (!group) return false;
+
+      // 3. First Name
+      var fn = studentFnInput ? String(studentFnInput.value || '').trim() : '';
+      if (!fn) return false;
+
+      // 4. Last Name
+      var ln = studentLnInput ? String(studentLnInput.value || '').trim() : '';
+      if (!ln) return false;
+
+      // 5. Year Level
+      var yl = yearLevelInput ? String(yearLevelInput.value || '').trim() : '';
+      if (!yl) return false;
+
+      // 6. Department
+      var dept = deptInput ? String(deptInput.value || '').trim() : '';
+      if (!dept) return false;
+
+      // 7. Course / Strand
+      if (group === 'SHS') {
+        var track = shsTrackInput ? String(shsTrackInput.value || '').trim() : '';
+        if (!track) return false;
+      } else {
+        var course = collegeDepInput ? String(collegeDepInput.value || '').trim() : '';
+        if (!course) return false;
+      }
+
+      // 8. Section
+      var sec = sectionInput ? String(sectionInput.value || '').trim() : '';
+      if (!sec) return false;
+
+      // 9. Student Email
+      var semail = studentEmailInput ? String(studentEmailInput.value || '').trim() : '';
+      if (!semail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(semail)) return false;
+      if (studentEmailStatus && (studentEmailStatus.dataset.state === 'used' || studentEmailStatus.dataset.state === 'loading')) return false;
+
+      // 10. Guardian Email
+      var gemail = guardianEmailInput ? String(guardianEmailInput.value || '').trim() : '';
+      if (!gemail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(gemail)) return false;
+      if (guardianEmailStatus && (guardianEmailStatus.dataset.state === 'used' || guardianEmailStatus.dataset.state === 'loading')) return false;
+
+      // 11. Phone Number
+      var rawPhone = phoneInput ? String(phoneInput.value || '').trim() : '';
+      var cleanPhone = sanitizePhone(rawPhone);
+      if (!cleanPhone || !/^\+?[0-9]{7,15}$/.test(cleanPhone)) return false;
+      if (phoneStatus && (phoneStatus.dataset.state === 'used' || phoneStatus.dataset.state === 'loading')) return false;
+
+      return true;
+    }
+
+    function updateSaveAvailability() {
+      if (!saveBtn) return;
+      var ready = isFieldFilledAndValid();
+      saveBtn.disabled = !ready;
+      if (!ready) {
+        saveBtn.setAttribute('title', 'Please fill in all required fields to proceed');
+      } else {
+        saveBtn.removeAttribute('title');
+      }
+    }
+    window.updateSaveAvailability = updateSaveAvailability;
 
     function validatePhone() {
       if (!phoneInput || !phoneStatus) return;
@@ -2549,6 +2629,7 @@ $nfcMappings = db_all(
       if (!cleaned) { clearFieldStatus(statusEl); updateSaveAvailability(); return; }
 
       setFieldStatus(statusEl, 'loading', 'Checking…');
+      updateSaveAvailability();
 
       var fd = new FormData();
       fd.append('action', 'check_field_availability');
@@ -2585,6 +2666,7 @@ $nfcMappings = db_all(
           var cleanedId = String(inputEl.value || '').replace(/[^0-9-]/g, '');
           if (cleanedId !== inputEl.value) inputEl.value = cleanedId;
         }
+        updateSaveAvailability();
         clearTimeout(timer);
         timer = setTimeout(function() { checkAvailability(fieldName, inputEl.value, statusEl); }, 450);
       });
@@ -2601,6 +2683,37 @@ $nfcMappings = db_all(
       phoneInput.addEventListener('input', validatePhone);
       phoneInput.addEventListener('blur',  validatePhone);
       validatePhone();
+    }
+
+    var allInputs = [
+      studentIdInput,
+      academicGroupInput,
+      studentFnInput,
+      studentLnInput,
+      yearLevelInput,
+      deptInput,
+      collegeDepInput,
+      shsTrackInput,
+      sectionInput,
+      studentEmailInput,
+      guardianEmailInput,
+      phoneInput
+    ];
+    allInputs.forEach(function (el) {
+      if (!el) return;
+      el.addEventListener('input', updateSaveAvailability);
+      el.addEventListener('change', updateSaveAvailability);
+      el.addEventListener('keyup', updateSaveAvailability);
+    });
+
+    if (studentForm) {
+      studentForm.addEventListener('submit', function (e) {
+        if (!isFieldFilledAndValid()) {
+          e.preventDefault();
+          updateSaveAvailability();
+          return false;
+        }
+      });
     }
 
     updateSaveAvailability();
@@ -2711,6 +2824,7 @@ $nfcMappings = db_all(
             collegeDep.appendChild(opt);
           });
           if (wanted) collegeDep.value = wanted;
+          if (window.updateSaveAvailability) window.updateSaveAvailability();
         });
     }
 
@@ -2730,6 +2844,7 @@ $nfcMappings = db_all(
             sectionSel.appendChild(opt);
           });
           if (wanted) sectionSel.value = wanted;
+          if (window.updateSaveAvailability) window.updateSaveAvailability();
         });
     }
 
@@ -2967,6 +3082,7 @@ $nfcMappings = db_all(
             deptSel.appendChild(opt);
           });
           if (wanted) deptSel.value = wanted;
+          if (window.updateSaveAvailability) window.updateSaveAvailability();
         });
     }
 
