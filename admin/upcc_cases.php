@@ -1852,6 +1852,7 @@ function fmt_case_id(int $id, string $created): string {
                                 data-caseid="<?= e($caseLabel) ?>"
                                 data-student="<?= e(trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? '')) ?: $c['student_id']) ?>"
                                 data-sid="<?= e($c['student_id']) ?>"
+                                data-student-dept="<?= e($c['student_department'] ?? '') ?>"
                                 data-offense="<?= e($offenseShort) ?>"
                                 data-category="<?= e(strip_tags($categoryHtml)) ?>"
                                 data-date="<?= e($dateLabel) ?>"
