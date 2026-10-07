@@ -433,15 +433,21 @@ function ensure_student_department_schema(): void
       db_exec("ALTER TABLE `student` ADD COLUMN `department` VARCHAR(150) DEFAULT NULL AFTER `year_level`");
     }
 
-    $hasCourseCol = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'student' AND COLUMN_NAME = 'course'");
-    if (!$hasCourseCol) {
-      db_exec("ALTER TABLE `student` ADD COLUMN `course` VARCHAR(100) DEFAULT NULL AFTER `department`");
+    $hasProgramCol = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'student' AND COLUMN_NAME = 'program'");
+    if (!$hasProgramCol) {
+      db_exec("ALTER TABLE `student` ADD COLUMN `program` VARCHAR(100) DEFAULT NULL AFTER `department`");
     }
 
     $hasSectionCol = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'student' AND COLUMN_NAME = 'section'");
     if (!$hasSectionCol) {
-      db_exec("ALTER TABLE `student` ADD COLUMN `section` VARCHAR(50) DEFAULT NULL AFTER `course`");
+      db_exec("ALTER TABLE `student` ADD COLUMN `section` VARCHAR(50) DEFAULT NULL AFTER `program`");
     }
+
+    try {
+        db_exec("UPDATE student SET department = 'SACE' WHERE (department IS NULL OR department = '') AND (program LIKE '%IT%' OR program LIKE '%CS%' OR program LIKE '%CpE%' OR program LIKE '%Eng%' OR program LIKE '%Arch%' OR program LIKE '%Tech%')");
+        db_exec("UPDATE student SET department = 'SABM' WHERE (department IS NULL OR department = '') AND (program LIKE '%BA%' OR program LIKE '%Account%' OR program LIKE '%Bus%' OR program LIKE '%Manag%')");
+        db_exec("UPDATE student SET department = 'SACE' WHERE (department IS NULL OR department = '')");
+    } catch (\Throwable $e) {}
 
     $deptCount = (int)(db_one("SELECT COUNT(*) AS c FROM departments")['c'] ?? 0);
     if ($deptCount === 0) {
@@ -2133,6 +2139,7 @@ ensure_notice_to_explain_table();
 ensure_hearing_photo_column();
 ensure_upcc_ai_schema();
 ensure_guard_report_evidence_column();
+ensure_student_department_schema();
 
 if (!function_exists('getOrdinal')) {
     function getOrdinal(int $n): string {
