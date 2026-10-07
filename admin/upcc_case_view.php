@@ -47,6 +47,8 @@ $priorResolvedCases = db_all(
 
 $departments = db_all("SELECT dept_id, dept_name FROM departments WHERE is_active = 1 ORDER BY dept_name ASC");
 $defaultDeptId = (int)($case['assigned_department_id'] ?? 0);
+// If the case already has an assigned department, keep it even when that department
+// currently has no active staff. Only pick a default department when none is assigned.
  $deptWithStaff = db_one(
     "SELECT d.dept_id
      FROM departments d
@@ -132,6 +134,7 @@ $assignedPanelIds = array_map(
 if (empty($assignedPanelIds) && !empty($case['assigned_panel_members'])) {
     try { $assignedPanelIds = json_decode($case['assigned_panel_members'], true) ?? []; } catch (Exception $e) {}
 }
+// Build display data for assigned panel members (preserve ordering)
 $assignedPanelNames = [];
 if (!empty($assignedPanelIds)) {
   $ids = array_map('intval', $assignedPanelIds);
@@ -158,7 +161,7 @@ if (!empty($assignedPanelIds)) {
     }
   }
 }
-// ── Fetch other cases for this student (Pending & Resolved) ───────────────
+// ── Fetch other cases for this student (Pending & Resolved) ────────────────────────
 $studentId = (string)($case['student_id'] ?? '');
 $otherStudentCases = [];
 $otherPendingCasesCount = 0;
@@ -255,6 +258,7 @@ $okMsg  = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
+    // ── Update hearing config ──────────────────────────────────────────────
     if ($_POST['action'] === 'update_hearing_config') {
         $dept_id     = (int)($_POST['assigned_department_id'] ?? 0);
         $panel       = isset($_POST['panel_members']) && is_array($_POST['panel_members']) ? $_POST['panel_members'] : [];
@@ -306,12 +310,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             upcc_log_case_activity($case_id, 'ADMIN', (int)$admin['admin_id'], 'HEARING_CONFIG_UPDATED',
           ['department_id' => $dept_id, 'panel_members' => $panelIds, 'hearing_date' => $hearingDate, 'hearing_time' => $hearingTime]);
             
+            // Notify panel members
             upcc_send_panel_assignment_email($case_id, $panelIds);
             
             header("Location: {$selfViewFile}?id={$case_id}&msg=config_updated"); exit;
         }
     }
 
+    // ── Start hearing ─────────────────────────────────────────────────────
     if ($_POST['action'] === 'start_hearing') {
         db_exec("UPDATE upcc_case SET hearing_is_open = 1, hearing_is_paused = 0,
                  hearing_opened_at = NOW(), hearing_opened_by_admin = :aid,
@@ -321,6 +327,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         header("Location: {$selfViewFile}?id={$case_id}&msg=hearing_started"); exit;
     }
 
+    // ── Close hearing ─────────────────────────────────────────────────────
     if ($_POST['action'] === 'close_hearing') {
         db_exec("UPDATE upcc_case SET hearing_is_open = 0, hearing_is_paused = 0, hearing_closed_at = NOW(), updated_at = NOW() WHERE case_id = :id",
             [':id' => $case_id]);
@@ -328,6 +335,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         header("Location: {$selfViewFile}?id={$case_id}&msg=hearing_closed"); exit;
     }
 
+    // ── Cancel consensus & restart voting ─────────────────────────────────
     if ($_POST['action'] === 'cancel_consensus') {
         db_exec("DELETE FROM upcc_case_vote_round WHERE case_id = :c", [':c' => $case_id]);
         db_exec("DELETE FROM upcc_case_vote WHERE case_id = :c", [':c' => $case_id]);
@@ -346,10 +354,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         header("Location: {$selfViewFile}?id={$case_id}&msg=consensus_cancelled"); exit;
     }
 
+    // ── Record final decision ─────────────────────────────────────────────
     if ($_POST['action'] === 'resolve_case') {
         $category     = (int)($_POST['decided_category'] ?? 0);
         $decision     = trim($_POST['final_decision']    ?? '');
         $forceResolve = isset($_POST['force_resolve']) && $_POST['force_resolve'] === '1';
+        // DEBUG LOG
         file_put_contents(__DIR__ . '/../debug_resolve.txt',
             date('Y-m-d H:i:s') . " | case_id=$case_id | cat=$category | force=" . ($forceResolve?'1':'0') .
             " | use_suggested=" . ($_POST['use_suggested'] ?? 'NOT_SET') .
@@ -378,7 +388,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 if ($useSuggested && $consensusCat > 0) {
                     $details = $sd;
-                    $details['description'] = $decision;
+                    $details['description'] = $decision; // keep the finalized description text
                     if ($category === 1 && !empty($details['probation_terms'])) {
                         $probationUntil = date('Y-m-d H:i:s', strtotime('+' . ((int)$details['probation_terms'] * 6) . ' months'));
                     }
@@ -407,7 +417,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         if (isset($_POST['cat2_evaluation']))   $details['interventions'][] = 'Evaluation';
 
                     } else {
+                        // Cat 3/4/5 — punishment details will trigger restrictions in student_account_mode
                         $details['freeze'] = true;
+                        // We no longer freeze immediately here so student can login to Accept or Appeal
                     }
                 }
 
@@ -421,6 +433,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     [':cat' => $category, ':dec' => $decision,
                      ':pu'  => $probationUntil, ':pd' => $jsonDetails, ':id' => $case_id]);
 
+                // Auto-record finalized case into AI Historical Dataset for future precedent learning
                 record_finalized_case_to_historical_dataset((int)$case_id);
 
                 $previousOngoingHours = null;
@@ -469,6 +482,7 @@ if (isset($_GET['msg'])) {
     $okMsg = $msgs[$_GET['msg']] ?? '';
 }
 
+// Refresh case after POST
 $case = db_one("SELECT uc.*, CONCAT(s.student_fn,' ',s.student_ln) AS student_name,
            s.student_fn, s.student_ln, s.year_level, s.section, s.program, s.school,
            s.student_email, s.phone_number, s.home_address,
@@ -478,6 +492,7 @@ $case = db_one("SELECT uc.*, CONCAT(s.student_fn,' ',s.student_ln) AS student_na
     LEFT JOIN departments d ON d.dept_id = uc.assigned_department_id
     WHERE uc.case_id = :id", [':id' => $case_id]);
 
+// ── Consensus / voting state ──────────────────────────────────────────────
 $consensusCategory     = (int)($case['hearing_vote_consensus_category'] ?? 0);
 $isAwaitingAdmin       = $consensusCategory > 0 && (string)($case['status'] ?? '') === 'AWAITING_ADMIN_FINALIZATION';
 $postedDecidedCategory = isset($_POST['decided_category']) ? (int)$_POST['decided_category'] : 0;
@@ -507,11 +522,13 @@ if (is_numeric($prefillCat2Hours) && (float)$prefillCat2Hours > 0) {
     $prefillM = (string)$m;
 }
 
+// ── Schema check ──────────────────────────────────────────────────────────
 $hasSuggestedByCol = db_one(
     "SELECT 1 FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'upcc_case_vote_round' AND COLUMN_NAME = 'suggested_by' LIMIT 1"
 ) !== null;
 
+// ── Voting rounds ─────────────────────────────────────────────────────────
 if ($hasSuggestedByCol) {
     $activeRound = db_one("SELECT r.*, COALESCE(r.suggested_by, uc.hearing_vote_suggester_id,
        (SELECT v.upcc_id FROM upcc_case_vote v
@@ -559,6 +576,7 @@ $roundVotes = $roundNo > 0
     : [];
 
 $totalPanelMembers = count($assignedPanelIds);
+// Voters = all assigned EXCEPT suggester
 $suggesterRow = $activeRound ?? $lastRound;
 $suggesterId  = (int)($suggesterRow['suggested_by'] ?? ($case['hearing_vote_suggester_id'] ?? 0));
 if ($suggesterId <= 0) {
@@ -574,7 +592,7 @@ $voterCount   = $suggesterId > 0 ? max(0, $totalPanelMembers - 1) : $totalPanelM
 $agreeVotes    = 0;
 $disagreeVotes = 0;
 foreach ($roundVotes as $rv) {
-    if ((int)$rv['upcc_id'] === $suggesterId) continue;
+    if ((int)$rv['upcc_id'] === $suggesterId) continue; // skip suggester's own auto-vote
     if ((int)$rv['vote_category'] > 0) $agreeVotes++;
     else $disagreeVotes++;
 }
@@ -600,6 +618,7 @@ foreach ($roundVotes as $rv) {
 
 $liveVotingSuggestion = ['category' => $suggestedCatInRound, 'details' => $suggestedDetailsInRound];
 
+// Cooldown state (any active cooldown for this case)
 $activeCooldown = db_one(
     "SELECT TIMESTAMPDIFF(SECOND, NOW(), MAX(cooldown_until)) AS remaining
      FROM upcc_suggestion_cooldown
@@ -608,6 +627,7 @@ $activeCooldown = db_one(
 );
 $cooldownSecs = max(0, (int)($activeCooldown['remaining'] ?? 0));
 
+// ── Other state ───────────────────────────────────────────────────────────
 $hasPanel         = (!empty($case['assigned_department_id']) || (!empty($case['assigned_panel_members']) && $case['assigned_panel_members'] !== '[]'));
 $isClosed         = in_array($case['status'], ['CLOSED', 'RESOLVED']);
 $isHearingOpen    = (int)($case['hearing_is_open']   ?? 0) === 1;
@@ -636,576 +656,438 @@ $avatarColors = ['blue','green','purple','amber','coral'];
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= htmlspecialchars($caseLabel) ?> — UPCC Admin</title>
+<title><?= htmlspecialchars($caseLabel) ?> — SDO Admin Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* ══════════════════════════════════════════════════════════════════════════
-   UPCC ADMIN CONSOLE
-   Refined institutional admin interface. Slate + cool cyan accent.
-   ══════════════════════════════════════════════════════════════════════════ */
-
 :root {
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --mono: 'IBM Plex Mono', 'Courier New', monospace;
-
-  /* Surface */
-  --surface-0: #0a0f1c;
-  --surface-1: #0f1626;
-  --surface-2: #141d30;
-  --surface-3: #1a2540;
-  --surface-elevated: #1e2a47;
-
-  /* Ink scale */
-  --ink-50:  #f5f7fa;
-  --ink-100: #e8ecf2;
-  --ink-200: #cdd5e0;
-  --ink-300: #98a3b4;
-  --ink-400: #6b7889;
-  --ink-500: #4a5568;
-  --ink-600: #2f3a4d;
-  --ink-700: #1e2738;
-  --ink-800: #131a28;
-  --ink-900: #0a0f1c;
-
-  /* Accents */
-  --accent: #3d9ce0;
-  --accent-hi: #5cb2f0;
-  --accent-soft: rgba(61, 156, 224, 0.12);
-  --accent-line: rgba(61, 156, 224, 0.35);
-
-  --gold: #c8a86a;
-  --gold-soft: rgba(200, 168, 106, 0.12);
-  --gold-line: rgba(200, 168, 106, 0.35);
-
-  --sage: #6faf8e;
-  --sage-soft: rgba(111, 175, 142, 0.12);
-  --sage-line: rgba(111, 175, 142, 0.35);
-
-  --rose: #d16868;
-  --rose-soft: rgba(209, 104, 104, 0.12);
-  --rose-line: rgba(209, 104, 104, 0.35);
-
-  --amber: #d4a24c;
-  --amber-soft: rgba(212, 162, 76, 0.12);
-  --amber-line: rgba(212, 162, 76, 0.35);
-
-  --violet: #9b85d8;
-  --violet-soft: rgba(155, 133, 216, 0.12);
-  --violet-line: rgba(155, 133, 216, 0.35);
-
-  /* Borders & dividers */
-  --border-1: rgba(255,255,255,0.06);
-  --border-2: rgba(255,255,255,0.10);
-  --border-3: rgba(255,255,255,0.16);
-
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
-
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.25);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.4);
-
-  --sidebar-w: 248px;
+  --font: 'Outfit', 'Inter', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --surface: #f4f7f9;
+  --card-bg: rgba(255, 255, 255, 0.7);
+  --card-border: rgba(255, 255, 255, 0.8);
+  --border-light: rgba(0, 0, 0, 0.05);
+  --ink-900: #0f172a;
+  --ink-800: #1e293b;
+  --ink-700: #334155;
+  --ink-600: #475569;
+  --ink-500: #64748b;
+  --ink-400: #94a3b8;
+  --ink-300: #cbd5e1;
+  --ink-200: #e2e8f0;
+  --ink-100: #f1f5f9;
+  --ink-50: rgba(241, 245, 249, 0.5);
+  
+  --blue-700: #1d4ed8;
+  --blue-600: #2563eb;
+  --blue-100: #dbeafe;
+  --blue-50: #eff6ff;
+  --amber-700: #b45309;
+  --amber-600: #d97706;
+  --amber-500: #f59e0b;
+  --amber-100: #fef3c7;
+  --green-900: #064e3b;
+  --green-800: #065f46;
+  --green-700: #047857;
+  --green-600: #10b981;
+  --green-100: #d1fae5;
+  --green-50: #ecfdf5;
+  --red-800: #991b1b;
+  --red-600: #dc2626;
+  --red-100: #fee2e2;
+  --red-50: #fef2f2;
+  --violet-700: #6d28d9;
+  --violet-600: #8b5cf6;
+  --violet-100: #ede9fe;
+  --orange-700: #ea580c;
+  --orange-100: #ffedd5;
+  
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --sidebar-w: 240px;
 }
 
 *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 body {
   font-family: var(--font);
-  background: var(--surface-0);
-  background-image:
-    radial-gradient(ellipse 80% 60% at 0% 0%, rgba(61,156,224,0.05), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(155,133,216,0.04), transparent 60%);
+  background: radial-gradient(circle at top left, #e2e8f0 0%, #f4f7f9 100%);
   background-attachment: fixed;
-  color: var(--ink-100);
+  color: var(--ink-800);
   font-size: 14px;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-  letter-spacing: -0.005em;
+  line-height: 1.6;
 }
 
 .admin-shell { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: calc(100vh - 56px); }
 .main-content { overflow: auto; width: 100%; }
 
-/* ── Page Header ──────────────────────────────────────────────────────── */
+/* Header */
 .page-header {
-  background: linear-gradient(180deg, var(--surface-1) 0%, var(--surface-0) 100%);
-  padding: 26px 32px 24px;
-  border-bottom: 1px solid var(--border-1);
-  display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 20px;
-  position: relative;
-}
-.page-header::after {
-  content: ''; position: absolute; left: 32px; right: 32px; bottom: -1px; height: 1px;
-  background: linear-gradient(90deg, var(--accent-soft), transparent 40%);
+  background: var(--ink-900);
+  background-image: radial-gradient(circle at right, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
+  padding: 1.8rem 2.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.1);
 }
 .back-link {
-  display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px;
-  color: var(--ink-300); text-decoration: none; transition: all .18s ease;
-  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
-  margin-bottom: 10px;
+  display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem;
+  color: var(--ink-400); text-decoration: none; transition: all 0.2s ease;
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
 }
-.back-link:hover { color: var(--accent-hi); transform: translateX(-3px); }
+.back-link:hover { color: var(--blue-100); transform: translateX(-4px); }
 
-.header-left { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.header-left { display: flex; flex-direction: column; gap: 0.6rem; }
 .case-id {
-  font-family: var(--font); font-size: 26px; font-weight: 700;
-  color: var(--ink-50); letter-spacing: -0.02em; line-height: 1.15;
-}
-.case-id .case-id-label {
-  font-size: 11px; color: var(--ink-400); text-transform: uppercase;
-  letter-spacing: 0.14em; font-weight: 700; display: block; margin-bottom: 3px;
+  font-family: var(--font); font-size: 2rem; font-weight: 800;
+  background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em; text-shadow: 0 2px 20px rgba(255,255,255,0.1);
 }
 
-.header-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.header-badges { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
 .header-right {
-  font-size: 11.5px; color: var(--ink-300); text-align: right;
-  background: rgba(255,255,255,0.02); padding: 10px 14px;
-  border-radius: var(--radius-md); border: 1px solid var(--border-1);
-  font-family: var(--mono); line-height: 1.6;
-  letter-spacing: 0;
+  font-size: 0.75rem; color: var(--ink-400); text-align: right;
+  background: rgba(255,255,255,0.03); padding: 0.8rem 1.2rem;
+  border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.05);
 }
 .header-right strong { color: var(--ink-100); font-weight: 600; }
 
-/* ── Pills ────────────────────────────────────────────────────────────── */
+/* Pills */
 .pill {
-  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
-  border-radius: 3px; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; border: 1px solid transparent;
-  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.9rem;
+  border-radius: 100px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(10px);
 }
-.pill-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.pill-pending       { background: var(--amber-soft); color: #e8b767; border-color: var(--amber-line); }
-.pill-pending .pill-dot { background: var(--amber); }
-.pill-investigating { background: var(--accent-soft); color: #7cc2ee; border-color: var(--accent-line); }
-.pill-investigating .pill-dot { background: var(--accent); }
-.pill-closed        { background: var(--sage-soft); color: #8fc9a5; border-color: var(--sage-line); }
-.pill-closed .pill-dot { background: var(--sage); }
-.pill-appeal        { background: var(--violet-soft); color: #b9a8e6; border-color: var(--violet-line); }
-.pill-appeal .pill-dot { background: var(--violet); }
-.pill-open          { background: var(--sage-soft); color: #8fc9a5; border-color: var(--sage-line); }
-.pill-open .pill-dot { background: var(--sage); animation: pulse 1.8s infinite; }
-.pill-warning       { background: var(--amber-soft); color: #e8b767; border-color: var(--amber-line); }
-.pill-neutral       { background: rgba(255,255,255,0.05); color: var(--ink-200); border-color: var(--border-2); }
-.pill-awaiting      { background: rgba(212,162,76,0.15); color: #e8b767; border-color: rgba(212,162,76,0.4); }
-.pill-awaiting .pill-dot { background: var(--amber); animation: pulse 1.4s infinite; }
-.pill-success       { background: var(--sage-soft); color: #8fc9a5; border-color: var(--sage-line); }
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 8px currentColor; }
+.pill-pending { background: var(--amber-100); color: var(--amber-700); }
+.pill-investigating { background: var(--blue-100); color: var(--blue-700); }
+.pill-investigating .pill-dot { background: var(--blue-600); }
+.pill-closed { background: var(--green-100); color: var(--green-800); }
+.pill-closed .pill-dot { background: var(--green-600); }
+.pill-appeal { background: var(--violet-100); color: var(--violet-700); }
+.pill-open { background: var(--violet-100); color: var(--violet-700); }
+.pill-open .pill-dot { background: var(--violet-600); }
+.pill-warning { background: var(--amber-100); color: var(--amber-700); }
+.pill-neutral { background: rgba(255,255,255,0.1); color: var(--ink-200); }
+.pill-awaiting { background: var(--orange-100); color: var(--orange-700); }
+.pill-awaiting .pill-dot { background: var(--orange-700); animation: pulse 1.4s infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-/* ── Page Body ────────────────────────────────────────────────────────── */
-.page-body { padding: 26px 32px 60px; max-width: 1400px; margin: 0 auto; }
+/* Body */
+.page-body { padding: 2rem 2.5rem; max-width: 1400px; margin: 0 auto; }
 
-/* ── Alerts ───────────────────────────────────────────────────────────── */
-.alert {
-  padding: 12px 16px; border-radius: var(--radius-md); font-size: 13px;
-  margin-bottom: 20px; border: 1px solid transparent; font-weight: 500;
-  display: flex; align-items: flex-start; gap: 10px; line-height: 1.55;
-}
-.alert::before {
-  flex-shrink: 0; font-weight: 800; font-size: 14px; line-height: 1.4;
-}
-.alert-error   { background: var(--rose-soft); color: #e8a0a0; border-color: var(--rose-line); }
-.alert-error::before { content: '⚠'; color: #e8a0a0; }
-.alert-success { background: var(--sage-soft); color: #8fc9a5; border-color: var(--sage-line); }
-.alert-success::before { content: '✓'; color: #8fc9a5; }
-.alert-warning { background: var(--amber-soft); color: #e8b767; border-color: var(--amber-line); }
-.alert-warning::before { content: '⚠'; color: #e8b767; }
-.alert-info    { background: var(--accent-soft); color: #7cc2ee; border-color: var(--accent-line); }
-.alert-info::before { content: 'ⓘ'; color: #7cc2ee; font-style: normal; }
-
-/* ── Cards ────────────────────────────────────────────────────────────── */
-.case-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+/* Cards */
+.case-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
 .card {
-  background: linear-gradient(180deg, var(--surface-1) 0%, var(--surface-2) 100%);
-  border: 1px solid var(--border-1);
+  background: var(--card-bg);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  transition: border-color .2s ease;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
   scroll-margin-top: 90px;
 }
-.card:hover { border-color: var(--border-2); }
-.card-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-1);
-  background: rgba(0,0,0,0.15);
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  position: relative;
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 50px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9);
 }
-.card-header::after {
-  content: ''; position: absolute; left: 20px; right: 20px; bottom: -1px; height: 1px;
-  background: linear-gradient(90deg, var(--accent-soft), transparent 50%);
+.card-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  background: rgba(255,255,255,0.4);
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
 }
 .card-title {
-  font-size: 11.5px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.12em; color: var(--ink-200);
-  display: flex; align-items: center; gap: 8px;
+  font-size: 0.8rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--ink-700);
 }
-.card-title::before {
-  content: ''; width: 3px; height: 12px; background: var(--accent);
-  border-radius: 2px; flex-shrink: 0;
-}
-.card-body { padding: 20px; }
+.card-body { padding: 1.5rem; }
 
-/* ── Section Labels ───────────────────────────────────────────────────── */
+/* Alerts */
+.alert {
+  padding: 0.8rem 1.25rem; border-radius: var(--radius-md); font-size: 0.85rem;
+  margin-bottom: 1.5rem; border: 1px solid transparent; font-weight: 500;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+}
+.alert-error { background: var(--red-50); color: var(--red-800); border-color: rgba(239, 68, 68, 0.2); }
+.alert-success { background: var(--green-50); color: var(--green-800); border-color: rgba(16, 185, 129, 0.2); }
+.alert-warning { background: var(--amber-50); color: var(--amber-700); border-color: rgba(245, 158, 11, 0.2); }
+.alert-info { background: var(--blue-50); color: var(--blue-700); border-color: rgba(59, 130, 246, 0.2); }
+
+/* Typography & Labels */
 .section-label {
-  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.14em; color: var(--ink-400); margin-bottom: 10px;
-  padding-bottom: 6px; border-bottom: 1px solid var(--border-1);
+  font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--ink-400); margin-bottom: 0.8rem;
 }
-
-/* ── Info Boxes ───────────────────────────────────────────────────────── */
 .hearing-box, .summary-box {
-  background: rgba(0,0,0,0.2);
-  border: 1px solid var(--border-1);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.04);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
-  margin-bottom: 16px;
-  font-size: 13px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: inset 0 2px 5px rgba(255,255,255,0.5);
 }
-.hearing-row { display: flex; align-items: baseline; justify-content: space-between; font-size: 13px; padding: 6px 0; gap: 16px; }
-.hearing-row + .hearing-row { border-top: 1px dashed var(--border-1); }
-.hearing-key { color: var(--ink-400); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
-.hearing-val { font-weight: 600; color: var(--ink-100); text-align: right; }
+.hearing-row { display: flex; align-items: baseline; justify-content: space-between; font-size: 0.85rem; padding: 0.35rem 0; }
+.hearing-row + .hearing-row { border-top: 1px dashed var(--border-light); margin-top: 0.35rem; padding-top: 0.35rem; }
+.hearing-key { color: var(--ink-500); font-size: 0.78rem; font-weight: 500; }
+.hearing-val { font-weight: 600; color: var(--ink-800); }
 
-/* ── Status Bar ───────────────────────────────────────────────────────── */
+/* Status Bar */
 .status-bar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; background: rgba(0,0,0,0.2);
-  border: 1px solid var(--border-1); border-radius: var(--radius-md);
-  margin-bottom: 16px; font-size: 13px; gap: 12px; flex-wrap: wrap;
+  padding: 0.8rem 1.25rem; background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.8); border-radius: var(--radius-md);
+  margin-bottom: 1.25rem; font-size: 0.85rem; gap: 1rem; flex-wrap: wrap;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
 }
-.status-indicator { display: flex; align-items: center; gap: 10px; color: var(--ink-200); font-weight: 500; }
-.dot-live { width: 8px; height: 8px; border-radius: 50%; background: var(--sage); box-shadow: 0 0 0 3px var(--sage-soft); animation: pulse 2s infinite; }
-.dot-off { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-400); }
-.status-time { font-size: 11.5px; color: var(--ink-400); font-weight: 500; font-family: var(--mono); }
+.status-indicator { display: flex; align-items: center; gap: 0.6rem; }
+.dot-live { width: 10px; height: 10px; border-radius: 50%; background: var(--green-600); box-shadow: 0 0 10px var(--green-600); animation: pulse 1.8s infinite; }
+.dot-off { width: 10px; height: 10px; border-radius: 50%; background: var(--ink-300); }
+.status-time { font-size: 0.75rem; color: var(--ink-500); font-weight: 500; }
 
-/* ── Buttons ──────────────────────────────────────────────────────────── */
+/* Buttons */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 9px 16px; border-radius: var(--radius-sm);
-  font-size: 12.5px; font-weight: 600;
-  cursor: pointer; border: 1px solid transparent;
-  transition: all .15s ease;
-  text-decoration: none; letter-spacing: 0.02em;
-  font-family: var(--font);
-  white-space: nowrap;
-  line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.6rem 1.25rem; border-radius: 12px; font-size: 0.82rem; font-weight: 700;
+  cursor: pointer; border: 1px solid transparent; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none; box-shadow: 0 2px 6px rgba(0,0,0,0.05); letter-spacing: 0.02em;
 }
-.btn:active { transform: translateY(1px); }
-.btn-primary {
-  background: linear-gradient(180deg, var(--accent) 0%, #2d7fb8 100%);
-  color: #fff; border-color: #2d7fb8;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 2px 8px rgba(61,156,224,0.25);
-}
-.btn-primary:hover { background: linear-gradient(180deg, var(--accent-hi) 0%, var(--accent) 100%); box-shadow: 0 4px 14px rgba(61,156,224,0.4); }
-.btn-success {
-  background: linear-gradient(180deg, var(--sage) 0%, #4e8c6d 100%);
-  color: #fff; border-color: #4e8c6d;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 2px 8px rgba(111,175,142,0.25);
-}
-.btn-success:hover { background: linear-gradient(180deg, #80bf9c 0%, var(--sage) 100%); box-shadow: 0 4px 14px rgba(111,175,142,0.4); }
-.btn-warning {
-  background: linear-gradient(180deg, var(--amber) 0%, #b0852e 100%);
-  color: #fff; border-color: #b0852e;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 2px 8px rgba(212,162,76,0.25);
-}
-.btn-warning:hover { background: linear-gradient(180deg, #e0b45e 0%, var(--amber) 100%); box-shadow: 0 4px 14px rgba(212,162,76,0.4); }
-.btn-danger {
-  background: linear-gradient(180deg, var(--rose) 0%, #a44f4f 100%);
-  color: #fff; border-color: #a44f4f;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 2px 8px rgba(209,104,104,0.25);
-}
-.btn-danger:hover { background: linear-gradient(180deg, #dd7e7e 0%, var(--rose) 100%); box-shadow: 0 4px 14px rgba(209,104,104,0.4); }
-.btn-outline {
-  background: transparent; color: var(--ink-200); border-color: var(--border-2);
-}
-.btn-outline:hover { background: rgba(255,255,255,0.04); border-color: var(--border-3); color: var(--ink-50); }
-.btn-ghost {
-  background: transparent; border-color: transparent; color: var(--ink-300); box-shadow: none;
-}
-.btn-ghost:hover { background: rgba(255,255,255,0.04); color: var(--ink-50); }
-.btn-sm { padding: 6px 11px; font-size: 11.5px; }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--blue-600); color: #fff; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3); }
+.btn-primary:hover { background: var(--blue-700); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
+.btn-success { background: var(--green-600); color: #fff; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+.btn-success:hover { background: var(--green-700); box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); transform: translateY(-1px); }
+.btn-warning { background: var(--amber-500); color: #fff; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); }
+.btn-warning:hover { background: var(--amber-600); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4); transform: translateY(-1px); }
+.btn-danger { background: var(--red-600); color: #fff; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3); }
+.btn-danger:hover { background: var(--red-800); box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4); transform: translateY(-1px); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--ink-500); box-shadow: none; }
+.btn-ghost:hover { background: rgba(0,0,0,0.04); color: var(--ink-800); }
+.btn-sm { padding: 0.4rem 0.9rem; font-size: 0.75rem; }
 .btn-full { width: 100%; }
-.btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn:disabled, .btn[disabled] { opacity: 0.45; cursor: not-allowed; pointer-events: none; box-shadow: none !important; }
+.btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.btn:disabled, .btn[disabled] { opacity: 0.5; cursor: not-allowed; pointer-events: none; box-shadow: none !important; }
 
-/* ── Voting Live Block ────────────────────────────────────────────────── */
+/* Voting / Tally Blocks */
 .voting-live-block {
-  background: var(--surface-2);
-  border: 1px solid var(--accent-line);
-  border-radius: var(--radius-lg);
-  overflow: hidden; margin-bottom: 18px;
-  box-shadow: 0 0 0 1px rgba(61,156,224,0.05), 0 8px 24px rgba(0,0,0,0.3);
+  background: #fff; border: 2px solid var(--blue-600); border-radius: var(--radius-lg);
+  overflow: hidden; margin-bottom: 1.25rem; box-shadow: 0 10px 30px rgba(37, 99, 235, 0.15);
 }
 .vlb-header {
-  background: linear-gradient(135deg, rgba(61,156,224,0.15), rgba(61,156,224,0.05));
-  padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  border-bottom: 1px solid var(--accent-line);
+  background: linear-gradient(135deg, var(--blue-600), var(--blue-700));
+  padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
 }
-.vlb-title { color: var(--ink-50); font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 10px; letter-spacing: 0.02em; }
+.vlb-title { color: #fff; font-size: 0.9rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
 .live-badge {
-  background: rgba(209,104,104,0.15); color: #e8a0a0; border: 1px solid var(--rose-line);
-  border-radius: 3px; padding: 3px 8px; font-size: 9.5px; font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.12em; animation: blink 1.4s ease-in-out infinite;
+  background: rgba(255,255,255,0.25); color: #fff; border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 999px; padding: 3px 10px; font-size: 0.65rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.08em; animation: blink 1.4s ease-in-out infinite;
+  backdrop-filter: blur(4px);
 }
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-.vlb-body { padding: 18px; }
+.vlb-body { padding: 1.25rem; }
 
-.vote-tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.vote-tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1rem; }
 .vote-tally-cell {
-  text-align: center; border-radius: var(--radius-md); padding: 14px 10px;
-  border: 1px solid var(--border-1);
-  background: rgba(0,0,0,0.2);
+  text-align: center; border-radius: var(--radius-md); padding: 1rem; border: 1px solid;
+  background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(8px);
 }
-.vtc-agree    { border-color: var(--sage-line); background: var(--sage-soft); }
-.vtc-disagree { border-color: var(--rose-line); background: var(--rose-soft); }
-.vtc-pending  { border-color: var(--amber-line); background: var(--amber-soft); }
-.vtc-num { font-family: var(--font); font-size: 26px; font-weight: 700; display: block; line-height: 1; letter-spacing: -0.02em; }
-.vtc-agree .vtc-num    { color: #8fc9a5; }
-.vtc-disagree .vtc-num { color: #e8a0a0; }
-.vtc-pending .vtc-num  { color: #e8b767; }
-.vtc-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; display: block; margin-top: 6px; color: var(--ink-300); }
+.vtc-agree { border-color: rgba(16, 185, 129, 0.3); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.05); }
+.vtc-disagree { border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.05); }
+.vtc-pending { border-color: rgba(148, 163, 184, 0.3); box-shadow: 0 4px 15px rgba(148, 163, 184, 0.05); }
+.vtc-num { font-family: var(--font); font-size: 1.8rem; font-weight: 800; display: block; line-height: 1; }
+.vtc-lbl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; display: block; margin-top: 6px; }
 
-/* ── Consensus Finalize Block ─────────────────────────────────────────── */
+/* Consensus Finalize Block */
 .consensus-finalize-block {
-  border: 1px solid var(--sage-line); border-radius: var(--radius-lg); overflow: hidden;
-  margin-bottom: 18px; background: var(--surface-2);
-  box-shadow: 0 0 0 1px rgba(111,175,142,0.05), 0 8px 24px rgba(0,0,0,0.3);
+  border: 2px solid var(--green-600); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 1.25rem;
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.15); background: #fff;
 }
 .cf-header {
-  background: linear-gradient(135deg, rgba(111,175,142,0.18), rgba(111,175,142,0.05));
-  padding: 16px 20px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  border-bottom: 1px solid var(--sage-line);
+  background: linear-gradient(135deg, var(--green-600), var(--green-700)); padding: 1.25rem 1.5rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
 }
-.cf-header-left { display: flex; align-items: center; gap: 14px; }
-.cf-icon { font-size: 22px; line-height: 1; }
-.cf-title { font-size: 14px; font-weight: 700; color: #b4dcc4; letter-spacing: 0.02em; }
-.cf-sub { font-size: 12px; color: var(--ink-300); margin-top: 2px; }
-.cf-body { padding: 20px; }
+.cf-title { font-size: 1rem; font-weight: 700; color: #fff; }
+.cf-body { padding: 1.5rem; }
 
-/* ── Form Elements ────────────────────────────────────────────────────── */
-.form-group { margin-bottom: 16px; }
+/* Form Elements */
+.form-group { margin-bottom: 1rem; }
 .form-label {
-  display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.1em; color: var(--ink-400); margin-bottom: 6px;
+  display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--ink-500); margin-bottom: 0.4rem;
 }
 .form-control {
-  width: 100%; padding: 10px 14px;
-  border: 1px solid var(--border-2); border-radius: var(--radius-sm);
-  font-size: 13.5px; font-family: var(--font);
-  background: rgba(0,0,0,0.3); color: var(--ink-50);
-  transition: all .15s ease;
-  line-height: 1.4;
+  width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--ink-200); border-radius: 12px;
+  font-size: 0.88rem; font-family: var(--font); background: #fff; color: var(--ink-800);
+  transition: all 0.2s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
 }
-.form-control:focus {
-  outline: none; border-color: var(--accent); background: rgba(0,0,0,0.45);
-  box-shadow: 0 0 0 3px rgba(61,156,224,0.15);
-}
-.form-control::placeholder { color: var(--ink-500); }
-.form-control option { background: var(--surface-1); color: var(--ink-50); }
-textarea.form-control { resize: vertical; min-height: 80px; font-family: var(--font); }
-select.form-control { cursor: pointer; }
+.form-control:focus { outline: none; border-color: var(--blue-600); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); }
 
-/* ── Panel Members List ──────────────────────────────────────────────── */
-.panel-list { margin-bottom: 16px; background: rgba(0,0,0,0.2); border-radius: var(--radius-md); padding: 8px; border: 1px solid var(--border-1); }
-.panel-member { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--radius-sm); transition: background .15s ease; }
-.panel-member:hover { background: rgba(255,255,255,0.03); }
-.panel-member + .panel-member { border-top: 1px dashed var(--border-1); }
-.avatar {
-  width: 36px; height: 36px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; flex-shrink: 0;
-  border: 1px solid transparent; letter-spacing: 0.02em;
-}
-.av-blue   { background: rgba(61,156,224,0.15); color: #7cc2ee; border-color: var(--accent-line); }
-.av-green  { background: rgba(111,175,142,0.15); color: #8fc9a5; border-color: var(--sage-line); }
-.av-purple { background: rgba(155,133,216,0.15); color: #b9a8e6; border-color: var(--violet-line); }
-.av-amber  { background: rgba(212,162,76,0.15); color: #e8b767; border-color: var(--amber-line); }
-.av-coral  { background: rgba(209,104,104,0.15); color: #e8a0a0; border-color: var(--rose-line); }
-.member-name { font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--ink-100); }
-.member-role { font-size: 11px; color: var(--ink-400); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+/* Panel List */
+.panel-list { margin-bottom: 1.25rem; background: rgba(255,255,255,0.5); border-radius: var(--radius-md); padding: 0.5rem; border: 1px solid rgba(0,0,0,0.04); }
+.panel-member { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem; border-radius: 10px; transition: background 0.2s; }
+.panel-member:hover { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.panel-member + .panel-member { border-top: 1px dashed var(--border-light); margin-top: 4px; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; flex-shrink: 0; box-shadow: inset 0 2px 4px rgba(255,255,255,0.5); }
 
-/* ── Panel Selector ──────────────────────────────────────────────────── */
-.panel-select-wrapper { border: 1px solid var(--border-2); border-radius: var(--radius-sm); padding: 8px; background: rgba(0,0,0,0.3); min-height: 52px; display: flex; flex-direction: column; gap: 8px; }
+.av-blue{background:#dbeafe;color:#1d4ed8}.av-green{background:#d1fae5;color:#065f46}
+.av-purple{background:#ede9fe;color:#5b21b6}.av-amber{background:#fef3c7;color:#92400e}
+.av-coral{background:#fee2e2;color:#991b1b}
+.member-name{font-size:0.85rem;font-weight:600;line-height:1.2;color:var(--ink-800)}
+.member-role{font-size:0.75rem;color:var(--ink-500)}
+
+/* Dropdown & Misc Form Elements */
+.panel-select-wrapper { border: 1px solid var(--ink-200); border-radius: var(--radius-sm); padding: 6px; background: #fff; min-height: 48px; display: flex; flex-direction: column; gap: 6px; }
 .selected-panel-members { display: flex; flex-wrap: wrap; gap: 6px; }
-.panel-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: #7cc2ee; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 3px; border: 1px solid var(--accent-line); }
-.panel-chip-remove { cursor: pointer; color: var(--accent); font-weight: 700; line-height: 1; font-size: 14px; transition: color .15s; }
-.panel-chip-remove:hover { color: var(--rose); }
-.panel-member-search { width: 100%; border: none; background: transparent; padding: 6px 4px; font-size: 13px; font-family: var(--font); outline: none; color: var(--ink-50); }
-.panel-member-search::placeholder { color: var(--ink-500); }
-.panel-member-dropdown {
-  position: absolute; top: 100%; left: 0; right: 0; background: var(--surface-elevated);
-  border: 1px solid var(--border-3); border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg); max-height: 220px; overflow-y: auto; z-index: 1000;
-  display: none; margin-top: 4px;
-}
+.panel-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--blue-100); color: var(--blue-800); font-size: .75rem; font-weight: 600; padding: 4px 10px; border-radius: 14px; }
+.panel-chip-remove { cursor: pointer; color: var(--blue-600); font-weight: bold; }
+.panel-chip-remove:hover { color: var(--red-600); }
+.panel-member-search { width: 100%; border: none; background: transparent; padding: 6px; font-size: .82rem; font-family: var(--font); outline: none; }
+.panel-member-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid var(--ink-200); border-radius: var(--radius-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 1000; display: none; }
 .panel-member-dropdown.show { display: block; }
-.dropdown-item { padding: 10px 14px; font-size: 12.5px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid var(--border-1); }
+.dropdown-item { padding: 8px 12px; font-size: .75rem; cursor: pointer; display: flex; flex-direction: column; border-bottom: 1px solid var(--ink-100); }
 .dropdown-item:last-child { border-bottom: none; }
-.dropdown-item:hover { background: rgba(61,156,224,0.08); }
-.dropdown-item-title { font-weight: 600; color: var(--ink-50); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.dropdown-item-sub { font-size: 11px; color: var(--ink-400); }
-.cb-scroll{border:1px solid var(--border-2);border-radius:var(--radius-sm);padding:8px;max-height:170px;overflow-y:auto;background:rgba(0,0,0,0.2);}
-.cb-item{display:flex;align-items:center;gap:8px;padding:6px 8px;font-size:13px;border-radius:3px;cursor:pointer;color:var(--ink-100);transition:background .15s;}
-.cb-item:hover{background:rgba(255,255,255,0.04);}
-.cb-item input[type=checkbox] { accent-color: var(--accent); }
+.dropdown-item:hover { background: var(--ink-50); }
+.dropdown-item-title { font-weight: 600; color: var(--ink-800); display: flex; justify-content: space-between; }
+.dropdown-item-sub { font-size: .68rem; color: var(--ink-500); }
+.cb-scroll{border:1px solid var(--ink-200);border-radius:var(--radius-sm);padding:.45rem;max-height:155px;overflow-y:auto; background: #fff;}
+.cb-item{display:flex;align-items:center;gap:.5rem;padding:.28rem .4rem;font-size:.79rem;border-radius:4px;cursor:pointer}
+.cb-item:hover{background:var(--ink-50)}
 
-/* ── Utility Panels ──────────────────────────────────────────────────── */
-.edit-panel{margin-top:20px;display:none}
+/* Utility Classes */
+.edit-panel{margin-top:1.25rem;display:none}
 .edit-panel.open{display:block}
-.waiting-room-box{display:none;margin-bottom:16px;background:var(--amber-soft);border:1px solid var(--amber-line);border-radius:var(--radius-md);padding:14px}
-.awaiting-box{background:rgba(0,0,0,0.2);border:1px solid var(--border-1);border-radius:var(--radius-md);padding:12px 16px;
-  display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-300);margin-bottom:12px}
-.consensus-box{background:var(--sage-soft);border:1px solid var(--sage-line);border-radius:var(--radius-md);padding:12px 16px;
-  display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#b4dcc4;font-weight:500;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.waiting-room-box{display:none;margin-bottom:1rem;background:var(--amber-100);border:2px solid #ff6b6b;border-radius:var(--radius-md);padding:1rem}
+.awaiting-box{background:var(--ink-50);border:1px solid var(--border-light);border-radius:var(--radius-md);padding:.6rem .9rem;
+  display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--ink-500);margin-bottom:.75rem}
+.consensus-box{background:var(--green-100);border:1px solid #6ee7b7;border-radius:var(--radius-md);padding:.6rem .9rem;
+  display:flex;align-items:center;justify-content:space-between;font-size:.82rem;color:var(--green-800);font-weight:500;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem}
 
-#dynamicFieldsContainer{background:rgba(0,0,0,0.2);border:1px solid var(--border-1);padding:16px;border-radius:var(--radius-md);margin-bottom:14px;display:none}
+#dynamicFieldsContainer{background:var(--ink-50);border:1px solid var(--border-light);padding:1rem;border-radius:var(--radius-md);margin-bottom:.85rem;display:none}
 
-/* ── Modals ───────────────────────────────────────────────────────────── */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(4,7,14,0.85);z-index:3000;place-items:center;padding:20px; backdrop-filter: blur(6px);}
+/* Modal Overlay */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:3000;place-items:center;padding:1rem; backdrop-filter: blur(4px);}
 .modal-overlay.open{display:grid}
-.modal-content{
-  background: var(--surface-1);
-  border: 1px solid var(--border-3);
-  border-radius: var(--radius-xl);
-  padding: 28px; max-width: 520px; width: min(92vw, 520px);
-  max-height: calc(100vh - 40px); overflow: auto;
-  box-shadow: var(--shadow-lg);
-  position: relative;
-}
-.modal-content::before {
-  content: ''; position: absolute; top: 0; left: 24px; right: 24px; height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-}
-.modal-content h3{margin-bottom:16px;color:var(--ink-50);text-align:center; font-family: var(--font); font-weight: 700; font-size: 18px; letter-spacing: -0.01em;}
-.modal-content textarea{width:100%;padding:12px;border:1px solid var(--border-2);border-radius:var(--radius-sm);margin:16px 0;resize:vertical;font-family:var(--font);background:rgba(0,0,0,0.3);color:var(--ink-50);font-size:13px}
-.modal-content textarea:focus { outline: none; border-color: var(--accent); }
-.modal-buttons{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top: 20px;}
-.modal-content ul{margin:12px 0 12px 20px;font-size:13px;line-height:1.9;color:var(--ink-200)}
-.modal-content p { color: var(--ink-200); font-size: 13.5px; line-height: 1.6; }
+.modal-content{background:#fff;border-radius:16px;padding:30px;max-width:480px;width:min(92vw,480px);
+  max-height:calc(100vh - 2rem);overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.modal-content h3{margin-bottom:16px;color:#333;text-align:center; font-family: var(--font); font-weight: 800;}
+.modal-content textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin:16px 0;resize:vertical;font-family:inherit}
+.modal-buttons{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.modal-content ul{margin:12px 0 12px 20px;font-size:.85rem;line-height:1.8}
 
-/* ── Toast ────────────────────────────────────────────────────────────── */
-.toast{position:fixed;top:20px;right:20px;padding:14px 18px;border-radius:var(--radius-md);color:#fff;
-  z-index:9999;font-family:var(--font);box-shadow:var(--shadow-lg);max-width:360px;
-  animation:slideInRight .3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid transparent;}
+/* Toast */
+.toast{position:fixed;top:20px;right:20px;padding:14px 20px;border-radius:12px;color:#fff;
+  z-index:9999;font-family:var(--font);box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:340px;
+  animation:slideInRight .3s cubic-bezier(0.4, 0, 0.2, 1)}
 @keyframes slideInRight{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes slideOutRight{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}
-.toast-title{font-weight:700;font-size:13px;margin-bottom:3px; letter-spacing: 0.02em;}
-.toast-msg{font-size:12.5px;opacity:0.92; font-weight: 500; line-height: 1.4;}
-.toast-success{background: linear-gradient(135deg, #4e8c6d, #3b6f55); border-color: var(--sage-line);}
-.toast-info{background: linear-gradient(135deg, #2d7fb8, #2067a0); border-color: var(--accent-line);}
-.toast-warning{background: linear-gradient(135deg, #b0852e, #8d6a24); border-color: var(--amber-line);}
+.toast-title{font-weight:800;font-size:.85rem;margin-bottom:3px; letter-spacing: 0.02em;}
+.toast-msg{font-size:.75rem;opacity:.9; font-weight: 500;}
+.toast-success{background: linear-gradient(135deg, var(--green-600), var(--green-800));}
+.toast-info{background: linear-gradient(135deg, var(--blue-600), var(--blue-800));}
+.toast-warning{background: linear-gradient(135deg, var(--amber-500), var(--amber-700));}
 
-/* ── Voting Suggestion ────────────────────────────────────────────────── */
-.vlb-suggestion{background: rgba(0,0,0,0.25);border:1px solid var(--border-1);border-radius:var(--radius-md);
-  padding:14px 16px;margin-bottom:14px}
-.vlb-sug-cat{font-size:13px;font-weight:700;color:var(--accent-hi);margin-bottom:4px; letter-spacing: 0.02em;}
-.vlb-sug-by{font-size:11.5px;color:var(--ink-400);margin-bottom:8px}
-.vlb-sug-detail{font-size:13px;color:var(--ink-100);line-height:1.55}
-.vlb-tag{display:inline-block;background:var(--accent-soft);color:#7cc2ee;border:1px solid var(--accent-line);border-radius:3px;
-  padding:3px 9px;font-size:11px;font-weight:700;margin:2px 3px 2px 0; letter-spacing: 0.02em;}
-.cat2-hours-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.cat2-hour-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,0.3);border:1px solid var(--border-2);
-  color:var(--ink-200);padding:7px 12px;border-radius:3px;font-size:12px;font-weight:600;cursor:pointer;
-  transition:all .15s ease;}
-.cat2-hour-pill:hover{border-color:var(--accent-line);color:var(--ink-50)}
-.cat2-hour-pill input{accent-color: var(--accent); margin:0}
-.cat2-hour-pill:has(input:checked){background:var(--accent-soft);border-color:var(--accent);color:#7cc2ee}
-.cat2-hours-other{display:flex;align-items:center;gap:8px;background:var(--amber-soft);border:1px solid var(--amber-line);
-  color:#e8b767;padding:7px 12px;border-radius:3px;font-size:12px;font-weight:600;cursor:pointer;}
-.cat2-hours-other input{margin:0; accent-color: var(--amber);}
-.live-voting-detail{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.live-voting-detail .detail-pill{display:inline-flex;align-items:center;gap:6px;width:fit-content;
-  background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:3px;padding:4px 10px;
-  font-size:11.5px;font-weight:600;color:#7cc2ee;}
+/* Extras missing from Live Voting Sidebar */
+.vlb-suggestion{background:var(--blue-50);border:1px solid var(--blue-100);border-radius:var(--radius-md);
+  padding:.75rem 1rem;margin-bottom:.85rem}
+.vlb-sug-cat{font-size:.9rem;font-weight:800;color:var(--blue-700);margin-bottom:.3rem}
+.vlb-sug-by{font-size:.72rem;color:var(--ink-500);margin-bottom:.5rem}
+.vlb-sug-detail{font-size:.75rem;color:var(--ink-700);line-height:1.5}
+.vlb-tag{display:inline-block;background:var(--blue-100);color:var(--blue-700);border-radius:4px;
+  padding:2px 8px;font-size:.68rem;font-weight:700;margin:1px}
+.cat2-hours-grid{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.45rem}
+.cat2-hour-pill{display:inline-flex;align-items:center;gap:.4rem;background:#fff;border:1px solid rgba(99,102,241,.25);
+  color:var(--ink-700);padding:.48rem .75rem;border-radius:999px;font-size:.78rem;font-weight:700;cursor:pointer;
+  transition:all .15s ease;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.cat2-hour-pill:hover{border-color:var(--blue-400);color:var(--blue-700);transform:translateY(-1px)}
+.cat2-hour-pill input{margin:0}
+.cat2-hour-pill:has(input:checked){background:var(--blue-600);border-color:var(--blue-600);color:#fff}
+.cat2-hours-other{display:flex;align-items:center;gap:.5rem;background:var(--amber-50);border:1px solid var(--amber-200);
+  color:var(--amber-800);padding:.5rem .7rem;border-radius:999px;font-size:.78rem;font-weight:700;cursor:pointer;
+  width:max-content;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.cat2-hours-other input{margin:0}
+.cat2-hours-other span{line-height:1}
+.live-voting-detail{display:flex;flex-direction:column;gap:.4rem;margin-top:.6rem}
+.live-voting-detail .detail-pill{display:inline-flex;align-items:center;gap:.35rem;width:fit-content;
+  background:rgba(255,255,255,.78);border:1px solid rgba(59,130,246,.2);border-radius:999px;padding:.28rem .65rem;
+  font-size:.72rem;font-weight:700;color:var(--blue-800)}
 
-.vote-head{display:flex;justify-content:space-between;padding-bottom:8px;margin-bottom:6px;border-bottom:1px solid var(--border-1)}
-.vote-head span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-400)}
-.vote-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13px}
-.vote-row+.vote-row{border-top:1px dashed var(--border-1)}
-.vote-cat{font-family:var(--font);font-size:11px;font-weight:700;background:var(--accent-soft);color:#7cc2ee;padding:3px 9px;border-radius:3px; letter-spacing: 0.04em;}
-.vote-cat.agree{background:var(--sage-soft);color:#8fc9a5}
-.vote-cat.disagree{background:var(--rose-soft);color:#e8a0a0}
-.vote-cat.suggester{background:var(--violet-soft);color:#b9a8e6}
-.vote-time{font-size:11px;color:var(--ink-400);margin-left:8px; font-weight: 500; font-family: var(--mono);}
+.vote-head{display:flex;justify-content:space-between;padding-bottom:.4rem;margin-bottom:.2rem;border-bottom:1px dashed var(--border-light)}
+.vote-head span{font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-400)}
+.vote-row{display:flex;justify-content:space-between;align-items:center;padding:.42rem 0;font-size:.8rem}
+.vote-row+.vote-row{border-top:1px dashed var(--border-light)}
+.vote-cat{font-family:var(--font);font-size:.7rem;font-weight:700;background:var(--blue-100);color:var(--blue-700);padding:2px 8px;border-radius:6px}
+.vote-cat.agree{background:var(--green-100);color:var(--green-800)}
+.vote-cat.disagree{background:var(--red-100);color:var(--red-800)}
+.vote-cat.suggester{background:var(--violet-100);color:var(--violet-700)}
+.vote-time{font-size:.7rem;color:var(--ink-400);margin-left:.4rem; font-weight: 500;}
 
-.vlb-timer-wrap{margin-bottom:14px}
-.vlb-timer-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
-.vlb-timer-label{font-size:10.5px;color:var(--ink-400);text-transform:uppercase;letter-spacing:0.1em; font-weight: 700;}
-.vlb-timer-num{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--ink-50);font-variant-numeric:tabular-nums; letter-spacing: 0.03em;}
-.vlb-timer-num.urgent{color:#e8a0a0; animation: pulse 1s infinite;}
-.vlb-timer-bar{height:4px;background:rgba(255,255,255,0.06);border-radius:999px;overflow:hidden;}
-.vlb-timer-fill{height:100%;border-radius:999px;transition:width 1s linear,background .5s; background: var(--accent);}
+.vlb-timer-wrap{margin-bottom:.75rem}
+.vlb-timer-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.vlb-timer-label{font-size:.68rem;color:var(--ink-500);text-transform:uppercase;letter-spacing:.06em; font-weight: 800;}
+.vlb-timer-num{font-family:var(--font);font-size:1.2rem;font-weight:800;color:var(--ink-800);font-variant-numeric:tabular-nums}
+.vlb-timer-num.urgent{color:var(--red-600); animation: pulse 1s infinite;}
+.vlb-timer-bar{height:6px;background:var(--ink-200);border-radius:999px;overflow:hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);}
+.vlb-timer-fill{height:100%;border-radius:999px;transition:width 1s linear,background .5s; background: var(--blue-500);}
 
-.cooldown-block{background:var(--amber-soft);border:1px solid var(--amber-line);border-radius:var(--radius-md);
-  padding:14px 16px;text-align:center;margin-bottom:14px;}
-.cooldown-title{font-size:12px;font-weight:700;color:#e8b767;margin-bottom:4px; letter-spacing: 0.02em;}
-.cooldown-num{font-family:var(--mono);font-size:22px;font-weight:600;color:#e8b767;
-  font-variant-numeric:tabular-nums; letter-spacing: 0.05em;}
+.cooldown-block{background:var(--amber-100);border:1px solid #fcd34d;border-radius:var(--radius-md);
+  padding:.75rem 1rem;text-align:center;margin-bottom:.75rem; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.1);}
+.cooldown-title{font-size:.75rem;font-weight:700;color:var(--amber-800);margin-bottom:.25rem}
+.cooldown-num{font-family:var(--font);font-size:1.5rem;font-weight:800;color:var(--amber-700);
+  font-variant-numeric:tabular-nums}
 
-.cat-badge{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg, rgba(111,175,142,0.18), rgba(111,175,142,0.06));color:#b4dcc4;
-  padding:8px 16px;border-radius:3px;font-size:12.5px;font-weight:700;letter-spacing:0.04em;margin-bottom:14px; border: 1px solid var(--sage-line);}
-.cat-desc-box{background: rgba(0,0,0,0.2); border:1px solid var(--border-1); border-radius:var(--radius-md); padding:14px 16px; margin-bottom:14px;}
-.cat-desc-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-400);margin-bottom:8px}
-.cat-desc-text{font-size:13px;color:var(--ink-100);line-height:1.6;font-weight:500}
-.cat-detail-grid{display:grid;gap:8px;margin-bottom:14px}
-.cat-detail-row{display:flex;gap:12px;align-items:baseline;font-size:13px}
-.cat-detail-key{color:var(--ink-400);font-size:11.5px;white-space:nowrap;min-width:130px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;}
-.cat-detail-val{color:var(--ink-100);font-weight: 500;flex:1}
+.cat-badge{display:inline-flex;align-items:center;gap:.5rem;background:var(--green-900);color:#fff;
+  padding:.45rem 1rem;border-radius:999px;font-size:.78rem;font-weight:700;letter-spacing:.02em;margin-bottom:1rem; box-shadow: 0 4px 10px rgba(6, 78, 59, 0.3);}
+.cat-desc-box{background:var(--green-50);border:1px solid #a7f3d0;border-radius:var(--radius-md);padding:.85rem 1rem;margin-bottom:.85rem}
+.cat-desc-label{font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--green-800);margin-bottom:.35rem}
+.cat-desc-text{font-size:.88rem;color:var(--green-900);line-height:1.55;font-weight:500}
+.cat-detail-grid{display:grid;gap:.5rem;margin-bottom:.85rem}
+.cat-detail-row{display:flex;gap:.5rem;align-items:baseline;font-size:.8rem}
+.cat-detail-key{color:var(--ink-500);font-size:.72rem;white-space:nowrap;min-width:130px; font-weight: 700;}
+.cat-detail-val{color:var(--ink-800);font-weight:600;flex:1}
 
 .meta-grid {
   display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 10px 16px;
+  grid-template-columns: 110px 1fr;
+  gap: 0.6rem 1rem;
   align-items: center;
-  font-size: 13px;
-  line-height: 1.5;
-  margin-top: 8px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin-top: 0.5rem;
 }
 .meta-key {
-  color: var(--ink-400);
+  color: var(--ink-500);
   font-weight: 700;
-  font-size: 10.5px;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
 }
 .meta-val {
-  color: var(--ink-100);
-  font-weight: 500;
+  color: var(--ink-800);
+  font-weight: 600;
   word-break: break-word;
 }
 
-/* ── Utils ────────────────────────────────────────────────────────────── */
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.divider { border: none; border-top: 1px solid var(--border-1); margin: 20px 0; }
+/* Utils */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.divider { border: none; border-top: 1px dashed rgba(0,0,0,0.1); margin: 1.25rem 0; }
 
-@media(max-width: 1000px){
-  .case-grid { grid-template-columns: 1fr; }
-  .page-body { padding: 22px 20px 40px; }
-  .page-header { padding: 22px 20px; }
-  .form-row { grid-template-columns: 1fr; }
-}
-@media(max-width: 900px){
-  .admin-shell { grid-template-columns: 1fr; }
-}
+@media(max-width: 900px){ .case-grid { grid-template-columns: 1fr; } }
 
-/* ── Spinner & loading ────────────────────────────────────────────────── */
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 .spinner {
-  border: 3px solid rgba(255,255,255,.1);
-  border-top-color: var(--accent);
+  border: 4px solid rgba(255,255,255,.1);
+  border-top-color: var(--primary-color,#6366f1);
   border-radius: 50%;
-  width: 44px;
-  height: 44px;
+  width: 50px;
+  height: 50px;
   animation: spin 1s linear infinite;
-  margin: 0 auto 20px;
+  margin: 0 auto 1.5rem;
 }
 .global-loading-overlay {
   position: fixed;
@@ -1214,42 +1096,17 @@ select.form-control { cursor: pointer; }
   display: none;
   align-items: center;
   justify-content: center;
-  background: rgba(4,7,14,.92);
+  background: rgba(15,23,42,.92);
   backdrop-filter: blur(8px);
 }
-
-/* ── Accordion offense details ────────────────────────────────────────── */
-.offense-details-card summary { list-style: none; }
-.offense-details-card summary::-webkit-details-marker { display: none; }
-.stag { display:inline-block; padding:2px 8px; border-radius:3px; font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform: uppercase; }
-.stag-major { background: var(--rose-soft); color: #e8a0a0; border: 1px solid var(--rose-line); }
-.stag-minor { background: var(--accent-soft); color: #7cc2ee; border: 1px solid var(--accent-line); }
-
-/* Card grid override for case-detail cards */
-.card .meta-grid .meta-val a { color: var(--accent-hi); text-decoration: none; }
-.card .meta-grid .meta-val a:hover { text-decoration: underline; }
-
-/* Custom scrollbar for panel lists */
-.panel-list::-webkit-scrollbar,
-.modal-content::-webkit-scrollbar { width: 6px; }
-.panel-list::-webkit-scrollbar-track,
-.modal-content::-webkit-scrollbar-track { background: transparent; }
-.panel-list::-webkit-scrollbar-thumb,
-.modal-content::-webkit-scrollbar-thumb { background: var(--border-3); border-radius: 3px; }
-.panel-list::-webkit-scrollbar-thumb:hover,
-.modal-content::-webkit-scrollbar-thumb:hover { background: var(--ink-500); }
-
-/* Override old pill style in JS toggles */
-.pill.pill-open { color: #8fc9a5; }
-.pill.pill-warning { color: #e8b767; }
 </style>
 </head>
-<body>
+<body style="padding-top: 0px;">
 <!-- Global Loading Overlay -->
 <div id="globalLoadingOverlay" class="global-loading-overlay">
   <div style="text-align:center">
     <div class="spinner"></div>
-    <p style="color:#fff;font-size:14px;font-weight:600;margin:0;letter-spacing:0.02em" id="globalLoadingMsg">Processing, please wait…</p>
+    <p style="color:#fff;font-size:1rem;font-weight:600;margin:0" id="globalLoadingMsg">Processing, please wait…</p>
   </div>
 </div>
 <?php require_once __DIR__ . '/header.php'; ?>
@@ -1260,10 +1117,7 @@ select.form-control { cursor: pointer; }
     <div class="page-header">
       <div class="header-left">
         <a href="upcc_cases.php" class="back-link">← Back to Cases</a>
-        <div class="case-id">
-          <span class="case-id-label">Case Reference</span>
-          <?= htmlspecialchars($caseLabel) ?>
-        </div>
+        <div class="case-id"><?= htmlspecialchars($caseLabel) ?></div>
         <div class="header-badges">
           <span class="pill <?= htmlspecialchars($caseStatusPillClass) ?>">
             <span class="pill-dot"></span>
@@ -1281,22 +1135,22 @@ select.form-control { cursor: pointer; }
         </div>
       </div>
       <div class="header-right">
-        FILED&nbsp; <?= fmtd($case['created_at']) ?><br>
-        UPDATED&nbsp; <?= fmtd($case['updated_at']) ?>
+        Filed <strong><?= fmtd($case['created_at']) ?></strong><br>
+        Updated <strong><?= fmtd($case['updated_at']) ?></strong>
       </div>
     </div>
 
     <div class="page-body">
       <?php if ($case['status'] === 'DISMISSED'): ?>
-        <div style="background:var(--rose-soft); border:1px solid var(--rose-line); border-radius:var(--radius-lg); padding:20px 24px; margin-bottom:20px; display:flex; align-items:flex-start; gap:16px;">
-          <div style="font-size:28px; line-height:1;">🚫</div>
+        <div style="background:#fef2f2; border:1.5px solid #fca5a5; border-radius:14px; padding:20px 24px; margin-bottom:20px; display:flex; align-items:flex-start; gap:16px; box-shadow:0 4px 14px rgba(220,38,38,0.08);">
+          <div style="font-size:32px; line-height:1;">🚫</div>
           <div style="flex:1;">
-            <h3 style="margin:0 0 6px 0; font-size:15px; color:#e8a0a0; font-weight:700; letter-spacing:0.02em; text-transform:uppercase;">This UPCC Case Has Been Dismissed</h3>
-            <div style="font-size:13px; color:#d8a3a3; line-height:1.55;">
-              <strong>Reason:</strong> <?= htmlspecialchars($case['dismissal_reason'] ?? 'Case dismissed by Student Discipline Office.') ?>
+            <h3 style="margin:0 0 6px 0; font-size:18px; color:#991b1b; font-weight:800;">THIS UPCC CASE HAS BEEN OFFICIALLY DISMISSED</h3>
+            <div style="font-size:13.5px; color:#7f1d1d; line-height:1.5;">
+              <strong>Reason for Dismissal:</strong> <?= htmlspecialchars($case['dismissal_reason'] ?? 'Case dismissed by Student Discipline Office.') ?>
             </div>
-            <div style="font-size:11.5px; color:#b88484; margin-top:8px; font-weight:600; font-family:var(--mono)">
-              Dismissed on <?= !empty($case['dismissed_at']) ? date('F j, Y \a\t h:i A', strtotime($case['dismissed_at'])) : date('F j, Y \a\t h:i A', strtotime($case['updated_at'])) ?>
+            <div style="font-size:11.5px; color:#991b1b; opacity:0.85; margin-top:8px; font-weight:600;">
+              🕒 Dismissed on <?= !empty($case['dismissed_at']) ? date('F j, Y \a\t h:i A', strtotime($case['dismissed_at'])) : date('F j, Y \a\t h:i A', strtotime($case['updated_at'])) ?>
             </div>
           </div>
         </div>
@@ -1316,14 +1170,15 @@ select.form-control { cursor: pointer; }
             <?php if (!$isClosed && $hasPanel): ?>
               <span class="pill <?= $isHearingOpen ? 'pill-open' : 'pill-neutral' ?>">
                 <?php if ($isHearingOpen): ?><span class="pill-dot"></span><?php endif; ?>
-                <?= $isHearingOpen ? 'Open' : 'Closed' ?>
+                <?= $isHearingOpen ? 'Hearing Open' : 'Hearing Closed' ?>
               </span>
             <?php endif; ?>
           </div>
           <div class="card-body">
 
             <?php if (!$hasPanel): ?>
-              <div class="alert alert-info" style="margin-bottom:16px">No panel assigned yet. Configure below.</div>
+              <!-- No hearing configured yet -->
+              <div class="alert alert-info" style="margin-bottom:1rem">No panel assigned yet. Configure below.</div>
               <form method="post" id="hearingConfigForm">
                 <input type="hidden" name="action" value="update_hearing_config">
                 <div class="form-group">
@@ -1377,6 +1232,7 @@ select.form-control { cursor: pointer; }
             <?php else: ?>
 
               <?php if (!$isClosed): ?>
+              <!-- Status bar -->
               <div class="status-bar">
                 <div class="status-indicator">
                   <span class="<?= $isHearingOpen ? 'dot-live' : 'dot-off' ?>"></span>
@@ -1407,27 +1263,27 @@ select.form-control { cursor: pointer; }
 
                         $canStartHearing  = (!$needsExplanation || $hasExplanation) && $panelMet;
                       ?>
-                      <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                      <div style="display:flex; flex-direction:column; gap:6px;">
                           <?php if (!$canStartHearing): ?>
-                            <label style="font-size:11px; display:flex; align-items:center; gap:6px; color:#e8b767; font-weight:600; cursor:pointer;">
+                            <label style="font-size:11px; display:flex; align-items:center; gap:4px; color:#d97706; font-weight:600; cursor:pointer;">
                               <input type="checkbox" id="forceStartCheck" onclick="document.getElementById('btnStartHearing').disabled = !this.checked;">
-                              Force Start
+                              Force Start (Bypass requirements)
                             </label>
                           <?php endif; ?>
                           <button type="submit" class="btn btn-success btn-sm" <?= $canStartHearing ? '' : 'disabled' ?> id="btnStartHearing">▶ Start Hearing</button>
                           <?php if (!$canStartHearing): ?>
-                            <div style="font-size:10.5px; color:#e8a0a0; font-weight:600; line-height:1.4; text-align:right;">
+                            <div style="font-size:10px; color:var(--red-600); font-weight:600; line-height:1.4;">
                               <?php if ($needsExplanation && !$hasExplanation) echo "• Awaiting Student Explanation<br>"; ?>
-                              <?php if (!$panelMet) echo "• Awaiting Panel ({$acceptedPanel}/{$totalPanel} accepted)<br>"; ?>
+                              <?php if (!$panelMet) echo "• Awaiting Panel ({$acceptedPanel}/{$totalPanel} accepted; need all or at least 2)<br>"; ?>
                             </div>
                           <?php endif; ?>
                       </div>
                     </form>
                   <?php else: ?>
                     <?php if (!empty($isHearingPaused)): ?>
-                      <button type="button" id="togglePauseBtn" class="btn btn-success btn-sm" onclick="toggleHearingPause()">▶ Resume Hearing</button>
+                      <button type="button" id="togglePauseBtn" class="btn btn-success btn-sm" onclick="toggleHearingPause()">▶️ Resume Hearing</button>
                     <?php else: ?>
-                      <button type="button" id="togglePauseBtn" class="btn btn-warning btn-sm" onclick="toggleHearingPause()">⏸ Pause Hearing</button>
+                      <button type="button" id="togglePauseBtn" class="btn btn-warning btn-sm" onclick="toggleHearingPause()">⏸️ Pause Hearing</button>
                     <?php endif; ?>
                     <form method="post" style="display:inline">
                       <input type="hidden" name="action" value="close_hearing">
@@ -1435,14 +1291,14 @@ select.form-control { cursor: pointer; }
                     </form>
                   <?php endif; ?>
                   <?php if (!$isHearingOpen && !$isClosed): ?>
-                    <button class="btn btn-ghost btn-sm" onclick="toggleEditPanel()">✎ Edit</button>
+                    <button class="btn btn-ghost btn-sm" onclick="toggleEditPanel()">✎ Edit Config</button>
                   <?php endif; ?>
                 </div>
               </div>
 
               <?php if ($isHearingOpen): ?>
                 <div id="liveHearingStatus" class="alert alert-info">
-                  Hearing is live — panel may now vote.
+                  🗳️ Hearing is live — panel may now vote.
                 </div>
               <?php endif; ?>
               <?php endif; ?>
@@ -1455,21 +1311,22 @@ select.form-control { cursor: pointer; }
               }
               ?>
 
-              <div id="studentExplanationBlock" style="<?= !empty($case['student_explanation_at']) ? 'display:block' : 'display:none' ?>; margin-bottom: 20px; border: 1px solid var(--border-1); border-radius: var(--radius-md); overflow: hidden;">
-                <div style="background: rgba(0,0,0,0.25); padding: 12px 16px; border-bottom: 1px solid var(--border-1); display: flex; align-items: center; justify-content: space-between;">
-                   <span style="font-size: 10.5px; font-weight: 700; color: var(--ink-300); text-transform: uppercase; letter-spacing: 0.1em;">Student Explanation</span>
-                   <span id="explanationTime" style="font-size: 11px; color: var(--ink-400); font-family: var(--mono)"><?= $case['student_explanation_at'] ? 'Submitted ' . date('M j, Y g:i A', strtotime($case['student_explanation_at'])) : '' ?></span>
+              <!-- Student Explanation Section -->
+              <div id="studentExplanationBlock" style="<?= !empty($case['student_explanation_at']) ? 'display:block' : 'display:none' ?>; margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                <div style="background: #f8fafc; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+                   <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Student Explanation</span>
+                   <span id="explanationTime" style="font-size: 11px; color: #94a3b8;"><?= $case['student_explanation_at'] ? 'Submitted ' . date('M j, Y g:i A', strtotime($case['student_explanation_at'])) : '' ?></span>
                 </div>
-                <div style="padding: 16px;">
-                   <div id="explanationText" style="font-size: 13px; color: var(--ink-100); line-height: 1.6; white-space: pre-wrap; margin-bottom: 12px;"><?= htmlspecialchars($case['student_explanation_text'] ?? '') ?></div>
+                <div style="padding: 16px; background: #fff;">
+                   <div id="explanationText" style="font-size: 14px; color: #1e293b; line-height: 1.6; white-space: pre-wrap; margin-bottom: 12px;"><?= htmlspecialchars($case['student_explanation_text'] ?? '') ?></div>
                    <div id="explanationAttachments" style="display: flex; gap: 12px; flex-wrap: wrap;">
                       <?php if (!empty($case['student_explanation_image'])): ?>
-                        <a href="../<?= htmlspecialchars($case['student_explanation_image']) ?>" target="_blank" id="explanationImageLink" style="display: block; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-2);">
+                        <a href="../<?= htmlspecialchars($case['student_explanation_image']) ?>" target="_blank" id="explanationImageLink" style="display: block; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
                            <img src="../<?= htmlspecialchars($case['student_explanation_image']) ?>" style="max-width: 100px; max-height: 100px; display: block; object-fit: cover;">
                         </a>
                       <?php endif; ?>
                       <?php if (!empty($case['student_explanation_pdf'])): ?>
-                        <a href="../<?= htmlspecialchars($case['student_explanation_pdf']) ?>" target="_blank" id="explanationPdfLink" style="display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--rose-soft); border: 1px solid var(--rose-line); border-radius: var(--radius-sm); text-decoration: none; color: #e8a0a0; font-size: 12px; font-weight: 600;">
+                        <a href="../<?= htmlspecialchars($case['student_explanation_pdf']) ?>" target="_blank" id="explanationPdfLink" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fff1f2; border: 1px solid #fecaca; border-radius: 8px; text-decoration: none; color: #be123c; font-size: 12px; font-weight: 600;">
                            <span>📄 View PDF Explanation</span>
                         </a>
                       <?php endif; ?>
@@ -1477,12 +1334,13 @@ select.form-control { cursor: pointer; }
                 </div>
               </div>
 
+              <!-- Hearing info -->
               <?php if (!$isHearingOpen && !$isClosed): ?>
-              <div onclick="toggleEditPanel()" style="cursor:pointer; padding:14px 16px; border-radius: var(--radius-md); transition: all 0.15s ease; border: 1px dashed var(--border-2); margin-bottom: 16px;" onmouseover="this.style.background='rgba(61,156,224,0.05)'; this.style.borderColor='var(--accent-line)';" onmouseout="this.style.background=''; this.style.borderColor='var(--border-2)';">
-                <div style="float:right; font-size:10.5px; font-weight:700; color:var(--accent-hi); background:var(--accent-soft); padding:4px 10px; border-radius:3px; border:1px solid var(--accent-line); letter-spacing:0.08em; text-transform:uppercase;">✎ Edit Configuration</div>
+              <div onclick="toggleEditPanel()" style="cursor:pointer; padding:12px; margin:-12px; border-radius:16px; transition:all 0.2s ease; border: 1px solid transparent;" onmouseover="this.style.background='var(--blue-50)'; this.style.borderColor='var(--blue-200)'; this.style.transform='scale(1.01)';" onmouseout="this.style.background=''; this.style.borderColor='transparent'; this.style.transform='';">
+                <div style="float:right; font-size:11px; font-weight:700; color:var(--blue-600); background:var(--blue-100); padding:4px 8px; border-radius:8px;">✎ Click to Edit Config</div>
               <?php endif; ?>
 
-              <div class="section-label" style="clear:both;">Scheduled Hearing</div>
+              <div class="section-label">Scheduled Hearing</div>
               <div class="hearing-box">
                 <div class="hearing-row">
                   <span class="hearing-key">Date &amp; Time</span>
@@ -1495,11 +1353,11 @@ select.form-control { cursor: pointer; }
                   <span class="hearing-key">Format &amp; Location</span>
                   <span class="hearing-val">
                     <?php if (($case['hearing_type'] ?? '') === 'FACE_TO_FACE'): ?>
-                      <span style="color:#e8b767;background:var(--amber-soft);border:1px solid var(--amber-line);padding:2px 7px;border-radius:3px;font-size:10px;margin-right:6px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">In-Person</span>
+                      <span style="color:var(--amber-700);background:var(--amber-100);padding:2px 6px;border-radius:4px;font-size:.7rem;margin-right:4px;font-weight:700">In-Person</span>
                       <?= htmlspecialchars($case['hearing_link_or_location'] ?? '—') ?>
                     <?php else: ?>
-                      <span style="color:#7cc2ee;background:var(--accent-soft);border:1px solid var(--accent-line);padding:2px 7px;border-radius:3px;font-size:10px;margin-right:6px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">Online</span>
-                      <a href="<?= htmlspecialchars($case['hearing_link_or_location'] ?? '#') ?>" target="_blank" style="color:var(--accent-hi);text-decoration:none;"><?= htmlspecialchars($case['hearing_link_or_location'] ?? '—') ?></a>
+                      <span style="color:var(--blue-700);background:var(--blue-100);padding:2px 6px;border-radius:4px;font-size:.7rem;margin-right:4px;font-weight:700">Online</span>
+                      <a href="<?= htmlspecialchars($case['hearing_link_or_location'] ?? '#') ?>" target="_blank" style="color:var(--blue-600);text-decoration:none;"><?= htmlspecialchars($case['hearing_link_or_location'] ?? '—') ?></a>
                     <?php endif; ?>
                   </span>
                 </div>
@@ -1509,14 +1367,15 @@ select.form-control { cursor: pointer; }
                 </div>
               </div>
 
+              <!-- Panel members -->
               <div class="section-label">Panel Members</div>
               <?php if (empty($assignedPanelNames)): ?>
-                <div style="background:var(--rose-soft);border:1px solid var(--rose-line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:16px;color:#e8a0a0;font-size:13px;display:flex;align-items:center;gap:10px;">
-                  <span style="font-size:18px;">⚠️</span>
+                <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;color:#991b1b;font-size:.8rem;display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:1.2rem;">⚠️</span>
                   <div>
                     <strong>Panel Assignment Warning:</strong> No UPCC panel members have been assigned to this case hearing!
                     <?php if (!$isClosed): ?>
-                      <br><a href="#editPanel" onclick="toggleEditPanel()" style="color:#e8a0a0;font-weight:700;text-decoration:underline;font-size:12px;">Click here to assign UPCC panel members →</a>
+                      <br><a href="#editPanel" onclick="toggleEditPanel()" style="color:#7f1d1d;font-weight:700;text-decoration:underline;font-size:.78rem;">Click here to assign UPCC panel members &rarr;</a>
                     <?php endif; ?>
                   </div>
                 </div>
@@ -1528,7 +1387,7 @@ select.form-control { cursor: pointer; }
                   }
                 ?>
                 <?php if ($pendingAcceptanceCount > 0): ?>
-                  <div style="background:var(--amber-soft);border:1px solid var(--amber-line);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#e8b767;">
+                  <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:8px;padding:.5rem .8rem;margin-bottom:.8rem;font-size:.78rem;color:#873800;">
                     ⚠️ <strong>Panel Acceptance Pending:</strong> <?= $pendingAcceptanceCount ?> assigned panel member(s) have not yet accepted their hearing invitation.
                   </div>
                 <?php endif; ?>
@@ -1544,14 +1403,14 @@ select.form-control { cursor: pointer; }
                             <?php if ($pm['accepted']): ?>
                               <?php 
                                 $accDate = !empty($pm['accepted_at']) ? date('M j, Y \a\t h:i A', strtotime($pm['accepted_at'])) : '';
-                                $tooltipText = "Panelist Agreed & Accepted Confidentiality Policy" . ($accDate ? " on " . $accDate : "");
+                                $tooltipText = "⭐ Panelist Agreed & Accepted Confidentiality Policy" . ($accDate ? " on " . $accDate : "");
                               ?>
-                              <span style="font-size:13px; color: var(--gold); cursor:pointer;" title="<?= htmlspecialchars($tooltipText) ?>">⭐</span>
+                              <span style="font-size:15px; color:#f59e0b; filter:drop-shadow(0 1px 2px rgba(245,158,11,0.4)); cursor:pointer;" title="<?= htmlspecialchars($tooltipText) ?>">⭐</span>
                             <?php endif; ?>
                           </div>
                           <div class="member-role"><?= htmlspecialchars($pm['role']) ?></div>
                           <?php if ($pm['accepted'] && !empty($accDate)): ?>
-                            <div style="font-size:10.5px; color:#8fc9a5; font-weight:600; margin-top:2px; font-family:var(--mono)">
+                            <div style="font-size:10px; color:#15803d; font-weight:700; margin-top:2px;">
                               Agreed <?= htmlspecialchars($accDate) ?>
                             </div>
                           <?php endif; ?>
@@ -1559,9 +1418,9 @@ select.form-control { cursor: pointer; }
                       </div>
                       <div id="panel-presence-<?= $pm['id'] ?>" data-accepted="<?= $pm['accepted'] ? '1' : '0' ?>">
                         <?php if ($pm['accepted']): ?>
-                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--sage-soft); color:#8fc9a5; font-weight:bold; font-size:12px; border:1px solid var(--sage-line);" title="Accepted">✓</span>
+                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dcfce7; color:#16a34a; font-weight:bold; font-size:13px;" title="Accepted">✓</span>
                         <?php else: ?>
-                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--amber-soft); color:#e8b767; font-weight:bold; font-size:13px; border:1px solid var(--amber-line);" title="Awaiting Acceptance">⌛</span>
+                          <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fef3c7; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">⌛</span>
                         <?php endif; ?>
                       </div>
                     </div>
@@ -1570,10 +1429,10 @@ select.form-control { cursor: pointer; }
               <?php endif; ?>
               
               <?php if (!$isHearingOpen && !$isClosed): ?>
-              </div>
+              </div> <!-- End clickable config wrap -->
               
-              <div id="editPanel" style="display:none; margin-top:18px; padding:18px; background: rgba(0,0,0,0.2); border:1px solid var(--border-1); border-radius: var(--radius-md);">
-                <div style="font-weight:700; margin-bottom:14px; font-size:13px; color:var(--ink-50); text-transform: uppercase; letter-spacing: 0.08em;">Edit Hearing Configuration</div>
+              <div id="editPanel" style="display:none; margin-top:1rem; padding:16px; background:#fff; border:1px solid #e2e8f0; border-radius:12px;">
+                <div style="font-weight:700; margin-bottom:12px;">Edit Hearing Configuration</div>
                 <form method="post">
                   <input type="hidden" name="action" value="update_hearing_config">
                   <div class="form-group">
@@ -1626,11 +1485,12 @@ select.form-control { cursor: pointer; }
               </div>
               <?php endif; ?>
 
+              <!-- Rejoin requests -->
               <?php if ($isHearingOpen && !$isClosed): ?>
                 <div id="waitingUsersContainer" class="waiting-room-box">
-                  <div style="font-weight:600;color:#e8b767;margin-bottom:8px;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;text-transform:uppercase;letter-spacing:0.08em;">
+                  <div style="font-weight:600;color:var(--amber-700);margin-bottom:.5rem;font-size:.8rem;display:flex;align-items:center;justify-content:space-between">
                     🚪 Rejoin Requests
-                    <span id="rejoinBadge" style="display:none;background:var(--rose);color:#fff;border-radius:50%;width:22px;height:22px;align-items:center;justify-content:center;font-size:11px;font-weight:700;">0</span>
+                    <span id="rejoinBadge" style="display:none;background:#ff6b6b;color:#fff;border-radius:50%;width:22px;height:22px;align-items:center;justify-content:center;font-size:11px;font-weight:700;">0</span>
                   </div>
                   <div id="waitingUsersList"></div>
                 </div>
@@ -1638,28 +1498,32 @@ select.form-control { cursor: pointer; }
 
               <?php if (!$isClosed): ?>
               
+
+              
               <!-- ═══════════════════════════════════════════════════
-                   LIVE VOTING SECTION
+                   LIVE VOTING SECTION (distinct container)
               ══════════════════════════════════════════════════════ -->
-              <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-1); border-radius: var(--radius-md); padding: 20px; margin-top: 25px;">
-                  <div class="section-label" style="display:flex;align-items:center;justify-content:space-between; margin-top: 0; border-bottom: none; padding-bottom: 0; margin-bottom: 16px;">
+              <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px; margin-top: 25px;">
+                  <div class="section-label" style="display:flex;align-items:center;justify-content:space-between; margin-top: 0;">
                     <span>
-                      <span style="font-size:12px;color:#7cc2ee; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;">UPCC Panel Voting</span>
-                      <?php if ($roundNo): ?><span style="font-weight:400;color:var(--ink-400);margin-left:8px; font-size: 11px; font-family: var(--mono); text-transform: none; letter-spacing: 0;">Round <span id="currentRoundNo"><?= $roundNo ?></span></span><?php endif; ?>
+                      <span style="font-size:1.1rem;color:var(--blue-700)">UPCC Panel Voting</span>
+                      <?php if ($roundNo): ?><span style="font-weight:400;color:var(--ink-500);margin-left:8px;">— Round <span id="currentRoundNo"><?= $roundNo ?></span></span><?php endif; ?>
                     </span>
                 <?php if ($totalPanelMembers > 0 && $roundNo > 0 && !$isAwaitingAdmin): ?>
-                  <span style="font-size:11px;color:var(--ink-400); text-transform: none; letter-spacing: 0;">All <?= $voterCount ?> voter(s) must agree</span>
+                  <span style="font-size:.68rem;color:var(--ink-500)">All <?= $voterCount ?> voter(s) must agree</span>
                 <?php endif; ?>
               </div>
 
+              <!-- COOLDOWN STATE -->
               <?php if ($cooldownSecs > 0): ?>
                 <div class="cooldown-block" id="cooldownBlock">
                   <div class="cooldown-title">⏳ Cooldown Active</div>
                   <div class="cooldown-num" id="cooldownTimer"><?= sprintf('%d:%02d', floor($cooldownSecs / 60), $cooldownSecs % 60) ?></div>
-                  <div style="font-size:11.5px;color:#e8b767;margin-top:6px; font-weight: 600;">Panel can suggest again after cooldown</div>
+                  <div style="font-size:.7rem;color:var(--amber-700);margin-top:.25rem">Panel can suggest again after cooldown</div>
                 </div>
               <?php endif; ?>
 
+              <!-- ACTIVE VOTING ROUND -->
               <?php
               $isRoundActive = $activeRound !== null && (int)($activeRound['is_active'] ?? 0) === 1;
               $roundEndsAt   = $activeRound['ends_at'] ?? null;
@@ -1667,32 +1531,36 @@ select.form-control { cursor: pointer; }
               ?>
 
               <?php if ($isRoundActive && $suggestedCatInRound > 0): ?>
+                <!-- Active voting round block -->
                 <div class="voting-live-block" id="votingLiveBlock">
                   <div class="vlb-header">
                     <div class="vlb-title">
                       🗳️ Active Vote — Round <?= $roundNo ?>
                       <span class="live-badge">● Live</span>
-                      <button type="button" class="btn btn-sm btn-outline" style="margin-left:12px;font-size:10.5px;padding:4px 10px;background:rgba(255,255,255,0.05);border-color:var(--border-2);color:var(--ink-100);" onclick="openLiveVotingModal()">View Modal</button>
+                      <button type="button" class="btn btn-sm btn-outline" style="margin-left:12px;font-size:10px;padding:2px 8px;border-color:rgba(255,255,255,0.4);color:#fff;" onclick="openLiveVotingModal()">View in Modal</button>
                     </div>
-                    <div style="font-family:var(--mono);font-size:14px;color:var(--ink-50);font-weight:600; letter-spacing: 0.03em;" id="vlbTimer">
+                    <div style="font-family:var(--mono);font-size:.82rem;color:#fff" id="vlbTimer">
                       <?= sprintf('%02d:%02d', floor($roundSecsLeft / 60), $roundSecsLeft % 60) ?>
                     </div>
                   </div>
                   <div class="vlb-body">
 
+                    <!-- Timer bar -->
                     <div class="vlb-timer-wrap">
                       <div class="vlb-timer-bar">
                         <div class="vlb-timer-fill" id="vlbTimerFill"
                             style="width:<?= $roundSecsLeft > 0 ? round(($roundSecsLeft / 600) * 100) : 0 ?>%;
-                                    background:<?= $roundSecsLeft > 600 ? 'var(--sage)' : ($roundSecsLeft > 180 ? 'var(--amber)' : 'var(--rose)') ?>"></div>
+                                    background:<?= $roundSecsLeft > 600 ? 'var(--green-600)' : ($roundSecsLeft > 180 ? 'var(--amber-500)' : 'var(--red-600)') ?>"></div>
                       </div>
                     </div>
 
+                    <!-- Suggested penalty -->
                     <div class="vlb-suggestion">
                       <div class="vlb-sug-cat">Category <?= $suggestedCatInRound ?></div>
-                      <div class="vlb-sug-by">Suggested by: <strong style="color:var(--ink-100)"><?= htmlspecialchars($suggesterName) ?></strong></div>
+                      <div class="vlb-sug-by">Suggested by: <strong><?= htmlspecialchars($suggesterName) ?></strong></div>
                       <div class="vlb-sug-detail" id="vlbSugDetail">
                         <?php
+                        // find suggestion vote details
                         $sugVoteRow = null;
                         foreach ($roundVotes as $rv) {
                             if ((int)$rv['upcc_id'] === $suggesterId) { $sugVoteRow = $rv; break; }
@@ -1729,29 +1597,31 @@ select.form-control { cursor: pointer; }
                           <?= ['', '', '', 'Non-Readmission — student account will be frozen', 'Exclusion — student account will be frozen', 'Expulsion — account permanently frozen'][$suggestedCatInRound] ?>
                         <?php endif; ?>
                         <?php if (!empty($sugDetails['description'])): ?>
-                          <div style="margin-top:8px;font-style:italic;color:var(--ink-300)"><?= htmlspecialchars($sugDetails['description']) ?></div>
+                          <div style="margin-top:.4rem;font-style:italic;color:var(--ink-500)"><?= htmlspecialchars($sugDetails['description']) ?></div>
                         <?php endif; ?>
                       </div>
                     </div>
 
+                    <!-- Tally -->
                     <div class="vote-tally">
                       <div class="vote-tally-cell vtc-agree">
                         <span class="vtc-num" id="tallyAgree"><?= $agreeVotes ?></span>
-                        <span class="vtc-lbl">Agree</span>
+                        <span class="vtc-lbl">✅ Agree</span>
                       </div>
                       <div class="vote-tally-cell vtc-disagree">
                         <span class="vtc-num" id="tallyDisagree"><?= $disagreeVotes ?></span>
-                        <span class="vtc-lbl">Disagree</span>
+                        <span class="vtc-lbl">❌ Disagree</span>
                       </div>
                       <div class="vote-tally-cell vtc-pending">
                         <span class="vtc-num" id="tallyPending"><?= $pendingCount ?></span>
-                        <span class="vtc-lbl">Pending</span>
+                        <span class="vtc-lbl">⏳ Pending</span>
                       </div>
                     </div>
-                    <div style="text-align:center;font-size:11.5px;color:var(--ink-400);margin-bottom:14px; letter-spacing: 0.02em;">
+                    <div style="text-align:center;font-size:.72rem;color:var(--ink-500);margin-bottom:.75rem">
                       All <?= $voterCount ?> voter(s) must agree to pass
                     </div>
 
+                    <!-- Per-member vote breakdown -->
                     <?php if (!empty($roundVotes)): ?>
                       <div class="vote-head"><span>Panel Member</span><span>Vote · Time</span></div>
                       <?php foreach ($roundVotes as $rv):
@@ -1760,14 +1630,14 @@ select.form-control { cursor: pointer; }
                         $isAgree  = $cat > 0 && !$isSug;
                       ?>
                         <div class="vote-row">
-                          <span style="color:var(--ink-100); font-weight: 500;"><?= htmlspecialchars($rv['full_name'] ?? 'Panel Member') ?><?= $isSug ? ' <small style="color:var(--ink-400); font-size: 11px;">(suggester)</small>' : '' ?></span>
-                          <span style="display:flex; align-items:center;">
+                          <span><?= htmlspecialchars($rv['full_name'] ?? 'Panel Member') ?><?= $isSug ? ' <small style="color:var(--ink-400)">(suggester)</small>' : '' ?></span>
+                          <span>
                             <?php if ($isSug): ?>
-                              <span class="vote-cat suggester">Suggested</span>
+                              <span class="vote-cat suggester">🗣️ Suggested</span>
                             <?php elseif ($isAgree): ?>
-                              <span class="vote-cat agree">Agree</span>
+                              <span class="vote-cat agree">✅ Agree</span>
                             <?php else: ?>
-                              <span class="vote-cat disagree">Disagree</span>
+                              <span class="vote-cat disagree">❌ Disagree</span>
                             <?php endif; ?>
                             <span class="vote-time"><?= fmt($rv['updated_at']) ?></span>
                           </span>
@@ -1781,13 +1651,17 @@ select.form-control { cursor: pointer; }
                 </div>
 
               <?php elseif (!$isAwaitingAdmin): ?>
+                <!-- No active round -->
                 <div class="awaiting-box" id="awaitingVoteBox">
                   <span>⌛</span>
                   <span><?= $totalPanelMembers === 0 ? 'No panel members assigned.' : 'Waiting for a panel member to suggest a penalty.' ?></span>
                 </div>
               <?php endif; ?>
 
-              <div class="consensus-finalize-block" id="consensusBlock" style="<?= (!$isAwaitingAdmin && $consensusCategory === 0) ? 'display:none;' : '' ?>">
+              <!-- ═══════════════════════════════════════════════════
+                   CONSENSUS REACHED — Finalization block
+              ══════════════════════════════════════════════════════ -->
+                <div class="consensus-finalize-block" id="consensusBlock" style="<?= (!$isAwaitingAdmin && $consensusCategory === 0) ? 'display:none;' : '' ?>">
                   <div class="cf-header">
                     <div class="cf-header-left">
                       <span class="cf-icon">✅</span>
@@ -1797,7 +1671,7 @@ select.form-control { cursor: pointer; }
                       </div>
                     </div>
                     <button type="button" class="btn btn-outline btn-sm"
-                            style="background:rgba(255,255,255,.05);color:var(--ink-100);border-color:var(--border-2)"
+                            style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)"
                             onclick="showCancelConsensusModal()">
                       🔄 Cancel &amp; Re-vote
                     </button>
@@ -1823,7 +1697,7 @@ select.form-control { cursor: pointer; }
                             <span class="cat-detail-key">🔧 Interventions:</span>
                             <span class="cat-detail-val">
                               <?php foreach ($prefillCat2Interventions as $iv): ?>
-                                <span style="display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);color:#7cc2ee;border:1px solid var(--accent-line);padding:3px 9px;border-radius:3px;font-size:11.5px;margin:2px 3px 2px 0; font-weight: 600;">
+                                <span style="display:inline-flex;align-items:center;gap:4px;background:var(--blue-100);color:var(--blue-700);padding:2px 8px;border-radius:4px;font-size:.75rem;margin:2px 2px 2px 0">
                                   <?= htmlspecialchars($iv) ?>
                                   <?php if ($iv === 'University Service' && !empty($prefillCat2Hours)): ?>
                                     — <?php 
@@ -1837,25 +1711,28 @@ select.form-control { cursor: pointer; }
                           </div>
                         </div>
                       <?php elseif ($consensusCategory >= 3): ?>
-                        <div class="alert alert-warning" style="margin-bottom:14px">
+                        <div class="alert alert-warning" style="margin-bottom:.85rem">
                           ⚠️ This penalty will <strong>freeze</strong> the student account upon confirmation.
                         </div>
                       <?php endif; ?>
                     </div>
 
                     <?php if ($case['hearing_vote_consensus_at']): ?>
-                      <div style="font-size:11.5px;color:var(--ink-400);margin-bottom:14px; font-family: var(--mono);" id="consensusBlockTime">
+                      <div style="font-size:.72rem;color:var(--ink-500);margin-bottom:.85rem" id="consensusBlockTime">
                         ⏱️ Consensus reached <?= fmt($case['hearing_vote_consensus_at']) ?>
                       </div>
                     <?php endif; ?>
                   </div>
                 </div>
 
+              <!-- ═══════════════════════════════════════════════════
+                   FINAL DECISION FORM
+              ══════════════════════════════════════════════════════ -->
               <hr class="divider">
               <div class="section-label">Record Final Decision</div>
 
               <?php if ($errMsg): ?>
-              <div class="alert alert-error" style="margin-bottom:12px"><?= htmlspecialchars($errMsg) ?></div>
+              <div class="alert alert-error" style="margin-bottom:.75rem"><?= htmlspecialchars($errMsg) ?></div>
               <?php endif; ?>
 
               <div class="alert alert-warning" id="noConsensusAlert" style="<?= $consensusCategory ? 'display:none;' : '' ?>">
@@ -1869,7 +1746,7 @@ select.form-control { cursor: pointer; }
                 <div class="form-group" id="decided_category_group" style="<?= !$consensusCategory ? 'display:none;' : '' ?>">
                   <label class="form-label">
                     Category
-                    <span id="consensusSpan" style="<?= !$consensusCategory ? 'display:none;' : '' ?>;color:#8fc9a5;font-weight:600; text-transform: none; letter-spacing: 0;">
+                    <span id="consensusSpan" style="<?= !$consensusCategory ? 'display:none;' : '' ?>;color:var(--green-700);font-weight:600">
                       (Panel consensus: Category <span id="consensusSpanVal"><?= $consensusCategory ?></span>)
                     </span>
                   </label>
@@ -1883,19 +1760,22 @@ select.form-control { cursor: pointer; }
                   </select>
                 </div>
 
+                <!-- Dynamic category-specific fields -->
                 <div id="dynamicFieldsContainer">
 
+                  <!-- Cat 1: Probation -->
                   <div id="cat1Fields" style="display:none">
                     <label class="form-label">Probation Terms</label>
-                    <p style="font-size:12px;color:var(--ink-400);margin-bottom:10px">Select how many academic terms the probation lasts.</p>
+                    <p style="font-size:.75rem;color:var(--ink-500);margin-bottom:.5rem">Select how many academic terms the probation lasts.</p>
                     <select name="cat1_terms" id="cat1_terms" class="form-control">
                       <option value="1" <?= $prefillCat1Terms === 1 ? 'selected' : '' ?>>1 term</option>
                       <option value="2" <?= $prefillCat1Terms === 2 ? 'selected' : '' ?>>2 terms</option>
                       <option value="3" <?= $prefillCat1Terms === 3 || $prefillCat1Terms === 0 ? 'selected' : '' ?>>3 terms (maximum)</option>
                     </select>
-                    <p style="font-size:11.5px;color:var(--ink-400);margin-top:10px;line-height:1.5">Any subsequent major offense during probation triggers Suspension or Non-Readmission.</p>
+                    <p style="font-size:.73rem;color:var(--ink-500);margin-top:.4rem;line-height:1.4">Any subsequent major offense during probation triggers Suspension or Non-Readmission.</p>
                   </div>
 
+                  <!-- Cat 2: Formative Intervention -->
                   <div id="cat2Fields" style="display:none">
                     <?php
                     $prefillH = '';
@@ -1913,13 +1793,13 @@ select.form-control { cursor: pointer; }
                     }
                     ?>
                     <label class="form-label">Formative Interventions</label>
-                    <p style="font-size:12px;color:var(--ink-400);margin-bottom:10px">Select one or more.</p>
-                    <label class="cb-item" style="margin-bottom:6px">
+                    <p style="font-size:.75rem;color:var(--ink-500);margin-bottom:.5rem">Select one or more.</p>
+                    <label class="cb-item" style="margin-bottom:.35rem">
                       <input type="checkbox" name="cat2_university_service" id="cat2_university_service" value="1" onchange="toggleCommunityHours()" <?= in_array('University Service', $prefillCat2Interventions) ? 'checked' : '' ?>>
                       University Service (Community Service)
                     </label>
-                    <div id="communityHoursBox" style="display:<?= in_array('University Service', $prefillCat2Interventions) ? 'block' : 'none' ?>;margin-left:24px;margin-bottom:10px">
-                      <label style="font-size:11.5px;color:var(--ink-300); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;">Required Hours</label>
+                    <div id="communityHoursBox" style="display:<?= in_array('University Service', $prefillCat2Interventions) ? 'block' : 'none' ?>;margin-left:1.5rem;margin-bottom:.5rem">
+                      <label style="font-size:.75rem;color:var(--ink-600)">Required Hours</label>
                       <div class="cat2-hours-grid" role="radiogroup" aria-label="Required hours">
                         <?php foreach (['100','150','200','250','300','350','400','450','500'] as $hrs): ?>
                           <label class="cat2-hour-pill">
@@ -1932,23 +1812,23 @@ select.form-control { cursor: pointer; }
                           <span>Other</span>
                         </label>
                       </div>
-                      <div id="cat2_custom_wrap" style="display:<?= !empty($prefillCat2Hours) && !in_array($prefillCat2Hours, ['100','150','200','250','300','350','400','450','500']) ? 'flex' : 'none' ?>;align-items:center;gap:8px;margin-top:10px">
-                        <input type="number" min="0" step="1" name="cat2_service_hours_custom_h" id="cat2_service_hours_custom_h" class="form-control" style="width:80px;padding:6px 10px;"
+                      <div id="cat2_custom_wrap" style="display:<?= !empty($prefillCat2Hours) && !in_array($prefillCat2Hours, ['100','150','200','250','300','350','400','450','500']) ? 'flex' : 'none' ?>;align-items:center;gap:.4rem;margin-top:.4rem">
+                        <input type="number" min="0" step="1" name="cat2_service_hours_custom_h" id="cat2_service_hours_custom_h" class="form-control" style="width:80px;padding:6px;"
                                placeholder="Hours"
                                value="<?= htmlspecialchars($prefillH) ?>">
-                        <span style="font-size:12px;color:var(--ink-400)">hrs</span>
-                        <input type="number" min="0" max="59" step="1" name="cat2_service_hours_custom_m" id="cat2_service_hours_custom_m" class="form-control" style="width:90px;padding:6px 10px;"
+                        <span style="font-size:.75rem;color:var(--ink-500)">hrs</span>
+                        <input type="number" min="0" max="59" step="1" name="cat2_service_hours_custom_m" id="cat2_service_hours_custom_m" class="form-control" style="width:90px;padding:6px;"
                                placeholder="Minutes"
                                value="<?= htmlspecialchars($prefillM) ?>">
-                        <span style="font-size:12px;color:var(--ink-400)">mins</span>
+                        <span style="font-size:.75rem;color:var(--ink-500)">mins</span>
                       </div>
-                      <p style="font-size:11px;color:var(--ink-400);margin:8px 0 0">Use this only if the required hours are not in the list above.</p>
+                      <p style="font-size:.7rem;color:var(--ink-500);margin:.35rem 0 0">Use this only if the required hours are not in the list above.</p>
                     </div>
-                    <label class="cb-item" style="margin-bottom:6px">
+                    <label class="cb-item" style="margin-bottom:.35rem">
                       <input type="checkbox" name="cat2_counseling" value="1" <?= in_array('Referral for Counseling', $prefillCat2Interventions) ? 'checked' : '' ?>>
                       Referral for Counseling
                     </label>
-                    <label class="cb-item" style="margin-bottom:6px">
+                    <label class="cb-item" style="margin-bottom:.35rem">
                       <input type="checkbox" name="cat2_lectures" value="1" <?= in_array('Attendance to lectures', $prefillCat2Interventions) ? 'checked' : '' ?>>
                       Attendance to lectures in Discipline Education Program
                     </label>
@@ -1958,6 +1838,7 @@ select.form-control { cursor: pointer; }
                     </label>
                   </div>
 
+                  <!-- Cat 3/4/5 -->
                   <div id="cat345Fields" style="display:none">
                     <div class="alert alert-warning" style="margin:0">
                       <strong>⚠️ Student account will be frozen.</strong>
@@ -1965,11 +1846,12 @@ select.form-control { cursor: pointer; }
                     </div>
                   </div>
                 </div>
+              </div>
 
                 <div id="forceResolveGroup" style="<?= $consensusCategory ? 'display:none;' : '' ?>">
                   <div class="form-group">
-                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:600; color: var(--ink-100);">
-                      <input type="checkbox" name="force_resolve" id="force_resolve" value="1" style="width:auto; accent-color: var(--accent);" onchange="toggleForceResolve()">
+                    <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;font-size:.82rem;font-weight:600">
+                      <input type="checkbox" name="force_resolve" id="force_resolve" value="1" style="width:auto" onchange="toggleForceResolve()">
                       Force final decision without panel consensus
                     </label>
                   </div>
@@ -1993,6 +1875,7 @@ select.form-control { cursor: pointer; }
                   document.getElementById('final_decision').disabled = !isEnabled;
                   document.getElementById('submit_final_decision').disabled = !isEnabled;
                   
+                  // Hide/Show the category dropdown group
                   const catGroup = document.getElementById('decided_category_group');
                   if (catGroup) {
                       catGroup.style.display = isEnabled ? 'block' : 'none';
@@ -2003,6 +1886,7 @@ select.form-control { cursor: pointer; }
                       }
                   }
                   
+                  // Disable or enable category dynamic fields based on selection
                   const terms = document.getElementById('cat1_terms');
                   if (terms) terms.disabled = !isEnabled;
                   
@@ -2023,6 +1907,7 @@ select.form-control { cursor: pointer; }
               </script>
 
               <?php else: ?>
+              <!-- Case is CLOSED -->
               <hr class="divider">
               <?php
                 $decidedCat      = (int)($case['decided_category'] ?? 0);
@@ -2037,52 +1922,54 @@ select.form-control { cursor: pointer; }
                 ];
                 $catLabel = $catLabels[$decidedCat] ?? "Category {$decidedCat}";
               ?>
+              <!-- Closed banner — clickable to expand details -->
               <div class="consensus-box" id="closedCaseBanner" onclick="toggleClosedDetails()"
                    style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;">
                 <span>
                   🏁 Case closed — Final decision: <strong><?= $catLabel ?></strong>
                 </span>
-                <span id="closedCaseChevron" style="font-size:14px;transition:transform .25s">▼</span>
+                <span id="closedCaseChevron" style="font-size:1rem;transition:transform .25s">▼</span>
               </div>
 
-              <div id="closedCaseDetails" style="display:none;margin-top:14px;border:1px solid var(--sage-line);border-radius:var(--radius-md);overflow:hidden;">
-                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <!-- Expandable punishment details -->
+              <div id="closedCaseDetails" style="display:none;margin-top:.75rem;border:1px solid #d1fae5;border-radius:10px;overflow:hidden;">
+                <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
                   <thead>
-                    <tr style="background:var(--sage-soft);">
-                      <th colspan="2" style="padding:12px 16px;text-align:left;color:#8fc9a5;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em; font-weight: 700;">
+                    <tr style="background:#ecfdf5;">
+                      <th colspan="2" style="padding:.6rem 1rem;text-align:left;color:var(--green-700);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;">
                         Punishment Details
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr style="border-top:1px solid var(--sage-line);">
-                      <td style="padding:10px 16px;font-weight:700;color:var(--ink-400);width:40%; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em;">Category</td>
-                      <td style="padding:10px 16px;color:var(--ink-100); font-weight: 500;"><?= htmlspecialchars($catLabel) ?></td>
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500);width:40%">Category</td>
+                      <td style="padding:.55rem 1rem;color:var(--ink-800)"><?= htmlspecialchars($catLabel) ?></td>
                     </tr>
 
                     <?php if (!empty($case['final_decision'])): ?>
-                    <tr style="border-top:1px solid var(--sage-line);">
-                      <td style="padding:10px 16px;font-weight:700;color:var(--ink-400); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em;">Narrative</td>
-                      <td style="padding:10px 16px;color:var(--ink-100); font-weight: 500;"><?= nl2br(htmlspecialchars($case['final_decision'])) ?></td>
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500)">Narrative</td>
+                      <td style="padding:.55rem 1rem;color:var(--ink-800)"><?= nl2br(htmlspecialchars($case['final_decision'])) ?></td>
                     </tr>
                     <?php endif; ?>
 
                     <?php if ($decidedCat === 1 && !empty($punishDetails['probation_terms'])): ?>
-                    <tr style="border-top:1px solid var(--sage-line);">
-                      <td style="padding:10px 16px;font-weight:700;color:var(--ink-400); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em;">Probation Terms</td>
-                      <td style="padding:10px 16px;color:var(--ink-100); font-weight: 500;"><?= (int)$punishDetails['probation_terms'] ?> semester(s)
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500)">Probation Terms</td>
+                      <td style="padding:.55rem 1rem;color:var(--ink-800)"><?= (int)$punishDetails['probation_terms'] ?> semester(s)
                         <?php if (!empty($case['probation_until'])): ?>
-                          <span style="color:var(--ink-400);font-size:12px; font-family: var(--mono)"> (until <?= fmt($case['probation_until']) ?>)</span>
+                          <span style="color:var(--ink-500);font-size:.78rem"> (until <?= fmt($case['probation_until']) ?>)</span>
                         <?php endif; ?>
                       </td>
                     </tr>
                     <?php endif; ?>
 
                     <?php if ($decidedCat === 2 && !empty($punishDetails['interventions']) && is_array($punishDetails['interventions'])): ?>
-                    <tr style="border-top:1px solid var(--sage-line);">
-                      <td style="padding:10px 16px;font-weight:700;color:var(--ink-400); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em;">Interventions</td>
-                      <td style="padding:10px 16px;color:var(--ink-100); font-weight: 500;">
-                        <ul style="margin:0;padding-left:18px;">
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500)">Interventions</td>
+                      <td style="padding:.55rem 1rem;color:var(--ink-800)">
+                        <ul style="margin:0;padding-left:1.2rem;">
                           <?php foreach ($punishDetails['interventions'] as $iv): ?>
                             <li><?= htmlspecialchars($iv) ?></li>
                           <?php endforeach; ?>
@@ -2094,25 +1981,25 @@ select.form-control { cursor: pointer; }
                                 ? round($shVal * 60) . ' mins'
                                 : (floor($shVal) == $shVal ? (int)$shVal . ' hrs' : round($shVal, 1) . ' hrs');
                           ?>
-                          <span style="font-size:12px;color:var(--ink-400); font-family: var(--mono);">Required Hours: <?= htmlspecialchars($shDisp) ?></span>
+                          <span style="font-size:.78rem;color:var(--ink-500)">Required Hours: <?= htmlspecialchars($shDisp) ?></span>
                         <?php endif; ?>
                       </td>
                     </tr>
                     <?php endif; ?>
 
                     <?php if ($decidedCat >= 3): ?>
-                    <tr style="border-top:1px solid var(--sage-line);">
-                      <td style="padding:10px 16px;font-weight:700;color:var(--ink-400); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em;">Restriction</td>
-                      <td style="padding:10px 16px;color:#e8a0a0;font-weight:600;">
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500)">Restriction</td>
+                      <td style="padding:.55rem 1rem;color:#b91c1c;font-weight:600">
                         <?= $decidedCat === 3 ? 'Suspension' : 'Expulsion' ?> — account access restricted
                       </td>
                     </tr>
                     <?php endif; ?>
 
                     <?php if (!empty($case['resolution_date'])): ?>
-                    <tr style="border-top:1px solid var(--sage-line);">
-                      <td style="padding:10px 16px;font-weight:700;color:var(--ink-400); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em;">Resolved On</td>
-                      <td style="padding:10px 16px;color:var(--ink-300);font-size:12px; font-family: var(--mono)"><?= fmt($case['resolution_date']) ?></td>
+                    <tr style="border-top:1px solid #d1fae5;">
+                      <td style="padding:.55rem 1rem;font-weight:600;color:var(--ink-500)">Resolved On</td>
+                      <td style="padding:.55rem 1rem;color:var(--ink-400);font-size:.82rem"><?= fmt($case['resolution_date']) ?></td>
                     </tr>
                     <?php endif; ?>
 
@@ -2141,18 +2028,18 @@ select.form-control { cursor: pointer; }
         <div class="card" id="chat-card">
           <div class="card-header"><span class="card-title">Live Case Chat</span></div>
           <div class="card-body">
-            <div id="live-chat-box" style="height:320px;overflow-y:auto;background:rgba(0,0,0,0.2);
-              border:1px solid var(--border-1);border-radius:var(--radius-md);padding:16px;margin-bottom:16px">
-              <div style="text-align:center;color:var(--ink-400);font-size:12.5px">Loading messages…</div>
+            <div id="live-chat-box" style="height:300px;overflow-y:auto;background:var(--ink-50);
+              border:1px solid var(--border-light);border-radius:var(--radius-md);padding:1rem;margin-bottom:1rem">
+              <div style="text-align:center;color:var(--ink-400);font-size:.8rem">Loading messages…</div>
             </div>
-            <div id="replying-to-container" style="display:none;background:var(--accent-soft);padding:10px 14px;
-              border-radius:var(--radius-sm) var(--radius-sm) 0 0;border:1px solid var(--accent-line);
-              border-bottom:none;font-size:12px;color:#7cc2ee">
+            <div id="replying-to-container" style="display:none;background:var(--blue-50);padding:.5rem;
+              border-radius:var(--radius-md) var(--radius-md) 0 0;border:1px solid var(--blue-100);
+              border-bottom:none;font-size:.75rem;color:var(--blue-700)">
               <strong>Replying to <span id="reply-to-name"></span>:</strong>
-              <span id="reply-to-text" style="color:var(--ink-300)"></span>
-              <button type="button" class="btn btn-ghost btn-sm" style="float:right;padding:0 8px" onclick="cancelReply()">✕</button>
+              <span id="reply-to-text" style="color:var(--ink-500)"></span>
+              <button type="button" class="btn btn-ghost btn-sm" style="float:right;padding:0 .4rem" onclick="cancelReply()">✕</button>
             </div>
-            <form id="chat-form" style="display:flex;gap:8px">
+            <form id="chat-form" style="display:flex;gap:.5rem">
               <input type="hidden" id="reply_to" name="reply_to" value="">
               <input type="hidden" name="action" value="post_message">
               <input type="hidden" name="case_id" value="<?= $case_id ?>">
@@ -2172,17 +2059,17 @@ select.form-control { cursor: pointer; }
         <div class="card" id="student-card">
           <div class="card-header">
             <span class="card-title">Student &amp; Offense Details</span>
-            <span class="pill pill-neutral" style="font-size:10px"><?= count($offenses) ?> offense<?= count($offenses) !== 1 ? 's' : '' ?></span>
+            <span class="pill pill-neutral" style="font-size:.63rem"><?= count($offenses) ?> offense<?= count($offenses) !== 1 ? 's' : '' ?></span>
           </div>
           <div class="card-body">
             <div class="section-label">Student Information</div>
             <div class="meta-grid">
-              <span class="meta-key">Name</span>      <span class="meta-val"><?= htmlspecialchars($case['student_name']) ?></span>
-              <span class="meta-key">Student ID</span> <span class="meta-val" style="font-family:var(--mono);font-size:12.5px"><?= htmlspecialchars($case['student_id']) ?></span>
+              <span class="meta-key">Name</span>      <span class="meta-val" style="font-weight:500"><?= htmlspecialchars($case['student_name']) ?></span>
+              <span class="meta-key">Student ID</span> <span class="meta-val" style="font-family:var(--mono);font-size:.78rem"><?= htmlspecialchars($case['student_id']) ?></span>
               <span class="meta-key">Program</span>   <span class="meta-val"><?= htmlspecialchars($case['program'] ?? '—') ?></span>
               <span class="meta-key">School</span>    <span class="meta-val"><?= htmlspecialchars($case['school'] ?? '—') ?></span>
               <span class="meta-key">Year / Sec</span><span class="meta-val"><?= htmlspecialchars($case['year_level'] ?? '—') ?> · <?= htmlspecialchars($case['section'] ?? '—') ?></span>
-              <span class="meta-key">Email</span>     <span class="meta-val" style="color:var(--accent-hi)"><?= htmlspecialchars($case['student_email'] ?? '—') ?></span>
+              <span class="meta-key">Email</span>     <span class="meta-val" style="color:var(--blue-600)"><?= htmlspecialchars($case['student_email'] ?? '—') ?></span>
               <?php if (!empty($case['phone_number'])): ?>
                 <span class="meta-key">Phone</span><span class="meta-val"><?= htmlspecialchars($case['phone_number']) ?></span>
               <?php endif; ?>
@@ -2195,11 +2082,12 @@ select.form-control { cursor: pointer; }
               $resolvedList = array_values(array_filter($otherStudentCases, static fn($c) => $c['is_resolved']));
             ?>
 
+            <!-- TAB NAVIGATION -->
             <hr class="divider">
             <style>
               .confidential-card-content.blurred {
                 filter: blur(5px);
-                opacity: 0.75;
+                opacity: 0.8;
                 user-select: none;
                 pointer-events: none;
                 transition: all 0.3s ease;
@@ -2208,23 +2096,24 @@ select.form-control { cursor: pointer; }
                 position: relative;
               }
             </style>
-            <div class="case-tabs-nav" style="display:flex;gap:6px;border-bottom:1px solid var(--border-1);margin:20px 0 16px 0;padding-bottom:2px;overflow-x:auto;">
+            <div class="case-tabs-nav" style="display:flex;gap:6px;border-bottom:2px solid var(--border-light);margin:1.2rem 0 1rem 0;padding-bottom:2px;overflow-x:auto;">
               <button type="button" class="case-tab-btn active" id="tabBtnCurrent" onclick="switchCaseTab('current')"
-                      style="padding:9px 14px;font-size:11.5px;font-weight:700;border-radius:3px 3px 0 0;border:1px solid var(--accent-line);background:var(--accent-soft);color:#7cc2ee;cursor:pointer;transition:all .15s;white-space:nowrap;text-transform:uppercase;letter-spacing:0.06em;">
-                Current Case (<?= count($offenses) ?>)
+                      style="padding:8px 14px;font-size:.78rem;font-weight:700;border-radius:8px 8px 0 0;border:1px solid #2563eb;background:#2563eb;color:#ffffff;cursor:pointer;transition:all .15s;white-space:nowrap;">
+                📋 Current Case (<?= count($offenses) ?>)
               </button>
 
               <button type="button" class="case-tab-btn" id="tabBtnPending" onclick="switchCaseTab('pending')"
-                      style="padding:9px 14px;font-size:11.5px;font-weight:700;border-radius:3px 3px 0 0;border:1px solid transparent;background:rgba(255,255,255,0.03);color:var(--ink-400);cursor:pointer;transition:all .15s;white-space:nowrap;text-transform:uppercase;letter-spacing:0.06em;">
-                Pending (<?= count($pendingList) ?>)
+                      style="padding:8px 14px;font-size:.78rem;font-weight:700;border-radius:8px 8px 0 0;border:1px solid transparent;background:#f1f5f9;color:#64748b;cursor:pointer;transition:all .15s;white-space:nowrap;">
+                ⏳ Pending Cases (<?= count($pendingList) ?>)
               </button>
 
               <button type="button" class="case-tab-btn" id="tabBtnResolved" onclick="switchCaseTab('resolved')"
-                      style="padding:9px 14px;font-size:11.5px;font-weight:700;border-radius:3px 3px 0 0;border:1px solid transparent;background:rgba(255,255,255,0.03);color:var(--ink-400);cursor:pointer;transition:all .15s;white-space:nowrap;text-transform:uppercase;letter-spacing:0.06em;">
-                Resolved (<?= count($resolvedList) ?>)
+                      style="padding:8px 14px;font-size:.78rem;font-weight:700;border-radius:8px 8px 0 0;border:1px solid transparent;background:#f1f5f9;color:#64748b;cursor:pointer;transition:all .15s;white-space:nowrap;">
+                ✅ Resolved Cases (<?= count($resolvedList) ?>)
               </button>
             </div>
 
+            <!-- TAB 1: CURRENT CASE OFFENSES -->
             <div id="tabPaneCurrent">
               <?php
                 $currMajorCount = 0;
@@ -2239,9 +2128,10 @@ select.form-control { cursor: pointer; }
                 $isSection4 = (!$isAutoMajor && ($cKind === 'SECTION4_MINOR_ESCALATION' || $currMinorCount >= 3));
               ?>
 
-              <div style="margin-bottom: 20px; border-radius: var(--radius-md); padding: 14px 18px; border: 1px solid; <?= $isAutoMajor ? 'background:var(--rose-soft); border-color:var(--rose-line); color:#e8a0a0;' : ($isSection4 ? 'background:var(--amber-soft); border-color:var(--amber-line); color:#e8b767;' : 'background:var(--accent-soft); border-color:var(--accent-line); color:#7cc2ee;') ?>">
-                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
-                  <strong style="font-size:13px; font-weight:700; display:flex; align-items:center; gap:6px; letter-spacing:0.02em;">
+              <!-- CASE CLASSIFICATION BANNER -->
+              <div style="margin-bottom: 1.25rem; border-radius: 12px; padding: 1rem 1.25rem; border: 1px solid; <?= $isAutoMajor ? 'background:#fef2f2; border-color:#fca5a5; color:#991b1b;' : ($isSection4 ? 'background:#fffbe6; border-color:#ffe58f; color:#873800;' : 'background:#eff6ff; border-color:#bfdbfe; color:#1e40af;') ?>">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
+                  <strong style="font-size:.9rem; font-weight:800; display:flex; align-items:center; gap:6px;">
                     <?php if ($isAutoMajor): ?>
                       🚨 Automatic Major Offense
                     <?php elseif ($isSection4): ?>
@@ -2252,21 +2142,21 @@ select.form-control { cursor: pointer; }
                   </strong>
 
                   <?php if ($cDecidedCat > 0): ?>
-                    <span style="font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:3px; background:var(--sage-soft); color:#8fc9a5; border:1px solid var(--sage-line); letter-spacing:0.06em; text-transform: uppercase;">
+                    <span style="font-size:.72rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#dcfce7; color:#166534; border:1px solid #86efac;">
                       Category <?= $cDecidedCat ?> Assigned
                     </span>
                   <?php elseif ($isAutoMajor): ?>
-                    <span style="font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:3px; background:var(--rose-soft); color:#e8a0a0; border:1px solid var(--rose-line); letter-spacing:0.06em; text-transform: uppercase;">
-                      Major Level (Pending Category)
+                    <span style="font-size:.72rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5;">
+                      Major Offense Level (Pending Category)
                     </span>
                   <?php elseif ($isSection4): ?>
-                    <span style="font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:3px; background:var(--amber-soft); color:#e8b767; border:1px solid var(--amber-line); letter-spacing:0.06em; text-transform: uppercase;">
-                      Section 4 Escalated
+                    <span style="font-size:.72rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">
+                      Section 4 Escalated to UPCC
                     </span>
                   <?php endif; ?>
                 </div>
 
-                <div style="font-size:12.5px; line-height:1.55; opacity:0.95;">
+                <div style="font-size:.78rem; line-height:1.45; opacity:0.95;">
                   <?php if ($isAutoMajor): ?>
                     This case is classified as an <strong>Automatic Major Offense</strong> due to major infraction(s) committed by the student.
                     <?= !empty($categoryDescriptions[$cDecidedCat]) ? '<br><strong>Assigned Category Definition:</strong> ' . htmlspecialchars($categoryDescriptions[$cDecidedCat]) : '' ?>
@@ -2280,8 +2170,9 @@ select.form-control { cursor: pointer; }
 
               <div class="section-label">Offenses in Current Case #<?= $case_id ?></div>
 
+
               <?php if (empty($offenses)): ?>
-                <div style="font-size:13px;color:var(--ink-400);font-style:italic;">No offenses recorded in this case.</div>
+                <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;">No offenses recorded in this case.</div>
               <?php else: ?>
                 <div class="offense-accordion-list" style="display:flex; flex-direction:column; gap:10px;">
                 <?php foreach ($offenses as $idx => $off):
@@ -2290,20 +2181,20 @@ select.form-control { cursor: pointer; }
                   $evFile = $off['evidence_file'] ?? '';
                   $evUrl = !empty($evFile) ? '../' . ltrim($evFile, '/') : '';
                 ?>
-                  <details class="offense-details-card" <?= $idx === 0 ? 'open' : '' ?> style="border:1px solid <?= $isMaj ? 'var(--rose-line)' : 'var(--border-2)' ?>; border-radius:var(--radius-md); background:<?= $isMaj ? 'var(--rose-soft)' : 'rgba(0,0,0,0.15)' ?>; overflow:hidden;">
-                    <summary style="padding:14px 16px; cursor:pointer; font-weight:700; display:flex; align-items:center; justify-content:space-between; user-select:none; background:rgba(0,0,0,0.15);">
-                      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                  <details class="offense-details-card" <?= $idx === 0 ? 'open' : '' ?> style="border:1px solid <?= $isMaj ? '#fca5a5' : '#cbd5e1' ?>; border-radius:10px; background:<?= $isMaj ? '#fef2f2' : '#ffffff' ?>; overflow:hidden;">
+                    <summary style="padding:12px 14px; cursor:pointer; font-weight:700; display:flex; align-items:center; justify-content:space-between; user-select:none; background:<?= $isMaj ? 'rgba(239,68,68,0.06)' : 'rgba(241,245,249,0.5)' ?>;">
+                      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <span class="stag <?= $isMaj ? 'stag-major' : 'stag-minor' ?>"><?= htmlspecialchars($lvl) ?></span>
-                        <span style="font-family:var(--mono); font-size:12px; color:var(--ink-300);"><?= htmlspecialchars($off['code'] ?? '') ?></span>
-                        <span style="font-size:13px; color:var(--ink-50); font-weight: 600;"><?= htmlspecialchars($off['offense_name'] ?? '') ?></span>
+                        <span style="font-family:var(--mono); font-size:12px; color:var(--ink-700);"><?= htmlspecialchars($off['code'] ?? '') ?></span>
+                        <span style="font-size:13px; color:var(--ink-900);"><?= htmlspecialchars($off['offense_name'] ?? '') ?></span>
                       </div>
-                      <div style="font-size:11px; color:var(--ink-400); font-family: var(--mono);">📅 <?= fmtd($off['date_committed']) ?></div>
+                      <div style="font-size:11px; color:var(--ink-500);">📅 <?= fmtd($off['date_committed']) ?></div>
                     </summary>
-                    <div style="padding:14px 16px; border-top:1px solid var(--border-1); font-size:13px; display:flex; flex-direction:column; gap:10px;">
+                    <div style="padding:14px; border-top:1px solid <?= $isMaj ? '#fee2e2' : '#e2e8f0' ?>; background:#ffffff; font-size:12.5px; display:flex; flex-direction:column; gap:8px;">
                       <?php if (!empty(trim((string)($off['description'] ?? '')))): ?>
                         <div>
-                          <strong style="color:var(--ink-300); font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; display: block; margin-bottom: 4px;">Description</strong>
-                          <div style="color:var(--ink-100); font-style:italic; line-height: 1.5;">"<?= htmlspecialchars((string)$off['description']) ?>"</div>
+                          <strong style="color:var(--ink-700); font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Description:</strong>
+                          <div style="color:var(--ink-800); margin-top:2px; font-style:italic;">"<?= htmlspecialchars((string)$off['description']) ?>"</div>
                         </div>
                       <?php endif; ?>
                       
@@ -2313,15 +2204,15 @@ select.form-control { cursor: pointer; }
                           $ext = strtolower(pathinfo($offEv, PATHINFO_EXTENSION));
                           $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true);
                       ?>
-                        <div>
-                          <strong style="color:var(--ink-300); font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; display: block; margin-bottom: 6px;">Photo Evidence</strong>
-                          <div>
+                        <div style="margin-top: 4px;">
+                          <strong style="color:var(--ink-700); font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Photo Evidence:</strong>
+                          <div style="margin-top: 4px;">
                             <?php if ($isImg): ?>
                               <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" title="Click to view full resolution evidence photo" style="display: inline-block;">
-                                <img src="../<?= htmlspecialchars($offEv) ?>" style="max-width: 200px; max-height: 130px; border-radius: var(--radius-sm); border: 1px solid var(--border-2); object-fit: cover; display: block;">
+                                <img src="../<?= htmlspecialchars($offEv) ?>" style="max-width: 200px; max-height: 130px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: cover; display: block; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
                               </a>
                             <?php else: ?>
-                              <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" style="color: var(--accent-hi); font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; text-decoration: underline;">
+                              <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" style="color: #2563eb; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; text-decoration: underline;">
                                 <span>📄 View Attached Evidence Document</span>
                               </a>
                             <?php endif; ?>
@@ -2330,22 +2221,22 @@ select.form-control { cursor: pointer; }
                       <?php endif; ?>
                       
                       <?php if (!empty(trim((string)($off['intervention_first'] ?? '')))): ?>
-                        <div style="font-size:12px; color:var(--ink-200);">
-                          <strong style="color: var(--ink-300);">1st Intervention:</strong> <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_first']))), ')-—')) ?: 'Formative Intervention: University Service, Counseling, & Evaluation') ?>
+                        <div style="font-size:11.5px; color:var(--ink-600); margin-top:4px;">
+                          <strong>1st Intervention:</strong> <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_first']))), ')-—')) ?: 'Formative Intervention: University Service, Counseling, & Evaluation') ?>
                           <?php if (!empty($priorResolvedCases)): ?>
-                            <span style="background:var(--sage-soft); color:#8fc9a5; border:1px solid var(--sage-line); padding:2px 8px; border-radius:3px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; letter-spacing:0.06em;">✓ Completed</span>
+                            <span style="background:#059669; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">✔ Completed</span>
                           <?php else: ?>
-                            <span style="background:var(--amber-soft); color:#e8b767; border:1px solid var(--amber-line); padding:2px 8px; border-radius:3px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; letter-spacing:0.06em;">⏳ Ongoing</span>
+                            <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">⏳ Ongoing Hearing</span>
                           <?php endif; ?>
                         </div>
                       <?php endif; ?>
                       <?php if (!empty(trim((string)($off['intervention_second'] ?? '')))): ?>
-                        <div style="font-size:12px; color:var(--ink-200);">
-                          <strong style="color: var(--ink-300);">2nd Intervention:</strong> <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_second']))), ')-—')) ?: '1 Semester Non-Readmission / Suspension') ?>
+                        <div style="font-size:11.5px; color:var(--ink-600); margin-top:4px;">
+                          <strong>2nd Intervention:</strong> <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_second']))), ')-—')) ?: '1 Semester Non-Readmission / Suspension') ?>
                           <?php if (!empty($priorResolvedCases)): ?>
-                            <span style="background:var(--amber-soft); color:#e8b767; border:1px solid var(--amber-line); padding:2px 8px; border-radius:3px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; letter-spacing:0.06em;">⏳ Ongoing</span>
+                            <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">⏳ Ongoing Hearing</span>
                           <?php else: ?>
-                            <span style="background:rgba(255,255,255,0.05); color:var(--ink-400); border:1px solid var(--border-2); padding:2px 8px; border-radius:3px; font-size:10px; font-weight:600; text-transform:uppercase; margin-left:6px; letter-spacing:0.06em;">Pending</span>
+                            <span style="background:#94a3b8; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">Pending</span>
                           <?php endif; ?>
                         </div>
                       <?php endif; ?>
@@ -2356,53 +2247,55 @@ select.form-control { cursor: pointer; }
               <?php endif; ?>
             </div>
 
+            <!-- TAB 2: PENDING CASES -->
             <div id="tabPanePending" style="display:none;">
               <?php if (empty($pendingList)): ?>
-                <div style="font-size:13px;color:var(--ink-400);font-style:italic;padding:8px 0;">
+                <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;padding:.5rem 0;">
                   No other pending disciplinary cases recorded for this student.
                 </div>
               <?php else: ?>
-                <div style="background:var(--amber-soft);border:1px solid var(--amber-line);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;font-size:12.5px;color:#e8b767;line-height:1.5;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                <!-- Security Warning Box with Global Unblur Toggle -->
+                <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                   <div style="flex:1;min-width:240px;">
-                    <strong style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:13px; text-transform: uppercase; letter-spacing: 0.06em;">
-                      🔒 Confidential Record Access
+                    <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
+                      🔒 Security &amp; Confidentiality Notice
                     </strong>
-                    Access to prior pending cases is restricted for evaluation purposes. Case access is logged. Details are blurred by default.
+                    Access to student prior pending cases is restricted for evaluation purposes only. Case access is logged. Details are blurred by default for security.
                   </div>
-                  <button type="button" class="btn btn-outline btn-sm" id="toggleBlurPendingBtn" onclick="toggleAllTabBlur('pending')" style="font-size:11px;padding:6px 12px;">
-                    🔓 Unblur
+                  <button type="button" class="btn btn-outline btn-sm" id="toggleBlurPendingBtn" onclick="toggleAllTabBlur('pending')" style="background:#fff;border-color:#d97706;color:#873800;font-size:.72rem;padding:4px 10px;">
+                    🔓 Unblur All Pending
                   </button>
                 </div>
 
                 <?php foreach ($pendingList as $oc): ?>
-                  <div class="confidential-card-wrapper" id="card-wrap-<?= $oc['case_id'] ?>" style="margin-bottom:14px;">
-                    <div class="confidential-card-content blurred" id="card-content-<?= $oc['case_id'] ?>" style="background:var(--amber-soft);border:1px solid var(--amber-line);border-radius:var(--radius-md);padding:14px;">
-                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
-                        <div style="display:flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                          <span style="font-weight:700;font-size:13px;color:var(--ink-50); font-family: var(--mono);">Case #<?= $oc['case_id'] ?></span>
-                          <span class="pill pill-warning" style="font-size:10px;"><?= htmlspecialchars($oc['status']) ?></span>
+                  <div class="confidential-card-wrapper" id="card-wrap-<?= $oc['case_id'] ?>" style="margin-bottom:.85rem;">
+                    <div class="confidential-card-content blurred" id="card-content-<?= $oc['case_id'] ?>" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:.85rem;">
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:6px;">
+                        <div>
+                          <span style="font-weight:700;font-size:.85rem;color:var(--ink-800)">Case #<?= $oc['case_id'] ?></span>
+                          <span class="pill pill-warning" style="font-size:.62rem;margin-left:6px;"><?= htmlspecialchars($oc['status']) ?></span>
                           <?php if ($oc['panel_count'] === 0): ?>
-                            <span style="font-size:10.5px;color:#e8a0a0;background:var(--rose-soft);border:1px solid var(--rose-line);padding:2px 7px;border-radius:3px;font-weight:700; letter-spacing: 0.04em; text-transform: uppercase;">⚠️ Panel Unassigned</span>
+                            <span style="font-size:.65rem;color:#b91c1c;background:#fee2e2;border:1px solid #fca5a5;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:700;">⚠️ Panel Unassigned</span>
                           <?php else: ?>
-                            <span style="font-size:10.5px;color:#8fc9a5;background:var(--sage-soft);border:1px solid var(--sage-line);padding:2px 7px;border-radius:3px;font-weight:600; letter-spacing: 0.04em; text-transform: uppercase;">👥 <?= $oc['panel_count'] ?> Panel</span>
+                            <span style="font-size:.65rem;color:#15803d;background:#dcfce7;border:1px solid #86efac;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:600;">👥 <?= $oc['panel_count'] ?> Panel Assigned</span>
                           <?php endif; ?>
                         </div>
-                        <span style="font-size:10.5px;background:rgba(255,255,255,0.05);color:var(--ink-300);border:1px solid var(--border-2);padding:3px 9px;border-radius:3px;font-weight:700; letter-spacing: 0.04em; text-transform: uppercase;">
+                        <span style="font-size:.68rem;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;padding:2px 7px;border-radius:6px;font-weight:700;">
                           <?= htmlspecialchars($oc['trigger_label']) ?>
                         </span>
                       </div>
 
-                      <div style="font-size:11.5px;color:var(--ink-400);margin-bottom:8px; font-family: var(--mono);">
+                      <div style="font-size:.73rem;color:var(--ink-500);margin-bottom:.4rem;">
                         📅 Created: <?= fmt($oc['created_at']) ?>
                       </div>
 
                       <?php if (!empty($oc['offenses'])): ?>
-                        <div style="font-size:11.5px;font-weight:700;color:var(--ink-300);margin-bottom:6px; text-transform: uppercase; letter-spacing: 0.06em;">Offenses:</div>
+                        <div style="font-size:.72rem;font-weight:600;color:var(--ink-600);margin-bottom:.3rem;">Offenses in this case:</div>
                         <?php foreach ($oc['offenses'] as $ooff): ?>
-                          <div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-1);border-radius:var(--radius-sm);padding:6px 10px;margin-bottom:6px;font-size:12px;display:flex;align-items:center;gap:8px;">
-                            <span class="stag <?= ($ooff['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>" style="font-size:9.5px;padding:2px 6px;"><?= htmlspecialchars($ooff['level'] ?? 'MINOR') ?></span>
-                            <strong style="color:var(--ink-200); font-family: var(--mono); font-size: 11px;"><?= htmlspecialchars($ooff['code'] ?? '') ?></strong>
-                            <span style="color:var(--ink-100)"><?= htmlspecialchars($ooff['offense_name'] ?? '') ?></span>
+                          <div style="background:#fff;border:1px solid #fde68a;border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:.73rem;display:flex;align-items:center;gap:6px;">
+                            <span class="stag <?= ($ooff['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>" style="font-size:.6rem;padding:1px 5px;"><?= htmlspecialchars($ooff['level'] ?? 'MINOR') ?></span>
+                            <strong style="color:var(--ink-700)"><?= htmlspecialchars($ooff['code'] ?? '') ?></strong>
+                            <span style="color:var(--ink-600)"><?= htmlspecialchars($ooff['offense_name'] ?? '') ?></span>
                           </div>
                         <?php endforeach; ?>
                       <?php endif; ?>
@@ -2412,51 +2305,53 @@ select.form-control { cursor: pointer; }
               <?php endif; ?>
             </div>
 
+            <!-- TAB 3: RESOLVED CASES -->
             <div id="tabPaneResolved" style="display:none;">
               <?php if (empty($resolvedList)): ?>
-                <div style="font-size:13px;color:var(--ink-400);font-style:italic;padding:8px 0;">
+                <div style="font-size:.78rem;color:var(--ink-400);font-style:italic;padding:.5rem 0;">
                   No resolved disciplinary cases recorded for this student.
                 </div>
               <?php else: ?>
-                <div style="background:var(--amber-soft);border:1px solid var(--amber-line);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;font-size:12.5px;color:#e8b767;line-height:1.5;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                <!-- Security Warning Box with Global Unblur Toggle -->
+                <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:#873800;line-height:1.45;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                   <div style="flex:1;min-width:240px;">
-                    <strong style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:13px; text-transform: uppercase; letter-spacing: 0.06em;">
-                      🔒 Confidential Record Access
+                    <strong style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:.82rem;">
+                      🔒 Security &amp; Confidentiality Notice
                     </strong>
-                    Access to prior resolved cases is restricted for evaluation purposes. Case access is logged. Details are blurred by default.
+                    Access to student prior resolved cases is strictly restricted for evaluation purposes only. Case access is logged. Details are blurred by default for security.
                   </div>
-                  <button type="button" class="btn btn-outline btn-sm" id="toggleBlurResolvedBtn" onclick="toggleAllTabBlur('resolved')" style="font-size:11px;padding:6px 12px;">
-                    🔓 Unblur
+                  <button type="button" class="btn btn-outline btn-sm" id="toggleBlurResolvedBtn" onclick="toggleAllTabBlur('resolved')" style="background:#fff;border-color:#16a34a;color:#15803d;font-size:.72rem;padding:4px 10px;">
+                    🔓 Unblur All Resolved
                   </button>
                 </div>
 
                 <?php foreach ($resolvedList as $oc): ?>
-                  <div class="confidential-card-wrapper" id="card-wrap-<?= $oc['case_id'] ?>" style="margin-bottom:14px;">
-                    <div class="confidential-card-content blurred" id="card-content-<?= $oc['case_id'] ?>" style="background:var(--sage-soft);border:1px solid var(--sage-line);border-radius:var(--radius-md);padding:14px;">
-                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                          <span style="font-weight:700;font-size:13px;color:var(--ink-50); font-family: var(--mono);">Case #<?= $oc['case_id'] ?></span>
-                          <span class="pill pill-closed" style="font-size:10px;">Closed</span>
+                  <div class="confidential-card-wrapper" id="card-wrap-<?= $oc['case_id'] ?>" style="margin-bottom:.85rem;">
+                    <div class="confidential-card-content blurred" id="card-content-<?= $oc['case_id'] ?>" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:.85rem;">
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:6px;">
+                        <div>
+                          <span style="font-weight:700;font-size:.85rem;color:var(--ink-800)">Case #<?= $oc['case_id'] ?></span>
+                          <span class="pill pill-success" style="font-size:.62rem;margin-left:6px;">Closed</span>
                           <?php if ($oc['decided_category'] > 0): ?>
-                            <span style="font-size:10.5px;color:#8fc9a5;background:var(--sage-soft);border:1px solid var(--sage-line);padding:2px 7px;border-radius:3px;font-weight:700; letter-spacing: 0.04em; text-transform: uppercase;">Category <?= $oc['decided_category'] ?></span>
+                            <span style="font-size:.65rem;color:#166534;background:#dcfce7;border:1px solid #86efac;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:700;">Category <?= $oc['decided_category'] ?> Assigned</span>
                           <?php endif; ?>
                         </div>
-                        <span style="font-size:10.5px;background:rgba(255,255,255,0.05);color:var(--ink-300);border:1px solid var(--border-2);padding:3px 9px;border-radius:3px;font-weight:700; letter-spacing: 0.04em; text-transform: uppercase;">
+                        <span style="font-size:.68rem;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:2px 7px;border-radius:6px;font-weight:700;">
                           <?= htmlspecialchars($oc['trigger_label']) ?>
                         </span>
                       </div>
 
-                      <div style="font-size:11.5px;color:var(--ink-400);margin-bottom:8px; font-family: var(--mono);">
+                      <div style="font-size:.73rem;color:var(--ink-500);margin-bottom:.4rem;">
                         📅 Resolved: <?= fmt($oc['created_at']) ?>
                       </div>
 
                       <?php if (!empty($oc['offenses'])): ?>
-                        <div style="font-size:11.5px;font-weight:700;color:var(--ink-300);margin-bottom:6px; text-transform: uppercase; letter-spacing: 0.06em;">Offenses:</div>
+                        <div style="font-size:.72rem;font-weight:600;color:var(--ink-600);margin-bottom:.3rem;">Offenses in this case:</div>
                         <?php foreach ($oc['offenses'] as $ooff): ?>
-                          <div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-1);border-radius:var(--radius-sm);padding:6px 10px;margin-bottom:6px;font-size:12px;display:flex;align-items:center;gap:8px;">
-                            <span class="stag <?= ($ooff['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>" style="font-size:9.5px;padding:2px 6px;"><?= htmlspecialchars($ooff['level'] ?? 'MINOR') ?></span>
-                            <strong style="color:var(--ink-200); font-family: var(--mono); font-size: 11px;"><?= htmlspecialchars($ooff['code'] ?? '') ?></strong>
-                            <span style="color:var(--ink-100)"><?= htmlspecialchars($ooff['offense_name'] ?? '') ?></span>
+                          <div style="background:#fff;border:1px solid #a7f3d0;border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:.73rem;display:flex;align-items:center;gap:6px;">
+                            <span class="stag <?= ($ooff['level'] ?? '') === 'MAJOR' ? 'stag-major' : 'stag-minor' ?>" style="font-size:.6rem;padding:1px 5px;"><?= htmlspecialchars($ooff['level'] ?? 'MINOR') ?></span>
+                            <strong style="color:var(--ink-700)"><?= htmlspecialchars($ooff['code'] ?? '') ?></strong>
+                            <span style="color:var(--ink-600)"><?= htmlspecialchars($ooff['offense_name'] ?? '') ?></span>
                           </div>
                         <?php endforeach; ?>
                       <?php endif; ?>
@@ -2466,48 +2361,49 @@ select.form-control { cursor: pointer; }
               <?php endif; ?>
             </div>
 
-            <!-- UNBLUR WARNING MODAL -->
+            <!-- UNBLUR SECURITY WARNING CONFIRMATION MODAL -->
             <div id="unblurWarningModal" class="modal-overlay">
-              <div class="modal-content" style="max-width:460px;width:min(90vw,460px);padding:26px;text-align:center;">
-                <div style="font-size:32px;margin-bottom:12px;">🔒</div>
-                <h3 style="margin:0 0 12px 0;font-size:17px;color:var(--ink-50);">Confidential Record Access Warning</h3>
-                <div style="font-size:13px;color:var(--ink-200);line-height:1.6;background:var(--amber-soft);border:1px solid var(--amber-line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:20px;text-align:left;">
-                  <strong style="color:#e8b767;display:block;margin-bottom:6px; text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px;">⚠️ Administrative Compliance Audit</strong>
-                  Access to student prior disciplinary records is strictly restricted for evaluation purposes only. Unblurring details will be logged under your administrator account. Continue?
+              <div class="modal-content" style="max-width:460px;width:min(90vw,460px);padding:24px;border-radius:20px;text-align:center;">
+                <div style="font-size:36px;margin-bottom:8px;">🔒</div>
+                <h3 style="margin:0 0 10px 0;font-size:1.1rem;color:var(--ink-900);">Confidential Record Access Warning</h3>
+                <div style="font-size:.82rem;color:var(--ink-600);line-height:1.55;background:#fffbe6;border:1px solid #ffe58f;border-radius:12px;padding:12px 14px;margin-bottom:18px;text-align:left;">
+                  <strong style="color:#873800;display:block;margin-bottom:4px;">⚠️ Administrative Compliance Audit</strong>
+                  Access to student prior disciplinary records is strictly restricted for evaluation purposes only. Unblurring details will be logged under your administrator account. Are you sure you want to unblur these records?
                 </div>
                 <div style="display:flex;gap:10px;justify-content:center;">
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="closeUnblurWarningModal()">
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="closeUnblurWarningModal()" style="color:var(--ink-600);">
                     Cancel
                   </button>
                   <button type="button" class="btn btn-warning btn-sm" onclick="confirmUnblurAction()" style="font-weight:700;padding:8px 20px;">
-                    Yes, Unblur
+                    Yes, Unblur Records
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- QUICK CASE INSPECTION MODAL -->
+            <!-- QUICK CASE INSPECTION MODAL (STAYS ON CURRENT PAGE) -->
             <div id="quickCaseModal" class="modal-overlay">
-              <div class="modal-content" style="max-width:620px;width:min(95vw,620px);padding:24px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border-1);padding-bottom:14px;margin-bottom:18px;">
+              <div class="modal-content" style="max-width:620px;width:min(95vw,620px);padding:24px;border-radius:20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--ink-200);padding-bottom:12px;margin-bottom:16px;">
                   <div>
-                    <h3 style="margin:0;text-align:left;font-size:16px;color:var(--ink-50);" id="qcmTitle">Case Inspection #0</h3>
-                    <div style="font-size:12px;color:var(--ink-400);margin-top:4px;">
+                    <h3 style="margin:0;text-align:left;font-size:1.15rem;color:var(--ink-900);" id="qcmTitle">Case Inspection #0</h3>
+                    <div style="font-size:.75rem;color:var(--ink-500);margin-top:2px;">
                       Student: <strong><?= htmlspecialchars($case['student_name']) ?></strong> (ID: <?= htmlspecialchars($case['student_id']) ?>)
                     </div>
                   </div>
-                  <button type="button" onclick="closeQuickCaseModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink-400);line-height:1; padding:4px 8px;">✕</button>
+                  <button type="button" onclick="closeQuickCaseModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--ink-400);line-height:1;">✕</button>
                 </div>
 
-                <div id="qcmBody" style="font-size:13px;line-height:1.6;">
+                <div id="qcmBody" style="font-size:.85rem;line-height:1.5;">
+                  <!-- Dynamic Modal Content -->
                 </div>
 
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-1);">
-                  <a href="#" id="qcmNewTabLink" target="_blank" class="btn btn-ghost btn-sm" style="color:var(--accent-hi);font-weight:600;">
-                    ↗ Open Full Page
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--ink-200);">
+                  <a href="#" id="qcmNewTabLink" target="_blank" class="btn btn-ghost btn-sm" style="color:var(--blue-600);font-weight:600;">
+                    ↗ Open Full Page in New Tab
                   </a>
-                  <button type="button" class="btn btn-outline btn-sm" onclick="closeQuickCaseModal()">
-                    Close
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeQuickCaseModal()" style="background:#cbd5e1;color:#1e293b;padding:6px 16px;border-radius:10px;font-weight:700;">
+                    ✕ Close Inspection
                   </button>
                 </div>
               </div>
@@ -2561,12 +2457,12 @@ select.form-control { cursor: pointer; }
                 if (panes[k]) panes[k].style.display = (k === tabName) ? 'block' : 'none';
                 if (btns[k]) {
                   if (k === tabName) {
-                    btns[k].style.background = 'var(--accent-soft)';
-                    btns[k].style.color = '#7cc2ee';
-                    btns[k].style.borderColor = 'var(--accent-line)';
+                    btns[k].style.background = '#2563eb';
+                    btns[k].style.color = '#ffffff';
+                    btns[k].style.borderColor = '#2563eb';
                   } else {
-                    btns[k].style.background = 'rgba(255,255,255,0.03)';
-                    btns[k].style.color = 'var(--ink-400)';
+                    btns[k].style.background = '#f1f5f9';
+                    btns[k].style.color = '#64748b';
                     btns[k].style.borderColor = 'transparent';
                   }
                 }
@@ -2589,7 +2485,7 @@ select.form-control { cursor: pointer; }
                 });
 
                 if (btn) {
-                  btn.innerHTML = anyBlurred ? '🔒 Blur' : '🔓 Unblur';
+                  btn.innerHTML = anyBlurred ? (type === 'pending' ? '🔒 Blur All Pending' : '🔒 Blur All Resolved') : (type === 'pending' ? '🔓 Unblur All Pending' : '🔓 Unblur All Resolved');
                 }
               });
             }
@@ -2598,16 +2494,16 @@ select.form-control { cursor: pointer; }
               const c = studentOtherCasesData.find(item => parseInt(item.case_id) === parseInt(caseId));
               if (!c) return;
 
-              document.getElementById('qcmTitle').innerText = 'Case #' + c.case_id + ' Inspection';
+              document.getElementById('qcmTitle').innerText = 'Case #' + c.case_id + ' Inspection (Security View)';
               document.getElementById('qcmNewTabLink').href = 'upcc_case_view.php?id=' + c.case_id;
 
               let triggerBadge = '';
               if (c.trigger_type === 'SECTION4_ESCALATION') {
-                triggerBadge = '<div style="background:var(--amber-soft);border:1px solid var(--amber-line);color:#e8b767;padding:10px 14px;border-radius:var(--radius-md);font-weight:700;margin-bottom:14px;font-size:12.5px;">⚠️ TRIGGER: Section 4 Minor Escalation (3+ Minor Offenses)</div>';
+                triggerBadge = '<div style="background:#fffbe6;border:1px solid #ffe58f;color:#873800;padding:8px 12px;border-radius:10px;font-weight:700;margin-bottom:14px;font-size:.82rem;">⚠️ TRIGGER: Section 4 Minor Escalation (Accumulated 3+ Minor Offenses)</div>';
               } else if (c.trigger_type === 'AUTOMATIC_MAJOR') {
-                triggerBadge = '<div style="background:var(--rose-soft);border:1px solid var(--rose-line);color:#e8a0a0;padding:10px 14px;border-radius:var(--radius-md);font-weight:700;margin-bottom:14px;font-size:12.5px;">🚨 TRIGGER: Automatic Major Offense</div>';
+                triggerBadge = '<div style="background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;padding:8px 12px;border-radius:10px;font-weight:700;margin-bottom:14px;font-size:.82rem;">🚨 TRIGGER: Automatic Major Offense</div>';
               } else {
-                triggerBadge = '<div style="background:var(--accent-soft);border:1px solid var(--accent-line);color:#7cc2ee;padding:10px 14px;border-radius:var(--radius-md);font-weight:700;margin-bottom:14px;font-size:12.5px;">ℹ️ TRIGGER: Standard Disciplinary Case</div>';
+                triggerBadge = '<div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:8px 12px;border-radius:10px;font-weight:700;margin-bottom:14px;font-size:.82rem;">ℹ️ TRIGGER: Standard Disciplinary Case Record</div>';
               }
 
               let statusSection = '';
@@ -2627,25 +2523,25 @@ select.form-control { cursor: pointer; }
                   }
                 }
                 statusSection = `
-                  <div style="background:var(--sage-soft);border:1px solid var(--sage-line);border-radius:var(--radius-md);padding:16px;margin-bottom:14px;color:#8fc9a5;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                      <strong style="font-size:14px;color:#b4dcc4;">Final Decision: Category ${catNum}</strong>
-                      <span class="pill pill-closed" style="font-size:10px;">Closed</span>
+                  <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:14px;margin-bottom:14px;color:#065f46;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                      <strong style="font-size:.9rem;color:#047857;">Final Decision: Category ${catNum} Assigned</strong>
+                      <span class="pill pill-success" style="font-size:.65rem;">Closed</span>
                     </div>
-                    ${catDesc ? `<div style="font-size:12.5px;margin-bottom:10px;line-height:1.5; color: var(--ink-200);">${catDesc}</div>` : ''}
-                    ${c.final_decision ? `<div style="font-size:12.5px;background:rgba(0,0,0,0.25);padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-1);margin-bottom:8px; color: var(--ink-100);"><strong>Narrative:</strong> ${c.final_decision}</div>` : ''}
-                    ${punishHtml ? `<div style="font-size:12.5px;color:#8fc9a5;">${punishHtml}</div>` : ''}
+                    ${catDesc ? `<div style="font-size:.78rem;margin-bottom:8px;line-height:1.4;">${catDesc}</div>` : ''}
+                    ${c.final_decision ? `<div style="font-size:.8rem;background:#fff;padding:8px 10px;border-radius:8px;border:1px solid #a7f3d0;margin-bottom:6px;"><strong>Narrative:</strong> ${c.final_decision}</div>` : ''}
+                    ${punishHtml ? `<div style="font-size:.78rem;color:#065f46;">${punishHtml}</div>` : ''}
                   </div>
                 `;
               } else {
                 statusSection = `
-                  <div style="background:var(--amber-soft);border:1px solid var(--amber-line);border-radius:var(--radius-md);padding:16px;margin-bottom:14px;color:#e8b767;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                      <strong style="font-size:14px;color:#e8b767;">Status: ${c.status}</strong>
-                      <span class="pill pill-warning" style="font-size:10px;">${c.status}</span>
+                  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px;margin-bottom:14px;color:#92400e;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                      <strong style="font-size:.9rem;color:#b45309;">Status: ${c.status} (Pending Evaluation)</strong>
+                      <span class="pill pill-warning" style="font-size:.65rem;">${c.status}</span>
                     </div>
-                    <div style="font-size:12.5px;line-height:1.5; color: var(--ink-200);">
-                      Panel Assignment: <strong>${c.panel_count > 0 ? c.panel_count + ' Panel Member(s)' : '⚠️ Unassigned'}</strong>
+                    <div style="font-size:.78rem;line-height:1.4;">
+                      Panel Assignment: <strong>${c.panel_count > 0 ? c.panel_count + ' Panel Member(s) Assigned' : '⚠️ Panel Unassigned'}</strong>
                     </div>
                   </div>
                 `;
@@ -2653,17 +2549,17 @@ select.form-control { cursor: pointer; }
 
               let offensesListHtml = '';
               if (c.offenses && c.offenses.length > 0) {
-                offensesListHtml = '<div style="font-weight:700;font-size:12px;color:var(--ink-200);margin-bottom:8px; text-transform: uppercase; letter-spacing: 0.06em;">Offenses Breakdown:</div>';
+                offensesListHtml = '<div style="font-weight:700;font-size:.8rem;color:var(--ink-700);margin-bottom:6px;">Offenses Breakdown:</div>';
                 c.offenses.forEach(o => {
                   const isMaj = (o.level || '').toUpperCase() === 'MAJOR';
-                  const stagClass = isMaj ? 'background:var(--rose-soft);color:#e8a0a0;border:1px solid var(--rose-line);' : 'background:var(--accent-soft);color:#7cc2ee;border:1px solid var(--accent-line);';
+                  const stagClass = isMaj ? 'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;' : 'background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;';
                   offensesListHtml += `
-                    <div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-1);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;font-size:12.5px;display:flex;align-items:center;justify-content:space-between; color: var(--ink-100);">
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:.78rem;display:flex;align-items:center;justify-content:space-between;">
                       <div>
-                        <span style="font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:3px;margin-right:8px;letter-spacing:0.06em;${stagClass}">${o.level || 'MINOR'}</span>
-                        <strong style="color:var(--ink-200); font-family: var(--mono);">${o.code || ''}</strong> — ${o.offense_name || ''}
+                        <span style="font-size:.62rem;font-weight:700;padding:2px 6px;border-radius:4px;margin-right:6px;${stagClass}">${o.level || 'MINOR'}</span>
+                        <strong style="color:var(--ink-800);">${o.code || ''}</strong> — ${o.offense_name || ''}
                       </div>
-                      <div style="font-size:10.5px;color:var(--ink-400); font-family: var(--mono);">${o.date_committed || ''}</div>
+                      <div style="font-size:.7rem;color:var(--ink-400);">${o.date_committed || ''}</div>
                     </div>
                   `;
                 });
@@ -2691,7 +2587,7 @@ select.form-control { cursor: pointer; }
             <button class="btn btn-ghost btn-sm" onclick="toggleEditPanel()">✕ Cancel</button>
           </div>
           <div class="card-body">
-            <div class="alert alert-warning" style="margin-bottom:16px">⚠️ Saving will reset all existing votes and rounds.</div>
+            <div class="alert alert-warning" style="margin-bottom:1rem">⚠️ Saving will reset all existing votes and rounds.</div>
             <form method="post" id="editHearingForm" onsubmit="return validateHearingConfigForm()">
               <input type="hidden" name="action" value="update_hearing_config">
               <div class="form-row" style="grid-template-columns:1fr 1fr">
@@ -2738,7 +2634,7 @@ select.form-control { cursor: pointer; }
                   </div>
                   <div id="reconfig-hidden-panel-inputs"></div>
               </div>
-              <div style="display:flex;gap:10px;justify-content:flex-end">
+              <div style="display:flex;gap:.5rem;justify-content:flex-end">
                 <button type="button" class="btn btn-outline" onclick="toggleEditPanel()">Cancel</button>
                 <button type="submit" class="btn btn-primary">Update Configuration</button>
               </div>
@@ -2756,9 +2652,9 @@ select.form-control { cursor: pointer; }
 <div id="consensusDecisionModal" class="modal-overlay" role="dialog" aria-modal="true">
   <div class="modal-content">
     <h3>Panel Decision Ready</h3>
-    <p style="font-size:13px;color:var(--ink-200);line-height:1.6; text-align: center; margin-bottom: 16px;">
+    <p style="font-size:.85rem;color:var(--ink-600);line-height:1.6">
       The UPCC panel completed live voting and agreed on
-      <strong id="consensusDecisionCategory" style="color: #8fc9a5;">Category <?= (int)$consensusCategory ?></strong>.
+      <strong id="consensusDecisionCategory">Category <?= (int)$consensusCategory ?></strong>.
       You can apply their suggested punishment, then edit before final submission.
     </p>
     <ul>
@@ -2777,14 +2673,14 @@ select.form-control { cursor: pointer; }
 <div id="liveVotingModal" class="modal-overlay" role="dialog" aria-modal="true">
   <div class="modal-content">
     <h3>Live Panel Voting</h3>
-    <p style="font-size:13px;color:var(--ink-200);line-height:1.6; text-align: center; margin-bottom: 16px;">
+    <p style="font-size:.85rem;color:var(--ink-600);line-height:1.6">
       UPCC panel is currently voting on a suggested penalty for this case.
     </p>
     <ul>
-      <li><strong id="liveVotingRound" style="color: var(--ink-50);">Round: —</strong></li>
-      <li><strong id="liveVotingTimer" style="color: var(--ink-50); font-family: var(--mono);">Time left: --:--</strong></li>
-      <li id="liveVotingTally" style="color: var(--ink-200);">In Favor: 0 · Not In Favor: 0 · Pending: 0</li>
-      <li id="liveVotingSuggester" style="color: var(--ink-200);">Proposed By: —</li>
+      <li><strong id="liveVotingRound">Round: —</strong></li>
+      <li><strong id="liveVotingTimer">Time left: --:--</strong></li>
+      <li id="liveVotingTally">In Favor: 0 · Not In Favor: 0 · Pending: 0</li>
+      <li id="liveVotingSuggester">Proposed By: —</li>
       <li class="live-voting-detail">
         <span class="detail-pill" id="liveVotingCategory">Category: —</span>
         <span class="detail-pill" id="liveVotingPunishment">Recommended Penalty: —</span>
@@ -2800,7 +2696,7 @@ select.form-control { cursor: pointer; }
 <div id="cancelConsensusModal" class="modal-overlay" role="dialog" aria-modal="true">
   <div class="modal-content">
     <h3>Cancel Consensus &amp; Restart Voting</h3>
-    <p style="text-align: center; color: var(--ink-200);">This will clear all votes, delete the consensus, and restart a fresh voting round. Panel members will need to vote again.</p>
+    <p>This will clear all votes, delete the consensus, and restart a fresh voting round. Panel members will need to vote again.</p>
     <textarea id="cancelReason" rows="3" placeholder="Optional: reason for cancellation…"></textarea>
     <div class="modal-buttons">
       <button class="btn btn-outline" onclick="closeCancelModal()">Go Back</button>
@@ -2813,9 +2709,9 @@ select.form-control { cursor: pointer; }
     <div id="rejoinRequestModal" class="modal-overlay" role="dialog" aria-modal="true">
       <div class="modal-content" style="max-width:520px">
         <h3>Panel Rejoin Requests</h3>
-        <p id="rejoinIntro" style="text-align: center; color: var(--ink-200);">One or more panel members are requesting to rejoin the hearing. Choose who to admit.</p>
-        <div id="rejoinUsersList" style="max-height:260px;overflow:auto;margin-top:14px;margin-bottom:14px"></div>
-        <div class="modal-buttons" style="margin-top:14px">
+        <p id="rejoinIntro">One or more panel members are requesting to rejoin the hearing. Choose who to admit.</p>
+        <div id="rejoinUsersList" style="max-height:260px;overflow:auto;margin-top:8px;margin-bottom:8px"></div>
+        <div class="modal-buttons" style="margin-top:12px">
           <button class="btn btn-outline" onclick="closeRejoinModal()">Dismiss</button>
           <button class="btn btn-primary" onclick="admitAllWaitingUsers()">Admit All</button>
         </div>
@@ -2824,15 +2720,15 @@ select.form-control { cursor: pointer; }
 
   <!-- Leave Modal -->
   <div class="modal-overlay" id="leaveModal">
-    <div class="modal-content" style="max-width: 420px; text-align: center;">
-      <h3 style="color: #e8a0a0; margin-bottom: 12px;">⚠️ Leave Hearing?</h3>
-      <p style="color: var(--ink-200); margin-bottom: 24px; font-size: 13.5px; line-height: 1.6;">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <h3 style="color: var(--red-600); margin-bottom: 8px;">⚠️ Leave Hearing?</h3>
+      <p style="color: var(--ink-600); margin-bottom: 24px; font-size: 0.9rem;">
         The hearing is currently live. Leaving this page will automatically <strong>PAUSE</strong> the hearing, and all panel members will be notified.
       </p>
       <input type="hidden" id="leaveModalHref">
       <div class="modal-buttons" style="display: flex; gap: 12px; justify-content: center;">
         <button class="btn btn-ghost" onclick="document.getElementById('leaveModal').classList.remove('open')">Cancel</button>
-        <button class="btn btn-warning" onclick="confirmLeavePage()">Yes, Pause &amp; Leave</button>
+        <button class="btn btn-warning" onclick="confirmLeavePage()">Yes, Pause & Leave</button>
       </div>
     </div>
   </div>
@@ -2840,9 +2736,9 @@ select.form-control { cursor: pointer; }
     <div id="confirmPauseModal" class="modal-overlay" role="dialog" aria-modal="true">
       <div class="modal-content">
         <h3>Pause Hearing?</h3>
-        <p style="text-align: center; color: var(--ink-200);">The hearing is currently live. If you leave or pause the hearing now, panel members will be prevented from joining or continuing until you resume. Continue?</p>
-        <div style="margin-top:12px;font-size:12.5px;color:var(--ink-400); text-align: center;">You can resume the hearing later from this admin panel. Panel members will be notified.</div>
-        <div class="modal-buttons" style="margin-top:22px">
+        <p>The hearing is currently live. If you leave or pause the hearing now, panel members will be prevented from joining or continuing until you resume. Do you want to pause the hearing?</p>
+        <div style="margin-top:8px;font-size:13px;color:#666">You can resume the hearing later from this admin panel. Panel members will be notified.</div>
+        <div class="modal-buttons" style="margin-top:18px">
           <button class="btn btn-outline" id="cancelPauseBtn" onclick="closeConfirmPauseModal()">Cancel</button>
           <button class="btn btn-danger" id="confirmPauseBtn" onclick="confirmPauseFromModal()">Yes — Pause Hearing</button>
         </div>
@@ -2852,28 +2748,29 @@ select.form-control { cursor: pointer; }
     <div id="confirmResumeModal" class="modal-overlay" role="dialog" aria-modal="true">
       <div class="modal-content">
         <h3>Resume Hearing?</h3>
-        <p style="text-align: center; color: var(--ink-200);">The hearing is currently paused. Panelists will be allowed to rejoin and voting will be unlocked. Continue?</p>
-        <div style="margin-top:12px;font-size:12.5px;color:var(--ink-400); text-align: center;">Panel members will be automatically notified that the hearing is live again.</div>
-        <div class="modal-buttons" style="margin-top:22px">
+        <p>The hearing is currently paused. Panelists will be allowed to rejoin and voting will be unlocked. Do you want to resume the hearing?</p>
+        <div style="margin-top:8px;font-size:13px;color:#666">Panel members will be automatically notified that the hearing is live again.</div>
+        <div class="modal-buttons" style="margin-top:18px">
           <button class="btn btn-outline" id="cancelResumeBtn" onclick="closeConfirmResumeModal()">Cancel</button>
           <button class="btn btn-success" id="confirmResumeBtn" onclick="confirmResumeFromModal()">Yes — Resume Hearing</button>
         </div>
       </div>
     <!-- Success Record Modal -->
     <div id="successRecordModal" class="modal-overlay" role="dialog" aria-modal="true">
-      <div class="modal-content" style="max-width: 460px; text-align: center; padding: 2rem;">
-        <div style="font-size: 44px; margin-bottom: 16px;">✅</div>
-        <h3 style="margin-bottom: 12px;">Decision Recorded Successfully</h3>
-        <p style="font-size: 13.5px; color: var(--ink-200); line-height: 1.6; margin-bottom: 20px;">
-          The final decision and penalty have been successfully logged. The case has been marked as <strong style="color: #8fc9a5;">CLOSED</strong> and the student's record has been updated.
+      <div class="modal-content" style="max-width: 480px; text-align: center; padding: 2rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+        <h3 style="margin-bottom: 0.5rem;">Decision Recorded Successfully</h3>
+        <p style="font-size: 0.9rem; color: var(--ink-600); line-height: 1.6; margin-bottom: 1.5rem;">
+          The final decision and penalty have been successfully logged. The case has been marked as <strong>CLOSED</strong> and the student's record has been updated.
         </p>
-        <div class="modal-buttons" style="justify-content: center; margin-top: 20px;">
+        <div class="modal-buttons" style="justify-content: center; margin-top: 1.5rem;">
           <button class="btn btn-success" onclick="closeSuccessRecordModal()" style="min-width: 120px;">Done</button>
         </div>
       </div>
     </div>
 
 <script>
+// ── CONSTANTS ─────────────────────────────────────────────────────────────
 const CASE_ID          = <?= isset($case_id) ? (int)$case_id : 0 ?>;
 const IS_HEARING_OPEN  = <?= (!empty($isHearingOpen) ? 'true' : 'false') ?>;
 const TOTAL_MEMBERS    = <?= isset($totalPanelMembers) ? (int)$totalPanelMembers : 0 ?>;
@@ -2883,6 +2780,7 @@ const INITIAL_COOLDOWN = <?= isset($cooldownSecs) ? (int)$cooldownSecs : 0 ?>;
 const currentPanel     = <?= json_encode($assignedPanelIds ?? []) ?>;
 const LIVE_VOTING_SUGGESTION = <?= json_encode($liveVotingSuggestion ?? ['category' => 0, 'details' => []]) ?>;
 
+// ── STATE ─────────────────────────────────────────────────────────────────
 let lastChatCount     = 0;
 let lastVoteSig       = '';
 let _currentPauseState= <?= (!empty($isHearingPaused) ? 'true' : 'false') ?>;
@@ -2909,6 +2807,7 @@ const CASE_STATUS = <?= json_encode((string)$case['status']) ?>;
 const PAGE_FOCUS = <?= json_encode((string)($_GET['focus'] ?? '')) ?>;
 const committeeMembers = <?= json_encode($allActiveMembers) ?>;
 
+// Helper function to escape HTML
 function escapeHtml(str) {
   if (str === null || typeof str === 'undefined') return '';
   str = String(str);
@@ -2923,6 +2822,7 @@ function escapeHtml(str) {
   });
 }
 
+// ── DEPARTMENT → MEMBER LOADER (SEARCHABLE MULTISELECT) ─────────────────────────
 let selectedPanelMembersHearing = [];
 let selectedPanelMembersReconfig = [];
 
@@ -2959,7 +2859,7 @@ function renderSelectedPanelMembers(prefix) {
     hiddenContainer.innerHTML = hiddenHtml;
     
     if (selectedList.length === 0) {
-        container.innerHTML = '<div style="font-size:11.5px;color:var(--ink-500);padding:6px; font-style: italic;">No members selected.</div>';
+        container.innerHTML = '<div style="font-size:11px;color:var(--ink-400);padding:4px;">No members selected.</div>';
     }
 }
 
@@ -2988,12 +2888,12 @@ function filterPanelDropdown(prefix) {
     );
     
     if (filtered.length === 0) {
-        dropdown.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--ink-400); text-align: center;">No members found for this department.</div>';
+        dropdown.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--ink-400);">No members found for this department.</div>';
     } else {
         let html = '';
         filtered.slice(0, 15).forEach(m => {
             html += `<div class="dropdown-item" onmousedown="addPanelMember('${prefix}', '${m.upcc_id}'); event.preventDefault();">
-                        <div class="dropdown-item-title">${escapeHtml(m.full_name)} <span style="font-size:10px;color:#7cc2ee;background:var(--accent-soft);padding:2px 7px;border-radius:3px; border:1px solid var(--accent-line); letter-spacing: 0.04em;">${escapeHtml(m.role)}</span></div>
+                        <div class="dropdown-item-title">${escapeHtml(m.full_name)} <span style="font-size:10px;color:var(--blue-800);background:var(--blue-100);padding:2px 6px;border-radius:10px;">${escapeHtml(m.role)}</span></div>
                         <div class="dropdown-item-sub">${escapeHtml(m.dept_name || 'No Department')}</div>
                      </div>`;
         });
@@ -3040,6 +2940,7 @@ function hidePanelDropdown(prefix) {
     if (dropdown) dropdown.classList.remove('show');
 }
 
+// Initialise the department selects with change handlers
 document.addEventListener('DOMContentLoaded', function() {
     const hearingDept = document.getElementById('hearing_dept_select');
     if (hearingDept) {
@@ -3059,6 +2960,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 });
 
+// ── VOTING TIMER ──────────────────────────────────────────────────────────
 function startVotingTimer() {
     if (ROUND_ENDS_EPOCH <= 0) return;
     clearInterval(timerInterval);
@@ -3075,7 +2977,7 @@ function startVotingTimer() {
         }
         if (fillEl) {
             fillEl.style.width = Math.round((rem / 600) * 100) + '%';
-            fillEl.style.background = rem > 600 ? 'var(--sage)' : rem > 180 ? 'var(--amber)' : 'var(--rose)';
+            fillEl.style.background = rem > 600 ? 'var(--green-600)' : rem > 180 ? 'var(--amber-500)' : 'var(--red-600)';
         }
         if (rem <= 0) clearInterval(timerInterval);
     }
@@ -3083,6 +2985,7 @@ function startVotingTimer() {
     timerInterval = setInterval(tick, 1000);
 }
 
+// ── COOLDOWN TIMER ────────────────────────────────────────────────────────
 function startCooldownDisplay(secs) {
     if (secs <= 0) return;
     cooldownSecs = secs;
@@ -3093,7 +2996,7 @@ function startCooldownDisplay(secs) {
         block.className = 'cooldown-block';
         block.innerHTML = `<div class="cooldown-title">⏳ Voting Cooldown Active</div>
             <div class="cooldown-num" id="cooldownTimer"></div>
-            <div style="font-size:11.5px;color:#e8b767;margin-top:6px; font-weight: 600;">New suggestions are temporarily disabled</div>`;
+            <div style="font-size:.7rem;color:var(--amber-700);margin-top:.25rem">New suggestions are temporarily disabled</div>`;
         const hr = document.querySelector('#hearing-card .divider');
         if (hr) hr.parentNode.insertBefore(block, hr.nextSibling);
     }
@@ -3117,6 +3020,7 @@ function startCooldownDisplay(secs) {
     cooldownInterval = setInterval(tick, 1000);
 }
 
+// ── CATEGORY FIELDS ───────────────────────────────────────────────────────
 function toggleCategoryFields() {
     const cat = document.getElementById('decided_category')?.value;
     const container = document.getElementById('dynamicFieldsContainer');
@@ -3163,6 +3067,7 @@ function toggleCommunityHoursCustom() {
   if (other) other.closest('.cat2-hour-pill')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
 }
 
+// ── DYNAMIC CONSENSUS UI UPDATES ──────────────────────────────────────────
 function updateConsensusBlockUI(category, details, consensusAt) {
     currentConsensus = category;
     consensusDetails = details || {};
@@ -3171,12 +3076,15 @@ function updateConsensusBlockUI(category, details, consensusAt) {
     sessionStorage.setItem(`upccConsensusOpen_${CASE_ID}`, '1');
     sessionStorage.setItem(`upccConsensusCategory_${CASE_ID}`, category);
 
+    // Show consensus block
     const block = document.getElementById('consensusBlock');
     if (block) block.style.display = 'block';
 
+    // Set badge text
     const badge = document.getElementById('consensusBlockCatBadge');
     if (badge) badge.textContent = '🏷️ Category ' + category + ' Penalty';
 
+    // Set description
     const descEl = document.getElementById('consensusBlockCatDesc');
     const descriptions = {
         1: 'Probation for the selected number of academic terms with referral for counseling. Any subsequent major offense during probation triggers Suspension or Non-Readmission.',
@@ -3187,6 +3095,7 @@ function updateConsensusBlockUI(category, details, consensusAt) {
     };
     if (descEl) descEl.innerHTML = (descriptions[category] || '').replace(/\n/g, '<br>');
 
+    // Set details HTML
     const detailsEl = document.getElementById('consensusBlockDetails');
     if (detailsEl) {
         let html = '';
@@ -3205,7 +3114,7 @@ function updateConsensusBlockUI(category, details, consensusAt) {
                     const shVal = parseFloat(details.service_hours);
                     hrsStr = (shVal < 1.0 && shVal > 0) ? ` — ${Math.round(shVal * 60)} mins` : ` — ${shVal} hrs`;
                 }
-                listHtml += `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);color:#7cc2ee;border:1px solid var(--accent-line);padding:3px 9px;border-radius:3px;font-size:11.5px;margin:2px 3px 2px 0; font-weight: 600;">
+                listHtml += `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--blue-100);color:var(--blue-700);padding:2px 8px;border-radius:4px;font-size:.75rem;margin:2px 2px 2px 0">
                     ${escapeHtml(iv)}${hrsStr}
                 </span>`;
             });
@@ -3216,13 +3125,14 @@ function updateConsensusBlockUI(category, details, consensusAt) {
                 </div>
               </div>`;
         } else if (category >= 3) {
-            html = `<div class="alert alert-warning" style="margin-bottom:14px">
+            html = `<div class="alert alert-warning" style="margin-bottom:.85rem">
                 ⚠️ This penalty will <strong>freeze</strong> the student account upon confirmation.
               </div>`;
         }
         detailsEl.innerHTML = html;
     }
 
+    // Set consensus time
     const timeEl = document.getElementById('consensusBlockTime');
     if (timeEl) {
         if (consensusAt) {
@@ -3234,10 +3144,9 @@ function updateConsensusBlockUI(category, details, consensusAt) {
     } else if (consensusAt && block) {
         const timeDiv = document.createElement('div');
         timeDiv.id = 'consensusBlockTime';
-        timeDiv.style.fontSize = '11.5px';
-        timeDiv.style.color = 'var(--ink-400)';
-        timeDiv.style.marginBottom = '14px';
-        timeDiv.style.fontFamily = 'var(--mono)';
+        timeDiv.style.fontSize = '.72rem';
+        timeDiv.style.color = 'var(--ink-500)';
+        timeDiv.style.marginBottom = '.85rem';
         timeDiv.textContent = '⏱️ Consensus reached ' + consensusAt;
         const bodyEl = block.querySelector('.cf-body');
         if (bodyEl) {
@@ -3246,14 +3155,17 @@ function updateConsensusBlockUI(category, details, consensusAt) {
         }
     }
 
+    // Hide no consensus warning alert
     const noCons = document.getElementById('noConsensusAlert');
     if (noCons) noCons.style.display = 'none';
 
+    // Show/update consensus span
     const span = document.getElementById('consensusSpan');
     if (span) span.style.display = 'inline';
     const spanVal = document.getElementById('consensusSpanVal');
     if (spanVal) spanVal.textContent = category;
 
+    // Enable and update select field
     const selectEl = document.getElementById('decided_category');
     if (selectEl) {
         selectEl.disabled = false;
@@ -3266,18 +3178,22 @@ function updateConsensusBlockUI(category, details, consensusAt) {
         }
     }
 
+    // Show decided category group
     const group = document.getElementById('decided_category_group');
     if (group) group.style.display = 'block';
 
+    // Hide force resolve block
     const forceGroup = document.getElementById('forceResolveGroup');
     if (forceGroup) forceGroup.style.display = 'none';
 
+    // Uncheck force_resolve check if it was checked
     const forceCb = document.getElementById('force_resolve');
     if (forceCb && forceCb.checked) {
         forceCb.checked = false;
         toggleForceResolve();
     }
 
+    // Enable Narrative & Submit button
     const fd = document.getElementById('final_decision');
     if (fd) fd.disabled = false;
     const sub = document.getElementById('submit_final_decision');
@@ -3292,18 +3208,23 @@ function hideConsensusBlockUI() {
     sessionStorage.removeItem(`upccConsensusCategory_${CASE_ID}`);
     sessionStorage.removeItem(`upccConsensusOpen_${CASE_ID}`);
 
+    // Hide consensus block
     const block = document.getElementById('consensusBlock');
     if (block) block.style.display = 'none';
 
+    // Check force resolve status
     const cb = document.getElementById('force_resolve');
     const isForceChecked = cb && cb.checked;
 
+    // Show/hide alerts
     const noCons = document.getElementById('noConsensusAlert');
     if (noCons) noCons.style.display = isForceChecked ? 'none' : 'block';
 
+    // Hide consensus span
     const span = document.getElementById('consensusSpan');
     if (span) span.style.display = 'none';
 
+    // Update select field
     const selectEl = document.getElementById('decided_category');
     if (selectEl) {
         selectEl.disabled = !isForceChecked;
@@ -3315,12 +3236,15 @@ function hideConsensusBlockUI() {
         }
     }
 
+    // Show/hide decided category group
     const group = document.getElementById('decided_category_group');
     if (group) group.style.display = isForceChecked ? 'block' : 'none';
 
+    // Show force resolve checkbox group
     const forceGroup = document.getElementById('forceResolveGroup');
     if (forceGroup) forceGroup.style.display = 'block';
 
+    // Enable/disable narrative & submit
     const fd = document.getElementById('final_decision');
     if (fd) fd.disabled = !isForceChecked;
     const sub = document.getElementById('submit_final_decision');
@@ -3332,6 +3256,7 @@ function hideConsensusBlockUI() {
     }
 }
 
+// ── AUTO-FILL FORM FROM CONSENSUS ─────────────────────────────────────────
 function adoptSuggestedPenalty() {
     if (!currentConsensus) return;
 
@@ -3390,6 +3315,7 @@ function adoptSuggestedPenalty() {
     showToast('Form Auto-filled', 'Suggested penalty has been loaded. Review and submit.', 'success');
 }
 
+// ── CANCEL CONSENSUS MODAL ────────────────────────────────────────────────
 function showCancelConsensusModal() { document.getElementById('cancelConsensusModal').classList.add('open'); }
 function closeCancelModal()         { document.getElementById('cancelConsensusModal').classList.remove('open'); document.getElementById('cancelReason').value = ''; }
 function submitCancelConsensus() {
@@ -3425,6 +3351,7 @@ function adoptSuggestedPenalty() {
         catSelect.value = currentConsensus;
         catSelect.disabled = false;
         
+        // Try to pre-fill details if available from consensusDetails
         if (currentConsensus == 1 && consensusDetails && consensusDetails.probation_terms) {
             const tEl = document.getElementById('cat1_terms');
             if (tEl) tEl.value = consensusDetails.probation_terms;
@@ -3583,25 +3510,26 @@ function updateLiveVotingModal(data) {
     if (punEl) punEl.textContent = punishmentLabel;
 }
 
+// ── CHAT RENDERING ────────────────────────────────────────────────────────
 function renderChat(messages) {
     const box = document.getElementById('live-chat-box');
     if (!box) return;
-    if (!messages || !messages.length) { box.innerHTML = '<div style="text-align:center;color:var(--ink-400);font-size:12.5px">No messages yet.</div>'; return; }
+    if (!messages || !messages.length) { box.innerHTML = '<div style="text-align:center;color:var(--ink-400);font-size:.8rem">No messages yet.</div>'; return; }
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
     box.innerHTML = messages.map(m => {
-        if (m.is_system) return `<div style="text-align:center;margin:14px 0">
-            <span style="background:var(--amber-soft);color:#e8b767;border:1px solid var(--amber-line);padding:5px 12px;border-radius:3px;font-size:11px;font-weight:700; letter-spacing: 0.04em;">${escapeHtml(m.message)}</span>
+        if (m.is_system) return `<div style="text-align:center;margin:10px 0">
+            <span style="background:rgba(240,192,64,.15);color:#db9f00;border:1px solid rgba(240,192,64,.4);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700">${escapeHtml(m.message)}</span>
         </div>`;
         const isMe   = !!m.is_me;
         const isAdm  = !!m.is_admin;
-        const bg     = isAdm ? (isMe ? 'linear-gradient(135deg, #2d7fb8, #2067a0)' : 'var(--accent-soft)') : (isMe ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.25)');
-        const clr    = isMe ? '#fff' : 'var(--ink-100)';
+        const bg     = isAdm ? (isMe ? 'var(--blue-600)' : 'var(--blue-100)') : (isMe ? 'var(--ink-800)' : '#fff');
+        const clr    = isMe ? '#fff' : 'var(--ink-800)';
         let rep = '';
-        if (m.reply_to_id) rep = `<div style="background:rgba(0,0,0,.15);padding:6px 10px;border-radius:var(--radius-sm);margin-bottom:8px;font-size:11.5px;border-left:2px solid var(--accent-line); color: var(--ink-200);">
+        if (m.reply_to_id) rep = `<div style="background:rgba(0,0,0,.08);padding:.3rem .5rem;border-radius:4px;margin-bottom:.4rem;font-size:.7rem;border-left:2px solid rgba(0,0,0,.2)">
             <strong>${escapeHtml(m.reply_sender)}</strong> ${escapeHtml(m.reply_message)}</div>`;
-        return `<div style="margin-bottom:16px;text-align:${isMe ? 'right' : 'left'}">
-            <div style="font-size:11px;color:var(--ink-400);margin-bottom:4px; letter-spacing: 0.02em;"><strong style="color: var(--ink-200);">${escapeHtml(m.sender_name)}</strong> · ${escapeHtml(m.sender_role)} · ${m.created_at}</div>
-            <div style="display:inline-block;text-align:left;background:${bg};color:${clr};padding:10px 14px;border-radius:var(--radius-md);max-width:85%;font-size:13px;border:1px solid var(--border-1); line-height: 1.5;">
+        return `<div style="margin-bottom:1rem;text-align:${isMe ? 'right' : 'left'}">
+            <div style="font-size:.7rem;color:var(--ink-500);margin-bottom:.2rem"><strong>${escapeHtml(m.sender_name)}</strong> · ${escapeHtml(m.sender_role)} · ${m.created_at}</div>
+            <div style="display:inline-block;text-align:left;background:${bg};color:${clr};padding:.6rem .8rem;border-radius:12px;max-width:85%;font-size:.82rem;border:1px solid rgba(0,0,0,.05)">
                 ${rep}${escapeHtml(m.message)}
             </div>
         </div>`;
@@ -3675,6 +3603,7 @@ if (chatForm) {
     });
 }
 
+// ── HEARING PAUSE TOGGLE ──────────────────────────────────────────────────
 function updatePauseUI(isPaused, pauseReason = null) {
     const btn = document.getElementById('togglePauseBtn');
     const status = document.getElementById('hearing-status-pill');
@@ -3683,7 +3612,7 @@ function updatePauseUI(isPaused, pauseReason = null) {
     if (isPaused) {
         btn.classList.remove('btn-warning');
         btn.classList.add('btn-success');
-        btn.innerHTML = '▶ Resume Hearing';
+        btn.innerHTML = '▶️ Resume Hearing';
         if (status) {
             status.classList.remove('pill-open');
             status.classList.add('pill-warning');
@@ -3692,7 +3621,7 @@ function updatePauseUI(isPaused, pauseReason = null) {
     } else {
         btn.classList.remove('btn-success');
         btn.classList.add('btn-warning');
-        btn.innerHTML = '⏸ Pause Hearing';
+        btn.innerHTML = '⏸️ Pause Hearing';
         if (status) {
             status.classList.remove('pill-warning');
             status.classList.add('pill-open');
@@ -3701,11 +3630,15 @@ function updatePauseUI(isPaused, pauseReason = null) {
     }
 }
 
+// ── HEARING PAUSE TOGGLE ──────────────────────────────────────────────────
 function toggleHearingPause() {
+  // If hearing is currently open (not paused), show confirmation modal before pausing
   if (!_currentPauseState) {
     document.getElementById('confirmPauseModal').classList.add('open');
     return;
   }
+
+  // Otherwise (currently paused) show confirmation modal before resuming
   document.getElementById('confirmResumeModal').classList.add('open');
 }
 
@@ -3721,13 +3654,13 @@ function confirmPauseFromModal() {
   const confirmBtn = document.getElementById('confirmPauseBtn');
   const cancelBtn = document.getElementById('cancelPauseBtn');
   
-  if (confirmBtn) { confirmBtn.innerHTML = '⏸ Pausing...'; confirmBtn.disabled = true; }
+  if (confirmBtn) { confirmBtn.innerHTML = '⏸️ Pausing...'; confirmBtn.disabled = true; }
   if (cancelBtn) cancelBtn.disabled = true;
   
   const fd = new FormData();
   fd.append('action', 'toggle_pause');
   fd.append('actor', 'admin');
-  fd.append('set_pause', '1');
+  fd.append('set_pause', '1'); // Explicitly pause
   fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
     .then(r => r.json())
     .then(res => {
@@ -3756,13 +3689,13 @@ function confirmResumeFromModal() {
   const confirmBtn = document.getElementById('confirmResumeBtn');
   const cancelBtn = document.getElementById('cancelResumeBtn');
   
-  if (confirmBtn) { confirmBtn.innerHTML = '▶ Resuming...'; confirmBtn.disabled = true; }
+  if (confirmBtn) { confirmBtn.innerHTML = '▶️ Resuming...'; confirmBtn.disabled = true; }
   if (cancelBtn) cancelBtn.disabled = true;
   
   const fd = new FormData();
   fd.append('action', 'toggle_pause');
   fd.append('actor', 'admin');
-  fd.append('set_pause', '0');
+  fd.append('set_pause', '0'); // Explicitly resume
   fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin`, { method:'POST', body:fd })
     .then(r => r.json())
     .then(res => {
@@ -3787,6 +3720,7 @@ function confirmResumeFromModal() {
     });
 }
 
+// If the admin attempts to close or navigate away while hearing is live, warn and try to pause via sendBeacon
 let skipUnloadWarn = false;
 window.addEventListener('submit', function () {
   skipUnloadWarn = true;
@@ -3794,11 +3728,12 @@ window.addEventListener('submit', function () {
 window.addEventListener('beforeunload', function (e) {
   if (!_currentPauseState && IS_HEARING_OPEN && !skipUnloadWarn && (!currentConsensus || currentConsensus === 0)) {
     const msg = 'The hearing is live. Leaving will pause the hearing. Are you sure you want to leave?';
-    (e || window.event).returnValue = msg;
-    return msg;
+    (e || window.event).returnValue = msg; // Gecko + IE
+    return msg; // Webkit, Safari, Chrome
   }
 });
 
+// Intercept internal link clicks to show custom modal instead of native prompt
 document.addEventListener('click', function(e) {
   const link = e.target.closest('a');
   if (link && link.href && !link.target && !link.href.startsWith('javascript:') && !link.href.includes('#')) {
@@ -3816,11 +3751,13 @@ document.addEventListener('click', function(e) {
 function confirmLeavePage() {
   const href = document.getElementById('leaveModalHref').value;
   
+  // Show loading state on the button
   const confirmBtn = document.querySelector('#leaveModal .btn-warning');
   const cancelBtn = document.querySelector('#leaveModal .btn-ghost');
   if (confirmBtn) { confirmBtn.innerHTML = '⏳ Pausing & Leaving...'; confirmBtn.disabled = true; }
   if (cancelBtn) { cancelBtn.disabled = true; }
   
+  // Pause the hearing first
   const fd = new FormData();
   fd.append('action', 'toggle_pause');
   fd.append('actor', 'admin');
@@ -3862,6 +3799,7 @@ function admitUser(upccId, btnElement = null) {
                     const row = btnElement.closest('div[style*="border-bottom"]');
                     if (row) row.remove();
                     
+                    // Check if there are any users left in the modal list
                     const list = document.getElementById('rejoinUsersList');
                     if (list && list.children.length === 0) {
                         closeRejoinModal();
@@ -3904,11 +3842,11 @@ function showRejoinModal(users) {
   if (!modal || !list) return;
   if (!Array.isArray(users) || users.length === 0) { return closeRejoinModal(); }
   list.innerHTML = users.map(u => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border-1); color: var(--ink-100);">
-      <div style="font-size:13px">👤 ${escapeHtml(u.name)}<div style="font-size:11px;color:var(--ink-400); margin-top: 2px;">${escapeHtml(u.role || '')}</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #eee">
+      <div style="font-size:13px">👤 ${escapeHtml(u.name)}<div style="font-size:11px;color:#666">${escapeHtml(u.role || '')}</div></div>
       <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-outline btn-sm" onclick="closeRejoinModal();">Dismiss</button>
-        <button class="btn btn-primary btn-sm" data-upcc="${u.upcc_id}" onclick="admitUser(${u.upcc_id}, this);">Let In</button>
+        <button class="btn btn-outline" style="padding:6px 10px;font-size:12px" onclick="closeRejoinModal();">Dismiss</button>
+        <button class="btn btn-primary" data-upcc="${u.upcc_id}" style="padding:6px 10px;font-size:12px" onclick="admitUser(${u.upcc_id}, this);">Let In</button>
       </div>
     </div>
   `).join('');
@@ -3921,6 +3859,7 @@ function closeRejoinModal() {
   modal.classList.remove('open');
 }
 
+// ── PRESENCE PING ─────────────────────────────────────────────────────────
 function pingPresence() {
     const fd = new FormData();
     fd.append('action', 'ping_presence');
@@ -3933,6 +3872,7 @@ function voteSig(votes) {
     return (votes || []).map(v => v.upcc_id + ':' + v.vote_category + ':' + v.updated_at).join('|');
 }
 
+// ── MAIN LIVE SYNC ────────────────────────────────────────────────────────
 function syncLive() {
   fetch(`../api/upcc_case_live.php?case_id=${CASE_ID}&actor=admin&t=${Date.now()}`, {
     cache: 'no-store'
@@ -3947,12 +3887,12 @@ function syncLive() {
                     const isOnline = data.panel_presence[upccId] === true;
                     
                     if (isOnline) {
-                        el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--sage-soft); color:#8fc9a5; font-weight:bold; font-size:12px; border:1px solid var(--sage-line);" title="Online / In Hearing">✓</span>';
+                        el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dcfce7; color:#16a34a; font-weight:bold; font-size:14px;" title="Online / In Hearing">✓</span>';
                     } else {
                         if (isAccepted) {
-                            el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--rose-soft); color:#e8a0a0; font-weight:bold; font-size:12px; border:1px solid var(--rose-line);" title="Offline / Not in Hearing">×</span>';
+                            el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fee2e2; color:#dc2626; font-weight:bold; font-size:14px;" title="Offline / Not in Hearing">×</span>';
                         } else {
-                            el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--amber-soft); color:#e8b767; font-weight:bold; font-size:13px; border:1px solid var(--amber-line);" title="Awaiting Acceptance">⌛</span>';
+                            el.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fef3c7; color:#d97706; font-weight:bold; font-size:14px;" title="Awaiting Acceptance">⌛</span>';
                         }
                     }
                 });
@@ -3961,6 +3901,7 @@ function syncLive() {
             const roundActiveNow = data.round && parseInt(data.round.is_active, 10) === 1;
             const cooldownActiveNow = !!(data.cooldown && parseInt(data.cooldown_seconds || 0, 10) > 0);
 
+            // Chat
             if (Array.isArray(data.chat) && data.chat.length !== lastChatCount) {
                 renderChat(data.chat);
                 lastChatCount = data.chat.length;
@@ -3968,6 +3909,7 @@ function syncLive() {
                 if (cb) cb.scrollTop = cb.scrollHeight;
             }
 
+            // Student Explanation Update
             if (data.student_explanation && data.student_explanation.submitted_at) {
                 const block = document.getElementById('studentExplanationBlock');
                 const text = document.getElementById('explanationText');
@@ -3980,21 +3922,23 @@ function syncLive() {
                     if (text) text.textContent = data.student_explanation.text || '';
                     if (time) time.textContent = 'Submitted ' + data.student_explanation.submitted_at;
                     
+                    // Attachments handling
                     const attachments = document.getElementById('explanationAttachments');
                     if (attachments) {
                         attachments.innerHTML = '';
                         if (data.student_explanation.image) {
-                            attachments.innerHTML += `<a href="../${data.student_explanation.image}" target="_blank" style="display: block; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-2);">
+                            attachments.innerHTML += `<a href="../${data.student_explanation.image}" target="_blank" style="display: block; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
                                 <img src="../${data.student_explanation.image}" style="max-width: 100px; max-height: 100px; display: block; object-fit: cover;">
                             </a>`;
                         }
                         if (data.student_explanation.pdf) {
-                            attachments.innerHTML += `<a href="../${data.student_explanation.pdf}" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--rose-soft); border: 1px solid var(--rose-line); border-radius: var(--radius-sm); text-decoration: none; color: #e8a0a0; font-size: 12px; font-weight: 600;">
+                            attachments.innerHTML += `<a href="../${data.student_explanation.pdf}" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fff1f2; border: 1px solid #fecaca; border-radius: 8px; text-decoration: none; color: #be123c; font-size: 12px; font-weight: 600;">
                                 <span>📄 View PDF Explanation</span>
                             </a>`;
                         }
                     }
                     
+                    // Enable start button if it was blocked
                     if (btnStart && needsExp) {
                         btnStart.disabled = false;
                         const warn = btnStart.nextElementSibling;
@@ -4003,6 +3947,7 @@ function syncLive() {
                 }
             }
 
+            // Votes
             if (Array.isArray(data.votes)) {
                 const sig = voteSig(data.votes);
                 if (sig !== lastVoteSig) {
@@ -4022,9 +3967,11 @@ function syncLive() {
                 }
             }
 
+                // Consensus should surface immediately, even if the round is already closing.
                 const isCaseClosed = (data.case_status === 'CLOSED' || data.case_status === 'RESOLVED') || (caseStatus === 'CLOSED' || caseStatus === 'RESOLVED') || data.is_closed;
                 const hasConsensus = parseInt(data.consensus || 0, 10) > 0 && !isCaseClosed;
 
+                // Update UI dynamically when consensus status changes
                 const currentHasConsensus = currentConsensus > 0;
                 const newHasConsensus = hasConsensus;
                 console.log('[UPCC debug] isCaseClosed:', isCaseClosed, 'currentHasConsensus:', currentHasConsensus, 'newHasConsensus:', newHasConsensus, 'currentConsensus:', currentConsensus, 'data.consensus:', data.consensus, 'data.case_status:', data.case_status, 'caseStatus:', caseStatus);
@@ -4038,9 +3985,11 @@ function syncLive() {
                         currentRoundConsensusDismissed = false;
                     }
                 } else if (hasConsensus && !isCaseClosed) {
+                    // Make sure details and category block stay in sync
                     updateConsensusBlockUI(parseInt(data.consensus, 10), data.suggestion_details, data.consensus_reached_at);
                 }
 
+            // Live voting modal for active rounds
             if (roundActiveNow) {
                 updateLiveVotingModal(data);
                 const rno = parseInt(data.round.round_no || 0, 10);
@@ -4053,6 +4002,7 @@ function syncLive() {
                 closeLiveVotingModal();
             }
 
+            // New round started
             if (data.round && data.round.round_no) {
                 const newRound = parseInt(data.round.round_no, 10);
                 const isActive = parseInt(data.round.is_active, 10) === 1;
@@ -4062,10 +4012,12 @@ function syncLive() {
                 }
             }
 
+            // Cooldown
             if (data.cooldown && parseInt(data.cooldown_seconds || 0, 10) > 0 && cooldownSecs <= 0) {
                 startCooldownDisplay(parseInt(data.cooldown_seconds, 10));
             }
 
+            // Transition handling: keep admin panel in sync on cancel/end/cooldown changes
             if (prevRoundActiveState !== roundActiveNow || prevCooldownActiveState !== cooldownActiveNow) {
                 prevRoundActiveState = roundActiveNow;
                 prevCooldownActiveState = cooldownActiveNow;
@@ -4080,6 +4032,7 @@ function syncLive() {
                 closeLiveVotingModal();
             }
 
+            // Status change — only reload once when transitioning TO closed, not on every poll after
             if (data.case_status && data.case_status !== caseStatus) {
                 const prevStatus = caseStatus;
                 caseStatus = data.case_status;
@@ -4096,22 +4049,26 @@ function syncLive() {
                 }
             }
 
+            // Pause state handling
             const nextPauseState = !!data.is_paused;
             if (data.is_paused !== undefined && nextPauseState !== _currentPauseState) {
               _currentPauseState = nextPauseState;
                 updatePauseUI(_currentPauseState, data.pause_reason);
                 
+                // Show toast notification for auto-pause
                 if (data.is_paused && data.pause_reason === 'AUTO_PAUSE_ADMIN_LEFT') {
-                    showToast('⏸ Hearing Paused', 'Hearing has been auto-paused: Admin disconnected.', 'warning');
+                    showToast('⏸️ Hearing Paused', 'Hearing has been auto-paused: Admin disconnected.', 'warning');
                 }
             }
 
+            // Disable End Hearing if voting is ongoing
             const endBtn = document.getElementById('btnEndHearing');
             if (endBtn) {
                 endBtn.disabled = roundActiveNow;
                 endBtn.title = roundActiveNow ? 'Cannot end hearing while voting is ongoing' : '';
             }
 
+            // Rejoin requests
             const wuCont = document.getElementById('waitingUsersContainer');
             const wuList = document.getElementById('waitingUsersList');
             const badge  = document.getElementById('rejoinBadge');
@@ -4134,9 +4091,9 @@ function syncLive() {
                     wuCont.style.display = 'block';
                     if (badge) { badge.textContent = data.waiting_users.length; badge.style.display = 'inline-flex'; }
                     wuList.innerHTML = data.waiting_users.map(u => `
-                        <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.2);padding:8px;margin-bottom:6px;border-radius:var(--radius-sm);border:1px solid var(--amber-line); color: var(--ink-100);">
-                            <span style="font-size:12.5px">👤 ${escapeHtml(u.name)}</span>
-                            <button onclick="admitUser(${u.upcc_id}, this)" class="btn btn-primary btn-sm">Let In</button>
+                        <div style="display:flex;justify-content:space-between;align-items:center;background:#fff;padding:6px;margin-bottom:4px;border-radius:4px;border:1px solid #fcd34d">
+                            <span style="font-size:12px">👤 ${escapeHtml(u.name)}</span>
+                            <button onclick="admitUser(${u.upcc_id}, this)" class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:11px">Let In</button>
                         </div>`).join('');
                 } else {
                     wuCont.style.display = 'none';
@@ -4163,6 +4120,9 @@ function toggleEditPanel() {
     if (ep.style.display === 'block') ep.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
+
+
+// ── GLOBAL LOADING OVERLAY ────────────────────────────────────────────────
 function showGlobalLoading(msg) {
     const overlay = document.getElementById('globalLoadingOverlay');
     const msgEl   = document.getElementById('globalLoadingMsg');
@@ -4174,6 +4134,7 @@ function hideGlobalLoading() {
     if (overlay) { overlay.style.display = 'none'; }
 }
 
+// ── INIT ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     if (currentConsensus === 0 || CASE_STATUS !== 'AWAITING_ADMIN_FINALIZATION') {
         sessionStorage.removeItem(`upccConsensusCategory_${CASE_ID}`);
@@ -4187,11 +4148,13 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.removeItem(`upccConsensusOpen_${CASE_ID}`);
     }
 
+    // Check if case was successfully recorded
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('msg') === 'resolved') {
         document.getElementById('successRecordModal')?.classList.add('open');
     }
 
+    // Show loading overlay on final decision form submit
     const finalForm = document.getElementById('finalDecisionForm');
     if (finalForm) {
         finalForm.addEventListener('submit', function () {
@@ -4207,6 +4170,7 @@ function closeSuccessRecordModal() {
     window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
+// Direct Form F-005 Upload Handlers
 function openDirectNteUploadModal(caseId, studentId) {
     document.getElementById('directNteCaseId').value = caseId;
     document.getElementById('directNteStudentId').value = studentId;
@@ -4227,7 +4191,7 @@ async function submitDirectNteUpload(e) {
     const msg = document.getElementById('directNteUploadMsg');
     const btn = document.getElementById('btnSubmitDirectNte');
     
-    if (msg) { msg.innerHTML = '⌛ Uploading & sending email to student Outlook…'; msg.style.color = 'var(--ink-200)'; }
+    if (msg) { msg.innerHTML = '⌛ Uploading & sending email to student Outlook…'; msg.style.color = '#334155'; }
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
     
     try {
@@ -4235,17 +4199,17 @@ async function submitDirectNteUpload(e) {
         const data = await res.json();
         
         if (data.ok) {
-            if (msg) { msg.innerHTML = '✅ Form F-005 uploaded & sent to student Outlook!'; msg.style.color = '#8fc9a5'; }
+            if (msg) { msg.innerHTML = '✅ Form F-005 uploaded & sent to student Outlook!'; msg.style.color = '#166534'; }
             setTimeout(() => {
                 closeDirectNteUploadModal();
                 window.location.reload();
             }, 1200);
         } else {
-            if (msg) { msg.innerHTML = '❌ Failed: ' + (data.error || data.message || 'Error occurred'); msg.style.color = '#e8a0a0'; }
+            if (msg) { msg.innerHTML = '❌ Failed: ' + (data.error || data.message || 'Error occurred'); msg.style.color = '#b91c1c'; }
             if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
         }
     } catch (err) {
-        if (msg) { msg.innerHTML = '❌ Upload error: ' + err.message; msg.style.color = '#e8a0a0'; }
+        if (msg) { msg.innerHTML = '❌ Upload error: ' + err.message; msg.style.color = '#b91c1c'; }
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
     }
 }
@@ -4279,7 +4243,7 @@ async function runAiAnalysis() {
             const el = document.getElementById(steps[stepIdx].id);
             if (el) {
                 el.innerHTML = steps[stepIdx].text;
-                el.style.color = 'var(--ink-100)';
+                el.style.color = '#1e293b';
                 el.style.fontWeight = '600';
             }
             stepIdx++;
@@ -4332,7 +4296,7 @@ async function runAiAnalysis() {
         if (distTable && data.historical_distribution) {
             let html = '<div style="display:flex;gap:12px;flex-wrap:wrap;">';
             for (const [cat, cnt] of Object.entries(data.historical_distribution)) {
-                html += `<div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-2);padding:8px 14px;border-radius:var(--radius-sm);font-weight:600; color: var(--ink-100);">${escapeHtml(cat)}: <span style="color:var(--accent-hi);">${cnt} case(s)</span></div>`;
+                html += `<div style="background:#fff;border:1px solid #cbd5e1;padding:6px 12px;border-radius:8px;font-weight:600;">${escapeHtml(cat)}: <span style="color:#2563eb;">${cnt} case(s)</span></div>`;
             }
             html += '</div>';
             distTable.innerHTML = html;
@@ -4371,14 +4335,14 @@ function openSimilarCasesModal() {
     cases.forEach((c, idx) => {
         const letter = String.fromCharCode(65 + idx);
         listHtml += `
-            <div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-1);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:10px; color: var(--ink-100);">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                    <strong style="font-size:13px;color:var(--ink-50);">Case ${letter} (${escapeHtml(c.case_uuid || 'HIST')})</strong>
-                    <span style="background:var(--accent-soft);color:#7cc2ee;font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px; border: 1px solid var(--accent-line);">Similarity: ${c.similarity_score}%</span>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                    <strong style="font-size:0.9rem;color:#0f172a;">Case ${letter} (${escapeHtml(c.case_uuid || 'HIST')})</strong>
+                    <span style="background:#dbeafe;color:#1d4ed8;font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:10px;">Similarity: ${c.similarity_score}%</span>
                 </div>
-                <div style="font-size:12.5px;color:var(--ink-200);">
+                <div style="font-size:0.8rem;color:#475569;">
                     Offense: <strong>${escapeHtml(c.offense_name)}</strong> (${escapeHtml(c.offense_level)})<br>
-                    Final Intervention: <strong style="color:var(--accent-hi);">${escapeHtml(c.decided_category)}</strong>
+                    Final Intervention: <strong style="color:#2563eb;">${escapeHtml(c.decided_category)}</strong>
                 </div>
             </div>
         `;
@@ -4416,74 +4380,74 @@ syncLive();
 </script>
 
 <!-- MODAL: Anonymized Similar Historical Cases -->
-<div id="similarCasesModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(4,7,14,0.85); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(6px);">
-  <div class="modal-content" style="background: var(--surface-1); width:100%; max-width:540px; border-radius:var(--radius-xl); padding:24px; box-shadow:var(--shadow-lg); position:relative; border: 1px solid var(--border-3);">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid var(--border-1); padding-bottom:14px;">
-      <h3 style="margin:0; font-size:15px; font-weight:700; color:var(--ink-50); text-transform: uppercase; letter-spacing: 0.08em;">📋 Similar Verified Historical Cases</h3>
-      <button type="button" onclick="closeSimilarCasesModal()" style="background:none; border:none; font-size:18px; color:var(--ink-400); cursor:pointer; padding: 4px 8px;">✕</button>
+<div id="similarCasesModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+  <div class="modal-content" style="background:#fff; width:100%; max-width:540px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+      <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">📋 Similar Verified Historical Cases</h3>
+      <button type="button" onclick="closeSimilarCasesModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
     </div>
     <div id="similarCasesModalList" style="max-height:360px; overflow-y:auto; padding-right:6px;"></div>
     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
-      <button type="button" class="btn btn-outline" onclick="closeSimilarCasesModal()">Close</button>
+      <button type="button" class="btn btn-secondary" onclick="closeSimilarCasesModal()" style="padding:8px 18px; border-radius:8px; font-weight:700;">Close</button>
     </div>
   </div>
 </div>
 
 <!-- MODAL: Handbook Basis -->
-<div id="handbookBasisModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(4,7,14,0.85); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(6px);">
-  <div class="modal-content" style="background: var(--surface-1); width:100%; max-width:560px; border-radius:var(--radius-xl); padding:24px; box-shadow:var(--shadow-lg); position:relative; border: 1px solid var(--border-3);">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid var(--border-1); padding-bottom:14px;">
-      <h3 style="margin:0; font-size:15px; font-weight:700; color:var(--ink-50); text-transform: uppercase; letter-spacing: 0.08em;">📖 Applicable Student Handbook Basis</h3>
-      <button type="button" onclick="closeHandbookModal()" style="background:none; border:none; font-size:18px; color:var(--ink-400); cursor:pointer; padding: 4px 8px;">✕</button>
+<div id="handbookBasisModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+  <div class="modal-content" style="background:#fff; width:100%; max-width:560px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+      <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">📖 Applicable Student Handbook Basis</h3>
+      <button type="button" onclick="closeHandbookModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
     </div>
-    <div style="font-size:13px; color:var(--ink-200); line-height:1.65; max-height:380px; overflow-y:auto; padding-right:6px;">
-      <div style="background:var(--accent-soft); border-left:3px solid var(--accent); padding:12px 14px; border-radius:var(--radius-sm); margin-bottom:14px;">
-        <strong style="color:#7cc2ee;">NU Lipa Student Code of Discipline (Section IV &amp; Section V)</strong>
+    <div style="font-size:13.5px; color:#334155; line-height:1.6; max-height:380px; overflow-y:auto; padding-right:6px;">
+      <div style="background:#eff6ff; border-left:4px solid #2563eb; padding:12px; border-radius:8px; margin-bottom:12px;">
+        <strong style="color:#1d4ed8;">NU Lipa Student Code of Discipline (Section IV & Section V)</strong>
       </div>
-      <p><strong style="color: var(--ink-50);">Section IV — Minor Offenses &amp; 3-Attempt Rule:</strong><br>
-      • 1st &amp; 2nd Offense: Category 1 Warning &amp; Written Reprimand (0 CS Hours).<br>
+      <p><strong>Section IV — Minor Offenses & 3-Attempt Rule:</strong><br>
+      • 1st & 2nd Offense: Category 1 Warning & Written Reprimand (0 CS Hours).<br>
       • 3rd Offense: Automatic escalation to Category 2 Major Offense (150–250 CS Hours).</p>
 
-      <p style="margin-top: 12px;"><strong style="color: var(--ink-50);">Section V — Major Offenses &amp; Sanction Categories:</strong><br>
-      • Category 1: Formal Reprimand &amp; Active Semester Probation (0 Hours CS).<br>
+      <p><strong>Section V — Major Offenses & Sanction Categories:</strong><br>
+      • Category 1: Formal Reprimand & Active Semester Probation (0 Hours CS).<br>
       • Category 2: Formative Community Service (150 to 250 Hours) + Counseling / Education.<br>
       • Category 3: Non-Readmission / Suspension.<br>
       • Category 4 / 5: Exclusion or Expulsion for extreme violence, theft, or weapons.</p>
     </div>
     <div style="display:flex; justify-content:flex-end; margin-top:16px;">
-      <button type="button" class="btn btn-primary" onclick="closeHandbookModal()">Understood</button>
+      <button type="button" class="btn btn-primary" onclick="closeHandbookModal()" style="padding:8px 20px; border-radius:8px; font-weight:700; background:#2563eb; border-color:#2563eb;">Understood</button>
     </div>
   </div>
 </div>
 
 <!-- MODAL: Direct Upload & Send Form F-005 -->
-<div id="directNteUploadModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(4,7,14,0.85); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(6px);">
-  <div class="modal-content" style="background: var(--surface-1); width:100%; max-width:480px; border-radius:var(--radius-xl); padding:24px; box-shadow:var(--shadow-lg); position:relative; border: 1px solid var(--border-3);">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid var(--border-1); padding-bottom:14px;">
-      <h3 style="margin:0; font-size:15px; font-weight:700; color:var(--ink-50); text-transform: uppercase; letter-spacing: 0.08em;">📤 Upload Form F-005 Notice to Explain</h3>
-      <button type="button" onclick="closeDirectNteUploadModal()" style="background:none; border:none; font-size:18px; color:var(--ink-400); cursor:pointer; padding: 4px 8px;">✕</button>
+<div id="directNteUploadModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+  <div class="modal-content" style="background:#fff; width:100%; max-width:480px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); position:relative;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+      <h3 style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">📤 Upload Form F-005 Notice to Explain</h3>
+      <button type="button" onclick="closeDirectNteUploadModal()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;">✕</button>
     </div>
     <form id="directNteUploadForm" onsubmit="submitDirectNteUpload(event)">
       <input type="hidden" name="case_id" id="directNteCaseId" value="<?= (int)$case_id ?>">
       <input type="hidden" name="student_id" id="directNteStudentId" value="<?= htmlspecialchars($case['student_id']) ?>">
       
       <div style="margin-bottom:16px;">
-        <label style="display:block; font-size:11px; font-weight:700; color:var(--ink-400); margin-bottom:6px; text-transform: uppercase; letter-spacing: 0.08em;">Select Form F-005 Document (PDF or Image)</label>
-        <input type="file" name="nte_file" id="directNteFileInput" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" required style="width:100%; padding:10px 12px; border:1px solid var(--border-2); border-radius:var(--radius-sm); font-size:13px; background: rgba(0,0,0,0.3); color: var(--ink-100);">
-        <div style="font-size:11px; color:var(--ink-400); margin-top:6px;">Supported files: PDF, DOCX, PNG, JPG (Max 10MB)</div>
+        <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Select Form F-005 Document (PDF or Image)</label>
+        <input type="file" name="nte_file" id="directNteFileInput" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" required style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;">
+        <div style="font-size:11px; color:#64748b; margin-top:4px;">Supported files: PDF, DOCX, PNG, JPG (Max 10MB)</div>
       </div>
 
       <div style="margin-bottom:20px;">
-        <label style="display:block; font-size:11px; font-weight:700; color:var(--ink-400); margin-bottom:6px; text-transform: uppercase; letter-spacing: 0.08em;">Custom Instructions (Optional)</label>
-        <textarea name="custom_instructions" rows="2" placeholder="e.g. Submit written explanation within 5 days to SDO..." class="form-control" style="font-size:13px;"></textarea>
+        <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Custom Instructions (Optional)</label>
+        <textarea name="custom_instructions" rows="2" placeholder="e.g. Submit written explanation within 5 days to SDO..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;"></textarea>
       </div>
 
       <div id="directNteUploadMsg" style="margin-bottom:12px; font-size:13px; font-weight:600;"></div>
 
       <div style="display:flex; gap:10px; justify-content:flex-end;">
-        <button type="button" class="btn btn-outline" onclick="closeDirectNteUploadModal()">Cancel</button>
-        <button type="submit" id="btnSubmitDirectNte" class="btn btn-primary">
-          📧 Upload &amp; Send to Student Outlook
+        <button type="button" class="btn" onclick="closeDirectNteUploadModal()" style="padding:8px 16px; border-radius:8px; font-weight:700;">Cancel</button>
+        <button type="submit" id="btnSubmitDirectNte" class="btn btn-primary" style="background:#1b2b6b; color:#ffffff !important; border-color:#1b2b6b; padding:8px 20px; border-radius:8px; font-weight:700;">
+          📧 Upload & Send to Student Outlook
         </button>
       </div>
     </form>
