@@ -200,15 +200,37 @@ if ($studentId !== '') {
 
         $majorCount = 0;
         $minorCount = 0;
+        $otherMinorTypeCounts = [];
         foreach ($ocOffenses as $ooff) {
-            if (strtoupper($ooff['level'] ?? '') === 'MAJOR') $majorCount++;
-            else $minorCount++;
+            if (strtoupper($ooff['level'] ?? '') === 'MAJOR') {
+                $majorCount++;
+            } else {
+                $minorCount++;
+                $tName = trim((string)($ooff['offense_name'] ?? ($ooff['code'] ?? '')));
+                if ($tName !== '') {
+                    $otherMinorTypeCounts[$tName] = ($otherMinorTypeCounts[$tName] ?? 0) + 1;
+                }
+            }
+        }
+
+        $ocSummary = (string)($oc['case_summary'] ?? '');
+        $otherHas3Same = false;
+        foreach ($otherMinorTypeCounts as $cnt) {
+            if ($cnt >= 3) {
+                $otherHas3Same = true;
+                break;
+            }
+        }
+        if (stripos($ocSummary, '3 Same') !== false || stripos($ocSummary, 'Same Minor') !== false || stripos($ocSummary, 'SAME_TYPE_3') !== false) {
+            $otherHas3Same = true;
         }
 
         $caseKind = strtoupper((string)($oc['case_kind'] ?? ''));
         if ($caseKind === 'SECTION4_MINOR_ESCALATION' || $minorCount >= 3) {
             $triggerType = 'SECTION4_ESCALATION';
-            $triggerLabel = '⚠️ Section 4 Minor Escalation (3+ Accumulated Minors)';
+            $triggerLabel = $otherHas3Same 
+                ? '⚠️ Section 4 Minor Escalation (3 Same Minor Offenses)'
+                : '⚠️ Section 4 Minor Escalation (4 Different Minor Offenses)';
         } elseif ($caseKind === 'MAJOR_OFFENSE' || $majorCount > 0) {
             $triggerType = 'AUTOMATIC_MAJOR';
             $triggerLabel = '🚨 Automatic Major Offense';
@@ -2067,6 +2089,7 @@ body {
               <span class="meta-key">Name</span>      <span class="meta-val" style="font-weight:500"><?= htmlspecialchars($case['student_name']) ?></span>
               <span class="meta-key">Student ID</span> <span class="meta-val" style="font-family:var(--mono);font-size:.78rem"><?= htmlspecialchars($case['student_id']) ?></span>
               <span class="meta-key">Program</span>   <span class="meta-val"><?= htmlspecialchars($case['program'] ?? '—') ?></span>
+              <span class="meta-key">Department</span><span class="meta-val"><?= htmlspecialchars(!empty($case['student_department']) ? $case['student_department'] : (!empty($case['department']) ? $case['department'] : '—')) ?></span>
               <span class="meta-key">School</span>    <span class="meta-val"><?= htmlspecialchars($case['school'] ?? '—') ?></span>
               <span class="meta-key">Year / Sec</span><span class="meta-val"><?= htmlspecialchars($case['year_level'] ?? '—') ?> · <?= htmlspecialchars($case['section'] ?? '—') ?></span>
               <span class="meta-key">Email</span>     <span class="meta-val" style="color:var(--blue-600)"><?= htmlspecialchars($case['student_email'] ?? '—') ?></span>
@@ -2118,14 +2141,41 @@ body {
               <?php
                 $currMajorCount = 0;
                 $currMinorCount = 0;
+                $minorTypeCounts = [];
                 foreach ($offenses as $off) {
-                    if (strtoupper($off['level'] ?? '') === 'MAJOR') $currMajorCount++;
-                    else $currMinorCount++;
+                    if (strtoupper($off['level'] ?? '') === 'MAJOR') {
+                        $currMajorCount++;
+                    } else {
+                        $currMinorCount++;
+                        $tName = trim((string)($off['offense_name'] ?? ($off['code'] ?? 'Minor Offense')));
+                        $minorTypeCounts[$tName] = ($minorTypeCounts[$tName] ?? 0) + 1;
+                    }
                 }
                 $cKind = strtoupper((string)($case['case_kind'] ?? ''));
                 $cDecidedCat = (int)($case['decided_category'] ?? 0);
                 $isAutoMajor = ($cKind === 'MAJOR_OFFENSE' || $currMajorCount > 0);
                 $isSection4 = (!$isAutoMajor && ($cKind === 'SECTION4_MINOR_ESCALATION' || $currMinorCount >= 3));
+
+                // Determine if Section 4 was triggered by 3 of the same minor or 4 different/mixed minors
+                $sameMinorName = '';
+                $sameMinorCount = 0;
+                foreach ($minorTypeCounts as $typeName => $count) {
+                    if ($count >= 3) {
+                        $sameMinorName = $typeName;
+                        $sameMinorCount = $count;
+                        break;
+                    }
+                }
+                $cSummary = (string)($case['case_summary'] ?? '');
+                $is3SameMinor = false;
+                if ($sameMinorCount >= 3) {
+                    $is3SameMinor = true;
+                } elseif (stripos($cSummary, '3 Same') !== false || stripos($cSummary, 'Same Minor') !== false || stripos($cSummary, 'SAME_TYPE_3') !== false) {
+                    $is3SameMinor = true;
+                    if (empty($sameMinorName) && preg_match('/3 Same Minor Offenses:\s*([^)]+)/i', $cSummary, $matches)) {
+                        $sameMinorName = trim($matches[1]);
+                    }
+                }
               ?>
 
               <!-- CASE CLASSIFICATION BANNER -->
@@ -2135,7 +2185,11 @@ body {
                     <?php if ($isAutoMajor): ?>
                       🚨 Automatic Major Offense
                     <?php elseif ($isSection4): ?>
-                      ⚠️ Section 4 Minor Escalation (3+ Accumulated Minors)
+                      <?php if ($is3SameMinor): ?>
+                        ⚠️ Section 4 Minor Escalation (3 Same Minor Offenses)
+                      <?php else: ?>
+                        ⚠️ Section 4 Minor Escalation (4 Different Minor Offenses)
+                      <?php endif; ?>
                     <?php else: ?>
                       ℹ️ Standard Minor Offense Record
                     <?php endif; ?>
@@ -2151,7 +2205,7 @@ body {
                     </span>
                   <?php elseif ($isSection4): ?>
                     <span style="font-size:.72rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">
-                      Section 4 Escalated to UPCC
+                      <?= $is3SameMinor ? 'Section 4 (3 Same Type)' : 'Section 4 (4 Mixed Minors)' ?>
                     </span>
                   <?php endif; ?>
                 </div>
@@ -2161,7 +2215,11 @@ body {
                     This case is classified as an <strong>Automatic Major Offense</strong> due to major infraction(s) committed by the student.
                     <?= !empty($categoryDescriptions[$cDecidedCat]) ? '<br><strong>Assigned Category Definition:</strong> ' . htmlspecialchars($categoryDescriptions[$cDecidedCat]) : '' ?>
                   <?php elseif ($isSection4): ?>
-                    This case was automatically escalated under <strong>Section 4 Policy</strong> because the student accumulated <strong><?= $currMinorCount ?> minor offenses</strong> (threshold: 3+ minor offenses).
+                    <?php if ($is3SameMinor): ?>
+                      This case was automatically escalated under <strong>Section 4 Policy</strong> because the student accumulated <strong>3 of the same minor offense</strong><?= !empty($sameMinorName) ? ' (<em>' . htmlspecialchars($sameMinorName) . '</em>)' : '' ?> (threshold: 3 same minor offenses).
+                    <?php else: ?>
+                      This case was automatically escalated under <strong>Section 4 Policy</strong> because the student accumulated <strong><?= max(4, $currMinorCount) ?> different / mixed minor offenses</strong> (threshold: 4 mixed minor offenses).
+                    <?php endif; ?>
                   <?php else: ?>
                     This case contains <strong><?= $currMinorCount ?> minor offense(s)</strong> below the Section 4 escalation threshold.
                   <?php endif; ?>
