@@ -28,18 +28,10 @@ $panelAssignmentMatch = "EXISTS (SELECT 1 FROM upcc_case_panel_member ucpm WHERE
 function can_access_case($case) {
     if (in_array($case['status'], ['CLOSED', 'RESOLVED'])) return true;
     if (!empty($case['hearing_date']) && !empty($case['hearing_time'])) {
-        // If it's explicitly paused, or if the admin has been offline for more than 15 seconds
-        if (isset($case['hearing_is_paused']) && $case['hearing_is_paused'] == 1) {
+        if (isset($case['hearing_is_paused']) && (int)$case['hearing_is_paused'] === 1) {
             return false;
         }
-        if (array_key_exists('admin_ping_diff', $case)) {
-            if ($case['admin_ping_diff'] === null || (int)$case['admin_ping_diff'] > 15 || (int)$case['admin_ping_diff'] < 0) {
-                return false;
-            }
-        } else {
-            return false; // Admin never joined
-        }
-        return ($case['hearing_is_open'] == 1);
+        return ((int)($case['hearing_is_open'] ?? 0) === 1);
     }
     return true;
 }
@@ -125,14 +117,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         }
         
         $adminOffline = false;
-        if (!array_key_exists('admin_ping_diff', $c) || $c['admin_ping_diff'] === null || (int)$c['admin_ping_diff'] > 15 || (int)$c['admin_ping_diff'] < 0) {
-            $adminOffline = true;
-        }
 
         if ($c['hearing_is_open'] == 1) {
-            if ($c['hearing_is_paused'] == 1 || $adminOffline) {
+            if ((int)($c['hearing_is_paused'] ?? 0) === 1) {
                 $stClass = 'badge-muted';
-                $stLabel = 'Closed (Admin Offline)';
+                $stLabel = 'Hearing Paused';
             } else {
                 $stClass = 'badge-success';
                 $stLabel = 'Hearing Live';
@@ -222,10 +211,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         <?php if ($c['hearing_is_open'] == 1 || !empty($c['hearing_date'])): ?>
           <span class="t-name" style="font-size:12px; display:block; margin-bottom:4px;"><?php echo $hearingDate; ?></span>
           <?php if ($c['hearing_is_open'] == 1): ?>
-            <?php if ($c['hearing_is_paused'] == 1 || $adminOffline): ?>
-              <span class="badge badge-muted" style="font-size:11px;">🔒 Closed (ping: <?php echo var_export($c['admin_ping_diff'], true); ?>)</span>
+            <?php if ((int)($c['hearing_is_paused'] ?? 0) === 1): ?>
+              <span class="badge badge-muted" style="font-size:11px;">🔒 Paused</span>
             <?php else: ?>
-              <span class="badge badge-success" style="font-size:11px;">📬 Open (ping: <?php echo var_export($c['admin_ping_diff'], true); ?>)</span>
+              <span class="badge badge-success" style="font-size:11px;">📬 Open / Live</span>
             <?php endif; ?>
           <?php else: ?>
             <span class="badge badge-muted" style="font-size:11px;">✉️ Locked until Admin opens</span>
@@ -243,7 +232,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
             <?php if ($accepted): ?>
               <?php if ($c['hearing_is_open'] == 1 && $accessGranted): ?>
                 <button class="action-btn" style="background:#10b981; pointer-events:auto;" onclick="event.stopPropagation(); window.location.href='<?php echo htmlspecialchars($href); ?>'">▶️ JOIN HEARING</button>
-              <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && !($c['hearing_is_paused'] == 1 || $adminOffline)): ?>
+              <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && (int)($c['hearing_is_paused'] ?? 0) !== 1): ?>
                 <div style="display:flex; gap:8px; align-items:center;">
                   <?php if ($myPresenceStatus === 'WAITING'): ?>
                     <span class="badge badge-warning" style="font-size:10px; padding:4px 10px; background:rgba(245, 158, 11, 0.1); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.2);">⏳ Awaiting Admin</span>
@@ -1133,14 +1122,12 @@ body::before {
                   }
                   
                   $adminOffline = false;
-                  if (!array_key_exists('admin_ping_diff', $c) || $c['admin_ping_diff'] === null || (int)$c['admin_ping_diff'] > 15 || (int)$c['admin_ping_diff'] < 0) {
-                      $adminOffline = true;
-                  }
+                  $adminOffline = false;
                   
                   if ($c['hearing_is_open'] == 1) {
-                    if ($c['hearing_is_paused'] == 1 || $adminOffline) {
+                    if ((int)($c['hearing_is_paused'] ?? 0) === 1) {
                         $stClass = 'badge-muted';
-                        $stLabel = 'Closed (Admin Offline)';
+                        $stLabel = 'Hearing Paused';
                     } else {
                         $stClass = 'badge-success';
                         $stLabel = 'Hearing Live';
@@ -1174,9 +1161,9 @@ body::before {
                   $isSection4 = (string)($c['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION' || stripos((string)($c['case_summary'] ?? ''), 'Section 4') !== false || count($minorOffenses) >= 3;
                   $section4Class = $isSection4 ? ' section4-row' : '';
                   $isNearHearing = (!empty($c['hearing_date']) && $c['hearing_date'] === date('Y-m-d')) ? 1 : 0;
-                  $adminOff = isset($adminOffline) && $adminOffline ? 1 : 0;
+                  $adminOff = 0;
                 ?>
-                <tr class="<?php echo $lockedClass . $section4Class; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" data-is-open="<?php echo (int)($c['hearing_is_open'] ?? 0); ?>" data-is-paused="<?php echo (int)($c['hearing_is_paused'] ?? 0); ?>" data-admin-offline="<?php echo $adminOff; ?>" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>', <?php echo $adminOff; ?>, <?php echo $isResolved ? 'true' : 'false'; ?>)">
+                <tr class="<?php echo $lockedClass . $section4Class; ?>" data-near-hearing="<?php echo $isNearHearing; ?>" data-is-open="<?php echo (int)($c['hearing_is_open'] ?? 0); ?>" data-is-paused="<?php echo (int)($c['hearing_is_paused'] ?? 0); ?>" data-admin-offline="0" onclick="handleRowClick('<?php echo htmlspecialchars($href); ?>', <?php echo $accepted ? 'true' : 'false'; ?>, <?php echo (int)$c['case_id']; ?>, <?php echo (int)($c['hearing_is_open'] ?? 0); ?>, <?php echo (int)($c['hearing_is_paused'] ?? 0); ?>, '<?php echo htmlspecialchars($myPresenceStatus); ?>', 0, <?php echo $isResolved ? 'true' : 'false'; ?>)">
                   <td><span class="t-id"><?php echo htmlspecialchars($cid); ?></span></td>
                   <td>
                     <?php if ($isResolved): ?>
@@ -1231,10 +1218,10 @@ body::before {
                     <?php if ($c['hearing_is_open'] == 1 || !empty($c['hearing_date'])): ?>
                       <span class="t-name" style="font-size:12px; display:block; margin-bottom:4px;"><?php echo $hearingDate; ?></span>
                       <?php if ($c['hearing_is_open'] == 1): ?>
-                        <?php if ($c['hearing_is_paused'] == 1 || $adminOffline): ?>
-                          <span class="badge badge-muted" style="font-size:11px;">🔒 Closed</span>
+                        <?php if ((int)($c['hearing_is_paused'] ?? 0) === 1): ?>
+                          <span class="badge badge-muted" style="font-size:11px;">🔒 Paused</span>
                         <?php else: ?>
-                          <span class="badge badge-success" style="font-size:11px;">📬 Open</span>
+                          <span class="badge badge-success" style="font-size:11px;">📬 Open / Live</span>
                         <?php endif; ?>
                       <?php else: ?>
                         <span class="badge badge-muted" style="font-size:11px;">✉️ Locked until Admin opens</span>
@@ -1252,7 +1239,7 @@ body::before {
                         <?php if ($accepted): ?>
                           <?php if ($c['hearing_is_open'] == 1 && $accessGranted): ?>
                             <button class="action-btn" style="background:#10b981; pointer-events:auto;" onclick="event.stopPropagation(); window.location.href='<?php echo htmlspecialchars($href); ?>'">▶️ JOIN HEARING</button>
-                          <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && !($c['hearing_is_paused'] == 1 || $adminOffline)): ?>
+                          <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && (int)($c['hearing_is_paused'] ?? 0) !== 1): ?>
                             <div style="display:flex; gap:8px; align-items:center;">
                               <?php if ($myPresenceStatus === 'WAITING'): ?>
                                 <span class="badge badge-warning" style="font-size:10px; padding:4px 10px; background:rgba(245, 158, 11, 0.1); color:#fcd34d; border:1px solid rgba(245, 158, 11, 0.2);">⏳ Awaiting Admin</span>

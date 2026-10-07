@@ -567,25 +567,6 @@ if ($action === 'sync') {
                  VALUES (:c, 'ADMIN', :u, 'ADMITTED', NOW())
                  ON DUPLICATE KEY UPDATE last_ping = NOW(), status = 'ADMITTED'", [':c' => $caseId, ':u' => $actorId]);
     }
-    
-    // Auto-pause when admin goes offline (if hearing was open and not already paused)
-    if (!$isAdminOnline && $wasAdminOnline && (int)($case['hearing_is_open'] ?? 0) === 1 && (int)($case['hearing_is_paused'] ?? 0) === 0) {
-        db_exec(
-            "UPDATE upcc_case SET hearing_is_paused = 1, hearing_pause_reason = 'AUTO_PAUSE_ADMIN_LEFT' WHERE case_id = :c",
-            [':c' => $caseId]
-        );
-        db_exec("UPDATE upcc_hearing_presence SET status = 'WAITING' WHERE case_id = :c AND user_type = 'UPCC'", [':c' => $caseId]);
-        upcc_log_case_activity($caseId, 'SYSTEM', 0, 'HEARING_AUTO_PAUSED_ADMIN_LEFT');
-        
-        // Notify in chat
-        db_exec(
-            "INSERT INTO upcc_case_discussion (case_id, message, created_at, updated_at) VALUES (:c, :m, NOW(), NOW())",
-            [':c' => $caseId, ':m' => "🔴 Hearing has been AUTO-PAUSED: Admin disconnected."]
-        );
-        
-        // Refresh the case to get updated pause state
-        $case = db_one("SELECT hearing_is_paused, hearing_pause_reason FROM upcc_case WHERE case_id = :id", [':id' => $caseId]);
-    }
 
     
     // Get user presence status
