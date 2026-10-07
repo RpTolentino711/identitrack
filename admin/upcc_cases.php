@@ -2214,17 +2214,17 @@ function fmt_case_id(int $id, string $created): string {
                     <div class="field-row">
                         <div class="field-group">
                             <label>Full Name</label>
-                            <input type="text" name="full_name" required>
+                            <input type="text" name="full_name" id="add-member-fullname" required oninput="updateMemberSubmitState()">
                         </div>
                         <div class="field-group">
                             <label>Username</label>
-                            <input type="text" name="username" id="add-member-username" required autocomplete="off" oninput="liveCheckAvailability('username')">
+                            <input type="text" name="username" id="add-member-username" required autocomplete="off" oninput="liveCheckAvailability('username'); updateMemberSubmitState();">
                             <div id="username-check-msg" style="font-size:11px; font-weight:700; margin-top:4px;"></div>
                         </div>
                     </div>
                     <div class="field-group">
                         <label>Email</label>
-                        <input type="email" name="email" id="add-member-email" required autocomplete="off" oninput="liveCheckAvailability('email')">
+                        <input type="email" name="email" id="add-member-email" required autocomplete="off" oninput="liveCheckAvailability('email'); updateMemberSubmitState();">
                         <div id="email-check-msg" style="font-size:11px; font-weight:700; margin-top:4px;"></div>
                     </div>
                     <div class="field-row">
@@ -2249,9 +2249,15 @@ function fmt_case_id(int $id, string $created): string {
                     </div>
                     <div class="field-group">
                         <label>Password</label>
-                        <input type="password" name="password" placeholder="Temporary password" required>
+                        <div style="position:relative;">
+                            <input type="password" name="password" id="add-member-password" placeholder="Temporary password" required style="padding-right:42px;" oninput="updateMemberSubmitState()">
+                            <button type="button" id="btn-toggle-add-pass" onclick="toggleAddMemberPassword()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#64748b; padding:4px; display:flex; align-items:center; justify-content:center;" title="Toggle Password Visibility">
+                                <svg id="eye-icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <svg id="eye-icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                            </button>
+                        </div>
                     </div>
-                    <button type="submit" id="btn-add-member-submit" class="btn-primary">Send OTP</button>
+                    <button type="submit" id="btn-add-member-submit" class="btn-primary" disabled style="opacity:0.5; cursor:not-allowed; background:#475569;">Send OTP</button>
                 </form>
             </div>
         </div>
@@ -3360,6 +3366,9 @@ function switchCpTab(tab, btn) {
     ['members','departments','add'].forEach(t => document.getElementById('cptab-'+t).style.display = t === tab ? '' : 'none');
     document.querySelectorAll('.cptab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    if (tab === 'add') {
+        updateMemberSubmitState();
+    }
 }
 function showConfirmStrip(id) { document.getElementById('cs-'+id).classList.add('show'); }
 function hideConfirmStrip(id) { document.getElementById('cs-'+id).classList.remove('show'); }
@@ -3368,6 +3377,50 @@ let liveAvailTimer = null;
 let isLiveUsernameValid = false;
 let isLiveEmailValid = false;
 
+function toggleAddMemberPassword() {
+    const passInput = document.getElementById('add-member-password');
+    const showIcon = document.getElementById('eye-icon-show');
+    const hideIcon = document.getElementById('eye-icon-hide');
+    if (!passInput) return;
+
+    if (passInput.type === 'password') {
+        passInput.type = 'text';
+        if (showIcon) showIcon.style.display = 'none';
+        if (hideIcon) hideIcon.style.display = 'block';
+    } else {
+        passInput.type = 'password';
+        if (showIcon) showIcon.style.display = 'block';
+        if (hideIcon) hideIcon.style.display = 'none';
+    }
+}
+
+function updateMemberSubmitState() {
+    const fnInput   = document.getElementById('add-member-fullname');
+    const uInput    = document.getElementById('add-member-username');
+    const eInput    = document.getElementById('add-member-email');
+    const pInput    = document.getElementById('add-member-password');
+    const btnSubmit = document.getElementById('btn-add-member-submit');
+
+    if (!btnSubmit) return;
+
+    const fnVal = fnInput ? fnInput.value.trim() : '';
+    const uVal  = uInput  ? uInput.value.trim()  : '';
+    const eVal  = eInput  ? eInput.value.trim()  : '';
+    const pVal  = pInput  ? pInput.value.trim()  : '';
+
+    const isFullNameOk = fnVal.length > 0;
+    const isPasswordOk = pVal.length > 0;
+    const isUsernameOk = isLiveUsernameValid && uVal.length >= 3;
+    const isEmailOk    = isLiveEmailValid && eVal.includes('@') && eVal.includes('.');
+
+    const isAllValid = isFullNameOk && isUsernameOk && isEmailOk && isPasswordOk;
+
+    btnSubmit.disabled = !isAllValid;
+    btnSubmit.style.opacity = isAllValid ? '1' : '0.5';
+    btnSubmit.style.cursor = isAllValid ? 'pointer' : 'not-allowed';
+    btnSubmit.style.background = isAllValid ? '#1b2b6b' : '#475569';
+}
+
 async function liveCheckAvailability(type) {
     clearTimeout(liveAvailTimer);
     liveAvailTimer = setTimeout(async () => {
@@ -3375,7 +3428,6 @@ async function liveCheckAvailability(type) {
         const eInput = document.getElementById('add-member-email');
         const uMsg = document.getElementById('username-check-msg');
         const eMsg = document.getElementById('email-check-msg');
-        const btnSubmit = document.getElementById('btn-add-member-submit');
 
         const usernameVal = uInput ? uInput.value.trim() : '';
         const emailVal = eInput ? eInput.value.trim() : '';
@@ -3439,12 +3491,7 @@ async function liveCheckAvailability(type) {
             }
         }
 
-        if (btnSubmit) {
-            const hasError = (!isLiveUsernameValid && usernameVal.length > 0) || (!isLiveEmailValid && emailVal.length > 0);
-            btnSubmit.disabled = hasError;
-            btnSubmit.style.opacity = hasError ? '0.5' : '1';
-            btnSubmit.style.cursor = hasError ? 'not-allowed' : 'pointer';
-        }
+        updateMemberSubmitState();
     }, 200);
 }
 
