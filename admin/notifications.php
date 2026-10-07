@@ -413,247 +413,432 @@ function getTypeBadge(string $type): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Notifications | SDO Web Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    /* ══════════════════════════════════════════════════════════════════════
+       SDO ADMIN — NOTIFICATION CENTER
+       Deep slate + cool cyan institutional interface.
+       ══════════════════════════════════════════════════════════════════════ */
+
+    :root{
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+      --surface-0: #0a0f1c;
+      --surface-1: #0f1626;
+      --surface-2: #141d30;
+      --surface-3: #1a2540;
+      --surface-hi: #1e2a47;
+
+      --ink-50:  #f5f7fa;
+      --ink-100: #e8ecf2;
+      --ink-200: #cdd5e0;
+      --ink-300: #98a3b4;
+      --ink-400: #6b7889;
+      --ink-500: #4a5568;
+      --ink-600: #2f3a4d;
+
+      --accent:      #3d9ce0;
+      --accent-hi:   #5cb2f0;
+      --accent-soft: rgba(61, 156, 224, 0.12);
+      --accent-line: rgba(61, 156, 224, 0.35);
+
+      --sage:      #6faf8e;
+      --sage-soft: rgba(111, 175, 142, 0.12);
+      --sage-line: rgba(111, 175, 142, 0.35);
+
+      --rose:      #d16868;
+      --rose-soft: rgba(209, 104, 104, 0.12);
+      --rose-line: rgba(209, 104, 104, 0.35);
+
+      --amber:      #d4a24c;
+      --amber-soft: rgba(212, 162, 76, 0.12);
+      --amber-line: rgba(212, 162, 76, 0.35);
+
+      --violet:      #9b85d8;
+      --violet-soft: rgba(155, 133, 216, 0.12);
+      --violet-line: rgba(155, 133, 216, 0.35);
+
+      --border-1: rgba(255,255,255,0.06);
+      --border-2: rgba(255,255,255,0.10);
+      --border-3: rgba(255,255,255,0.16);
+
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+      --radius-xl: 14px;
+
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.25);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,0.4);
+    }
+
     *{ box-sizing:border-box; }
-    body{ margin:0; font-family:'Segoe UI',Tahoma,Arial,sans-serif; background:#f8f9fa; color:#1b2244; }
-    .admin-shell{ min-height: calc(100vh - 72px); display:grid; grid-template-columns: 240px 1fr; }
+
+    body{
+      margin:0;
+      font-family: var(--font);
+      background: var(--surface-0);
+      background-image:
+        radial-gradient(ellipse 80% 60% at 0% 0%, rgba(61,156,224,0.05), transparent 60%),
+        radial-gradient(ellipse 60% 50% at 100% 100%, rgba(155,133,216,0.04), transparent 60%);
+      background-attachment: fixed;
+      color: var(--ink-100);
+      font-size: 14px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.005em;
+    }
+
+    .admin-shell{ min-height: calc(100vh - 72px); display:grid; grid-template-columns: 248px 1fr; }
     .wrap{ min-height:100%; padding:0; }
 
+    /* ── Page Header ────────────────────────────────────────────────────── */
     .page-header{
-      background:#fff;
-      border-bottom:1px solid #e0e0e0;
-      padding: 28px 32px;
+      background: linear-gradient(180deg, var(--surface-1) 0%, var(--surface-0) 100%);
+      border-bottom: 1px solid var(--border-1);
+      padding: 26px 32px 24px;
+      position: relative;
+    }
+    .page-header::after{
+      content:''; position:absolute; left:32px; right:32px; bottom:-1px; height:1px;
+      background: linear-gradient(90deg, var(--accent-soft), transparent 40%);
     }
     .page-header h1{
-      margin:0;
-      color:#1a1a1a;
-      font-size:28px;
-      font-weight:600;
+      margin: 0;
+      color: var(--ink-50);
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
     }
-    .welcome{ margin-top:4px; color:#6c757d; font-size:14px; font-weight:400; }
+    .welcome{
+      margin-top: 6px;
+      color: var(--ink-400);
+      font-size: 12.5px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .welcome strong{ color: var(--ink-200); font-weight: 600; }
 
-    .content-area{ padding: 22px 32px; }
+    .content-area{ padding: 24px 32px 60px; max-width: 1180px; }
 
+    /* ── Panel ──────────────────────────────────────────────────────────── */
     .panel{
-      background:#fff;
-      border:1px solid #dee2e6;
-      border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(20,36,74,0.08);
-      padding: 18px;
+      background: linear-gradient(180deg, var(--surface-1) 0%, var(--surface-2) 100%);
+      border: 1px solid var(--border-1);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      padding: 0;
+      overflow: hidden;
     }
 
     .panel-top{
-      display:flex;
-      align-items:center;
+      display: flex;
+      align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 14px;
+      gap: 14px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border-1);
+      background: rgba(0,0,0,0.15);
       flex-wrap: wrap;
+      position: relative;
+    }
+    .panel-top::after{
+      content:''; position:absolute; left:22px; right:22px; bottom:-1px; height:1px;
+      background: linear-gradient(90deg, var(--accent-soft), transparent 50%);
     }
     .panel-top h2{
-      margin:0;
-      font-size: 20px;
-      font-weight:600;
-      color:#1a1a1a;
-      display:flex;
-      align-items:center;
+      margin: 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink-100);
+      display: flex;
+      align-items: center;
       gap: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding-left: 12px;
+      position: relative;
+    }
+    .panel-top h2::before{
+      content:''; position:absolute; left:0; top:50%; transform: translateY(-50%);
+      width: 3px; height: 14px; background: var(--accent); border-radius: 2px;
     }
 
-    .actions{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+    /* ── Action Buttons ─────────────────────────────────────────────────── */
+    .actions{ display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .btn{
-      height: 36px;
-      padding: 0 16px;
-      border-radius: 8px;
-      border:1px solid #cfd4da;
-      background:#fff;
-      cursor:pointer;
-      font-weight:500;
-      color:#1a1a1a;
-      font-size: 14px;
-      transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      height: 34px;
+      padding: 0 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-2);
+      background: rgba(255,255,255,0.02);
+      cursor: pointer;
+      font-weight: 600;
+      font-family: var(--font);
+      color: var(--ink-100);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      transition: all .15s ease;
+      white-space: nowrap;
+      line-height: 1;
     }
-    .btn:hover{ border-color:#3b4a9e; color:#3b4a9e; background:#f0f2ff; }
+    .btn:hover{
+      border-color: var(--accent-line);
+      color: var(--accent-hi);
+      background: var(--accent-soft);
+    }
+    .btn:active{ transform: translateY(1px); }
 
     .btn-danger{
-      border-color: rgba(220,53,69,.45);
-      color:#dc3545;
-      background:#fff;
+      border-color: var(--rose-line);
+      color: #e8a0a0;
+      background: transparent;
     }
     .btn-danger:hover{
-      border-color:#dc3545;
-      background: rgba(220,53,69,.08);
-      color:#dc3545;
+      border-color: var(--rose);
+      background: var(--rose-soft);
+      color: #e8a0a0;
     }
 
+    /* ── Badge ──────────────────────────────────────────────────────────── */
     .badge{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       min-width: 22px;
-      height: 22px;
-      padding: 0 8px;
-      border-radius: 999px;
-      background:#2d3a7e;
-      color:#fff;
-      font-weight:600;
-      font-size: 12px;
+      height: 20px;
+      padding: 0 7px;
+      border-radius: 3px;
+      background: var(--accent-soft);
+      color: var(--accent-hi);
+      border: 1px solid var(--accent-line);
+      font-weight: 700;
+      font-size: 10.5px;
+      font-family: var(--mono);
+      letter-spacing: 0.04em;
     }
 
+    /* ── Type Badges ────────────────────────────────────────────────────── */
     .type-badge {
       display: inline-block;
-      padding: 3px 9px;
-      border-radius: 6px;
-      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 9.5px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: .3px;
+      letter-spacing: 0.1em;
       margin-top: 6px;
+      border: 1px solid transparent;
+      font-family: var(--font);
     }
 
-    .type-badge.community { background: #e0f2fe; color: #0369a1; }
-    .type-badge.upcc { background: #fce7f3; color: #be185d; }
-    .type-badge.violation { background: #fee2e2; color: #991b1b; }
-    .type-badge.deadline { background: #fef3c7; color: #92400e; }
-    .type-badge.admin { background: #f0fdf4; color: #166534; }
-    .type-badge.offense { background: #fee2e2; color: #991b1b; }
+    .type-badge.community  { background: var(--accent-soft); color: #7cc2ee; border-color: var(--accent-line); }
+    .type-badge.upcc       { background: var(--violet-soft); color: #b9a8e6; border-color: var(--violet-line); }
+    .type-badge.violation  { background: var(--rose-soft);   color: #e8a0a0; border-color: var(--rose-line); }
+    .type-badge.deadline   { background: var(--amber-soft);  color: #e8b767; border-color: var(--amber-line); }
+    .type-badge.admin      { background: var(--sage-soft);   color: #8fc9a5; border-color: var(--sage-line); }
+    .type-badge.offense    { background: var(--rose-soft);   color: #e8a0a0; border-color: var(--rose-line); }
+
+    /* ── Notification item ──────────────────────────────────────────────── */
+    .notif-list{ padding: 16px 22px 22px; }
 
     .notif{
-      border: 1px solid #dee2e6;
-      border-radius: 14px;
-      padding: 14px 16px;
-      display:flex;
-      gap: 14px;
-      align-items:flex-start;
-      margin-bottom: 12px;
-      background:#fff;
-      text-decoration:none;
+      border: 1px solid var(--border-1);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      background: rgba(0,0,0,0.2);
+      text-decoration: none;
       color: inherit;
-      transition: background .15s ease, border-color .15s ease, transform .15s ease;
+      transition: all .18s ease;
       pointer-events: auto;
+      position: relative;
     }
 
     .notif.unread{
-      background:#f7fbff;
-      border-color:#b9ddff;
-      border-left: 4px solid #2d3a7e;
+      background: rgba(61,156,224,0.04);
+      border-color: var(--accent-line);
+    }
+    .notif.unread::before{
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      background: var(--accent); border-radius: var(--radius-md) 0 0 var(--radius-md);
     }
 
-    .notif.clickable{
-      cursor:pointer;
-    }
+    .notif.clickable{ cursor: pointer; }
 
     .notif.clickable:hover{
-      background:#f8f9fa;
-      border-color:#3b4a9e;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(45,58,126,0.12);
+      background: rgba(61,156,224,0.06);
+      border-color: var(--accent-line);
+      transform: translateX(2px);
     }
 
     .notif:focus{
-      outline: 3px solid rgba(59,74,158,.18);
+      outline: 2px solid var(--accent-line);
       outline-offset: 2px;
     }
 
+    /* ── Icon ───────────────────────────────────────────────────────────── */
     .ico{
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      display:grid;
-      place-items:center;
-      flex-shrink:0;
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      border: 1px solid transparent;
     }
     .ico svg{
-      width: 26px;
-      height: 26px;
+      width: 20px;
+      height: 20px;
       stroke: currentColor;
       fill: none;
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-    .ico.blue{ color:#0d6efd; background: rgba(13,110,253,.12); }
-    .ico.green{ color:#22c55e; background: rgba(34,197,94,.12); }
-    .ico.purple{ color:#7c3aed; background: rgba(124,58,237,.12); }
-    .ico.red{ color:#ef4444; background: rgba(239,68,68,.12); }
-    .ico.amber{ color:#f59e0b; background: rgba(245,158,11,.12); }
-    .ico.gray{ color:#6c757d; background: rgba(108,117,125,.10); }
+    .ico.blue   { color: #7cc2ee; background: var(--accent-soft);  border-color: var(--accent-line); }
+    .ico.green  { color: #8fc9a5; background: var(--sage-soft);    border-color: var(--sage-line); }
+    .ico.purple { color: #b9a8e6; background: var(--violet-soft);  border-color: var(--violet-line); }
+    .ico.red    { color: #e8a0a0; background: var(--rose-soft);    border-color: var(--rose-line); }
+    .ico.amber  { color: #e8b767; background: var(--amber-soft);   border-color: var(--amber-line); }
+    .ico.gray   { color: var(--ink-300); background: rgba(255,255,255,0.04); border-color: var(--border-2); }
 
-    .text{ flex:1; min-width: 0; }
+    /* ── Text Block ─────────────────────────────────────────────────────── */
+    .text{ flex: 1; min-width: 0; }
     .title{
-      font-weight:600;
-      color:#1a1a1a;
+      font-weight: 600;
+      color: var(--ink-50);
       margin-top: 2px;
-      line-height: 1.4;
-      font-size: 15px;
+      line-height: 1.45;
+      font-size: 13.5px;
       word-break: break-word;
+      letter-spacing: 0.005em;
     }
     .msg{
-      margin-top: 6px;
-      color:#6c757d;
+      margin-top: 8px;
+      color: var(--ink-200);
       font-weight: 400;
-      line-height: 1.35;
-      font-size: 13px;
+      line-height: 1.55;
+      font-size: 12.5px;
       word-break: break-word;
     }
     .time{
-      margin-top: 8px;
-      color:#9aa0a6;
-      font-weight: 400;
-      font-size: 12px;
-      display:flex;
+      margin-top: 10px;
+      color: var(--ink-400);
+      font-weight: 500;
+      font-size: 11px;
+      display: flex;
       gap: 12px;
-      align-items:center;
+      align-items: center;
       flex-wrap: wrap;
+      font-family: var(--mono);
+      letter-spacing: 0.02em;
     }
     .openhint{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      color:#3b4a9e;
-      font-weight:600;
-      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent-hi);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-family: var(--font);
     }
 
+    /* ── Empty state ────────────────────────────────────────────────────── */
     .empty{
-      padding: 40px 10px;
-      text-align:center;
-      color:#6c757d;
-      font-weight:400;
-    }
-
-    .flash-note {
-      margin: 0 0 12px;
-      background: #eef6ff;
-      border: 1px solid #cfe2ff;
-      color: #1f3f7a;
-      border-radius: 10px;
-      padding: 10px 12px;
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--ink-400);
+      font-weight: 500;
       font-size: 13px;
-      font-weight: 600;
+      line-height: 1.6;
+    }
+    .empty::before{
+      content: '◯';
+      display: block;
+      font-size: 32px;
+      margin-bottom: 12px;
+      color: var(--ink-500);
+      font-weight: 300;
     }
 
+    /* ── Flash Note ─────────────────────────────────────────────────────── */
+    .flash-note {
+      margin: 16px 22px 0;
+      background: var(--sage-soft);
+      border: 1px solid var(--sage-line);
+      color: #8fc9a5;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      font-size: 12.5px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 0.02em;
+    }
+    .flash-note::before{
+      content: '✓';
+      font-weight: 800;
+      font-size: 14px;
+      color: #8fc9a5;
+      flex-shrink: 0;
+    }
+
+    /* ── Guard Review Block ────────────────────────────────────────────── */
     .guard-review {
-      margin-top: 8px;
-      padding: 10px;
-      border-radius: 10px;
-      border: 1px solid #e9ecef;
-      background: #f8f9fb;
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--amber-line);
+      background: var(--amber-soft);
     }
 
     .guard-review-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px 10px;
-      margin-bottom: 8px;
+      gap: 10px 18px;
+      margin-bottom: 12px;
       font-size: 12px;
-      color: #4d5871;
+      color: var(--ink-200);
+    }
+    .guard-review-grid strong{
+      color: var(--ink-400);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 2px;
     }
 
     .guard-review-desc {
       font-size: 12px;
-      color: #4d5871;
-      margin-bottom: 8px;
+      color: var(--ink-200);
+      margin-bottom: 12px;
+      line-height: 1.55;
+    }
+    .guard-review-desc strong{
+      color: var(--ink-400);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 4px;
     }
 
     .guard-actions {
@@ -666,55 +851,108 @@ function getTypeBadge(string $type): string {
     .btn-mini {
       height: 30px;
       padding: 0 12px;
-      border-radius: 8px;
-      border: 1px solid #cfd4da;
-      background: #fff;
-      color: #1a1a1a;
-      font-size: 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-2);
+      background: rgba(255,255,255,0.03);
+      color: var(--ink-100);
+      font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      font-family: var(--font);
+      transition: all .15s ease;
+      letter-spacing: 0.02em;
+      line-height: 1;
     }
 
-    .btn-mini:hover { border-color: #3b4a9e; color: #3b4a9e; background: #f0f2ff; }
-    .btn-mini-approve { border-color: #28a745; color: #1e7e34; background: #f1fbf4; }
-    .btn-mini-approve:hover { background: #e8f8ed; }
-    .btn-mini-reject { border-color: #dc3545; color: #b02a37; background: #fff5f5; }
-    .btn-mini-reject:hover { background: #ffecec; }
+    .btn-mini:hover{ border-color: var(--accent-line); color: var(--accent-hi); background: var(--accent-soft); }
 
+    .btn-mini-approve {
+      border-color: var(--sage-line);
+      color: #8fc9a5;
+      background: var(--sage-soft);
+    }
+    .btn-mini-approve:hover {
+      background: rgba(111,175,142,0.22);
+      border-color: var(--sage);
+      color: #8fc9a5;
+    }
+
+    .btn-mini-reject {
+      border-color: var(--rose-line);
+      color: #e8a0a0;
+      background: var(--rose-soft);
+    }
+    .btn-mini-reject:hover {
+      background: rgba(209,104,104,0.22);
+      border-color: var(--rose);
+      color: #e8a0a0;
+    }
+
+    /* ── Status Chips (approved/rejected tags in guard reviews) ─────────── */
+    .status-chip{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 3px;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-family: var(--font);
+      border: 1px solid transparent;
+    }
+    .status-chip.approved{
+      background: var(--sage-soft); color: #8fc9a5; border-color: var(--sage-line);
+    }
+    .status-chip.rejected{
+      background: var(--rose-soft); color: #e8a0a0; border-color: var(--rose-line);
+    }
+    .status-chip.pending{
+      background: var(--amber-soft); color: #e8b767; border-color: var(--amber-line);
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────────── */
     @media (max-width: 900px){
       .admin-shell{ grid-template-columns: 1fr; }
-      .content-area{ padding: 18px 16px; }
-      .page-header{ padding: 20px 16px; }
+      .content-area{ padding: 18px 16px 40px; }
+      .page-header{ padding: 20px 18px; }
+      .page-header h1{ font-size: 22px; }
 
-      .panel{ padding: 14px; }
-      .panel-top{ gap: 10px; }
+      .panel-top{ padding: 16px 18px; gap: 12px; }
+      .notif-list{ padding: 14px 16px 18px; }
 
-      .actions{ width:100%; }
+      .actions{ width: 100%; }
       .btn{
-        width:100%;
-        height: 42px;
-        border-radius: 12px;
+        width: 100%;
+        height: 40px;
+        border-radius: var(--radius-md);
       }
 
       .notif{
-        padding: 12px;
+        padding: 14px;
         gap: 12px;
       }
       .guard-review-grid { grid-template-columns: 1fr; }
       .ico{
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
+        width: 38px;
+        height: 38px;
       }
       .ico svg{
-        width: 24px;
-        height: 24px;
+        width: 18px;
+        height: 18px;
       }
     }
+
+    /* ── Scrollbar polish ───────────────────────────────────────────────── */
+    ::-webkit-scrollbar{ width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track{ background: transparent; }
+    ::-webkit-scrollbar-thumb{ background: var(--border-3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover{ background: var(--ink-500); }
   </style>
 </head>
 <body>
@@ -725,8 +963,8 @@ function getTypeBadge(string $type): string {
 
     <main class="wrap">
       <section class="page-header">
-        <h1>Notifications</h1>
-        <div class="welcome">Welcome, <?php echo e($fullName); ?></div>
+        <h1>Notification Center</h1>
+        <div class="welcome">Signed in as <strong><?php echo e($fullName); ?></strong> · System-wide activity feed &amp; audit log</div>
       </section>
 
       <div class="content-area">
@@ -740,19 +978,19 @@ function getTypeBadge(string $type): string {
             </h2>
 
             <div class="actions">
-              <form method="post" style="margin:0; flex: 1 1 auto;">
+              <form method="post" style="margin:0;">
                 <input type="hidden" name="action" value="mark_all_read" />
-                <button class="btn" type="submit">Mark All as Read</button>
+                <button class="btn" type="submit">Mark All Read</button>
               </form>
 
-              <form method="post" style="margin:0; flex: 1 1 auto;" onsubmit="return confirm('Soft-delete ALL notifications?');">
+              <form method="post" style="margin:0;" onsubmit="return confirm('Soft-delete ALL notifications?');">
                 <input type="hidden" name="action" value="delete_all" />
                 <button class="btn btn-danger" type="submit">Delete All</button>
               </form>
               
-              <form method="post" style="margin:0; flex: 1 1 auto;" onsubmit="return confirm('Delete all resolved (Approved/Rejected) reports from the audit log?');">
+              <form method="post" style="margin:0;" onsubmit="return confirm('Delete all resolved (Approved/Rejected) reports from the audit log?');">
                 <input type="hidden" name="action" value="delete_resolved" />
-                <button class="btn btn-danger" type="submit">Delete All Resolved</button>
+                <button class="btn btn-danger" type="submit">Delete Resolved</button>
               </form>
             </div>
           </div>
@@ -764,104 +1002,134 @@ function getTypeBadge(string $type): string {
           <?php if (empty($items)): ?>
             <div class="empty">No notifications yet.</div>
           <?php else: ?>
-            <?php foreach ($items as $n): ?>
-              <?php
-                $href = notifHref($n);
-                $isUnread = ((int)($n['is_read'] ?? 0) === 0);
-                $isClickable = ($href !== '');
-                $classes = 'notif ' . ($isUnread ? 'unread ' : '') . ($isClickable ? 'clickable' : '');
-                $isGuardReport = strtoupper((string)($n['type'] ?? '')) === 'GUARD_REPORT'
-                  && strtoupper((string)($n['related_table'] ?? '')) === 'GUARD_VIOLATION_REPORT';
-                $guardDetails = null;
-                if ($isGuardReport) {
-                  $guardDetails = $guardReportMap[(int)($n['related_id'] ?? 0)] ?? null;
-                }
-                
-                // Get type badge class
-                $type = strtoupper((string)$n['type']);
-                $typeBadgeClass = 'type-badge ';
-                if (str_contains($type, 'COMMUNITY')) $typeBadgeClass .= 'community';
-                elseif (str_contains($type, 'UPCC') || str_contains($type, 'CASE')) $typeBadgeClass .= 'upcc';
-                elseif (str_contains($type, 'GUARD') || str_contains($type, 'VIOLATION') || str_contains($type, 'OFFENSE')) $typeBadgeClass .= 'violation';
-                elseif (str_contains($type, 'DEADLINE')) $typeBadgeClass .= 'deadline';
-                elseif (str_contains($type, 'ADMIN')) $typeBadgeClass .= 'admin';
-                else $typeBadgeClass .= 'offense';
-              ?>
+            <div class="notif-list">
+              <?php foreach ($items as $n): ?>
+                <?php
+                  $href = notifHref($n);
+                  $isUnread = ((int)($n['is_read'] ?? 0) === 0);
+                  $isClickable = ($href !== '');
+                  $classes = 'notif ' . ($isUnread ? 'unread ' : '') . ($isClickable ? 'clickable' : '');
+                  $isGuardReport = strtoupper((string)($n['type'] ?? '')) === 'GUARD_REPORT'
+                    && strtoupper((string)($n['related_table'] ?? '')) === 'GUARD_VIOLATION_REPORT';
+                  $guardDetails = null;
+                  if ($isGuardReport) {
+                    $guardDetails = $guardReportMap[(int)($n['related_id'] ?? 0)] ?? null;
+                  }
+                  
+                  // Get type badge class
+                  $type = strtoupper((string)$n['type']);
+                  $typeBadgeClass = 'type-badge ';
+                  if (str_contains($type, 'COMMUNITY')) $typeBadgeClass .= 'community';
+                  elseif (str_contains($type, 'UPCC') || str_contains($type, 'CASE')) $typeBadgeClass .= 'upcc';
+                  elseif (str_contains($type, 'GUARD') || str_contains($type, 'VIOLATION') || str_contains($type, 'OFFENSE')) $typeBadgeClass .= 'violation';
+                  elseif (str_contains($type, 'DEADLINE')) $typeBadgeClass .= 'deadline';
+                  elseif (str_contains($type, 'ADMIN')) $typeBadgeClass .= 'admin';
+                  else $typeBadgeClass .= 'offense';
+                ?>
 
-              <?php if ($isClickable): ?>
-                <a class="<?php echo e(trim($classes)); ?>" href="<?php echo e($href); ?>">
-                  <?php echo iconSvg((string)$n['type']); ?>
-                  <div class="text">
-                    <div class="title"><?php echo e((string)$n['title']); ?></div>
-                    <span class="<?php echo $typeBadgeClass; ?>"><?php echo getTypeBadge($type); ?></span>
-                    <div class="msg"><?php echo e((string)$n['message']); ?></div>
-                    <div class="time">
-                      <?php echo date('M j, Y \a\t h:i A', strtotime((string)$n['created_at'])); ?>
-                      <span class="openhint">→ View</span>
+                <?php if ($isClickable): ?>
+                  <a class="<?php echo e(trim($classes)); ?>" href="<?php echo e($href); ?>">
+                    <?php echo iconSvg((string)$n['type']); ?>
+                    <div class="text">
+                      <div class="title"><?php echo e((string)$n['title']); ?></div>
+                      <span class="<?php echo $typeBadgeClass; ?>"><?php echo getTypeBadge($type); ?></span>
+                      <div class="msg"><?php echo e((string)$n['message']); ?></div>
+                      <div class="time">
+                        <?php echo date('M j, Y \a\t h:i A', strtotime((string)$n['created_at'])); ?>
+                        <span class="openhint">→ View</span>
+                      </div>
+                    </div>
+                  </a>
+                <?php else: ?>
+                  <div class="<?php echo e(trim($classes)); ?>">
+                    <?php echo iconSvg((string)$n['type']); ?>
+                    <div class="text">
+                      <div class="title"><?php echo e((string)$n['title']); ?></div>
+                      <span class="<?php echo $typeBadgeClass; ?>"><?php echo getTypeBadge($type); ?></span>
+                      <div class="msg"><?php echo e((string)$n['message']); ?></div>
+                      <div class="time"><?php echo date('M j, Y \a\t h:i A', strtotime((string)$n['created_at'])); ?></div>
+
+                      <?php if ($isGuardReport): ?>
+                        <div class="guard-review">
+                          <?php if ($guardDetails): ?>
+                            <div class="guard-review-grid">
+                              <div>
+                                <strong>Student</strong>
+                                <?php echo e(trim((string)$guardDetails['student_name']) !== '' ? (string)$guardDetails['student_name'] : (string)$guardDetails['student_id']); ?>
+                              </div>
+                              <div>
+                                <strong>Submitted By</strong>
+                                <?php echo e((string)($guardDetails['guard_name'] ?? 'Guard')); ?>
+                              </div>
+                              <div>
+                                <strong>Offense</strong>
+                                <?php echo e((string)($guardDetails['offense_code'] ?? '')); ?> — <?php echo e((string)($guardDetails['offense_name'] ?? '')); ?>
+                              </div>
+                              <div>
+                                <strong>Level</strong>
+                                <?php echo e((string)($guardDetails['offense_level'] ?? '')); ?>
+                              </div>
+                              <div>
+                                <strong>Date Committed</strong>
+                                <?php echo e(date('M j, Y h:i A', strtotime((string)$guardDetails['date_committed']))); ?>
+                              </div>
+                              <div>
+                                <strong>Status</strong>
+                                <?php
+                                  $gStatus = strtoupper((string)$guardDetails['status']);
+                                  $statusClass = 'status-chip ';
+                                  if ($gStatus === 'APPROVED') $statusClass .= 'approved';
+                                  elseif ($gStatus === 'REJECTED') $statusClass .= 'rejected';
+                                  else $statusClass .= 'pending';
+                                ?>
+                                <span class="<?php echo $statusClass; ?>" style="margin-top: 4px;"><?php echo e($gStatus); ?></span>
+                              </div>
+                            </div>
+                            <?php if (trim((string)($guardDetails['description'] ?? '')) !== ''): ?>
+                              <div class="guard-review-desc">
+                                <strong>Description</strong>
+                                <?php echo e((string)$guardDetails['description']); ?>
+                              </div>
+                            <?php endif; ?>
+
+                            <div class="guard-actions">
+                              <?php if (strtoupper((string)$guardDetails['status']) === 'PENDING'): ?>
+                                <a class="btn-mini" href="offenses_student_view.php?student_id=<?php echo urlencode((string)$guardDetails['student_id']); ?>">View Student</a>
+
+                                <form method="post" style="margin:0;">
+                                  <input type="hidden" name="action" value="approve_guard_report" />
+                                  <input type="hidden" name="report_id" value="<?php echo (int)$guardDetails['report_id']; ?>" />
+                                  <button type="submit" class="btn-mini btn-mini-approve">✓ Accept</button>
+                                </form>
+
+                                <form method="post" style="margin:0;" onsubmit="return confirm('Reject this submission? This will mark it rejected and it will NOT be saved to student offenses.');">
+                                  <input type="hidden" name="action" value="reject_guard_report" />
+                                  <input type="hidden" name="report_id" value="<?php echo (int)$guardDetails['report_id']; ?>" />
+                                  <button type="submit" class="btn-mini btn-mini-reject">✕ Reject</button>
+                                </form>
+                              <?php else: ?>
+                                <!-- Resolved items (APPROVED/REJECTED) can no longer be "viewed" as actionable -->
+                                <span class="status-chip <?php echo (strtoupper((string)$guardDetails['status']) === 'APPROVED') ? 'approved' : 'rejected'; ?>">
+                                  <?php echo strtoupper((string)$guardDetails['status']); ?>
+                                </span>
+                                
+                                <form method="post" style="margin:0;">
+                                  <input type="hidden" name="action" value="delete_single" />
+                                  <input type="hidden" name="notif_id" value="<?php echo (int)$n['notification_id']; ?>" />
+                                  <button type="submit" class="btn-mini btn-mini-reject">Delete from Audit</button>
+                                </form>
+                              <?php endif; ?>
+                            </div>
+                          <?php else: ?>
+                            <div class="guard-review-desc">Report details are no longer available.</div>
+                          <?php endif; ?>
+                        </div>
+                      <?php endif; ?>
                     </div>
                   </div>
-                </a>
-              <?php else: ?>
-                <div class="<?php echo e(trim($classes)); ?>">
-                  <?php echo iconSvg((string)$n['type']); ?>
-                  <div class="text">
-                    <div class="title"><?php echo e((string)$n['title']); ?></div>
-                    <span class="<?php echo $typeBadgeClass; ?>"><?php echo getTypeBadge($type); ?></span>
-                    <div class="msg"><?php echo e((string)$n['message']); ?></div>
-                    <div class="time"><?php echo date('M j, Y \a\t h:i A', strtotime((string)$n['created_at'])); ?></div>
-
-                    <?php if ($isGuardReport): ?>
-                      <div class="guard-review">
-                        <?php if ($guardDetails): ?>
-                          <div class="guard-review-grid">
-                            <div><strong>Student:</strong> <?php echo e(trim((string)$guardDetails['student_name']) !== '' ? (string)$guardDetails['student_name'] : (string)$guardDetails['student_id']); ?></div>
-                            <div><strong>Submitted By:</strong> <?php echo e((string)($guardDetails['guard_name'] ?? 'Guard')); ?></div>
-                            <div><strong>Offense:</strong> <?php echo e((string)($guardDetails['offense_code'] ?? '')); ?> - <?php echo e((string)($guardDetails['offense_name'] ?? '')); ?></div>
-                            <div><strong>Level:</strong> <?php echo e((string)($guardDetails['offense_level'] ?? '')); ?></div>
-                            <div><strong>Date Committed:</strong> <?php echo e(date('M j, Y h:i A', strtotime((string)$guardDetails['date_committed']))); ?></div>
-                            <div><strong>Status:</strong> <?php echo e((string)$guardDetails['status']); ?></div>
-                          </div>
-                          <?php if (trim((string)($guardDetails['description'] ?? '')) !== ''): ?>
-                            <div class="guard-review-desc"><strong>Description:</strong> <?php echo e((string)$guardDetails['description']); ?></div>
-                          <?php endif; ?>
-
-                          <div class="guard-actions">
-                            <?php if (strtoupper((string)$guardDetails['status']) === 'PENDING'): ?>
-                              <a class="btn-mini" href="offenses_student_view.php?student_id=<?php echo urlencode((string)$guardDetails['student_id']); ?>">View Student</a>
-
-                              <form method="post" style="margin:0;">
-                                <input type="hidden" name="action" value="approve_guard_report" />
-                                <input type="hidden" name="report_id" value="<?php echo (int)$guardDetails['report_id']; ?>" />
-                                <button type="submit" class="btn-mini btn-mini-approve">Accept</button>
-                              </form>
-
-                              <form method="post" style="margin:0;" onsubmit="return confirm('Reject this submission? This will mark it rejected and it will NOT be saved to student offenses.');">
-                                <input type="hidden" name="action" value="reject_guard_report" />
-                                <input type="hidden" name="report_id" value="<?php echo (int)$guardDetails['report_id']; ?>" />
-                                <button type="submit" class="btn-mini btn-mini-reject">Reject</button>
-                              </form>
-                            <?php else: ?>
-                              <!-- Resolved items (APPROVED/REJECTED) can no longer be "viewed" as actionable -->
-                              <span style="font-size: 13px; font-weight: bold; color: <?php echo (strtoupper((string)$guardDetails['status']) === 'APPROVED') ? '#1e7e34' : '#b02a37'; ?>;">
-                                  [<?php echo htmlspecialchars(strtoupper((string)$guardDetails['status'])); ?>]
-                              </span>
-                              
-                              <form method="post" style="margin:0;">
-                                <input type="hidden" name="action" value="delete_single" />
-                                <input type="hidden" name="notif_id" value="<?php echo (int)$n['notification_id']; ?>" />
-                                <button type="submit" class="btn-mini btn-mini-reject" style="background:#fef2f2; border:1px solid #fca5a5; color:#991b1b;">Delete from Audit</button>
-                              </form>
-                            <?php endif; ?>
-                          </div>
-                        <?php else: ?>
-                          <div class="guard-review-desc">Report details are no longer available.</div>
-                        <?php endif; ?>
-                      </div>
-                    <?php endif; ?>
-                  </div>
-                </div>
-              <?php endif; ?>
-            <?php endforeach; ?>
+                <?php endif; ?>
+              <?php endforeach; ?>
+            </div>
           <?php endif; ?>
         </section>
       </div>
@@ -869,4 +1137,3 @@ function getTypeBadge(string $type): string {
   </div>
 </body>
 </html>
-
