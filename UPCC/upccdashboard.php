@@ -567,6 +567,11 @@ body{
     color:var(--gold-bright);
     font-weight:700;
 }
+.nav-link-danger:hover{
+    background:var(--rose-soft);
+    border-color:rgba(201,107,107,.4);
+    color:#e0a0a0;
+}
 .nav-link svg{flex-shrink:0}
 
 .side-info{
@@ -1080,6 +1085,10 @@ body{
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
           Security Settings
         </a>
+        <a href="javascript:void(0)" onclick="document.getElementById('logoutModal').classList.add('show');" class="nav-link nav-link-danger">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Sign Out Session
+        </a>
       </nav>
     </div>
 
@@ -1422,31 +1431,6 @@ body{
             <div class="meta-row"><span class="label">Username</span><span class="value"><?php echo htmlspecialchars($user['username']); ?></span></div>
             <div class="meta-row"><span class="label">Session</span><span class="value ok">Authenticated</span></div>
             <div class="meta-row"><span class="label">Clearance</span><span class="value">Institutional Panel</span></div>
-          </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="glass-panel">
-          <div class="panel-header" style="padding:14px 20px;">
-            <div class="panel-title" style="font-size:13.5px;">Panel Actions</div>
-          </div>
-          <div style="padding:16px 20px;">
-            <div class="quick-links">
-              <a href="upcc_settings.php" class="q-link">
-                <div style="display:flex; align-items:center; gap:10px;">
-                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                  Security Settings
-                </div>
-                <span style="color:var(--gold)">→</span>
-              </a>
-              <a href="javascript:void(0)" onclick="document.getElementById('logoutModal').classList.add('show');" class="q-link danger">
-                <div style="display:flex; align-items:center; gap:10px;">
-                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                  Sign Out Session
-                </div>
-                <span style="color:var(--text-mute)">→</span>
-              </a>
-            </div>
           </div>
         </div>
       </div>
