@@ -19,7 +19,7 @@ $JITSI_DOMAIN = 'meet.jit.si';
 $case = db_one("SELECT uc.*,
            CONCAT(s.student_fn,' ',s.student_ln) AS student_name,
            s.student_fn, s.student_ln,
-           s.year_level, s.section, s.program, s.school, s.department AS student_department, s.course AS student_course,
+           s.year_level, s.section, s.program, s.school, s.department, s.department AS student_department,
            s.student_email, s.phone_number, s.home_address,
            d.dept_name AS assigned_dept_name
     FROM upcc_case uc
@@ -511,7 +511,7 @@ if (isset($_GET['msg'])) {
 
 // Refresh case after POST
 $case = db_one("SELECT uc.*, CONCAT(s.student_fn,' ',s.student_ln) AS student_name,
-           s.student_fn, s.student_ln, s.year_level, s.section, s.program, s.school,
+           s.student_fn, s.student_ln, s.year_level, s.section, s.program, s.school, s.department, s.department AS student_department,
            s.student_email, s.phone_number, s.home_address,
            d.dept_name AS assigned_dept_name
     FROM upcc_case uc
