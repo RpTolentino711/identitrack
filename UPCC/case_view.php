@@ -81,7 +81,7 @@ $legacyPanelMatch = "FIND_IN_SET(:legacy_uid, REPLACE(REPLACE(REPLACE(COALESCE(u
 $case = db_one("SELECT uc.*, " . db_decrypt_cols(['case_summary', 'student_explanation_text'], 'uc') . ",
         CONCAT(" . db_decrypt_col('student_fn', 's') . ",' '," . db_decrypt_col('student_ln', 's') . ") AS student_name,
         " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number', 'home_address'], 's') . ",
-        s.year_level, s.section, s.program, s.school,
+        s.year_level, s.section, s.program, s.school, s.department,
         d.dept_name AS assigned_dept_name
     FROM upcc_case uc
     JOIN student s ON s.student_id = uc.student_id
@@ -696,7 +696,7 @@ if ($isRoundActive && $suggesterId > 0) {
 $case = db_one("SELECT uc.*, " . db_decrypt_cols(['case_summary', 'student_explanation_text'], 'uc') . ",
         CONCAT(" . db_decrypt_col('student_fn', 's') . ",' '," . db_decrypt_col('student_ln', 's') . ") AS student_name,
         " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number', 'home_address'], 's') . ",
-        s.year_level, s.section, s.program, s.school,
+        s.year_level, s.section, s.program, s.school, s.department,
         d.dept_name AS assigned_dept_name
     FROM upcc_case uc
     JOIN student s ON s.student_id = uc.student_id
@@ -1672,10 +1672,21 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
             <div class="subtitle">
                 Disciplinary proceedings active for Respondent <strong style="color:var(--text-hi)"><?= htmlspecialchars($case['student_name']) ?></strong>. Review charges, evidentiary record, and record formal panel decision.
             </div>
+            <?php
+            $studentDept = !empty($case['department']) ? $case['department'] : (!empty($case['school']) ? $case['school'] : '');
+            $studentProgram = trim((string)($case['program'] ?? ''));
+            $yrSec = trim(($case['year_level'] ? $case['year_level'] . ' Yr' : '') . (!empty($case['section']) ? ' · ' . $case['section'] : ''));
+            $academicInfo = trim(($studentProgram ? $studentProgram : '') . ($yrSec ? ($studentProgram ? ' · ' : '') . $yrSec : ''));
+            ?>
             <div class="hero-meta">
                 <span class="pill amber">⚖️ <?= htmlspecialchars($decisionHint) ?></span>
-                <span class="pill purple">🏢 <?= htmlspecialchars($case['assigned_dept_name'] ?? 'No dept') ?></span>
-                <span class="pill blue">🎓 <?= htmlspecialchars($case['year_level']) ?> Yr · <?= htmlspecialchars($case['section'] ?? 'N/A') ?></span>
+                <?php if (!empty($studentDept)): ?>
+                    <span class="pill purple">🏢 <?= htmlspecialchars($studentDept) ?></span>
+                <?php endif; ?>
+                <span class="pill blue">🎓 <?= htmlspecialchars($academicInfo ?: 'N/A') ?></span>
+                <?php if (!empty($case['assigned_dept_name'])): ?>
+                    <span class="pill" style="background:rgba(201,169,97,.12); color:#e3c789; border:1px solid rgba(201,169,97,.3);">🏛️ Panel: <?= htmlspecialchars($case['assigned_dept_name']) ?></span>
+                <?php endif; ?>
                 <span class="pill green">📌 <?= htmlspecialchars($statusBadge['label']) ?></span>
                 <?php if ($isHearingOpen && $isHearingPaused): ?>
                   <span class="pill" data-pause-pill="1" style="background:var(--rose-soft);color:#e0a0a0;border-color:rgba(201,107,107,.4)">⏸ Hearing Paused</span>
@@ -1689,7 +1700,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
                 <div class="info-label">Respondent Student</div>
                 <div class="info-value" style="font-size:17px"><?= htmlspecialchars($case['student_name']) ?></div>
                 <div style="margin-top:6px;font-size:12.5px;color:var(--text-dim);font-weight:500;font-family:var(--f-mono)"><?= htmlspecialchars($case['student_id']) ?></div>
-                <div style="margin-top:2px;font-size:12.5px;color:var(--text-dim)"><?= htmlspecialchars($case['program']) ?></div>
+                <div style="margin-top:2px;font-size:12.5px;color:var(--text-dim)"><?= htmlspecialchars(($studentProgram ? $studentProgram . ' · ' : '') . ($studentDept ?: '')) ?></div>
             </div>
             <div class="info-box">
                 <div class="info-label">Docket Filed</div>
