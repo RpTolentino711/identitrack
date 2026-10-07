@@ -11,6 +11,7 @@ class StudentProfile {
   final String studentEmail;
   final String phoneNumber;
   final String department;
+  final String program;
   final String course;
   final String section;
   final String guardianFn;
@@ -25,6 +26,7 @@ class StudentProfile {
     required this.studentEmail,
     required this.phoneNumber,
     this.department = '',
+    this.program = '',
     this.course = '',
     this.section = '',
     required this.guardianFn,
@@ -34,6 +36,7 @@ class StudentProfile {
   });
 
   factory StudentProfile.fromJson(Map<String, dynamic> json) {
+    final progVal = (json['program'] ?? json['course'] ?? '').toString();
     return StudentProfile(
       studentId: (json['student_id'] ?? '').toString(),
       studentFn: (json['student_fn'] ?? '').toString(),
@@ -41,7 +44,8 @@ class StudentProfile {
       studentEmail: (json['student_email'] ?? '').toString(),
       phoneNumber: (json['phone_number'] ?? '').toString(),
       department: (json['department'] ?? '').toString(),
-      course: (json['course'] ?? '').toString(),
+      program: progVal,
+      course: progVal,
       section: (json['section'] ?? '').toString(),
       guardianFn: (json['guardian_fn'] ?? '').toString(),
       guardianLn: (json['guardian_ln'] ?? '').toString(),

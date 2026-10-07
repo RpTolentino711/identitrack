@@ -445,8 +445,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           _readOnlyRow(
                             icon: Icons.school_rounded,
-                            label: 'Course',
-                            value: (_profile?.course.isNotEmpty == true) ? _profile!.course : 'Not Specified',
+                            label: 'Program',
+                            value: (_profile?.program.isNotEmpty == true) ? _profile!.program : 'Not Specified',
                           ),
                           _readOnlyRow(
                             icon: Icons.class_rounded,

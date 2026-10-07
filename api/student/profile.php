@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' || (isset($body['action']) && $body['ac
   ensure_student_department_schema();
 
   $student = db_one(
-    "SELECT student_id, student_fn, student_ln, student_email, phone_number, department, course, section
+    "SELECT student_id, student_fn, student_ln, student_email, phone_number, department, program, section
      FROM student
      WHERE student_id = :sid
      LIMIT 1",
@@ -64,7 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' || (isset($body['action']) && $body['ac
     'student_email' => $student['student_email'],
     'phone_number' => $student['phone_number'] ?? '',
     'department' => $student['department'] ?? '',
-    'course' => $student['course'] ?? '',
+    'program' => $student['program'] ?? '',
+    'course' => $student['program'] ?? '',
     'section' => $student['section'] ?? '',
     'guardian_fn' => $guardian ? ($guardian['guardian_fn'] ?? '') : '',
     'guardian_ln' => $guardian ? ($guardian['guardian_ln'] ?? '') : '',
