@@ -995,7 +995,6 @@ if ($regSuccess !== '') {
         'dept_updated' => 'Department updated successfully.',
         'dept_toggled' => 'Department status updated.',
         'dept_deleted' => 'Department deleted successfully.',
-        'otp_sent' => 'OTP sent successfully. Continue in the Add Member tab.',
         'created' => 'Committee member registered successfully.',
         'updated' => 'Member details updated successfully.',
         'member_reactivated' => 'Member reactivated successfully.',
@@ -1004,9 +1003,9 @@ if ($regSuccess !== '') {
         'member_department_updated' => 'Member department updated successfully.',
         'member_department_removed' => 'Member removed from department successfully.',
     ];
-    $committeeFeedbackText = $committeeFeedbackMap[$regSuccess] ?? 'Committee update saved successfully.';
+    $committeeFeedbackText = $committeeFeedbackMap[$regSuccess] ?? '';
 }
-$showCommitteeFeedbackModal = $committeeActionTriggered && (($regSuccess !== '' && $committeeFeedbackText !== '') || $regError !== '');
+$showCommitteeFeedbackModal = $committeeActionTriggered && ($lastAction !== 'send_member_otp') && (($regSuccess !== '' && $committeeFeedbackText !== '') || $regError !== '');
 $committeeTargetTab = 'members';
 if (in_array($lastAction, ['add_dept', 'edit_dept', 'toggle_dept', 'delete_dept', 'set_member_department'], true)) {
     $committeeTargetTab = 'departments';
