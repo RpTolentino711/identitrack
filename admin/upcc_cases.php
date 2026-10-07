@@ -299,6 +299,56 @@ function send_case_dismissal_email_to_panel(string $panelEmail, string $panelNam
 // ── All departments ─────────────────────────────────────────
 $departments = db_all("SELECT dept_id, dept_name, is_active FROM departments ORDER BY dept_name ASC");
 
+// ── Live Availability Checker Endpoint ───────────────────────
+if (($_GET['action'] ?? $_POST['action'] ?? '') === 'check_member_availability') {
+    header('Content-Type: application/json; charset=utf-8');
+    $username = trim((string)($_GET['username'] ?? $_POST['username'] ?? ''));
+    $email = trim((string)($_GET['email'] ?? $_POST['email'] ?? ''));
+    $excludeId = (int)($_GET['exclude_id'] ?? $_POST['exclude_id'] ?? 0);
+
+    $usernameTaken = false;
+    $emailTaken = false;
+
+    if ($username !== '') {
+        $uRow = db_one(
+            "SELECT upcc_id FROM upcc_user WHERE LOWER(username) = LOWER(:u) AND upcc_id != :ex LIMIT 1",
+            [':u' => $username, ':ex' => $excludeId]
+        );
+        if (!$uRow) {
+            $uRowAdmin = db_one(
+                "SELECT admin_id FROM admin WHERE LOWER(username) = LOWER(:u) LIMIT 1",
+                [':u' => $username]
+            );
+            if ($uRowAdmin) $usernameTaken = true;
+        } else {
+            $usernameTaken = true;
+        }
+    }
+
+    if ($email !== '') {
+        $eRow = db_one(
+            "SELECT upcc_id FROM upcc_user WHERE LOWER(email) = LOWER(:e) AND upcc_id != :ex LIMIT 1",
+            [':e' => $email, ':ex' => $excludeId]
+        );
+        if (!$eRow) {
+            $eRowAdmin = db_one(
+                "SELECT admin_id FROM admin WHERE LOWER(email) = LOWER(:e) LIMIT 1",
+                [':e' => $email]
+            );
+            if ($eRowAdmin) $emailTaken = true;
+        } else {
+            $emailTaken = true;
+        }
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'username_taken' => $usernameTaken,
+        'email_taken' => $emailTaken
+    ]);
+    exit;
+}
+
 // ── Handle POST actions ─────────────────────────────────────
 $regError   = '';
 $regSuccess = '';
@@ -352,41 +402,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'send_member_otp') {
-        $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $_SESSION['upcc_member_otp']      = $otp;
-        $_SESSION['upcc_member_otp_time'] = time();
-        $_SESSION['upcc_member_pending']  = [
-            'full_name'     => trim($_POST['full_name'] ?? ''),
-            'username'      => trim($_POST['username']  ?? ''),
-            'email'         => trim($_POST['email']     ?? ''),
-            'role'          => trim($_POST['role']       ?? 'user'),
-            'password'      => trim($_POST['password']   ?? ''),
-            'department_id' => isset($_POST['department_id']) ? (int)$_POST['department_id'] : null,
-        ];
-        require_once __DIR__ . '/../UPCC/class.phpmailer.php';
-        require_once __DIR__ . '/../UPCC/class.smtp.php';
-        try {
-            $mail = new PHPMailer(true);
-            $mail->CharSet = 'UTF-8'; $mail->isSMTP();
-            $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com'); $mail->Port = (int)get_env_var('SMTP_PORT', 465); $mail->SMTPAuth = true; $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
-            $mail->Username = db_smtp_user(); $mail->Password = db_smtp_pass(); $mail->Timeout = 30;
-            $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack Admin');
-            $mail->addAddress($admin['email'], $admin['full_name']);
-            $mail->isHTML(true);
-            $mail->Subject = 'OTP — Register New UPCC Member';
-            $mail->Body = "<div style='font-family:sans-serif;max-width:480px;margin:auto;background:#0b1630;color:#e8ecf7;padding:32px;border-radius:16px;'>
-                <div style='font-size:13px;color:#7a8aac;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;'>IdentiTrack Admin</div>
-                <div style='font-size:20px;font-weight:bold;margin-bottom:8px;'>Register UPCC Member</div>
-                <div style='font-size:13px;color:#7a8aac;margin-bottom:24px;'>Use this code to confirm registering <strong style='color:#e8ecf7'>" . htmlspecialchars($_SESSION['upcc_member_pending']['full_name']) . "</strong>.</div>
-                <div style='background:#16244a;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px;'>
-                    <div style='font-size:36px;font-weight:900;letter-spacing:12px;color:#7c9fff;'>{$otp}</div>
-                    <div style='font-size:12px;color:#7a8aac;margin-top:10px;'>Expires in <b>5 minutes</b></div>
-                </div>
-                <div style='font-size:12px;color:#7a8aac;'>If you did not initiate this, ignore this email.</div>
-            </div>";
-            $mail->AltBody = "Your OTP for registering a new UPCC member is: {$otp}. Expires in 5 minutes.";
-            $mail->send(); $regSuccess = 'otp_sent';
-        } catch (Exception $e) { $regError = 'Failed to send OTP: ' . $e->getMessage(); }
+        $uCheck = trim($_POST['username'] ?? '');
+        $eCheck = trim($_POST['email'] ?? '');
+
+        $existingU = db_one("SELECT upcc_id FROM upcc_user WHERE LOWER(username) = LOWER(:u) LIMIT 1", [':u' => $uCheck]);
+        if (!$existingU) {
+            $existingU = db_one("SELECT admin_id FROM admin WHERE LOWER(username) = LOWER(:u) LIMIT 1", [':u' => $uCheck]);
+        }
+        $existingE = db_one("SELECT upcc_id FROM upcc_user WHERE LOWER(email) = LOWER(:e) LIMIT 1", [':e' => $eCheck]);
+        if (!$existingE) {
+            $existingE = db_one("SELECT admin_id FROM admin WHERE LOWER(email) = LOWER(:e) LIMIT 1", [':e' => $eCheck]);
+        }
+
+        if ($existingU) {
+            $regError = 'Username "' . htmlspecialchars($uCheck) . '" is already taken. Please choose a different username.';
+        } elseif ($existingE) {
+            $regError = 'Email address "' . htmlspecialchars($eCheck) . '" is already registered. Please choose a different email address.';
+        } else {
+            $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $_SESSION['upcc_member_otp']      = $otp;
+            $_SESSION['upcc_member_otp_time'] = time();
+            $_SESSION['upcc_member_pending']  = [
+                'full_name'     => trim($_POST['full_name'] ?? ''),
+                'username'      => $uCheck,
+                'email'         => $eCheck,
+                'role'          => trim($_POST['role']       ?? 'user'),
+                'password'      => trim($_POST['password']   ?? ''),
+                'department_id' => isset($_POST['department_id']) ? (int)$_POST['department_id'] : null,
+            ];
+            require_once __DIR__ . '/../UPCC/class.phpmailer.php';
+            require_once __DIR__ . '/../UPCC/class.smtp.php';
+            try {
+                $mail = new PHPMailer(true);
+                $mail->CharSet = 'UTF-8'; $mail->isSMTP();
+                $mail->Host = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com'); $mail->Port = (int)get_env_var('SMTP_PORT', 465); $mail->SMTPAuth = true; $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
+                $mail->Username = db_smtp_user(); $mail->Password = db_smtp_pass(); $mail->Timeout = 30;
+                $mail->setFrom($_ENV['SMTP_USER'] ?? 'identitrack@identitrack.site', 'IdentiTrack Admin');
+                $mail->addAddress($admin['email'], $admin['full_name']);
+                $mail->isHTML(true);
+                $mail->Subject = 'OTP — Register New UPCC Member';
+                $mail->Body = "<div style='font-family:sans-serif;max-width:480px;margin:auto;background:#0b1630;color:#e8ecf7;padding:32px;border-radius:16px;'>
+                    <div style='font-size:13px;color:#7a8aac;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;'>IdentiTrack Admin</div>
+                    <div style='font-size:20px;font-weight:bold;margin-bottom:8px;'>Register UPCC Member</div>
+                    <div style='font-size:13px;color:#7a8aac;margin-bottom:24px;'>Use this code to confirm registering <strong style='color:#e8ecf7'>" . htmlspecialchars($_SESSION['upcc_member_pending']['full_name']) . "</strong>.</div>
+                    <div style='background:#16244a;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px;'>
+                        <div style='font-size:36px;font-weight:900;letter-spacing:12px;color:#7c9fff;'>{$otp}</div>
+                        <div style='font-size:12px;color:#7a8aac;margin-top:10px;'>Expires in <b>5 minutes</b></div>
+                    </div>
+                    <div style='font-size:12px;color:#7a8aac;'>If you did not initiate this, ignore this email.</div>
+                </div>";
+                $mail->AltBody = "Your OTP for registering a new UPCC member is: {$otp}. Expires in 5 minutes.";
+                $mail->send(); $regSuccess = 'otp_sent';
+            } catch (Exception $e) { $regError = 'Failed to send OTP: ' . $e->getMessage(); }
+        }
     }
 
     if ($_POST['action'] === 'verify_member_otp') {
@@ -2135,13 +2203,49 @@ function fmt_case_id(int $id, string $created): string {
             <div id="cptab-add" style="display:none; max-width:440px;">
                 <?php if ($regError && !isset($_SESSION['upcc_member_otp'])): ?><div class="alert-err"><?= htmlspecialchars($regError) ?></div><?php endif; ?>
                 <?php if ($regSuccess === 'created'): ?><div class="alert-ok">✓ Member registered!</div><?php endif; ?>
-                <form method="post" action="upcc_cases.php">
+                <form method="post" action="upcc_cases.php" id="add-member-form" onsubmit="return validateMemberSubmit(event)">
                     <input type="hidden" name="action" value="send_member_otp">
-                    <div class="field-row"><div class="field-group"><label>Full Name</label><input type="text" name="full_name" required></div><div class="field-group"><label>Username</label><input type="text" name="username" required></div></div>
-                    <div class="field-group"><label>Email</label><input type="email" name="email" required></div>
-                    <div class="field-row"><div class="field-group"><label>Role</label><select name="role"><option>Chairperson</option><option>Vice Chair</option><option>Secretary</option><option selected>Member</option></select></div><div class="field-group"><label>Department</label><select name="department_id"><option value="">-- None --</option><?php foreach ($departments as $d): ?><option value="<?= $d['dept_id'] ?>"><?= e($d['dept_name']) ?></option><?php endforeach; ?></select></div></div>
-                    <div class="field-group"><label>Password</label><input type="password" name="password" placeholder="Temporary password" required></div>
-                    <button type="submit" class="btn-primary">Send OTP</button>
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label>Full Name</label>
+                            <input type="text" name="full_name" required>
+                        </div>
+                        <div class="field-group">
+                            <label>Username</label>
+                            <input type="text" name="username" id="add-member-username" required autocomplete="off" oninput="liveCheckAvailability('username')">
+                            <div id="username-check-msg" style="font-size:11px; font-weight:700; margin-top:4px;"></div>
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <label>Email</label>
+                        <input type="email" name="email" id="add-member-email" required autocomplete="off" oninput="liveCheckAvailability('email')">
+                        <div id="email-check-msg" style="font-size:11px; font-weight:700; margin-top:4px;"></div>
+                    </div>
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label>Role</label>
+                            <select name="role">
+                                <option>Chairperson</option>
+                                <option>Vice Chair</option>
+                                <option>Secretary</option>
+                                <option selected>Member</option>
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label>Department</label>
+                            <select name="department_id">
+                                <option value="">-- None --</option>
+                                <?php foreach ($departments as $d): ?>
+                                    <option value="<?= $d['dept_id'] ?>"><?= e($d['dept_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <label>Password</label>
+                        <input type="password" name="password" placeholder="Temporary password" required>
+                    </div>
+                    <button type="submit" id="btn-add-member-submit" class="btn-primary">Send OTP</button>
                 </form>
             </div>
         </div>
@@ -3253,6 +3357,113 @@ function switchCpTab(tab, btn) {
 }
 function showConfirmStrip(id) { document.getElementById('cs-'+id).classList.add('show'); }
 function hideConfirmStrip(id) { document.getElementById('cs-'+id).classList.remove('show'); }
+
+let liveAvailTimer = null;
+let isLiveUsernameValid = true;
+let isLiveEmailValid = true;
+
+async function liveCheckAvailability(type) {
+    clearTimeout(liveAvailTimer);
+    liveAvailTimer = setTimeout(async () => {
+        const uInput = document.getElementById('add-member-username');
+        const eInput = document.getElementById('add-member-email');
+        const uMsg = document.getElementById('username-check-msg');
+        const eMsg = document.getElementById('email-check-msg');
+        const btnSubmit = document.getElementById('btn-add-member-submit');
+
+        const usernameVal = uInput ? uInput.value.trim() : '';
+        const emailVal = eInput ? eInput.value.trim() : '';
+
+        if (type === 'username') {
+            if (!usernameVal) {
+                uMsg.innerHTML = '';
+                uInput.style.borderColor = '';
+                isLiveUsernameValid = false;
+            } else if (usernameVal.length < 3) {
+                uMsg.innerHTML = '⚠️ Username must be at least 3 characters.';
+                uMsg.style.color = '#eab308';
+                uInput.style.borderColor = '#eab308';
+                isLiveUsernameValid = false;
+            } else {
+                uMsg.innerHTML = '⏳ Checking username availability...';
+                uMsg.style.color = '#64748b';
+                try {
+                    const res = await fetch(`upcc_cases.php?action=check_member_availability&username=${encodeURIComponent(usernameVal)}`);
+                    const data = await res.json();
+                    if (data.username_taken) {
+                        uMsg.innerHTML = '❌ Username is already taken.';
+                        uMsg.style.color = '#ef4444';
+                        uInput.style.borderColor = '#ef4444';
+                        isLiveUsernameValid = false;
+                    } else {
+                        uMsg.innerHTML = '✓ Username is available';
+                        uMsg.style.color = '#10b981';
+                        uInput.style.borderColor = '#10b981';
+                        isLiveUsernameValid = true;
+                    }
+                } catch (err) {
+                    uMsg.innerHTML = '';
+                }
+            }
+        }
+
+        if (type === 'email') {
+            if (!emailVal) {
+                eMsg.innerHTML = '';
+                eInput.style.borderColor = '';
+                isLiveEmailValid = false;
+            } else if (!emailVal.includes('@') || !emailVal.includes('.')) {
+                eMsg.innerHTML = '⚠️ Enter a valid email address.';
+                eMsg.style.color = '#eab308';
+                eInput.style.borderColor = '#eab308';
+                isLiveEmailValid = false;
+            } else {
+                eMsg.innerHTML = '⏳ Checking email availability...';
+                eMsg.style.color = '#64748b';
+                try {
+                    const res = await fetch(`upcc_cases.php?action=check_member_availability&email=${encodeURIComponent(emailVal)}`);
+                    const data = await res.json();
+                    if (data.email_taken) {
+                        eMsg.innerHTML = '❌ Email is already registered.';
+                        eMsg.style.color = '#ef4444';
+                        eInput.style.borderColor = '#ef4444';
+                        isLiveEmailValid = false;
+                    } else {
+                        eMsg.innerHTML = '✓ Email is available';
+                        eMsg.style.color = '#10b981';
+                        eInput.style.borderColor = '#10b981';
+                        isLiveEmailValid = true;
+                    }
+                } catch (err) {
+                    eMsg.innerHTML = '';
+                }
+            }
+        }
+
+        if (btnSubmit) {
+            const hasError = (!isLiveUsernameValid && usernameVal.length > 0) || (!isLiveEmailValid && emailVal.length > 0);
+            btnSubmit.disabled = hasError;
+            btnSubmit.style.opacity = hasError ? '0.5' : '1';
+            btnSubmit.style.cursor = hasError ? 'not-allowed' : 'pointer';
+        }
+    }, 250);
+}
+
+function validateMemberSubmit(e) {
+    const uInput = document.getElementById('add-member-username');
+    const eInput = document.getElementById('add-member-email');
+    if (uInput && uInput.style.borderColor === 'rgb(239, 68, 68)') {
+        if (e) e.preventDefault();
+        alert('Cannot proceed: The username is already taken.');
+        return false;
+    }
+    if (eInput && eInput.style.borderColor === 'rgb(239, 68, 68)') {
+        if (e) e.preventDefault();
+        alert('Cannot proceed: The email is already registered.');
+        return false;
+    }
+    return true;
+}
 
 function cpSearch() {
     const q = document.getElementById('cp-search').value.toLowerCase();
