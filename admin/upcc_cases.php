@@ -14,36 +14,41 @@ if (($_GET['action'] ?? $_POST['action'] ?? '') === 'check_member_availability')
     $usernameTaken = false;
     $emailTaken = false;
 
-    if ($username !== '') {
-        $uRow = db_one(
-            "SELECT upcc_id FROM upcc_user WHERE LOWER(username) = LOWER(:u) AND upcc_id != :ex LIMIT 1",
-            [':u' => $username, ':ex' => $excludeId]
-        );
-        if (!$uRow) {
-            $uRowAdmin = db_one(
-                "SELECT admin_id FROM admin WHERE LOWER(username) = LOWER(:u) LIMIT 1",
-                [':u' => $username]
+    try {
+        if ($username !== '') {
+            $uRow = db_one(
+                "SELECT upcc_id FROM upcc_user WHERE LOWER(username) = LOWER(:u) AND upcc_id != :ex LIMIT 1",
+                [':u' => $username, ':ex' => $excludeId]
             );
-            if ($uRowAdmin) $usernameTaken = true;
-        } else {
-            $usernameTaken = true;
+            if (!$uRow) {
+                $uRowAdmin = db_one(
+                    "SELECT admin_id FROM admin_user WHERE LOWER(username) = LOWER(:u) LIMIT 1",
+                    [':u' => $username]
+                );
+                if ($uRowAdmin) $usernameTaken = true;
+            } else {
+                $usernameTaken = true;
+            }
         }
-    }
 
-    if ($email !== '') {
-        $eRow = db_one(
-            "SELECT upcc_id FROM upcc_user WHERE LOWER(email) = LOWER(:e) AND upcc_id != :ex LIMIT 1",
-            [':e' => $email, ':ex' => $excludeId]
-        );
-        if (!$eRow) {
-            $eRowAdmin = db_one(
-                "SELECT admin_id FROM admin WHERE LOWER(email) = LOWER(:e) LIMIT 1",
-                [':e' => $email]
+        if ($email !== '') {
+            $eRow = db_one(
+                "SELECT upcc_id FROM upcc_user WHERE LOWER(email) = LOWER(:e) AND upcc_id != :ex LIMIT 1",
+                [':e' => $email, ':ex' => $excludeId]
             );
-            if ($eRowAdmin) $emailTaken = true;
-        } else {
-            $emailTaken = true;
+            if (!$eRow) {
+                $eRowAdmin = db_one(
+                    "SELECT admin_id FROM admin_user WHERE LOWER(email) = LOWER(:e) LIMIT 1",
+                    [':e' => $email]
+                );
+                if ($eRowAdmin) $emailTaken = true;
+            } else {
+                $emailTaken = true;
+            }
         }
+    } catch (\Throwable $exCheck) {
+        $usernameTaken = false;
+        $emailTaken = false;
     }
 
     echo json_encode([
@@ -408,11 +413,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         $existingU = db_one("SELECT upcc_id FROM upcc_user WHERE LOWER(username) = LOWER(:u) LIMIT 1", [':u' => $uCheck]);
         if (!$existingU) {
-            $existingU = db_one("SELECT admin_id FROM admin WHERE LOWER(username) = LOWER(:u) LIMIT 1", [':u' => $uCheck]);
+            $existingU = db_one("SELECT admin_id FROM admin_user WHERE LOWER(username) = LOWER(:u) LIMIT 1", [':u' => $uCheck]);
         }
         $existingE = db_one("SELECT upcc_id FROM upcc_user WHERE LOWER(email) = LOWER(:e) LIMIT 1", [':e' => $eCheck]);
         if (!$existingE) {
-            $existingE = db_one("SELECT admin_id FROM admin WHERE LOWER(email) = LOWER(:e) LIMIT 1", [':e' => $eCheck]);
+            $existingE = db_one("SELECT admin_id FROM admin_user WHERE LOWER(email) = LOWER(:e) LIMIT 1", [':e' => $eCheck]);
         }
 
         if ($existingU) {
