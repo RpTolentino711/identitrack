@@ -419,6 +419,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $departments = db_all("SELECT dept_id, dept_name, is_active FROM departments ORDER BY dept_name ASC");
     }
 
+    if ($_POST['action'] === 'cancel_member_otp') {
+        unset($_SESSION['upcc_member_otp'], $_SESSION['upcc_member_otp_time'], $_SESSION['upcc_member_pending']);
+        $regError = '';
+        $regSuccess = '';
+    }
+
     if ($_POST['action'] === 'send_member_otp') {
         $uCheck = trim($_POST['username'] ?? '');
         $eCheck = trim($_POST['email'] ?? '');
@@ -1367,7 +1373,8 @@ function fmt_case_id(int $id, string $created): string {
         .alert-err { background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); color: #c0392b; border-radius: 9px; padding: 9px 13px; margin-bottom: 14px; font-size: 13px; }
         .alert-ok  { background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.3); color: #1e8449; border-radius: 9px; padding: 9px 13px; margin-bottom: 14px; font-size: 13px; }
         .otp-fields { display: flex; gap: 8px; margin-bottom: 10px; }
-        .otp-digit { flex: 1; height: 52px; text-align: center; font-size: 22px; font-weight: 700; background: #f4f6fb; border: 1px solid #d0d8ea; border-radius: 9px; }
+        .otp-digit { flex: 1; height: 52px; text-align: center; font-size: 22px; font-weight: 700; background: #f4f6fb; border: 1px solid #d0d8ea; border-radius: 9px; -moz-appearance: textfield; }
+        .otp-digit::-webkit-outer-spin-button, .otp-digit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .empty-cases { text-align: center; padding: 40px 20px; color: #aaa; }
         .cpanel-overlay { display: none; position: fixed; inset: 0; background: rgba(8,12,32,0.65); backdrop-filter: blur(5px); z-index: 1050; align-items: center; justify-content: center; padding: 20px; }
         .cpanel-overlay.open { display: flex; }
@@ -2398,7 +2405,7 @@ function fmt_case_id(int $id, string $created): string {
 <!-- OTP Modal -->
 <div class="modal-overlay <?= isset($_SESSION['upcc_member_otp']) ? 'open' : '' ?>" id="modal-otp" style="z-index: 2500;">
     <div class="modal">
-        <button class="modal-close" onclick="closeModal('modal-otp')">&times;</button>
+        <button class="modal-close" onclick="closeMemberOtpModal()">&times;</button>
         <div class="modal-title">Verify OTP</div>
         <div class="modal-sub">Enter the 6-digit code sent to your admin email.</div>
         <?php if ($regError && isset($_SESSION['upcc_member_otp'])): ?><div class="alert-err"><?= htmlspecialchars($regError) ?></div><?php endif; ?>
@@ -3398,6 +3405,17 @@ function hideConfirmStrip(id) { document.getElementById('cs-'+id).classList.remo
 let liveAvailTimer = null;
 let isLiveUsernameValid = false;
 let isLiveEmailValid = false;
+
+function closeMemberOtpModal() {
+    if (confirm('Are you sure you want to cancel registering this UPCC member? Your pending OTP registration will be reset.')) {
+        let f = document.createElement('form');
+        f.method = 'post';
+        f.action = 'upcc_cases.php';
+        f.innerHTML = '<input type="hidden" name="action" value="cancel_member_otp">';
+        document.body.appendChild(f);
+        f.submit();
+    }
+}
 
 function toggleAddMemberPassword() {
     const passInput = document.getElementById('add-member-password');
