@@ -1684,9 +1684,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
                     <span class="pill purple">🏢 <?= htmlspecialchars($studentDept) ?></span>
                 <?php endif; ?>
                 <span class="pill blue">🎓 <?= htmlspecialchars($academicInfo ?: 'N/A') ?></span>
-                <?php if (!empty($case['assigned_dept_name'])): ?>
-                    <span class="pill" style="background:rgba(201,169,97,.12); color:#e3c789; border:1px solid rgba(201,169,97,.3);">🏛️ Panel: <?= htmlspecialchars($case['assigned_dept_name']) ?></span>
-                <?php endif; ?>
+
                 <span class="pill green">📌 <?= htmlspecialchars($statusBadge['label']) ?></span>
                 <?php if ($isHearingOpen && $isHearingPaused): ?>
                   <span class="pill" data-pause-pill="1" style="background:var(--rose-soft);color:#e0a0a0;border-color:rgba(201,107,107,.4)">⏸ Hearing Paused</span>
