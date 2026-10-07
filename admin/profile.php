@@ -10,6 +10,73 @@ function guard_has_email_column(): bool {
   }
 }
 
+if (($_GET['action'] ?? $_POST['action'] ?? '') === 'check_username_availability') {
+  while (ob_get_level()) { @ob_end_clean(); }
+  header('Content-Type: application/json; charset=utf-8');
+  $username = strtolower(trim((string)($_GET['username'] ?? $_POST['username'] ?? '')));
+
+  if ($username === '') {
+    echo json_encode(['ok' => true, 'available' => false, 'message' => '']);
+    exit;
+  }
+  if (strlen($username) < 3) {
+    echo json_encode(['ok' => true, 'available' => false, 'message' => 'Username must be at least 3 characters.']);
+    exit;
+  }
+  if (!preg_match('/^[a-z0-9._-]{3,50}$/', $username)) {
+    echo json_encode(['ok' => true, 'available' => false, 'message' => 'Only letters, numbers, dot, underscore, or hyphen.']);
+    exit;
+  }
+
+  $taken = false;
+  $g = db_one("SELECT guard_id FROM security_guard WHERE LOWER(username) = :u LIMIT 1", [':u' => $username]);
+  if ($g) $taken = true;
+
+  if (!$taken) {
+    $a = db_one("SELECT admin_id FROM admin_user WHERE LOWER(username) = :u LIMIT 1", [':u' => $username]);
+    if ($a) $taken = true;
+  }
+
+  if (!$taken) {
+    $u = db_one("SELECT upcc_id FROM upcc_user WHERE LOWER(username) = :u LIMIT 1", [':u' => $username]);
+    if ($u) $taken = true;
+  }
+
+  if ($taken) {
+    echo json_encode(['ok' => true, 'available' => false, 'message' => '❌ Username is already taken']);
+  } else {
+    echo json_encode(['ok' => true, 'available' => true, 'message' => '✓ Username is available']);
+  }
+  exit;
+}
+
+if (($_GET['action'] ?? $_POST['action'] ?? '') === 'check_email_availability') {
+  while (ob_get_level()) { @ob_end_clean(); }
+  header('Content-Type: application/json; charset=utf-8');
+  $email = strtolower(trim((string)($_GET['email'] ?? $_POST['email'] ?? '')));
+
+  if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    echo json_encode(['ok' => true, 'available' => false, 'message' => 'Invalid email address format.']);
+    exit;
+  }
+
+  $taken = false;
+  $a = db_one("SELECT admin_id FROM admin_user WHERE LOWER(email) = :e LIMIT 1", [':e' => $email]);
+  if ($a) $taken = true;
+
+  if (!$taken) {
+    $u = db_one("SELECT upcc_id FROM upcc_user WHERE LOWER(email) = :e LIMIT 1", [':e' => $email]);
+    if ($u) $taken = true;
+  }
+
+  if ($taken) {
+    echo json_encode(['ok' => true, 'available' => false, 'message' => '❌ Email is already registered']);
+  } else {
+    echo json_encode(['ok' => true, 'available' => true, 'message' => '✓ Email is available']);
+  }
+  exit;
+}
+
 if (($_GET['action'] ?? '') === 'create_guard') {
   header('Content-Type: application/json; charset=utf-8');
 
@@ -1475,7 +1542,8 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
         <div class="grid-2" style="margin-top:14px;">
           <div class="field">
             <label>Username</label>
-            <input type="text" id="gUser" placeholder="e.g. juandelacruz" />
+            <input type="text" id="gUser" placeholder="e.g. juandelacruz" oninput="liveCheckGuardUsername()" />
+            <div id="gUserCheckMsg" style="font-size:11px; font-weight:700; margin-top:4px;"></div>
           </div>
           <div class="field">
             <label>Phone Number</label>
@@ -1530,11 +1598,13 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
         <div class="grid-2" style="margin-top:14px;">
           <div class="field">
             <label>Username</label>
-            <input type="text" id="admUsername" placeholder="e.g. mariasantos" />
+            <input type="text" id="admUsername" placeholder="e.g. mariasantos" oninput="liveCheckAdminUsername()" />
+            <div id="admUserCheckMsg" style="font-size:11px; font-weight:700; margin-top:4px;"></div>
           </div>
           <div class="field">
             <label>Email Address</label>
-            <input type="email" id="admEmail" placeholder="e.g. maria@example.com" />
+            <input type="email" id="admEmail" placeholder="e.g. maria@example.com" oninput="liveCheckAdminEmail()" />
+            <div id="admEmailCheckMsg" style="font-size:11px; font-weight:700; margin-top:4px;"></div>
             <div class="hint">The new admin will use this email to receive login setup OTPs.</div>
           </div>
         </div>
@@ -2094,9 +2164,155 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
     // Open create modal
     $('btnAddGuard').addEventListener('click', () => {
       ['gName','gUser','gPhone','gPw','gPwConfirm'].forEach(id => $(id).value = '');
+      if ($('gUserCheckMsg')) $('gUserCheckMsg').innerHTML = '';
+      if ($('btnCreate')) $('btnCreate').disabled = false;
       hideAlert($('createMsg'));
       showModal('#modalCreate');
     });
+
+    let gUserTimer = null;
+    window.liveCheckGuardUsername = function() {
+      clearTimeout(gUserTimer);
+      const val = $('gUser').value.trim().toLowerCase();
+      const msgEl = $('gUserCheckMsg');
+      const btn = $('btnCreate');
+
+      if (!msgEl) return;
+      if (val === '') {
+        msgEl.innerHTML = '';
+        btn.disabled = false;
+        return;
+      }
+
+      if (val.length < 3) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = '❌ Username must be at least 3 characters.';
+        btn.disabled = true;
+        return;
+      }
+
+      if (!/^[a-z0-9._-]{3,50}$/.test(val)) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = '❌ Only letters, numbers, dot, underscore, or hyphen.';
+        btn.disabled = true;
+        return;
+      }
+
+      msgEl.style.color = '#64748b';
+      msgEl.textContent = 'Checking availability…';
+
+      gUserTimer = setTimeout(async () => {
+        try {
+          const res = await fetch('profile.php?action=check_username_availability&username=' + encodeURIComponent(val));
+          const json = await res.json();
+          if (json.ok) {
+            if (json.available) {
+              msgEl.style.color = '#16a34a';
+              msgEl.textContent = json.message || '✓ Username is available';
+              btn.disabled = false;
+            } else {
+              msgEl.style.color = '#dc2626';
+              msgEl.textContent = json.message || '❌ Username is already taken';
+              btn.disabled = true;
+            }
+          }
+        } catch (_) {
+          msgEl.innerHTML = '';
+        }
+      }, 250);
+    };
+
+    let admUserTimer = null;
+    window.liveCheckAdminUsername = function() {
+      clearTimeout(admUserTimer);
+      const val = $('admUsername').value.trim().toLowerCase();
+      const msgEl = $('admUserCheckMsg');
+      const btn = $('btnInitCreateAdmin');
+
+      if (!msgEl) return;
+      if (val === '') {
+        msgEl.innerHTML = '';
+        btn.disabled = false;
+        return;
+      }
+
+      if (val.length < 3) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = '❌ Username must be at least 3 characters.';
+        btn.disabled = true;
+        return;
+      }
+
+      if (!/^[a-z0-9._-]{3,50}$/.test(val)) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = '❌ Only letters, numbers, dot, underscore, or hyphen.';
+        btn.disabled = true;
+        return;
+      }
+
+      msgEl.style.color = '#64748b';
+      msgEl.textContent = 'Checking availability…';
+
+      admUserTimer = setTimeout(async () => {
+        try {
+          const res = await fetch('profile.php?action=check_username_availability&username=' + encodeURIComponent(val));
+          const json = await res.json();
+          if (json.ok) {
+            if (json.available) {
+              msgEl.style.color = '#16a34a';
+              msgEl.textContent = json.message || '✓ Username is available';
+              btn.disabled = false;
+            } else {
+              msgEl.style.color = '#dc2626';
+              msgEl.textContent = json.message || '❌ Username is already taken';
+              btn.disabled = true;
+            }
+          }
+        } catch (_) {
+          msgEl.innerHTML = '';
+        }
+      }, 250);
+    };
+
+    let admEmailTimer = null;
+    window.liveCheckAdminEmail = function() {
+      clearTimeout(admEmailTimer);
+      const val = $('admEmail').value.trim().toLowerCase();
+      const msgEl = $('admEmailCheckMsg');
+
+      if (!msgEl) return;
+      if (val === '') {
+        msgEl.innerHTML = '';
+        return;
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = '❌ Invalid email format.';
+        return;
+      }
+
+      msgEl.style.color = '#64748b';
+      msgEl.textContent = 'Checking email availability…';
+
+      admEmailTimer = setTimeout(async () => {
+        try {
+          const res = await fetch('profile.php?action=check_email_availability&email=' + encodeURIComponent(val));
+          const json = await res.json();
+          if (json.ok) {
+            if (json.available) {
+              msgEl.style.color = '#16a34a';
+              msgEl.textContent = json.message || '✓ Email is available';
+            } else {
+              msgEl.style.color = '#dc2626';
+              msgEl.textContent = json.message || '❌ Email is already registered';
+            }
+          }
+        } catch (_) {
+          msgEl.innerHTML = '';
+        }
+      }, 250);
+    };
 
     // Create guard
     $('btnCreate').addEventListener('click', async () => {
