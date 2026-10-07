@@ -259,10 +259,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
               <?php endif; ?>
             <?php else: ?>
               <div class="need-action-box">
-                <span class="need-action-label">Assignment Acknowledgement Required</span>
-                <div style="display:flex; gap:8px; margin-top:4px;">
-                  <button class="action-btn btn-ack-yes" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">Accept Role</button>
-                  <button class="action-btn btn-ack-no" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">Decline</button>
+                <span class="need-action-label"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Assignment Acknowledgement Required</span>
+                <div style="display:flex; gap:8px; margin-top:4px; align-items:center;">
+                  <button class="action-btn btn-ack-yes" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Accept Role</button>
+                  <button class="action-btn btn-ack-no" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Decline</button>
                 </div>
               </div>
             <?php endif; ?>
@@ -917,24 +917,112 @@ body{
     }
 }
 
-.btn-ack-yes{
-    background:var(--sage-soft);color:#9dc5a8;
-    border:1px solid rgba(110,158,126,.4);
-    font-size:10.5px;padding:5px 10px;letter-spacing:.8px;
+.need-action-box{
+    display:flex;flex-direction:column;gap:6px;
+    padding:6px 9px;
+    background:rgba(245, 158, 11, 0.08);
+    border:1px solid rgba(245, 158, 11, 0.35);
+    border-radius:5px;
+    box-shadow:0 0 14px rgba(245, 158, 11, 0.15), inset 0 0 8px rgba(245, 158, 11, 0.05);
+    animation:ack-box-ambient 2.2s infinite ease-in-out;
 }
-.btn-ack-yes:hover{background:rgba(110,158,126,.25)}
+@keyframes ack-box-ambient{
+    0%, 100%{
+        border-color:rgba(245, 158, 11, 0.3);
+        box-shadow:0 0 10px rgba(245, 158, 11, 0.12);
+    }
+    50%{
+        border-color:rgba(245, 158, 11, 0.65);
+        box-shadow:0 0 20px rgba(245, 158, 11, 0.28), inset 0 0 12px rgba(245, 158, 11, 0.1);
+    }
+}
+
+.need-action-label{
+    font-size:9.5px;color:#fde68a;font-weight:800;
+    text-transform:uppercase;letter-spacing:1.1px;
+    display:inline-flex;align-items:center;gap:5px;
+    text-shadow:0 0 8px rgba(245, 158, 11, 0.8), 0 0 16px rgba(217, 119, 6, 0.5);
+    animation:ack-label-glow 1.8s infinite ease-in-out;
+}
+@keyframes ack-label-glow{
+    0%, 100%{
+        color:#fde68a;
+        text-shadow:0 0 6px rgba(245, 158, 11, 0.7), 0 0 12px rgba(217, 119, 6, 0.4);
+    }
+    50%{
+        color:#fffbeb;
+        text-shadow:0 0 14px rgba(251, 191, 36, 1), 0 0 24px rgba(245, 158, 11, 0.85), 0 0 32px rgba(217, 119, 6, 0.6);
+    }
+}
+
+.btn-ack-yes{
+    background:linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    color:#ffffff !important;
+    border:1.5px solid #6ee7b7 !important;
+    border-radius:4px;
+    font-weight:800 !important;
+    font-size:10px !important;
+    letter-spacing:0.9px;
+    text-transform:uppercase;
+    cursor:pointer;
+    padding:5px 12px !important;
+    box-shadow:0 0 14px rgba(16, 185, 129, 0.85), 0 0 28px rgba(5, 150, 105, 0.5), inset 0 1px 2px rgba(255,255,255,0.65) !important;
+    text-shadow:0 1px 2px rgba(0,0,0,0.5);
+    filter:drop-shadow(0 0 8px rgba(16, 185, 129, 0.8));
+    animation:ack-yes-glow-pulse 1.6s infinite ease-in-out;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    transition:all .2s ease;
+}
+.btn-ack-yes:hover{
+    background:linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+    border-color:#ffffff !important;
+    box-shadow:0 0 22px rgba(52, 211, 153, 1), 0 0 42px rgba(16, 185, 129, 0.9), inset 0 1px 3px rgba(255,255,255,0.95) !important;
+    filter:drop-shadow(0 0 14px rgba(52, 211, 153, 0.95));
+    transform:translateY(-1px) scale(1.04);
+    color:#ffffff !important;
+}
+.btn-ack-yes:active{
+    transform:translateY(0) scale(0.98);
+}
+@keyframes ack-yes-glow-pulse{
+    0%, 100%{
+        box-shadow:0 0 12px rgba(16, 185, 129, 0.75), 0 0 24px rgba(5, 150, 105, 0.45), inset 0 1px 2px rgba(255,255,255,0.6);
+        filter:drop-shadow(0 0 7px rgba(16, 185, 129, 0.7));
+    }
+    50%{
+        box-shadow:0 0 22px rgba(52, 211, 153, 1), 0 0 38px rgba(16, 185, 129, 0.8), inset 0 1px 3px rgba(255,255,255,0.9);
+        filter:drop-shadow(0 0 14px rgba(52, 211, 153, 0.95));
+    }
+}
 
 .btn-ack-no{
-    background:var(--rose-soft);color:#e0a0a0;
-    border:1px solid rgba(201,107,107,.4);
-    font-size:10.5px;padding:5px 10px;letter-spacing:.8px;
+    background:rgba(225, 29, 72, 0.15) !important;
+    color:#fda4af !important;
+    border:1.5px solid rgba(244, 63, 94, 0.5) !important;
+    border-radius:4px;
+    font-weight:700 !important;
+    font-size:10px !important;
+    letter-spacing:0.9px;
+    text-transform:uppercase;
+    cursor:pointer;
+    padding:5px 11px !important;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    transition:all .2s ease;
 }
-.btn-ack-no:hover{background:rgba(201,107,107,.25)}
-
-.need-action-box{display:flex;flex-direction:column;gap:5px}
-.need-action-label{
-    font-size:9.5px;color:#dfb87c;font-weight:700;
-    text-transform:uppercase;letter-spacing:1.2px;
+.btn-ack-no:hover{
+    background:linear-gradient(135deg, #e11d48 0%, #be123c 100%) !important;
+    color:#ffffff !important;
+    border-color:#fecdd3 !important;
+    box-shadow:0 0 16px rgba(244, 63, 94, 0.85), 0 0 30px rgba(190, 18, 60, 0.6) !important;
+    filter:drop-shadow(0 0 9px rgba(244, 63, 94, 0.75));
+    transform:translateY(-1px) scale(1.02);
+}
+.btn-ack-no:active{
+    transform:translateY(0) scale(0.98);
 }
 
 .dismiss-resolved-btn{
@@ -1460,10 +1548,10 @@ body{
                           <?php endif; ?>
                         <?php else: ?>
                           <div class="need-action-box">
-                            <span class="need-action-label">Assignment Acknowledgement Required</span>
-                            <div style="display:flex; gap:6px; margin-top:2px;">
-                              <button class="action-btn btn-ack-yes" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">Accept Role</button>
-                              <button class="action-btn btn-ack-no" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">Decline</button>
+                            <span class="need-action-label"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Assignment Acknowledgement Required</span>
+                            <div style="display:flex; gap:8px; margin-top:4px; align-items:center;">
+                              <button class="action-btn btn-ack-yes" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Accept Role</button>
+                              <button class="action-btn btn-ack-no" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Decline</button>
                             </div>
                           </div>
                         <?php endif; ?>
