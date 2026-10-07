@@ -420,14 +420,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'send_member_otp') {
-        $adminPass = trim($_POST['admin_password'] ?? '');
-        $adminDb = db_one("SELECT password_hash FROM admin_user WHERE admin_id = :id", [':id' => (int)($admin['admin_id'] ?? 0)]);
-
-        if (!$adminDb || !password_verify($adminPass, (string)($adminDb['password_hash'] ?? ''))) {
-            $regError = 'Incorrect Admin Password. Please enter your valid admin password to authorize sending OTP.';
-        } else {
-            $uCheck = trim($_POST['username'] ?? '');
-            $eCheck = trim($_POST['email'] ?? '');
+        $uCheck = trim($_POST['username'] ?? '');
+        $eCheck = trim($_POST['email'] ?? '');
 
         $existingU = db_one("SELECT upcc_id FROM upcc_user WHERE LOWER(username) = LOWER(:u) LIMIT 1", [':u' => $uCheck]);
         if (!$existingU) {
@@ -488,7 +482,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } catch (Exception $e) { $regError = 'Failed to send OTP: ' . $e->getMessage(); }
         }
     }
-}
 
     if ($_POST['action'] === 'verify_member_otp') {
         $submitted = trim($_POST['otp'] ?? '');
@@ -2277,26 +2270,14 @@ function fmt_case_id(int $id, string $created): string {
                             </select>
                         </div>
                     </div>
-                    <div class="field-row">
-                        <div class="field-group">
-                            <label>Member Temporary Password</label>
-                            <div style="position:relative;">
-                                <input type="password" name="password" id="add-member-password" placeholder="New temporary password" required style="padding-right:42px;" oninput="updateMemberSubmitState()">
-                                <button type="button" id="btn-toggle-add-pass" onclick="toggleAddMemberPassword()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#64748b; padding:4px; display:flex; align-items:center; justify-content:center;" title="Toggle Password Visibility">
-                                    <svg id="eye-icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                    <svg id="eye-icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="field-group">
-                            <label>Your Admin Password (2FA)</label>
-                            <div style="position:relative;">
-                                <input type="password" name="admin_password" id="add-admin-password" placeholder="Enter your admin password" required style="padding-right:42px;" oninput="updateMemberSubmitState()">
-                                <button type="button" id="btn-toggle-admin-pass" onclick="toggleAddAdminPassword()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#64748b; padding:4px; display:flex; align-items:center; justify-content:center;" title="Toggle Password Visibility">
-                                    <svg id="admin-eye-icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                    <svg id="admin-eye-icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                                </button>
-                            </div>
+                    <div class="field-group">
+                        <label>Password</label>
+                        <div style="position:relative;">
+                            <input type="password" name="password" id="add-member-password" placeholder="Temporary password" required style="padding-right:42px;" oninput="updateMemberSubmitState()">
+                            <button type="button" id="btn-toggle-add-pass" onclick="toggleAddMemberPassword()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#64748b; padding:4px; display:flex; align-items:center; justify-content:center;" title="Toggle Password Visibility">
+                                <svg id="eye-icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <svg id="eye-icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                            </button>
                         </div>
                     </div>
                     <button type="submit" id="btn-add-member-submit" class="btn-primary" disabled style="opacity:0.5; cursor:not-allowed; background:#475569;">Send OTP</button>
@@ -3436,23 +3417,6 @@ function toggleAddMemberPassword() {
     }
 }
 
-function toggleAddAdminPassword() {
-    const passInput = document.getElementById('add-admin-password');
-    const showIcon = document.getElementById('admin-eye-icon-show');
-    const hideIcon = document.getElementById('admin-eye-icon-hide');
-    if (!passInput) return;
-
-    if (passInput.type === 'password') {
-        passInput.type = 'text';
-        if (showIcon) showIcon.style.display = 'none';
-        if (hideIcon) hideIcon.style.display = 'block';
-    } else {
-        passInput.type = 'password';
-        if (showIcon) showIcon.style.display = 'block';
-        if (hideIcon) hideIcon.style.display = 'none';
-    }
-}
-
 function handleRoleChange(selectEl) {
     const customContainer = document.getElementById('custom-role-container');
     const customInput = document.getElementById('add-member-custom-role');
@@ -3472,7 +3436,6 @@ function updateMemberSubmitState() {
     const uInput    = document.getElementById('add-member-username');
     const eInput    = document.getElementById('add-member-email');
     const pInput    = document.getElementById('add-member-password');
-    const apInput   = document.getElementById('add-admin-password');
     const rSelect   = document.getElementById('add-member-role');
     const rCustom   = document.getElementById('add-member-custom-role');
     const btnSubmit = document.getElementById('btn-add-member-submit');
@@ -3483,7 +3446,6 @@ function updateMemberSubmitState() {
     const uVal  = uInput  ? uInput.value.trim()  : '';
     const eVal  = eInput  ? eInput.value.trim()  : '';
     const pVal  = pInput  ? pInput.value.trim()  : '';
-    const apVal = apInput ? apInput.value.trim() : '';
 
     let isRoleOk = true;
     if (rSelect && rSelect.value === '__new_role__') {
@@ -3492,11 +3454,10 @@ function updateMemberSubmitState() {
 
     const isFullNameOk = fnVal.length > 0;
     const isPasswordOk = pVal.length > 0;
-    const isAdminPassOk = apVal.length > 0;
     const isUsernameOk = isLiveUsernameValid && uVal.length >= 3;
     const isEmailOk    = isLiveEmailValid && eVal.includes('@') && eVal.includes('.');
 
-    const isAllValid = isFullNameOk && isUsernameOk && isEmailOk && isPasswordOk && isAdminPassOk && isRoleOk;
+    const isAllValid = isFullNameOk && isUsernameOk && isEmailOk && isPasswordOk && isRoleOk;
 
     btnSubmit.disabled = !isAllValid;
     btnSubmit.style.opacity = isAllValid ? '1' : '0.5';
