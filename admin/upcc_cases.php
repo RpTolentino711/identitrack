@@ -2,6 +2,57 @@
 // File: admin/upcc_cases.php
 require_once __DIR__ . '/../database/database.php';
 require_admin();
+
+// ── Live Availability Checker Endpoint ───────────────────────
+if (($_GET['action'] ?? $_POST['action'] ?? '') === 'check_member_availability') {
+    while (ob_get_level()) { @ob_end_clean(); }
+    header('Content-Type: application/json; charset=utf-8');
+    $username = trim((string)($_GET['username'] ?? $_POST['username'] ?? ''));
+    $email = trim((string)($_GET['email'] ?? $_POST['email'] ?? ''));
+    $excludeId = (int)($_GET['exclude_id'] ?? $_POST['exclude_id'] ?? 0);
+
+    $usernameTaken = false;
+    $emailTaken = false;
+
+    if ($username !== '') {
+        $uRow = db_one(
+            "SELECT upcc_id FROM upcc_user WHERE LOWER(username) = LOWER(:u) AND upcc_id != :ex LIMIT 1",
+            [':u' => $username, ':ex' => $excludeId]
+        );
+        if (!$uRow) {
+            $uRowAdmin = db_one(
+                "SELECT admin_id FROM admin WHERE LOWER(username) = LOWER(:u) LIMIT 1",
+                [':u' => $username]
+            );
+            if ($uRowAdmin) $usernameTaken = true;
+        } else {
+            $usernameTaken = true;
+        }
+    }
+
+    if ($email !== '') {
+        $eRow = db_one(
+            "SELECT upcc_id FROM upcc_user WHERE LOWER(email) = LOWER(:e) AND upcc_id != :ex LIMIT 1",
+            [':e' => $email, ':ex' => $excludeId]
+        );
+        if (!$eRow) {
+            $eRowAdmin = db_one(
+                "SELECT admin_id FROM admin WHERE LOWER(email) = LOWER(:e) LIMIT 1",
+                [':e' => $email]
+            );
+            if ($eRowAdmin) $emailTaken = true;
+        } else {
+            $emailTaken = true;
+        }
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'username_taken' => $usernameTaken,
+        'email_taken' => $emailTaken
+    ]);
+    exit;
+}
 ensure_hearing_workflow_schema();
 upcc_process_panel_reminders();
 
@@ -298,56 +349,6 @@ function send_case_dismissal_email_to_panel(string $panelEmail, string $panelNam
 
 // ── All departments ─────────────────────────────────────────
 $departments = db_all("SELECT dept_id, dept_name, is_active FROM departments ORDER BY dept_name ASC");
-
-// ── Live Availability Checker Endpoint ───────────────────────
-if (($_GET['action'] ?? $_POST['action'] ?? '') === 'check_member_availability') {
-    header('Content-Type: application/json; charset=utf-8');
-    $username = trim((string)($_GET['username'] ?? $_POST['username'] ?? ''));
-    $email = trim((string)($_GET['email'] ?? $_POST['email'] ?? ''));
-    $excludeId = (int)($_GET['exclude_id'] ?? $_POST['exclude_id'] ?? 0);
-
-    $usernameTaken = false;
-    $emailTaken = false;
-
-    if ($username !== '') {
-        $uRow = db_one(
-            "SELECT upcc_id FROM upcc_user WHERE LOWER(username) = LOWER(:u) AND upcc_id != :ex LIMIT 1",
-            [':u' => $username, ':ex' => $excludeId]
-        );
-        if (!$uRow) {
-            $uRowAdmin = db_one(
-                "SELECT admin_id FROM admin WHERE LOWER(username) = LOWER(:u) LIMIT 1",
-                [':u' => $username]
-            );
-            if ($uRowAdmin) $usernameTaken = true;
-        } else {
-            $usernameTaken = true;
-        }
-    }
-
-    if ($email !== '') {
-        $eRow = db_one(
-            "SELECT upcc_id FROM upcc_user WHERE LOWER(email) = LOWER(:e) AND upcc_id != :ex LIMIT 1",
-            [':e' => $email, ':ex' => $excludeId]
-        );
-        if (!$eRow) {
-            $eRowAdmin = db_one(
-                "SELECT admin_id FROM admin WHERE LOWER(email) = LOWER(:e) LIMIT 1",
-                [':e' => $email]
-            );
-            if ($eRowAdmin) $emailTaken = true;
-        } else {
-            $emailTaken = true;
-        }
-    }
-
-    echo json_encode([
-        'ok' => true,
-        'username_taken' => $usernameTaken,
-        'email_taken' => $emailTaken
-    ]);
-    exit;
-}
 
 // ── Handle POST actions ─────────────────────────────────────
 $regError   = '';
@@ -3398,7 +3399,8 @@ async function liveCheckAvailability(type) {
                         isLiveUsernameValid = true;
                     }
                 } catch (err) {
-                    if (uMsg) uMsg.innerHTML = '';
+                    console.error('Username check error:', err);
+                    if (uMsg) { uMsg.innerHTML = '⚠️ Error checking username'; uMsg.style.color = '#ef4444'; }
                 }
             }
         }
