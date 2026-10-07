@@ -104,10 +104,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
         $cid = fmt_case_id((int)$c['case_id'], $c['created_at']);
         $href = 'case_view.php?id=' . (int)$c['case_id'];
         $myPresenceStatus = strtoupper((string)($c['my_presence_status'] ?? 'ADMITTED'));
-        $accessGranted = can_access_case($c);
+        $accessGranted = can_access_case($c) && $myPresenceStatus === 'ADMITTED';
         $accepted = isset($acceptedCases[(int)$c['case_id']]);
-        $isLocked = !$accessGranted;
+        $canRejoin = ($c['hearing_is_open'] == 1 && !$accessGranted && (int)($c['hearing_is_paused'] ?? 0) !== 1);
+        $isLocked = !$accessGranted && !$canRejoin;
         $lockedClass = $isLocked ? 'case-locked' : '';
+        if ($canRejoin) {
+            $lockedClass .= ' case-can-rejoin';
+        }
         if (!$accepted) {
             $lockedClass .= ' case-needs-action';
         }
@@ -793,6 +797,16 @@ body{
     cursor:not-allowed;
     background:rgba(255,255,255,.015);
 }
+.table tr.case-can-rejoin,
+.table tr:has(.btn-rejoin),
+.table tr.case-locked:has(.btn-rejoin){
+    opacity:1 !important;
+}
+.table tr.case-can-rejoin:hover td,
+.table tr:has(.btn-rejoin):hover td{
+    cursor:pointer;
+    background:rgba(255,180,0,.04);
+}
 .table tr.case-needs-action{position:relative}
 .table tr.case-needs-action td{
     border-color:rgba(110,158,126,.35);
@@ -860,38 +874,46 @@ body{
 .btn-join:hover{background:linear-gradient(180deg,#6ba075,#5c8a6c)}
 
 .btn-rejoin{
-    background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    background:linear-gradient(135deg, #ffc837 0%, #ff8008 100%) !important;
     color:#ffffff !important;
-    border:1px solid #fcd34d !important;
+    border:1px solid #ffe082 !important;
     border-radius:4px;
     font-weight:800 !important;
-    letter-spacing:0.8px;
+    font-size:10.5px !important;
+    letter-spacing:0.9px;
     text-transform:uppercase;
     cursor:pointer;
-    box-shadow:0 0 14px rgba(245, 158, 11, 0.55), 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.4) !important;
-    text-shadow:0 1px 2px rgba(0,0,0,0.5);
-    animation:rejoin-glow-pulse 2s infinite ease-in-out;
+    position:relative;
+    z-index:3;
+    padding:6px 14px !important;
+    box-shadow:0 0 16px rgba(255, 160, 0, 0.9), 0 0 32px rgba(255, 128, 8, 0.6), 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.75) !important;
+    text-shadow:0 1px 2px rgba(0,0,0,0.7);
+    filter:drop-shadow(0 0 10px rgba(255, 170, 0, 0.85));
+    animation:rejoin-glow-pulse 1.6s infinite ease-in-out;
     display:inline-flex;
     align-items:center;
     gap:6px;
     transition:all .2s ease;
 }
 .btn-rejoin:hover{
-    background:linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
-    border-color:#fef08a !important;
-    box-shadow:0 0 22px rgba(251, 191, 36, 0.85), 0 0 8px rgba(245, 158, 11, 0.7), inset 0 1px 2px rgba(255,255,255,0.6) !important;
-    transform:translateY(-1px) scale(1.02);
+    background:linear-gradient(135deg, #ffe082 0%, #ff9800 100%) !important;
+    border-color:#ffffff !important;
+    box-shadow:0 0 24px rgba(255, 215, 0, 1), 0 0 48px rgba(255, 140, 0, 0.9), inset 0 1px 3px rgba(255,255,255,0.95) !important;
+    filter:drop-shadow(0 0 16px rgba(255, 200, 0, 1));
+    transform:translateY(-1px) scale(1.04);
     color:#ffffff !important;
 }
 .btn-rejoin:active{
-    transform:translateY(0) scale(0.99);
+    transform:translateY(0) scale(0.98);
 }
 @keyframes rejoin-glow-pulse{
     0%, 100%{
-        box-shadow:0 0 12px rgba(245, 158, 11, 0.45), 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.35);
+        box-shadow:0 0 14px rgba(255, 160, 0, 0.8), 0 0 28px rgba(255, 128, 8, 0.5), inset 0 1px 2px rgba(255,255,255,0.7);
+        filter:drop-shadow(0 0 8px rgba(255, 170, 0, 0.8));
     }
     50%{
-        box-shadow:0 0 22px rgba(245, 158, 11, 0.8), 0 0 8px rgba(251, 191, 36, 0.65), 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.45);
+        box-shadow:0 0 26px rgba(255, 220, 0, 1), 0 0 45px rgba(255, 140, 0, 0.85), inset 0 1px 3px rgba(255,255,255,0.95);
+        filter:drop-shadow(0 0 18px rgba(255, 200, 0, 1));
     }
 }
 
@@ -1271,8 +1293,12 @@ body{
                   $myPresenceStatus = strtoupper((string)($c['my_presence_status'] ?? 'ADMITTED'));
                   $accessGranted = can_access_case($c) && $myPresenceStatus === 'ADMITTED';
                   $accepted = isset($acceptedCases[(int)$c['case_id']]);
-                  $isLocked = !$accessGranted;
+                  $canRejoin = ($c['hearing_is_open'] == 1 && !$accessGranted && (int)($c['hearing_is_paused'] ?? 0) !== 1);
+                  $isLocked = !$accessGranted && !$canRejoin;
                   $lockedClass = $isLocked ? 'case-locked' : '';
+                  if ($canRejoin) {
+                      $lockedClass .= ' case-can-rejoin';
+                  }
                   if (!$accepted) {
                       $lockedClass .= ' case-needs-action';
                   }
