@@ -24,6 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   String? _errorMessage;
+  StudentProfile? _profile;
 
   String _initPhone = '';
   String _initGfn = '';
@@ -67,6 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final profile = await ProfileApi().getProfile(widget.studentId);
+      _profile = profile;
       _phoneController.text = profile.phoneNumber;
       _gfnController.text = profile.guardianFn;
       _glnController.text = profile.guardianLn;
@@ -435,6 +437,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             icon: Icons.person_rounded,
                             label: 'Full Name',
                             value: widget.studentName,
+                          ),
+                          _readOnlyRow(
+                            icon: Icons.domain_rounded,
+                            label: 'Department',
+                            value: (_profile?.department.isNotEmpty == true) ? _profile!.department : 'Not Specified',
+                          ),
+                          _readOnlyRow(
+                            icon: Icons.school_rounded,
+                            label: 'Course',
+                            value: (_profile?.course.isNotEmpty == true) ? _profile!.course : 'Not Specified',
+                          ),
+                          _readOnlyRow(
+                            icon: Icons.class_rounded,
+                            label: 'Section',
+                            value: (_profile?.section.isNotEmpty == true) ? _profile!.section : 'Not Specified',
                           ),
 
                           const SizedBox(height: 20),

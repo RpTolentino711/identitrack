@@ -433,6 +433,16 @@ function ensure_student_department_schema(): void
       db_exec("ALTER TABLE `student` ADD COLUMN `department` VARCHAR(150) DEFAULT NULL AFTER `year_level`");
     }
 
+    $hasCourseCol = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'student' AND COLUMN_NAME = 'course'");
+    if (!$hasCourseCol) {
+      db_exec("ALTER TABLE `student` ADD COLUMN `course` VARCHAR(100) DEFAULT NULL AFTER `department`");
+    }
+
+    $hasSectionCol = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'student' AND COLUMN_NAME = 'section'");
+    if (!$hasSectionCol) {
+      db_exec("ALTER TABLE `student` ADD COLUMN `section` VARCHAR(50) DEFAULT NULL AFTER `course`");
+    }
+
     $deptCount = (int)(db_one("SELECT COUNT(*) AS c FROM departments")['c'] ?? 0);
     if ($deptCount === 0) {
       $defaults = [

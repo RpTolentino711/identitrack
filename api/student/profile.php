@@ -35,8 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' || (isset($body['action']) && $body['ac
   $params = [':sid' => $studentId];
   db_add_encryption_key($params);
 
+  ensure_student_department_schema();
+
   $student = db_one(
-    "SELECT student_id, student_fn, student_ln, student_email, phone_number
+    "SELECT student_id, student_fn, student_ln, student_email, phone_number, department, course, section
      FROM student
      WHERE student_id = :sid
      LIMIT 1",
@@ -61,6 +63,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' || (isset($body['action']) && $body['ac
     'student_ln' => $student['student_ln'],
     'student_email' => $student['student_email'],
     'phone_number' => $student['phone_number'] ?? '',
+    'department' => $student['department'] ?? '',
+    'course' => $student['course'] ?? '',
+    'section' => $student['section'] ?? '',
     'guardian_fn' => $guardian ? ($guardian['guardian_fn'] ?? '') : '',
     'guardian_ln' => $guardian ? ($guardian['guardian_ln'] ?? '') : '',
     'guardian_email' => $guardian ? ($guardian['guardian_email'] ?? '') : '',

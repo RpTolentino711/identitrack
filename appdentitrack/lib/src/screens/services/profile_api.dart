@@ -10,6 +10,9 @@ class StudentProfile {
   final String studentLn;
   final String studentEmail;
   final String phoneNumber;
+  final String department;
+  final String course;
+  final String section;
   final String guardianFn;
   final String guardianLn;
   final String guardianEmail;
@@ -21,6 +24,9 @@ class StudentProfile {
     required this.studentLn,
     required this.studentEmail,
     required this.phoneNumber,
+    this.department = '',
+    this.course = '',
+    this.section = '',
     required this.guardianFn,
     required this.guardianLn,
     required this.guardianEmail,
@@ -34,6 +40,9 @@ class StudentProfile {
       studentLn: (json['student_ln'] ?? '').toString(),
       studentEmail: (json['student_email'] ?? '').toString(),
       phoneNumber: (json['phone_number'] ?? '').toString(),
+      department: (json['department'] ?? '').toString(),
+      course: (json['course'] ?? '').toString(),
+      section: (json['section'] ?? '').toString(),
       guardianFn: (json['guardian_fn'] ?? '').toString(),
       guardianLn: (json['guardian_ln'] ?? '').toString(),
       guardianEmail: (json['guardian_email'] ?? '').toString(),
