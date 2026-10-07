@@ -1176,6 +1176,72 @@ textarea.fld-input{min-height:90px;resize:vertical;font-family:var(--f-sans)}
 .chat-time{color:var(--text-mute);font-size:11px;white-space:nowrap;font-family:var(--f-mono)}
 .chat-msg{color:var(--text);line-height:1.65;font-size:13.5px;white-space:pre-wrap}
 
+/* ── Inline Chat Input & Send Button ───────────────────────────────────── */
+.chat-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+.chat-textarea {
+    width: 100%;
+    min-height: 52px;
+    max-height: 160px;
+    padding: 14px 50px 14px 16px;
+    background: rgba(6, 10, 20, 0.7);
+    border: 1px solid var(--line-hi);
+    border-radius: var(--radius-md);
+    color: var(--text-hi);
+    font-family: var(--f-sans);
+    font-size: 13.5px;
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.chat-textarea:focus {
+    outline: none;
+    border-color: var(--gold-bright);
+    box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.15);
+}
+.chat-send-btn {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    color: #060a14;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(201, 169, 97, 0.35);
+    opacity: 0;
+    transform: scale(0.8);
+    pointer-events: none;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 2;
+}
+.chat-input-wrapper.has-text .chat-send-btn {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+.chat-send-btn:hover {
+    background: #e5c578;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(201, 169, 97, 0.5);
+}
+.chat-send-btn:active {
+    transform: scale(0.95);
+}
+.chat-send-btn:disabled {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
 /* ── Lock box ──────────────────────────────────────────────────────────── */
 .lock{
     border:1px dashed rgba(201,152,91,.5);
@@ -1877,14 +1943,16 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
                             <input type="hidden" name="action" value="post_message">
                             <input type="hidden" name="case_id" value="<?= $caseId ?>">
                             <?php $isHearingOpen = ((int)$case['hearing_is_open'] === 1); ?>
-                            <div class="field">
-                                <textarea id="chat_message" name="message" class="fld-input"
+                            <div class="chat-input-wrapper">
+                                <textarea id="chat_message_input" name="message" class="chat-textarea"
                                     placeholder="<?= $isHearingOpen && !$isHearingPaused ? 'Type your message…' : ($isHearingPaused ? 'Chat disabled — hearing is paused' : 'Chat disabled until hearing opens…') ?>"
-                                    required style="min-height:70px" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_message_input"></textarea>
-                            </div>
-                            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-                                <button class="btn btn-primary" type="submit" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_submit_btn">Post Message</button>
-                                <a class="btn btn-secondary" href="#decision-panel">Jump to Decision</a>
+                                    required <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?>></textarea>
+                                <button class="chat-send-btn" type="submit" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_submit_btn" title="Send Message" aria-label="Send Message">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                    </svg>
+                                </button>
                             </div>
                         </form>
                     <?php endif; ?>
@@ -3298,6 +3366,41 @@ function syncLive() {
 // ─────────────────────────────────────────────────────────────────────────
 //  CHAT FORM — AJAX
 // ─────────────────────────────────────────────────────────────────────────
+function updateSendBtnState() {
+    const input = document.getElementById('chat_message_input') || document.getElementById('chat_message');
+    if (!input) return;
+    const wrapper = input.closest('.chat-input-wrapper');
+    const hasText = input.value.trim().length > 0;
+    if (wrapper) {
+        wrapper.classList.toggle('has-text', hasText);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const chatInput = document.getElementById('chat_message_input') || document.getElementById('chat_message');
+    if (chatInput) {
+        chatInput.addEventListener('input', updateSendBtnState);
+        chatInput.addEventListener('change', updateSendBtnState);
+        chatInput.addEventListener('keyup', updateSendBtnState);
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (this.value.trim().length > 0) {
+                    const form = document.getElementById('chat-form');
+                    if (form) {
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit();
+                        } else {
+                            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                        }
+                    }
+                }
+            }
+        });
+        updateSendBtnState();
+    }
+});
+
 document.getElementById('chat-form')?.addEventListener('submit', function(e) {
     e.preventDefault();
     const fd = new FormData(this);
@@ -3306,7 +3409,9 @@ document.getElementById('chat-form')?.addEventListener('submit', function(e) {
         .then(r => r.json())
         .then(res => {
             if (res.ok) {
-                document.getElementById('chat_message').value = '';
+                const inp = document.getElementById('chat_message_input') || document.getElementById('chat_message');
+                if (inp) inp.value = '';
+                updateSendBtnState();
                 cancelReply();
                 syncLive();
             }
@@ -3319,7 +3424,8 @@ function setReply(id, name, text) {
     document.getElementById('reply-to-name').textContent = name;
     document.getElementById('reply-to-text').textContent = text;
     document.getElementById('replying-to-container').style.display = 'block';
-    document.getElementById('chat_message')?.focus();
+    const inp = document.getElementById('chat_message_input') || document.getElementById('chat_message');
+    inp?.focus();
 }
 function cancelReply() {
     document.getElementById('reply_to').value = '';
