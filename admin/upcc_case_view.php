@@ -1722,10 +1722,6 @@ body {
                         ⏱️ Consensus reached <?= fmt($case['hearing_vote_consensus_at']) ?>
                       </div>
                     <?php endif; ?>
-
-                    <button type="button" class="btn btn-success" style="margin-bottom:.5rem" onclick="adoptSuggestedPenalty()">
-                      📋 Auto-fill Form with Suggested Penalty
-                    </button>
                   </div>
                 </div>
 

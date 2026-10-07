@@ -4313,70 +4313,7 @@ function renderComsiceResult(data) {
     }
 }
 
-function applyComsicePredictionToForm(data) {
-    if (!data) data = currentComsicePredictionData || (typeof currentAiResult !== 'undefined' ? currentAiResult : null);
-    if (!data) return;
 
-    const catNum = parseInt(data.category_num || data.suggested_category || 1, 10);
-    const predictedSanction = data.sanction || '';
-
-    const suggestDetails = document.getElementById('suggestDetails');
-    if (suggestDetails) {
-        suggestDetails.open = true;
-    }
-
-    const catSelect = document.getElementById('suggest_category');
-    if (catSelect) {
-        catSelect.value = String(catNum);
-        if (typeof toggleSugFields === 'function') {
-            toggleSugFields();
-        }
-    }
-
-    if (catNum === 1) {
-        const termsSelect = document.querySelector('select[name="suggest_cat1_terms"]');
-        if (termsSelect) termsSelect.value = '3';
-    } else if (catNum === 2) {
-        const usCb = document.getElementById('sug_us');
-        if (usCb) {
-            usCb.checked = true;
-            if (typeof toggleSugHours === 'function') toggleSugHours();
-        }
-        const csHours = parseInt(data.community_service_hours || 0, 10);
-        if (csHours > 0) {
-            const btn = document.querySelector(`.sug-hrs-btn[data-h="${csHours}"]`);
-            if (btn) {
-                btn.click();
-            } else if (typeof selectSugHours === 'function') {
-                const otherBtn = document.querySelector('.sug-hrs-btn[data-h="OTHER"]');
-                selectSugHours('OTHER', otherBtn);
-                const customH = document.getElementById('sug_cat2_service_hours_custom_h');
-                const hidH = document.getElementById('sug_cat2_service_hours');
-                if (customH) customH.value = csHours;
-                if (hidH) hidH.value = csHours;
-            }
-        }
-    }
-
-    const descTextarea = document.querySelector('textarea[name="suggest_description"]');
-    if (descTextarea) {
-        let noteText = `[IdentiTrack AI Recommendation]: ${predictedSanction}`;
-        if (data.ai_explanation) {
-            const cleanExp = data.ai_explanation.replace(/\*\*/g, '').replace(/\n+/g, ' ');
-            noteText += ` (${cleanExp.slice(0, 150)}...)`;
-        }
-        descTextarea.value = noteText;
-    }
-
-    const votingSec = document.getElementById('voting-section') || document.getElementById('suggestForm');
-    if (votingSec) {
-        votingSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
-    if (typeof showToast === 'function') {
-        showToast('✨ AI Punishment Applied', `Category ${catNum} and sanction details auto-filled into Penalty Suggestion form.`, 'info');
-    }
-}
 
 async function runComsicePrediction() {
     const category = document.getElementById('comsiceCategory').value;
