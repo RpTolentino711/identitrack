@@ -136,6 +136,10 @@ try {
         db_exec("ALTER TABLE `upcc_user` ADD CONSTRAINT `fk_upcc_user_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`dept_id`) ON DELETE SET NULL");
     }
 
+    try {
+        db_exec("ALTER TABLE `upcc_user` MODIFY COLUMN `password_hash` VARCHAR(255) NULL DEFAULT NULL");
+    } catch (Exception $exPw) {}
+
     // Migrate case status enum to support explicit workflow states
     $statusCol = db_one("SHOW COLUMNS FROM `upcc_case` LIKE 'status'");
     $statusType = strtolower((string)($statusCol['Type'] ?? ''));
@@ -498,7 +502,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         elseif (empty($pending)) { $regError = 'Session lost.'; }
         else {
             try {
-                db_exec("INSERT INTO upcc_user (full_name, username, email, role, department_id, password_hash, is_active, must_change_password) VALUES (:fn, :u, :e, :r, :dept, NULL, 1, 1)",
+                db_exec("INSERT INTO upcc_user (full_name, username, email, role, department_id, password_hash, is_active, must_change_password) VALUES (:fn, :u, :e, :r, :dept, '', 1, 1)",
                     [':fn'=>$pending['full_name'],':u'=>$pending['username'],':e'=>$pending['email'],':r'=>$pending['role'],':dept'=>$pending['department_id']]);
                 unset($_SESSION['upcc_member_otp'], $_SESSION['upcc_member_otp_time'], $_SESSION['upcc_member_pending']);
                 $regSuccess = 'created';
