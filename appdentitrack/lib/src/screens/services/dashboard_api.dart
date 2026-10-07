@@ -109,6 +109,12 @@ class DashboardApi {
       unseenAppeals: unseenAppeals,
       activeServiceSession: data['active_service_session'] == true,
       recentServiceLogout: data['recent_service_logout'] == true,
+      isSection4Escalated: data['is_section4_escalated'] == true,
+      section4Reason: (data['section4_reason'] ?? 'NONE').toString(),
+      activeCycleMinorCount:
+          int.tryParse((data['active_cycle_minor_count'] ?? 0).toString()) ?? 0,
+      activeCycleMaxSame:
+          int.tryParse((data['active_cycle_max_same'] ?? 0).toString()) ?? 0,
       activeServiceSessionId: (data['active_service_session_id'] ?? '')
           .toString(),
       activeServiceSessionMethod: (data['active_service_session_method'] ?? '')
@@ -231,6 +237,10 @@ class DashboardSummary {
   final String activeServiceSessionMethod;
   final String recentServiceLogoutId;
   final String recentServiceLogoutMethod;
+  final bool isSection4Escalated;
+  final String section4Reason;
+  final int activeCycleMinorCount;
+  final int activeCycleMaxSame;
 
   DashboardSummary({
     required this.studentId,
@@ -254,6 +264,10 @@ class DashboardSummary {
     required this.activeServiceSessionMethod,
     required this.recentServiceLogoutId,
     required this.recentServiceLogoutMethod,
+    this.isSection4Escalated = false,
+    this.section4Reason = 'NONE',
+    this.activeCycleMinorCount = 0,
+    this.activeCycleMaxSame = 0,
   });
 }
 

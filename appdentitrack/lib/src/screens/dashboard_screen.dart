@@ -43,6 +43,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _unseenOffensesCount = 0;
   int _seenAlertsCount = 0;
   int _lastMinorOffenseCount = 0;
+  bool _isSection4Escalated = false;
+  String _section4Reason = 'NONE';
+  int _activeCycleMinorCount = 0;
+  int _activeCycleMaxSame = 0;
   double _communityHours = 0;
   int _communityRemainingSec = 0;
   String _activeServiceSessionStatus = '';
@@ -248,6 +252,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _totalOffense = summary.totalOffense;
         _minorOffense = summary.minorOffense;
         _majorOffense = summary.majorOffense;
+        _isSection4Escalated = summary.isSection4Escalated;
+        _section4Reason = summary.section4Reason;
+        _activeCycleMinorCount = summary.activeCycleMinorCount;
+        _activeCycleMaxSame = summary.activeCycleMaxSame;
         _communityHours = summary.communityServiceHours;
         _accountMode = summary.accountMode;
         _accountMessage = summary.accountMessage;
@@ -1690,12 +1698,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _minorOffenseWarningBanner() {
-    final int count = _minorOffense;
-    final isEscalated = count >= 3;
-    final title = isEscalated ? 'Section 4 Escalation' : 'Conduct Warning';
-    final message = isEscalated
-        ? 'You have reached $count minor offenses. Your case is escalated to a Section 4 Major Case under UPCC panel investigation.'
-        : 'You have $count minor offense${count > 1 ? "s" : ""}. ${3 - count} more minor offense${3 - count > 1 ? "s" : ""} will escalate your account to a Section 4 Major Case.';
+    final int count = _activeCycleMinorCount > 0 ? _activeCycleMinorCount : _minorOffense;
+    final int maxSame = _activeCycleMaxSame;
+
+    // Strict Handbook Rule: Section 4 is ONLY escalated if:
+    // 1) Explicitly reported escalated by backend (_isSection4Escalated == true) OR
+    // 2) 3 or more of SAME type (maxSame >= 3) OR
+    // 3) 4 or more total in active cycle (count >= 4)
+    final bool isEscalated = _isSection4Escalated || maxSame >= 3 || count >= 4;
+
+    if (count <= 0 && !isEscalated) return const SizedBox.shrink();
+
+    String title;
+    String message;
+
+    if (isEscalated) {
+      if (_section4Reason == 'SAME_TYPE_3' || maxSame >= 3) {
+        title = 'Section 4 Escalation (3 Same-Type Minors)';
+        message = 'You have accumulated 3 minor offenses of the SAME type. Your case is escalated to a Section 4 Major Case under UPCC panel investigation.';
+      } else if (_section4Reason == 'DIFF_TYPES_4' || count >= 4) {
+        title = 'Section 4 Escalation (4 Mixed-Type Minors)';
+        message = 'You have accumulated 4 minor offenses across different types. Your case is escalated to a Section 4 Major Case under UPCC panel investigation.';
+      } else {
+        title = 'Section 4 Escalation';
+        message = 'You have reached the threshold for Section 4 Escalation. Your case is escalated to a Section 4 Major Case under UPCC panel investigation.';
+      }
+    } else {
+      if (count == 3) {
+        title = 'Conduct Warning (3/4 Mixed Minors)';
+        message = 'You have 3 minor offenses of mixed types. Submitting a 4th minor offense of any type will escalate your account to a Section 4 Major Case under UPCC panel investigation.';
+      } else {
+        title = 'Conduct Warning';
+        message = 'You have $count minor offense${count > 1 ? "s" : ""} recorded in your active cycle. Accumulating 3 of the same type or 4 of mixed types will escalate your account to a Section 4 Major Case.';
+      }
+    }
 
     final cardColor = isEscalated ? const Color(0xFFFFEBEE) : const Color(0xFFFFF3E0);
     final borderColor = isEscalated ? const Color(0xFFEF9A9A) : const Color(0xFFFFCC80);

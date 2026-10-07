@@ -186,6 +186,38 @@ $unlinkedMajorCount = db_one(
 );
 $major += (int)($unlinkedMajorCount['c'] ?? 0);
 
+// Active cycle minor analysis for strict Section 4 status (3 SAME type OR 4 DIFFERENT types)
+$activeCycleMinorCount = count($activePool);
+$activePoolTypeCounts = [];
+foreach ($activePool as $item) {
+    $tid = (int)$item['offense_type_id'];
+    $activePoolTypeCounts[$tid] = ($activePoolTypeCounts[$tid] ?? 0) + 1;
+}
+$activeCycleMaxSame = !empty($activePoolTypeCounts) ? max($activePoolTypeCounts) : 0;
+
+$hasOfficialSec4Case = db_one(
+  "SELECT 1 FROM upcc_case 
+   WHERE student_id = :sid 
+     AND case_kind = 'SECTION4_MINOR_ESCALATION' 
+     AND status IN ('PENDING','UNDER_INVESTIGATION','AWAITING_ADMIN_FINALIZATION','CLOSED','RESOLVED')
+   LIMIT 1",
+  [':sid' => $studentId]
+);
+
+$isSection4Escalated = false;
+$section4Reason = 'NONE';
+
+if (!empty($hasOfficialSec4Case)) {
+    $isSection4Escalated = true;
+    $section4Reason = 'OFFICIAL_CASE';
+} elseif ($activeCycleMaxSame >= 3) {
+    $isSection4Escalated = true;
+    $section4Reason = 'SAME_TYPE_3';
+} elseif ($activeCycleMinorCount >= 4) {
+    $isSection4Escalated = true;
+    $section4Reason = 'DIFF_TYPES_4';
+}
+
 // Note: total reflects all individual offense records; we don't add the case count here to avoid double-counting.
 
 // Community service hours (ACTIVE requirements minus completed hours across active sessions minus active net elapsed)
@@ -571,6 +603,10 @@ json_out(true, 'Dashboard summary loaded.', [
   'unseen_appeals' => $unseenAppeals,
   'active_service_session' => $activeSession ? true : false,
   'recent_service_logout' => $recentLogout ? true : false,
+  'is_section4_escalated' => $isSection4Escalated,
+  'section4_reason' => $section4Reason,
+  'active_cycle_minor_count' => $activeCycleMinorCount,
+  'active_cycle_max_same' => $activeCycleMaxSame,
   'active_service_session_id' => $activeSession ? (string)$activeSession['session_id'] : '',
   'active_service_session_method' => $activeSession ? (string)$activeSession['login_method'] : '',
   'recent_service_logout_id' => $recentLogout ? (string)$recentLogout['session_id'] : '',
