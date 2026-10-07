@@ -605,7 +605,7 @@ function upcc_find_by_username(string $username): ?array
   $username = trim(strtolower($username));
 
   return db_one(
-    "SELECT upcc_id, full_name, username, email, role, is_active, password_hash, photo_path
+    "SELECT upcc_id, full_name, username, email, role, is_active, password_hash, photo_path, must_change_password
      FROM upcc_user
      WHERE username = :username
      LIMIT 1",

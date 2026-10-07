@@ -126,6 +126,79 @@ function send_upcc_recovery_email(string $toEmail, string $toName, string $otp):
     }
 }
 
+function send_upcc_first_time_otp_email(string $toEmail, string $toName, string $otp): bool {
+    require_once __DIR__ . '/class.phpmailer.php';
+    require_once __DIR__ . '/class.smtp.php';
+
+    try {
+        $mail = new PHPMailer(true);
+        $mail->CharSet   = 'UTF-8';
+        $mail->isSMTP();
+        $mail->Host      = (string)get_env_var('SMTP_HOST', 'smtp.hostinger.com');
+        $mail->Port      = (int)get_env_var('SMTP_PORT', 465);
+        $mail->SMTPAuth  = true;
+        $mail->SMTPSecure = (string)get_env_var('SMTP_SECURE', 'ssl');
+        $mail->Username  = db_smtp_user();
+        $mail->Password  = db_smtp_pass();
+        $mail->Timeout   = 15;
+
+        $mail->setFrom(db_smtp_user(), 'UPCC Panel');
+        $mail->addAddress($toEmail, $toName);
+        $mail->addReplyTo('no-reply@identitrack.site', 'UPCC Panel');
+
+        $logoPath = realpath(__DIR__ . '/../assets/logo.png');
+        $cid = 'upcclogo';
+        if ($logoPath && is_readable($logoPath)) {
+            $mail->addEmbeddedImage($logoPath, $cid, 'logo.png');
+            $logoHtml = "<img src=\"cid:$cid\" width=\"42\" height=\"42\" alt=\"UPCC\" style=\"display:block;border-radius:12px;\" />";
+        } else {
+            $logoHtml = "<div style=\"width:42px;height:42px;border-radius:12px;background:#1e3a8a;color:#fff;font-weight:800;font-size:14px;text-align:center;line-height:42px;\">IT</div>";
+        }
+
+        $safeName = htmlspecialchars($toName, ENT_QUOTES, 'UTF-8');
+        $safeOtp  = htmlspecialchars($otp, ENT_QUOTES, 'UTF-8');
+
+        $mail->isHTML(true);
+        $mail->Subject = 'UPCC Panel First-Time Account Setup OTP';
+        $mail->Body = "
+    <!doctype html>
+    <html>
+    <head><meta charset='utf-8'></head>
+    <body style='margin:0;padding:0;background:#f3f4f6;'>
+      <div style='padding:24px 12px;'>
+        <div style='max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(17,24,39,.10);font-family:Segoe UI,Tahoma,Arial,sans-serif;'>
+          <div style='background:#0b1630;padding:20px 24px;'>
+            <div style='display:flex;align-items:center;gap:12px;'>
+              {$logoHtml}
+              <div>
+                <div style='font-size:17px;font-weight:900;color:#e8ecf7;'>UPCC Panel</div>
+                <div style='font-size:12px;color:#7a8aac;margin-top:3px;'>First-Time Account Setup</div>
+              </div>
+            </div>
+          </div>
+          <div style='padding:28px 24px;color:#1f2937;'>
+            <h2 style='margin:0 0 12px;font-size:20px;color:#111827;'>Welcome, {$safeName}!</h2>
+            <p style='margin:0 0 20px;font-size:14px;color:#4b5563;'>You are setting up your password for your UPCC panel account. Use the 6-digit verification code below to verify your email address:</p>
+            <div style='text-align:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:24px;'>
+              <span style='font-size:36px;font-weight:800;letter-spacing:8px;color:#2563eb;'>{$safeOtp}</span>
+            </div>
+            <p style='font-size:13px;color:#6b7280;margin:0;'>This code will expire in 10 minutes. If you did not request account setup, please contact your administrator.</p>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>";
+
+        return $mail->send();
+    } catch (Exception $e) {
+        error_log('First-time setup mail failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
+
+
+
 // AJAX API Handlers
 if (isset($_POST['action'])) {
     header('Content-Type: application/json');
@@ -180,7 +253,17 @@ if (isset($_POST['action'])) {
 
         // Success -> reset failure counter
         unset($_SESSION['upcc_username_failures'], $_SESSION['upcc_username_locked_until']);
-        echo json_encode(['ok' => true, 'username' => $upcc['username'], 'full_name' => $upcc['full_name']]);
+        $isNewUser = empty($upcc['password_hash'])
+                     || strpos((string)$upcc['password_hash'], '$2y$') !== 0
+                     || (int)($upcc['must_change_password'] ?? 0) === 1;
+
+        echo json_encode([
+            'ok' => true,
+            'is_new_user' => $isNewUser,
+            'username' => $upcc['username'],
+            'full_name' => $upcc['full_name'],
+            'email' => $upcc['email'] ?? ''
+        ]);
         exit;
     }
 
@@ -303,6 +386,125 @@ if (isset($_POST['action'])) {
         ]);
         exit;
     }
+
+    if ($action === 'first_time_send_otp') {
+        $username = trim(strtolower($_POST['username'] ?? ''));
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if ($username === '') {
+            echo json_encode(['ok' => false, 'error' => 'Please enter your username.']);
+            exit;
+        }
+
+        $upcc = upcc_find_by_username($username);
+        if (!$upcc || (int)($upcc['is_active'] ?? 0) !== 1) {
+            echo json_encode(['ok' => false, 'error' => 'Account not found or inactive.']);
+            exit;
+        }
+
+        $isNewUser = empty($upcc['password_hash'])
+                     || strpos((string)$upcc['password_hash'], '$2y$') !== 0
+                     || (int)($upcc['must_change_password'] ?? 0) === 1;
+
+        if (!$isNewUser) {
+            echo json_encode(['ok' => false, 'error' => 'This account already has a password. Please log in with your password.']);
+            exit;
+        }
+
+        if (strlen($newPassword) < 8) {
+            echo json_encode(['ok' => false, 'error' => 'Password must be at least 8 characters long.']);
+            exit;
+        }
+        if (!preg_match('/[A-Z]/', $newPassword)) {
+            echo json_encode(['ok' => false, 'error' => 'Password must contain at least one uppercase letter (A-Z).']);
+            exit;
+        }
+        if (!preg_match('/[a-z]/', $newPassword)) {
+            echo json_encode(['ok' => false, 'error' => 'Password must contain at least one lowercase letter (a-z).']);
+            exit;
+        }
+        if (!preg_match('/[^a-zA-Z0-9]/', $newPassword)) {
+            echo json_encode(['ok' => false, 'error' => 'Password must contain at least one special character (e.g. !@#$%^&*).']);
+            exit;
+        }
+
+        if ($newPassword !== $confirmPassword) {
+            echo json_encode(['ok' => false, 'error' => 'Passwords do not match.']);
+            exit;
+        }
+
+        if (empty($upcc['email'])) {
+            echo json_encode(['ok' => false, 'error' => 'No registered email address found for this user. Please contact administrator.']);
+            exit;
+        }
+
+        $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $_SESSION['upcc_first_time'] = [
+            'upcc_id' => (int)$upcc['upcc_id'],
+            'username' => $upcc['username'],
+            'email' => $upcc['email'],
+            'full_name' => $upcc['full_name'],
+            'new_password' => $newPassword,
+            'otp' => $otp,
+            'expires' => time() + 600
+        ];
+
+        $sent = send_upcc_first_time_otp_email($upcc['email'], $upcc['full_name'], $otp);
+        if ($sent) {
+            $parts = explode('@', $upcc['email']);
+            $masked = (strlen($parts[0]) > 2 ? substr($parts[0], 0, 2) : substr($parts[0], 0, 1)) . '***@' . $parts[1];
+            echo json_encode(['ok' => true, 'email_masked' => $masked, 'message' => "Verification code sent to $masked"]);
+        } else {
+            echo json_encode(['ok' => false, 'error' => 'Failed to send OTP email. Please check your SMTP configuration.']);
+        }
+        exit;
+    }
+
+    if ($action === 'first_time_verify_otp') {
+        $otp = trim($_POST['otp'] ?? '');
+        $ft = $_SESSION['upcc_first_time'] ?? null;
+
+        if (!$ft || time() > ($ft['expires'] ?? 0)) {
+            echo json_encode(['ok' => false, 'error' => 'Setup session expired. Please start again.']);
+            exit;
+        }
+
+        if ($otp !== $ft['otp']) {
+            echo json_encode(['ok' => false, 'error' => 'Invalid verification code. Please check your email and try again.']);
+            exit;
+        }
+
+        $hash = password_hash($ft['new_password'], PASSWORD_DEFAULT);
+        db_exec(
+            "UPDATE upcc_user SET password_hash = :p, must_change_password = 0, updated_at = NOW() WHERE upcc_id = :id",
+            [':p' => $hash, ':id' => $ft['upcc_id']]
+        );
+
+        $user = db_one("SELECT upcc_id, full_name, username, email, role, photo_path FROM upcc_user WHERE upcc_id = :id", [':id' => $ft['upcc_id']]);
+
+        $_SESSION['upcc_user'] = [
+            'upcc_id' => (int)$user['upcc_id'],
+            'full_name' => (string)$user['full_name'],
+            'username' => (string)$user['username'],
+            'email' => (string)$user['email'],
+            'role' => (string)$user['role'],
+            'photo_path' => (string)($user['photo_path'] ?? ''),
+        ];
+        $_SESSION['upcc_authenticated'] = true;
+
+        unset($_SESSION['upcc_first_time'], $_SESSION['upcc_username_failures'], $_SESSION['upcc_username_locked_until']);
+
+        echo json_encode([
+            'ok' => true,
+            'redirect' => 'upccdashboard.php',
+            'message' => 'Account setup complete! Redirecting to dashboard...'
+        ]);
+        exit;
+    }
+
+
+
 }
 
 $error = '';
@@ -791,6 +993,66 @@ $showRecoveryLink = ($currentFailures >= 3);
             </div>
             <button type="button" id="btnSaveCredentials" class="btn-login" onclick="saveNewCredentials()">Save &amp; Sign In &rarr;</button>
         </div>
+</div>
+
+<!-- First-Time User Setup Modal -->
+<div id="firstTimeModal" class="modal-overlay">
+    <div class="modal-card">
+        <button type="button" class="modal-close" onclick="closeFirstTimeModal()">&times;</button>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;margin-bottom:6px;text-align:center;" id="ftModalTitle">Welcome to UPCC Panel!</div>
+        <div style="font-size:13px;color:var(--text-muted);text-align:center;margin-bottom:24px;" id="ftModalSub">Hi <span id="ftUserFullName" style="color:var(--text-main);font-weight:600;"></span>, please create your password to set up your account.</div>
+
+        <div id="ftAlert" class="alert-err" style="display:none;margin-bottom:20px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="ftAlertText"></span>
+        </div>
+
+        <!-- Step 1: Create Password -->
+        <div id="ftStep1">
+            <input type="hidden" id="ftUsername">
+            <div class="field">
+                <label for="ftNewPassword">Create Password</label>
+                <div class="input-wrapper">
+                    <input type="password" id="ftNewPassword" placeholder="Enter new password" oninput="checkFtPwStrength()" required>
+                    <button type="button" class="eye-toggle" onclick="togglePasswordVisibility('ftNewPassword', this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="pw-hints">
+                    <div class="pw-hint-item" id="ftHintLen">&bull; 8+ Characters</div>
+                    <div class="pw-hint-item" id="ftHintUpper">&bull; Uppercase (A-Z)</div>
+                    <div class="pw-hint-item" id="ftHintLower">&bull; Lowercase (a-z)</div>
+                    <div class="pw-hint-item" id="ftHintSpec">&bull; Special (!@#$)</div>
+                </div>
+            </div>
+            <div class="field">
+                <label for="ftConfirmPassword">Confirm Password</label>
+                <div class="input-wrapper">
+                    <input type="password" id="ftConfirmPassword" placeholder="Re-enter password" oninput="checkFtPwStrength()" required>
+                    <button type="button" class="eye-toggle" onclick="togglePasswordVisibility('ftConfirmPassword', this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="ftMatchNotice" style="font-size:12px;margin-top:6px;display:none;"></div>
+            </div>
+            <button type="button" id="btnSendFtOtp" class="btn-login" onclick="sendFirstTimeOtp()">Set Password &amp; Send OTP &rarr;</button>
+        </div>
+
+        <!-- Step 2: Verify OTP -->
+        <div id="ftStep2" style="display:none;">
+            <div style="font-size:13px;color:#38bdf8;background:rgba(56,189,248,0.1);padding:10px 14px;border-radius:10px;margin-bottom:18px;" id="ftEmailNotice"></div>
+            <div class="field">
+                <label for="ftOtp">Enter 6-Digit Verification Code</label>
+                <input type="text" id="ftOtp" maxlength="6" placeholder="000000" style="text-align:center;letter-spacing:6px;font-size:20px;font-weight:700;" required>
+            </div>
+            <button type="button" id="btnVerifyFtOtp" class="btn-login" onclick="verifyFirstTimeOtp()">Verify OTP &amp; Complete Setup &rarr;</button>
+        </div>
     </div>
 </div>
 
@@ -1138,8 +1400,165 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
                 return;
             }
 
+function checkFtPwStrength() {
+    const pw = document.getElementById('ftNewPassword').value;
+    const confirmPw = document.getElementById('ftConfirmPassword').value;
+    
+    const hLen = document.getElementById('ftHintLen');
+    const hUpper = document.getElementById('ftHintUpper');
+    const hLower = document.getElementById('ftHintLower');
+    const hSpec = document.getElementById('ftHintSpec');
+    const matchNotice = document.getElementById('ftMatchNotice');
+
+    if (pw.length >= 8) hLen.classList.add('valid'); else hLen.classList.remove('valid');
+    if (/[A-Z]/.test(pw)) hUpper.classList.add('valid'); else hUpper.classList.remove('valid');
+    if (/[a-z]/.test(pw)) hLower.classList.add('valid'); else hLower.classList.remove('valid');
+    if (/[^a-zA-Z0-9]/.test(pw)) hSpec.classList.add('valid'); else hSpec.classList.remove('valid');
+
+    if (confirmPw.length > 0) {
+        matchNotice.style.display = 'block';
+        if (pw === confirmPw) {
+            matchNotice.style.color = '#4ade80';
+            matchNotice.style.fontWeight = '600';
+            matchNotice.innerHTML = '&#10004; Passwords match';
+        } else {
+            matchNotice.style.color = '#fca5a5';
+            matchNotice.style.fontWeight = '500';
+            matchNotice.innerHTML = '&#10008; Passwords do not match';
+        }
+    } else {
+        matchNotice.style.display = 'none';
+    }
+}
+
+function openFirstTimeModal(username, fullName, email) {
+    document.getElementById('firstTimeModal').classList.add('active');
+    document.getElementById('ftStep1').style.display = 'block';
+    document.getElementById('ftStep2').style.display = 'none';
+    document.getElementById('ftAlert').style.display = 'none';
+    document.getElementById('ftUsername').value = username;
+    document.getElementById('ftUserFullName').textContent = fullName || username;
+    document.getElementById('ftModalSub').style.display = 'block';
+    document.getElementById('ftModalTitle').textContent = 'Welcome to UPCC Panel!';
+}
+
+function closeFirstTimeModal() {
+    document.getElementById('firstTimeModal').classList.remove('active');
+}
+
+function sendFirstTimeOtp() {
+    const username = document.getElementById('ftUsername').value.trim();
+    const newPassword = document.getElementById('ftNewPassword').value;
+    const confirmPassword = document.getElementById('ftConfirmPassword').value;
+    const alertBox = document.getElementById('ftAlert');
+    const alertText = document.getElementById('ftAlertText');
+    const btn = document.getElementById('btnSendFtOtp');
+
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[^a-zA-Z0-9]/.test(newPassword)) {
+        alertText.textContent = 'Password must be 8+ characters and contain an uppercase letter, a lowercase letter, and a special character.';
+        alertBox.style.display = 'flex';
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        alertText.textContent = 'Passwords do not match.';
+        alertBox.style.display = 'flex';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Sending OTP...';
+    alertBox.style.display = 'none';
+
+    const params = new URLSearchParams();
+    params.append('action', 'first_time_send_otp');
+    params.append('username', username);
+    params.append('new_password', newPassword);
+    params.append('confirm_password', confirmPassword);
+
+    fetch('upccpanel.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = 'Set Password &amp; Send OTP &rarr;';
+        if (data.ok) {
+            document.getElementById('ftStep1').style.display = 'none';
+            document.getElementById('ftStep2').style.display = 'block';
+            document.getElementById('ftEmailNotice').textContent = data.message;
+        } else {
+            alertText.textContent = data.error || 'Failed to send OTP.';
+            alertBox.style.display = 'flex';
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = 'Set Password &amp; Send OTP &rarr;';
+        alertText.textContent = 'Connection error. Please try again.';
+        alertBox.style.display = 'flex';
+    });
+}
+
+function verifyFirstTimeOtp() {
+    const otp = document.getElementById('ftOtp').value.trim();
+    const alertBox = document.getElementById('ftAlert');
+    const alertText = document.getElementById('ftAlertText');
+    const btn = document.getElementById('btnVerifyFtOtp');
+
+    if (!otp || otp.length !== 6) {
+        alertText.textContent = 'Please enter the 6-digit verification code sent to your email.';
+        alertBox.style.display = 'flex';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Verifying...';
+    alertBox.style.display = 'none';
+
+    const params = new URLSearchParams();
+    params.append('action', 'first_time_verify_otp');
+    params.append('otp', otp);
+
+    fetch('upccpanel.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = 'Verify OTP &amp; Complete Setup &rarr;';
+        if (data.ok) {
+            alertText.style.color = '#4ade80';
+            alertText.textContent = data.message || 'Account verified! Redirecting...';
+            alertBox.style.display = 'flex';
+            setTimeout(() => {
+                window.location.href = data.redirect || 'upccdashboard.php';
+            }, 1000);
+        } else {
+            alertText.textContent = data.error || 'Invalid OTP code.';
+            alertBox.style.display = 'flex';
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = 'Verify OTP &amp; Complete Setup &rarr;';
+        alertText.textContent = 'Connection error. Please try again.';
+        alertBox.style.display = 'flex';
+    });
+}
+
             btnSubmit.disabled = false;
             if (data.ok) {
+                if (data.is_new_user) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = 'Continue &rarr;';
+                    openFirstTimeModal(data.username, data.full_name, data.email);
+                    return;
+                }
                 step = 2;
                 const passField = document.getElementById('field-password');
                 const forgotFooter = document.getElementById('forgot-footer');

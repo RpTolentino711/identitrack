@@ -459,7 +459,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'username'      => $uCheck,
                 'email'         => $eCheck,
                 'role'          => $roleSubmitted,
-                'password'      => trim($_POST['password']   ?? ''),
                 'department_id' => isset($_POST['department_id']) ? (int)$_POST['department_id'] : null,
             ];
             require_once __DIR__ . '/../UPCC/class.phpmailer.php';
@@ -498,10 +497,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         elseif ($submitted !== $stored) { $regError = 'Incorrect OTP.'; }
         elseif (empty($pending)) { $regError = 'Session lost.'; }
         else {
-            $hash = password_hash($pending['password'], PASSWORD_DEFAULT);
             try {
-                db_exec("INSERT INTO upcc_user (full_name, username, email, role, department_id, password_hash, is_active, must_change_password) VALUES (:fn, :u, :e, :r, :dept, :h, 1, 1)",
-                    [':fn'=>$pending['full_name'],':u'=>$pending['username'],':e'=>$pending['email'],':r'=>$pending['role'],':dept'=>$pending['department_id'],':h'=>$hash]);
+                db_exec("INSERT INTO upcc_user (full_name, username, email, role, department_id, password_hash, is_active, must_change_password) VALUES (:fn, :u, :e, :r, :dept, NULL, 1, 1)",
+                    [':fn'=>$pending['full_name'],':u'=>$pending['username'],':e'=>$pending['email'],':r'=>$pending['role'],':dept'=>$pending['department_id']]);
                 unset($_SESSION['upcc_member_otp'], $_SESSION['upcc_member_otp_time'], $_SESSION['upcc_member_pending']);
                 $regSuccess = 'created';
                 $members = db_all("SELECT u.upcc_id, u.full_name, u.role, u.email, u.photo_path, u.is_active, u.department_id, d.dept_name
@@ -2275,17 +2273,6 @@ function fmt_case_id(int $id, string $created): string {
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                    </div>
-                    <div class="field-group">
-                        <label>Password</label>
-                        <div style="position:relative;">
-                            <input type="password" name="password" id="add-member-password" placeholder="Temporary password" required style="padding-right:42px;" oninput="updateMemberSubmitState()">
-                            <button type="button" id="btn-toggle-add-pass" onclick="toggleAddMemberPassword()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#64748b; padding:4px; display:flex; align-items:center; justify-content:center;" title="Toggle Password Visibility">
-                                <svg id="eye-icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                <svg id="eye-icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                            </button>
-                        </div>
-                    </div>
                     <button type="submit" id="btn-add-member-submit" class="btn-primary" disabled style="opacity:0.5; cursor:not-allowed; background:#475569;">Send OTP</button>
                 </form>
             </div>
@@ -3452,7 +3439,6 @@ function updateMemberSubmitState() {
     const fnInput   = document.getElementById('add-member-fullname');
     const uInput    = document.getElementById('add-member-username');
     const eInput    = document.getElementById('add-member-email');
-    const pInput    = document.getElementById('add-member-password');
     const rSelect   = document.getElementById('add-member-role');
     const rCustom   = document.getElementById('add-member-custom-role');
     const btnSubmit = document.getElementById('btn-add-member-submit');
@@ -3462,7 +3448,6 @@ function updateMemberSubmitState() {
     const fnVal = fnInput ? fnInput.value.trim() : '';
     const uVal  = uInput  ? uInput.value.trim()  : '';
     const eVal  = eInput  ? eInput.value.trim()  : '';
-    const pVal  = pInput  ? pInput.value.trim()  : '';
 
     let isRoleOk = true;
     if (rSelect && rSelect.value === '__new_role__') {
@@ -3470,11 +3455,10 @@ function updateMemberSubmitState() {
     }
 
     const isFullNameOk = fnVal.length > 0;
-    const isPasswordOk = pVal.length > 0;
     const isUsernameOk = isLiveUsernameValid && uVal.length >= 3;
     const isEmailOk    = isLiveEmailValid && eVal.includes('@') && eVal.includes('.');
 
-    const isAllValid = isFullNameOk && isUsernameOk && isEmailOk && isPasswordOk && isRoleOk;
+    const isAllValid = isFullNameOk && isUsernameOk && isEmailOk && isRoleOk;
 
     btnSubmit.disabled = !isAllValid;
     btnSubmit.style.opacity = isAllValid ? '1' : '0.5';
