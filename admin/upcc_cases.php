@@ -3381,13 +3381,30 @@ function closeModal(id) {
 
 // Committee panel
 function openCpanel()  { document.getElementById('cpanel-overlay').classList.add('open'); }
-function closeCpanel() { document.getElementById('cpanel-overlay').classList.remove('open'); }
+function closeCpanel() {
+    const overlay = document.getElementById('cpanel-overlay');
+    if (overlay) {
+        overlay.classList.remove('open');
+        overlay.querySelectorAll('.alert-ok, .alert-err').forEach(el => { el.style.display = 'none'; });
+    }
+    const addForm = document.getElementById('add-member-form');
+    if (addForm) addForm.reset();
+    const uMsg = document.getElementById('username-check-msg');
+    if (uMsg) uMsg.innerHTML = '';
+    const eMsg = document.getElementById('email-check-msg');
+    if (eMsg) eMsg.innerHTML = '';
+    isLiveUsernameValid = false;
+    isLiveEmailValid = false;
+}
 function switchCpTab(tab, btn) {
     ['members','departments','add'].forEach(t => document.getElementById('cptab-'+t).style.display = t === tab ? '' : 'none');
     document.querySelectorAll('.cptab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     if (tab === 'add') {
         updateMemberSubmitState();
+    } else {
+        const addAlerts = document.querySelectorAll('#cptab-add .alert-ok, #cptab-add .alert-err');
+        addAlerts.forEach(el => { el.style.display = 'none'; });
     }
 }
 function showConfirmStrip(id) { document.getElementById('cs-'+id).classList.add('show'); }
