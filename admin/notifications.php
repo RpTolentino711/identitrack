@@ -311,42 +311,135 @@ if ($flashKey === 'guard_report_rejected') $flashText = 'Guard submission reject
 if ($flashKey === 'guard_report_approve_failed') $flashText = 'Unable to approve guard submission.';
 if ($flashKey === 'guard_report_reject_failed') $flashText = 'Unable to reject guard submission.';
 
-function iconSvg(string $type): string {
-  $type = strtoupper($type);
+function getNotifVisuals(array $n): array {
+  $type = strtoupper(trim((string)($n['type'] ?? '')));
+  $title = strtoupper(trim((string)($n['title'] ?? '')));
+  $relTable = strtoupper(trim((string)($n['related_table'] ?? '')));
+  $text = $type . ' ' . $title . ' ' . $relTable;
 
-  if (str_contains($type, 'LOGIN')) {
-    return '<span class="ico blue" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
-    </span>';
+  // 1. HEARING / PANELIST ACCEPTED OR DECLINED
+  if (str_contains($text, 'HEARING_ACCEPTED') || str_contains($text, 'PANELIST ACCEPTED')) {
+    return [
+      'ico_class'   => 'purple',
+      'ico_svg'     => '<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>',
+      'badge_class' => 'upcc',
+      'badge_label' => 'Panel Accepted',
+      'badge_icon'  => '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+    ];
   }
 
-  if (str_contains($type, 'LOGOUT')) {
-    return '<span class="ico green" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6l3 3"></path></svg>
-    </span>';
+  if (str_contains($text, 'HEARING_DECLINED') || str_contains($text, 'PANELIST DECLINED')) {
+    return [
+      'ico_class'   => 'red',
+      'ico_svg'     => '<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="17" y1="9" x2="21" y2="13"></line><line x1="21" y1="9" x2="17" y2="13"></line></svg>',
+      'badge_class' => 'escalation',
+      'badge_label' => 'Panel Declined',
+      'badge_icon'  => '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
+    ];
   }
 
-  if (str_contains($type, 'UPCC') || str_contains($type, 'CASE')) {
-    return '<span class="ico purple" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-    </span>';
+  // 2. ESCALATION / SECTION 4 TRIGGER
+  if (str_contains($text, 'ESCALATION') || str_contains($text, 'SECTION 4')) {
+    return [
+      'ico_class'   => 'red',
+      'ico_svg'     => '<svg viewBox="0 0 24 24"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
+      'badge_class' => 'escalation',
+      'badge_label' => 'Section 4 Escalation',
+      'badge_icon'  => '<svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+    ];
   }
 
-  if (str_contains($type, 'GUARD') || str_contains($type, 'VIOLATION') || str_contains($type, 'OFFENSE')) {
-    return '<span class="ico red" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-    </span>';
+  // 3. NOTICE / CONDUCT LETTER / PARENT NOTICE / NTE
+  if (str_contains($text, 'CONDUCT NOTICE') || str_contains($text, 'NOTICE SENT') || str_contains($text, 'LETTER') || str_contains($text, 'NTE') || str_contains($text, 'PARENT')) {
+    return [
+      'ico_class'   => 'blue',
+      'ico_svg'     => '<svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>',
+      'badge_class' => 'notice',
+      'badge_label' => 'Conduct Notice',
+      'badge_icon'  => '<svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>'
+    ];
   }
 
-  if (str_contains($type, 'DEADLINE') || str_contains($type, 'WARNING') || str_contains($type, 'ALERT')) {
-    return '<span class="ico amber" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 7v6"></path><path d="M12 16h.01"></path></svg>
-    </span>';
+  // 4. GUARD REPORT SUBMISSION
+  if (str_contains($text, 'GUARD')) {
+    return [
+      'ico_class'   => 'amber',
+      'ico_svg'     => '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
+      'badge_class' => 'violation',
+      'badge_label' => 'Guard Submission',
+      'badge_icon'  => '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>'
+    ];
   }
 
-  return '<span class="ico gray" aria-hidden="true">
-    <svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path></svg>
-  </span>';
+  // 5. UPCC CASE / HEARING PROCEEDINGS
+  if (str_contains($text, 'UPCC') || str_contains($text, 'CASE') || str_contains($text, 'HEARING')) {
+    return [
+      'ico_class'   => 'purple',
+      'ico_svg'     => '<svg viewBox="0 0 24 24"><path d="m14 13-7.5 7.5c-.8.8-2.2.8-3 0s-.8-2.2 0-3L11 10"></path><path d="m16 16 6-6"></path><path d="m8 8 6-6"></path><path d="m9 7 8 8"></path><path d="m21 11-8-8"></path></svg>',
+      'badge_class' => 'upcc',
+      'badge_label' => 'UPCC Case',
+      'badge_icon'  => '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>'
+    ];
+  }
+
+  // 6. COMMUNITY SERVICE / TIME IN / OUT / PAUSE
+  if (str_contains($text, 'COMMUNITY') || str_contains($text, 'CS_SESSION') || str_contains($text, 'SERVICE')) {
+    return [
+      'ico_class'   => 'green',
+      'ico_svg'     => '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
+      'badge_class' => 'community',
+      'badge_label' => 'Community Service',
+      'badge_icon'  => '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
+    ];
+  }
+
+  // 7. VIOLATION / OFFENSE
+  if (str_contains($text, 'VIOLATION') || str_contains($text, 'OFFENSE')) {
+    return [
+      'ico_class'   => 'red',
+      'ico_svg'     => '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
+      'badge_class' => 'offense',
+      'badge_label' => 'Offense Report',
+      'badge_icon'  => '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line></svg>'
+    ];
+  }
+
+  // 8. DEADLINE / WARNING / ALERT
+  if (str_contains($text, 'DEADLINE') || str_contains($text, 'DUE') || str_contains($text, 'WARNING') || str_contains($text, 'ALERT')) {
+    return [
+      'ico_class'   => 'amber',
+      'ico_svg'     => '<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="M5 3 2 6"></path><path d="m22 6-3-3"></path></svg>',
+      'badge_class' => 'deadline',
+      'badge_label' => 'Deadline Alert',
+      'badge_icon'  => '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle></svg>'
+    ];
+  }
+
+  // 9. ADMIN ACTIVITY / AUTH
+  if (str_contains($text, 'ADMIN') || str_contains($text, 'LOGIN') || str_contains($text, 'LOGOUT')) {
+    return [
+      'ico_class'   => 'indigo',
+      'ico_svg'     => '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>',
+      'badge_class' => 'admin',
+      'badge_label' => 'Admin Activity',
+      'badge_icon'  => '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>'
+    ];
+  }
+
+  // Default notice
+  return [
+    'ico_class'   => 'indigo',
+    'ico_svg'     => '<svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>',
+    'badge_class' => 'general',
+    'badge_label' => 'Notice',
+    'badge_icon'  => '<svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path></svg>'
+  ];
+}
+
+function iconSvg($typeOrItem): string {
+  $n = is_array($typeOrItem) ? $typeOrItem : ['type' => $typeOrItem];
+  $vis = getNotifVisuals($n);
+  return '<span class="ico ' . $vis['ico_class'] . '" aria-hidden="true">' . $vis['ico_svg'] . '</span>';
 }
 
 /**
@@ -368,8 +461,8 @@ function notifHref(array $n): string {
     return 'community_service.php?q=' . urlencode($studentId);
   }
 
-  // UPCC CASE ROUTES
-  if ((str_contains($type, 'UPCC') || str_contains($type, 'CASE') || str_contains($type, 'HEARING') || str_contains($type, 'DECLINED')) && $relatedId !== '') {
+  // UPCC CASE / ESCALATION ROUTES
+  if ((str_contains($type, 'UPCC') || str_contains($type, 'CASE') || str_contains($type, 'HEARING') || str_contains($type, 'DECLINED') || str_contains($type, 'ESCALATION') || $relatedTable === 'UPCC_CASE') && $relatedId !== '') {
     return 'upcc_case_view.php?id=' . (int)$relatedId;
   }
 
@@ -395,16 +488,8 @@ function notifHref(array $n): string {
  * Get badge label for notification type
  */
 function getTypeBadge(string $type): string {
-  $type = strtoupper($type);
-  
-  if (str_contains($type, 'COMMUNITY')) return 'Community Service';
-  if (str_contains($type, 'UPCC') || str_contains($type, 'CASE')) return 'UPCC Case';
-  if (str_contains($type, 'GUARD') || str_contains($type, 'VIOLATION')) return 'Violation Report';
-  if (str_contains($type, 'DEADLINE')) return 'Deadline Alert';
-  if (str_contains($type, 'ADMIN')) return 'Admin Activity';
-  if (str_contains($type, 'OFFENSE')) return 'Offense Report';
-  
-  return 'Notification';
+  $vis = getNotifVisuals(['type' => $type]);
+  return $vis['badge_label'];
 }
 ?>
 <!doctype html>
@@ -470,9 +555,14 @@ function getTypeBadge(string $type): string {
       cursor:pointer;
       font-weight:500;
       color:#1a1a1a;
-      font-size: 14px;
+      font-size: 13.5px;
       transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
     }
+    .btn svg { flex-shrink: 0; }
     .btn:hover{ border-color:#3b4a9e; color:#3b4a9e; background:#f0f2ff; }
 
     .btn-danger{
@@ -501,7 +591,9 @@ function getTypeBadge(string $type): string {
     }
 
     .type-badge {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
       padding: 3px 9px;
       border-radius: 6px;
       font-size: 11px;
@@ -510,13 +602,26 @@ function getTypeBadge(string $type): string {
       letter-spacing: .3px;
       margin-top: 6px;
     }
+    .type-badge svg {
+      width: 12px;
+      height: 12px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
 
-    .type-badge.community { background: #e0f2fe; color: #0369a1; }
-    .type-badge.upcc { background: #fce7f3; color: #be185d; }
-    .type-badge.violation { background: #fee2e2; color: #991b1b; }
-    .type-badge.deadline { background: #fef3c7; color: #92400e; }
-    .type-badge.admin { background: #f0fdf4; color: #166534; }
-    .type-badge.offense { background: #fee2e2; color: #991b1b; }
+    .type-badge.community  { background: #e0f2fe; color: #0369a1; }
+    .type-badge.upcc       { background: #ede9fe; color: #6d28d9; }
+    .type-badge.escalation { background: #fee2e2; color: #b91c1c; }
+    .type-badge.violation  { background: #fee2e2; color: #991b1b; }
+    .type-badge.notice     { background: #e0f2fe; color: #0284c7; }
+    .type-badge.deadline   { background: #fef3c7; color: #92400e; }
+    .type-badge.admin      { background: #f0fdf4; color: #166534; }
+    .type-badge.offense    { background: #ffedd5; color: #c2410c; }
+    .type-badge.general    { background: #f1f5f9; color: #475569; }
 
     .notif{
       border: 1px solid #dee2e6;
@@ -564,20 +669,21 @@ function getTypeBadge(string $type): string {
       flex-shrink:0;
     }
     .ico svg{
-      width: 26px;
-      height: 26px;
+      width: 22px;
+      height: 22px;
       stroke: currentColor;
       fill: none;
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-    .ico.blue{ color:#0d6efd; background: rgba(13,110,253,.12); }
-    .ico.green{ color:#22c55e; background: rgba(34,197,94,.12); }
-    .ico.purple{ color:#7c3aed; background: rgba(124,58,237,.12); }
-    .ico.red{ color:#ef4444; background: rgba(239,68,68,.12); }
-    .ico.amber{ color:#f59e0b; background: rgba(245,158,11,.12); }
-    .ico.gray{ color:#6c757d; background: rgba(108,117,125,.10); }
+    .ico.blue{ color:#0284c7; background: #e0f2fe; }
+    .ico.green{ color:#16a34a; background: #dcfce7; }
+    .ico.purple{ color:#7c3aed; background: #f3e8ff; }
+    .ico.red{ color:#dc2626; background: #fee2e2; }
+    .ico.amber{ color:#d97706; background: #fef3c7; }
+    .ico.slate{ color:#475569; background: #f1f5f9; }
+    .ico.indigo{ color:#4f46e5; background: #e0e7ff; }
 
     .text{ flex:1; min-width: 0; }
     .title{
@@ -609,14 +715,14 @@ function getTypeBadge(string $type): string {
     .openhint{
       display:inline-flex;
       align-items:center;
-      gap:6px;
+      gap:5px;
       color:#3b4a9e;
       font-weight:600;
       font-size: 12px;
     }
 
     .empty{
-      padding: 40px 10px;
+      padding: 48px 16px;
       text-align:center;
       color:#6c757d;
       font-weight:400;
@@ -628,9 +734,12 @@ function getTypeBadge(string $type): string {
       border: 1px solid #cfe2ff;
       color: #1f3f7a;
       border-radius: 10px;
-      padding: 10px 12px;
+      padding: 10px 14px;
       font-size: 13px;
       font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .guard-review {
@@ -725,7 +834,10 @@ function getTypeBadge(string $type): string {
 
     <main class="wrap">
       <section class="page-header">
-        <h1>Notifications</h1>
+        <h1 style="display:flex; align-items:center; gap:10px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2d3a7e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          Notifications
+        </h1>
         <div class="welcome">Welcome, <?php echo e($fullName); ?></div>
       </section>
 
@@ -733,6 +845,7 @@ function getTypeBadge(string $type): string {
         <section class="panel">
           <div class="panel-top">
             <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2d3a7e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
               All Notifications
               <?php if ($unreadCount > 0): ?>
                 <span class="badge"><?php echo (int)$unreadCount; ?></span>
@@ -742,27 +855,42 @@ function getTypeBadge(string $type): string {
             <div class="actions">
               <form method="post" style="margin:0; flex: 1 1 auto;">
                 <input type="hidden" name="action" value="mark_all_read" />
-                <button class="btn" type="submit">Mark All as Read</button>
+                <button class="btn" type="submit">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline><polyline points="20 12 12 20 9 17"></polyline></svg>
+                  Mark All as Read
+                </button>
               </form>
 
               <form method="post" style="margin:0; flex: 1 1 auto;" onsubmit="return confirm('Soft-delete ALL notifications?');">
                 <input type="hidden" name="action" value="delete_all" />
-                <button class="btn btn-danger" type="submit">Delete All</button>
+                <button class="btn btn-danger" type="submit">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  Delete All
+                </button>
               </form>
               
               <form method="post" style="margin:0; flex: 1 1 auto;" onsubmit="return confirm('Delete all resolved (Approved/Rejected) reports from the audit log?');">
                 <input type="hidden" name="action" value="delete_resolved" />
-                <button class="btn btn-danger" type="submit">Delete All Resolved</button>
+                <button class="btn btn-danger" type="submit">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                  Delete All Resolved
+                </button>
               </form>
             </div>
           </div>
 
           <?php if ($flashText !== ''): ?>
-            <div class="flash-note"><?php echo e($flashText); ?></div>
+            <div class="flash-note">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span><?php echo e($flashText); ?></span>
+            </div>
           <?php endif; ?>
 
           <?php if (empty($items)): ?>
-            <div class="empty">No notifications yet.</div>
+            <div class="empty">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block; margin: 0 auto 10px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+              No notifications yet.
+            </div>
           <?php else: ?>
             <?php foreach ($items as $n): ?>
               <?php
@@ -777,49 +905,58 @@ function getTypeBadge(string $type): string {
                   $guardDetails = $guardReportMap[(int)($n['related_id'] ?? 0)] ?? null;
                 }
                 
-                // Get type badge class
-                $type = strtoupper((string)$n['type']);
-                $typeBadgeClass = 'type-badge ';
-                if (str_contains($type, 'COMMUNITY')) $typeBadgeClass .= 'community';
-                elseif (str_contains($type, 'UPCC') || str_contains($type, 'CASE')) $typeBadgeClass .= 'upcc';
-                elseif (str_contains($type, 'GUARD') || str_contains($type, 'VIOLATION') || str_contains($type, 'OFFENSE')) $typeBadgeClass .= 'violation';
-                elseif (str_contains($type, 'DEADLINE')) $typeBadgeClass .= 'deadline';
-                elseif (str_contains($type, 'ADMIN')) $typeBadgeClass .= 'admin';
-                else $typeBadgeClass .= 'offense';
+                $vis = getNotifVisuals($n);
               ?>
 
               <?php if ($isClickable): ?>
                 <a class="<?php echo e(trim($classes)); ?>" href="<?php echo e($href); ?>">
-                  <?php echo iconSvg((string)$n['type']); ?>
+                  <?php echo iconSvg($n); ?>
                   <div class="text">
                     <div class="title"><?php echo e((string)$n['title']); ?></div>
-                    <span class="<?php echo $typeBadgeClass; ?>"><?php echo getTypeBadge($type); ?></span>
+                    <span class="type-badge <?php echo $vis['badge_class']; ?>">
+                      <?php echo $vis['badge_icon']; ?>
+                      <?php echo e($vis['badge_label']); ?>
+                    </span>
                     <div class="msg"><?php echo e((string)$n['message']); ?></div>
                     <div class="time">
-                      <?php echo date('M j, Y \a\t h:i A', strtotime((string)$n['created_at'])); ?>
-                      <span class="openhint">→ View</span>
+                      <span style="display:inline-flex; align-items:center; gap:4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        <?php echo date('M j, Y \a\t h:i A', strtotime((string)$n['created_at'])); ?>
+                      </span>
+                      <span class="openhint">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                        View Details
+                      </span>
                     </div>
                   </div>
                 </a>
               <?php else: ?>
                 <div class="<?php echo e(trim($classes)); ?>">
-                  <?php echo iconSvg((string)$n['type']); ?>
+                  <?php echo iconSvg($n); ?>
                   <div class="text">
                     <div class="title"><?php echo e((string)$n['title']); ?></div>
-                    <span class="<?php echo $typeBadgeClass; ?>"><?php echo getTypeBadge($type); ?></span>
+                    <span class="type-badge <?php echo $vis['badge_class']; ?>">
+                      <?php echo $vis['badge_icon']; ?>
+                      <?php echo e($vis['badge_label']); ?>
+                    </span>
                     <div class="msg"><?php echo e((string)$n['message']); ?></div>
-                    <div class="time"><?php echo date('M j, Y \a\t h:i A', strtotime((string)$n['created_at'])); ?></div>
+                    <div class="time">
+                      <span style="display:inline-flex; align-items:center; gap:4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        <?php echo date('M j, Y \a\t h:i A', strtotime((string)$n['created_at'])); ?>
+                      </span>
+                    </div>
 
                     <?php if ($isGuardReport): ?>
                       <div class="guard-review">
                         <?php if ($guardDetails): ?>
                           <div class="guard-review-grid">
-                            <div><strong>Student:</strong> <?php echo e(trim((string)$guardDetails['student_name']) !== '' ? (string)$guardDetails['student_name'] : (string)$guardDetails['student_id']); ?></div>
-                            <div><strong>Submitted By:</strong> <?php echo e((string)($guardDetails['guard_name'] ?? 'Guard')); ?></div>
-                            <div><strong>Offense:</strong> <?php echo e((string)($guardDetails['offense_code'] ?? '')); ?> - <?php echo e((string)($guardDetails['offense_name'] ?? '')); ?></div>
-                            <div><strong>Level:</strong> <?php echo e((string)($guardDetails['offense_level'] ?? '')); ?></div>
-                            <div><strong>Date Committed:</strong> <?php echo e(date('M j, Y h:i A', strtotime((string)$guardDetails['date_committed']))); ?></div>
-                            <div><strong>Status:</strong> <?php echo e((string)$guardDetails['status']); ?></div>
+                            <div><strong><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px; margin-right:3px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>Student:</strong> <?php echo e(trim((string)$guardDetails['student_name']) !== '' ? (string)$guardDetails['student_name'] : (string)$guardDetails['student_id']); ?></div>
+                            <div><strong><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px; margin-right:3px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>Submitted By:</strong> <?php echo e((string)($guardDetails['guard_name'] ?? 'Guard')); ?></div>
+                            <div><strong><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px; margin-right:3px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Offense:</strong> <?php echo e((string)($guardDetails['offense_code'] ?? '')); ?> - <?php echo e((string)($guardDetails['offense_name'] ?? '')); ?></div>
+                            <div><strong><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px; margin-right:3px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>Level:</strong> <?php echo e((string)($guardDetails['offense_level'] ?? '')); ?></div>
+                            <div><strong><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px; margin-right:3px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>Date Committed:</strong> <?php echo e(date('M j, Y h:i A', strtotime((string)$guardDetails['date_committed']))); ?></div>
+                            <div><strong><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px; margin-right:3px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>Status:</strong> <?php echo e((string)$guardDetails['status']); ?></div>
                           </div>
                           <?php if (trim((string)($guardDetails['description'] ?? '')) !== ''): ?>
                             <div class="guard-review-desc"><strong>Description:</strong> <?php echo e((string)$guardDetails['description']); ?></div>
@@ -827,18 +964,27 @@ function getTypeBadge(string $type): string {
 
                           <div class="guard-actions">
                             <?php if (strtoupper((string)$guardDetails['status']) === 'PENDING'): ?>
-                              <a class="btn-mini" href="offenses_student_view.php?student_id=<?php echo urlencode((string)$guardDetails['student_id']); ?>">View Student</a>
+                              <a class="btn-mini" href="offenses_student_view.php?student_id=<?php echo urlencode((string)$guardDetails['student_id']); ?>">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                View Student
+                              </a>
 
                               <form method="post" style="margin:0;">
                                 <input type="hidden" name="action" value="approve_guard_report" />
                                 <input type="hidden" name="report_id" value="<?php echo (int)$guardDetails['report_id']; ?>" />
-                                <button type="submit" class="btn-mini btn-mini-approve">Accept</button>
+                                <button type="submit" class="btn-mini btn-mini-approve">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                  Accept
+                                </button>
                               </form>
 
                               <form method="post" style="margin:0;" onsubmit="return confirm('Reject this submission? This will mark it rejected and it will NOT be saved to student offenses.');">
                                 <input type="hidden" name="action" value="reject_guard_report" />
                                 <input type="hidden" name="report_id" value="<?php echo (int)$guardDetails['report_id']; ?>" />
-                                <button type="submit" class="btn-mini btn-mini-reject">Reject</button>
+                                <button type="submit" class="btn-mini btn-mini-reject">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                  Reject
+                                </button>
                               </form>
                             <?php else: ?>
                               <!-- Resolved items (APPROVED/REJECTED) can no longer be "viewed" as actionable -->
@@ -849,7 +995,10 @@ function getTypeBadge(string $type): string {
                               <form method="post" style="margin:0;">
                                 <input type="hidden" name="action" value="delete_single" />
                                 <input type="hidden" name="notif_id" value="<?php echo (int)$n['notification_id']; ?>" />
-                                <button type="submit" class="btn-mini btn-mini-reject" style="background:#fef2f2; border:1px solid #fca5a5; color:#991b1b;">Delete from Audit</button>
+                                <button type="submit" class="btn-mini btn-mini-reject" style="background:#fef2f2; border:1px solid #fca5a5; color:#991b1b;">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                  Delete from Audit
+                                </button>
                               </form>
                             <?php endif; ?>
                           </div>
