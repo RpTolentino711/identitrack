@@ -506,6 +506,48 @@ if (($_GET['action'] ?? '') === 'list_admins') {
   exit;
 }
 
+if (($_GET['action'] ?? '') === 'delete_admin') {
+  header('Content-Type: application/json; charset=utf-8');
+  ensure_admin_schema();
+  $currentAdmin = admin_current();
+  $currAdminId = (int)($currentAdmin['admin_id'] ?? 0);
+
+  $raw = file_get_contents('php://input');
+  $data = json_decode($raw ?: '{}', true);
+  if (!is_array($data)) {
+    echo json_encode(['ok' => false, 'message' => 'Invalid request body.']);
+    exit;
+  }
+
+  $admin_id = (int)($data['admin_id'] ?? 0);
+  if ($admin_id <= 0) {
+    echo json_encode(['ok' => false, 'message' => 'Invalid admin ID.']);
+    exit;
+  }
+
+  if ($admin_id === $currAdminId) {
+    echo json_encode(['ok' => false, 'message' => 'You cannot delete your own logged-in admin account.']);
+    exit;
+  }
+
+  $targetAdmin = db_one(
+    "SELECT admin_id, full_name, username FROM admin_user WHERE admin_id = ? LIMIT 1",
+    [$admin_id]
+  );
+  if (!$targetAdmin) {
+    echo json_encode(['ok' => false, 'message' => 'Admin account not found.']);
+    exit;
+  }
+
+  try {
+    db_exec("DELETE FROM admin_user WHERE admin_id = ?", [$admin_id]);
+    echo json_encode(['ok' => true, 'message' => 'Admin account deleted successfully.']);
+  } catch (Exception $e) {
+    echo json_encode(['ok' => false, 'message' => 'Failed to delete admin account: ' . $e->getMessage()]);
+  }
+  exit;
+}
+
 $activeSidebar = 'profile';
 $reauthOk = !empty($_SESSION['profile_reauth_ok']);
 
@@ -1426,10 +1468,11 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
                     <th>Username</th>
                     <th>Email</th>
                     <th>Setup Status</th>
+                    <th style="text-align:right;">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="adminsBody">
-                  <tr><td colspan="4">
+                  <tr><td colspan="5">
                     <div class="guard-empty">
                       <p>Loading admin accounts...</p>
                     </div>
@@ -1709,6 +1752,35 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
         <button class="btn btn-danger" type="button" id="btnConfirmDelete">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
           Delete Guard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Delete Admin ── -->
+  <div class="modal-bg" id="modalDeleteAdmin">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-head-ico card-ico--red">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </div>
+        <div class="modal-title">
+          <h3>Delete Admin Account</h3>
+          <p id="delAdminSub">This action cannot be undone.</p>
+        </div>
+        <button class="modal-xbtn" data-close="#modalDeleteAdmin">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:var(--ruby-l);border:1px solid #fecaca;border-radius:10px;padding:12px 14px;color:var(--ruby);font-size:13px;line-height:1.5;">
+          Are you sure you want to permanently delete this admin account? The user will no longer be able to log in or access the admin panel.
+        </div>
+        <div class="alert alert-danger" id="deleteAdminMsg"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="#modalDeleteAdmin">Cancel</button>
+        <button class="btn btn-danger" type="button" id="btnConfirmDeleteAdmin">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+          Delete Admin
         </button>
       </div>
     </div>
@@ -2386,11 +2458,11 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
       if (!tbody) return;
       const { ok, data } = await postJSON('profile.php?action=list_admins', {});
       if (!ok || !data?.ok || !Array.isArray(data.admins)) {
-        tbody.innerHTML = `<tr><td colspan="4"><div class="guard-empty"><p>Failed to load admin list.</p></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5"><div class="guard-empty"><p>Failed to load admin list.</p></div></td></tr>`;
         return;
       }
       if (data.admins.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4"><div class="guard-empty"><p>No admins found.</p></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5"><div class="guard-empty"><p>No admins found.</p></div></td></tr>`;
         return;
       }
       tbody.innerHTML = data.admins.map(a => {
@@ -2402,21 +2474,52 @@ $profilePhotoSrc = $profilePhoto . ($hasCustomPhoto ? ('?v=' . urlencode((string
           : (Number(a.is_active) === 1 
               ? `<span class="pill pill-active">Active</span>` 
               : `<span class="pill pill-inactive">Inactive</span>`);
+        const actionBtn = isMe
+          ? `<td style="text-align:right;"><span style="font-size:11px;color:var(--slate); font-style:italic;">Active Session</span></td>`
+          : `<td style="text-align:right;">
+              <button class="btn btn-sm btn-danger" onclick="openDeleteAdmin(${Number(a.admin_id)}, '${esc(a.full_name || a.username)}')">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:13px;height:13px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                Delete
+              </button>
+            </td>`;
         return `
           <tr>
             <td>
               <div class="g-name" style="display:flex; align-items:center; flex-wrap:wrap;">
-                <span>${a.full_name || 'Admin'}</span> ${youBadge}
+                <span>${esc(a.full_name || 'Admin')}</span> ${youBadge}
               </div>
-              <div style="font-size:11px;color:var(--mist);">${a.role || 'ADMIN'}</div>
+              <div style="font-size:11px;color:var(--mist);">${esc(a.role || 'ADMIN')}</div>
             </td>
-            <td><span class="g-user">@${a.username}</span></td>
-            <td><span style="font-size:12.5px;color:var(--slate);">${a.email || '-'}</span></td>
+            <td><span class="g-user">@${esc(a.username)}</span></td>
+            <td><span style="font-size:12.5px;color:var(--slate);">${esc(a.email || '-')}</span></td>
             <td>${statusBadge}</td>
+            ${actionBtn}
           </tr>
         `;
       }).join('');
     }
+
+    let pendingDeleteAdminId = null;
+    window.openDeleteAdmin = function(id, name) {
+      pendingDeleteAdminId = id;
+      $('delAdminSub').textContent = `Admin "${name}" will be permanently removed.`;
+      hideAlert($('deleteAdminMsg'));
+      showModal('#modalDeleteAdmin');
+    };
+
+    $('btnConfirmDeleteAdmin')?.addEventListener('click', async () => {
+      if (!pendingDeleteAdminId) return;
+      hideAlert($('deleteAdminMsg'));
+      const { ok, data } = await postJSON('profile.php?action=delete_admin', { admin_id: pendingDeleteAdminId });
+      if (ok && data?.ok) {
+        hideModal('#modalDeleteAdmin');
+        pendingDeleteAdminId = null;
+        loadAdmins();
+        toast('Admin account deleted.', 'success');
+      } else {
+        showAlert($('deleteAdminMsg'), data?.message || 'Failed to delete admin.');
+      }
+    });
 
     $('btnOpenCreateAdminModal')?.addEventListener('click', () => {
       $('admFullName').value = '';
