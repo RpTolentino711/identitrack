@@ -1178,33 +1178,62 @@ hr{border-color:var(--border-glass);margin:18px 0}
 <!-- ── MAIN ──────────────────────────────────────────────────────────────── -->
 <main class="main-content">
 
-    <!-- HERO -->
-    <section class="hero">
+    <!-- OFFICIAL HEARING CHAMBER TOP BANNER -->
+    <div class="hearing-chamber-header" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(15,23,42,0.95),rgba(7,11,20,0.98));border:1px solid rgba(56,189,248,0.25);border-left:4px solid var(--accent-primary);border-radius:16px;padding:16px 24px;margin-bottom:24px;box-shadow:0 10px 30px rgba(0,0,0,0.4);flex-wrap:wrap;gap:14px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+            <div style="font-size:24px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);width:46px;height:46px;border-radius:12px;display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,0.3);">🏛️</div>
+            <div>
+                <div style="font-family:var(--font-h);font-size:16px;font-weight:800;letter-spacing:1px;color:#f8fafc;">NATIONAL UNIVERSITY DISCIPLINE BOARD</div>
+                <div style="font-size:11px;color:var(--accent-primary);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-top:2px;">OFFICIAL UPCC HEARING & TRIBUNAL CHAMBER • CONFIDENTIAL PROCEEDINGS</div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.4);border:1px solid var(--border-glass);padding:8px 16px;border-radius:999px;font-size:12px;">
+            <?php if ($isHearingOpen && $isHearingPaused): ?>
+                <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 10px #ef4444;display:inline-block;"></span> 
+                <span style="color:#fca5a5;font-weight:800;letter-spacing:0.5px;">HEARING SUSPENDED / PAUSED</span>
+            <?php elseif ($isHearingOpen): ?>
+                <span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;display:inline-block;animation:blink 1.4s ease-in-out infinite;"></span> 
+                <span style="color:#6ee7b7;font-weight:800;letter-spacing:0.5px;">TRIBUNAL IN SESSION (LIVE)</span>
+            <?php else: ?>
+                <span style="width:8px;height:8px;border-radius:50%;background:#64748b;display:inline-block;"></span> 
+                <span style="color:#cbd5e1;font-weight:800;letter-spacing:0.5px;">PROCEEDINGS CONCLUDED</span>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- HERO / DOCKET CARD -->
+    <section class="hero" style="border-top:3px solid var(--accent-primary);">
         <div>
-            <div class="crumb">UPCC / Case Detail</div>
-            <div class="title"><?= htmlspecialchars($caseLabel) ?></div>
-            <div class="subtitle"><?= htmlspecialchars($case['student_name']) ?> is under panel review. Inspect offenses, coordinate with panel, record the final decision.</div>
+            <div class="crumb" style="display:flex;align-items:center;gap:6px;">
+                <span>⚖️ OFFICIAL DOCKET FILE</span>
+                <span style="color:var(--text-muted);">•</span>
+                <span style="color:#fcd34d;font-weight:700;">CONFIDENTIAL</span>
+            </div>
+            <div class="title" style="font-size:32px;margin-top:4px;"><?= htmlspecialchars($caseLabel) ?></div>
+            <div class="subtitle" style="font-size:14.5px;color:#cbd5e1;margin-top:8px;">
+                Disciplinary proceedings active for Respondent <strong><?= htmlspecialchars($case['student_name']) ?></strong>. Review charges, evidentiary record, and record formal panel decision.
+            </div>
             <div class="hero-meta">
-                <span class="pill amber">⚖️ <?= htmlspecialchars($decisionHint) ?></span>
+                <span class="pill amber" style="font-weight:800;">⚖️ <?= htmlspecialchars($decisionHint) ?></span>
                 <span class="pill purple">🏢 <?= htmlspecialchars($case['assigned_dept_name'] ?? 'No dept') ?></span>
                 <span class="pill blue">🎓 <?= htmlspecialchars($case['year_level']) ?> Yr • <?= htmlspecialchars($case['section'] ?? 'N/A') ?></span>
-                <span class="pill green">📌 <?= htmlspecialchars($statusBadge['label']) ?></span>
+                <span class="pill green" style="font-weight:800;">📌 STATUS: <?= htmlspecialchars($statusBadge['label']) ?></span>
                 <?php if ($isHearingOpen && $isHearingPaused): ?>
-                  <span class="pill" data-pause-pill="1" style="background: #fca5a5; color: #7f1d1d; border-color: #ef4444;">⏸️ HEARING PAUSED</span>
+                  <span class="pill" data-pause-pill="1" style="background: rgba(239,68,68,0.2); color: #fca5a5; border-color: rgba(239,68,68,0.4); font-weight:800;">⏸️ HEARING PAUSED</span>
                 <?php elseif ($isHearingOpen): ?>
-                  <span class="pill" data-pause-pill="1" style="background: #86efac; color: #15803d; border-color: #22c55e;"><span style="display:inline-block;width:6px;height:6px;background:#15803d;border-radius:50%;margin-right:4px"></span> HEARING LIVE</span>
+                  <span class="pill" data-pause-pill="1" style="background: rgba(16,185,129,0.2); color: #6ee7b7; border-color: rgba(16,185,129,0.4); font-weight:800;"><span style="display:inline-block;width:6px;height:6px;background:#6ee7b7;border-radius:50%;margin-right:4px"></span> HEARING LIVE</span>
                 <?php endif; ?>
             </div>
         </div>
-        <div class="stack" style="min-width:260px">
-            <div class="info">
-                <div class="info-label">Student</div>
-                <div class="info-value"><?= htmlspecialchars($case['student_name']) ?></div>
-                <div style="margin-top:6px;font-size:13px;color:var(--text-muted)"><?= htmlspecialchars($case['student_id']) ?> • <?= htmlspecialchars($case['program']) ?></div>
+        <div class="stack" style="min-width:270px">
+            <div class="info" style="border:1px solid rgba(56,189,248,0.25);background:rgba(15,23,42,0.6);">
+                <div class="info-label" style="color:#38bdf8;">Respondent Student</div>
+                <div class="info-value" style="font-size:18px;color:#ffffff;"><?= htmlspecialchars($case['student_name']) ?></div>
+                <div style="margin-top:6px;font-size:13px;color:#94a3b8;font-weight:600;"><?= htmlspecialchars($case['student_id']) ?> • <?= htmlspecialchars($case['program']) ?></div>
             </div>
-            <div class="info">
-                <div class="info-label">Filed</div>
-                <div class="info-value"><?= fmt_dt((string)$case['created_at']) ?></div>
+            <div class="info" style="border:1px solid var(--border-glass);">
+                <div class="info-label">Docket Filed Date</div>
+                <div class="info-value" style="font-size:15px;"><?= fmt_dt((string)$case['created_at']) ?></div>
             </div>
         </div>
     </section>
