@@ -4247,10 +4247,13 @@ function toggleDrawerWhyPanel() {
         The XGBoost classifier evaluated the offense against <?= number_format(get_total_ai_dataset_count()) ?> historical campus precedent records.
       </div>
 
-      <!-- RE-ANALYZE SUGGESTION BUTTON -->
-      <div style="margin-top:16px;display:flex;justify-content:center;">
-        <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2));border:1px solid rgba(56,189,248,0.4);color:#38bdf8;padding:10px 24px;border-radius:12px;font-weight:800;font-size:13px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(56,189,248,0.15);transition:all 0.2s;" onmouseover="this.style.background='linear-gradient(135deg, #0284c7, #2563eb)';this.style.color='#ffffff';this.style.borderColor='transparent';this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2))';this.style.color='#38bdf8';this.style.borderColor='rgba(56,189,248,0.4)';this.style.transform='translateY(0)';">
-          <span>🔄</span> Re-Analyze Suggestion
+      <!-- ACTION BUTTONS: APPLY SUGGESTED PUNISHMENT & RE-ANALYZE -->
+      <div style="margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button type="button" onclick="applyComsicePredictionToForm()" style="background:linear-gradient(135deg, #059669, #10b981);border:none;color:#ffffff;padding:12px 24px;border-radius:12px;font-weight:800;font-size:13.5px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(16,185,129,0.4);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px) scale(1.02)';" onmouseout="this.style.transform='translateY(0) scale(1)';">
+          <span>✨</span> Auto-Fill AI Punishment into Form
+        </button>
+        <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2));border:1px solid rgba(56,189,248,0.4);color:#38bdf8;padding:12px 20px;border-radius:12px;font-weight:800;font-size:13px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(56,189,248,0.15);transition:all 0.2s;" onmouseover="this.style.background='linear-gradient(135deg, #0284c7, #2563eb)';this.style.color='#ffffff';this.style.borderColor='transparent';this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2))';this.style.color='#38bdf8';this.style.borderColor='rgba(56,189,248,0.4)';this.style.transform='translateY(0)';">
+          <span>🔄</span> Re-Analyze
         </button>
       </div>
     </div>
@@ -4258,7 +4261,10 @@ function toggleDrawerWhyPanel() {
   </div>
 
 <script>
+let currentComsicePredictionData = null;
+
 function renderComsiceResult(data) {
+    currentComsicePredictionData = data;
     const initBox = document.getElementById('comsiceInitialStateBox');
     const resCard = document.getElementById('comsiceResultCard');
     const loadingBox = document.getElementById('comsiceLoadingBox');
@@ -4299,6 +4305,71 @@ function renderComsiceResult(data) {
             .replace(/\n/g, '<br>');
 
         if (resCard) resCard.style.display = 'block';
+    }
+}
+
+function applyComsicePredictionToForm(data) {
+    if (!data) data = currentComsicePredictionData || (typeof currentAiResult !== 'undefined' ? currentAiResult : null);
+    if (!data) return;
+
+    const catNum = parseInt(data.category_num || data.suggested_category || 1, 10);
+    const predictedSanction = data.sanction || '';
+
+    const suggestDetails = document.getElementById('suggestDetails');
+    if (suggestDetails) {
+        suggestDetails.open = true;
+    }
+
+    const catSelect = document.getElementById('suggest_category');
+    if (catSelect) {
+        catSelect.value = String(catNum);
+        if (typeof toggleSugFields === 'function') {
+            toggleSugFields();
+        }
+    }
+
+    if (catNum === 1) {
+        const termsSelect = document.querySelector('select[name="suggest_cat1_terms"]');
+        if (termsSelect) termsSelect.value = '3';
+    } else if (catNum === 2) {
+        const usCb = document.getElementById('sug_us');
+        if (usCb) {
+            usCb.checked = true;
+            if (typeof toggleSugHours === 'function') toggleSugHours();
+        }
+        const csHours = parseInt(data.community_service_hours || 0, 10);
+        if (csHours > 0) {
+            const btn = document.querySelector(`.sug-hrs-btn[data-h="${csHours}"]`);
+            if (btn) {
+                btn.click();
+            } else if (typeof selectSugHours === 'function') {
+                const otherBtn = document.querySelector('.sug-hrs-btn[data-h="OTHER"]');
+                selectSugHours('OTHER', otherBtn);
+                const customH = document.getElementById('sug_cat2_service_hours_custom_h');
+                const hidH = document.getElementById('sug_cat2_service_hours');
+                if (customH) customH.value = csHours;
+                if (hidH) hidH.value = csHours;
+            }
+        }
+    }
+
+    const descTextarea = document.querySelector('textarea[name="suggest_description"]');
+    if (descTextarea) {
+        let noteText = `[IdentiTrack AI Recommendation]: ${predictedSanction}`;
+        if (data.ai_explanation) {
+            const cleanExp = data.ai_explanation.replace(/\*\*/g, '').replace(/\n+/g, ' ');
+            noteText += ` (${cleanExp.slice(0, 150)}...)`;
+        }
+        descTextarea.value = noteText;
+    }
+
+    const votingSec = document.getElementById('voting-section') || document.getElementById('suggestForm');
+    if (votingSec) {
+        votingSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('✨ AI Punishment Applied', `Category ${catNum} and sanction details auto-filled into Penalty Suggestion form.`, 'info');
     }
 }
 
