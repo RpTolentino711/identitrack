@@ -840,304 +840,697 @@ $postedFinalDecision   = trim($_POST['final_decision'] ?? '');
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($caseLabel) ?> | UPCC Case</title>
+<title><?= htmlspecialchars($caseLabel) ?> — UPCC Tribunal Docket</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
+/* ══════════════════════════════════════════════════════════════════════════
+   UPCC TRIBUNAL — Formal institutional design system
+   Deep navy + antique gold. Serif headings for legal gravitas.
+   ══════════════════════════════════════════════════════════════════════════ */
+
 :root{
-    --bg-dark:#060913;--bg-card:rgba(15,23,42,.82);--bg-glass:rgba(10,16,29,.92);
-    --border-glass:rgba(255,255,255,.09);--border-glass-hover:rgba(56,189,248,.38);
-    --accent-primary:#38bdf8;--accent-secondary:#818cf8;--accent-indigo:#6366f1;--success:#10b981;--warning:#fbbf24;--danger:#f87171;
-    --text-main:#f8fafc;--text-sub:#cbd5e1;--text-muted:#64748b;
-    --radius-lg:22px;--radius-md:14px;--radius-sm:8px;
-    --font-h:'Outfit',-apple-system,BlinkMacSystemFont,sans-serif;--font-b:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    /* Palette */
+    --ink-900:#060a14;
+    --ink-800:#0a1220;
+    --ink-700:#0e1a2d;
+    --ink-600:#132340;
+    --ink-500:#1a2c4a;
+
+    --paper:#0d1728;
+    --panel:#101c31;
+    --panel-hi:#152540;
+    --panel-line:#1e3054;
+
+    --gold:#c9a961;
+    --gold-soft:#a98b4a;
+    --gold-bright:#e3c789;
+    --gold-faint:rgba(201,169,97,.15);
+
+    --rose:#c96b6b;
+    --rose-soft:rgba(201,107,107,.14);
+    --sage:#6e9e7e;
+    --sage-soft:rgba(110,158,126,.14);
+    --amber:#c9985b;
+    --indigo:#7c8fc9;
+
+    --text-hi:#f1ece0;
+    --text:#d8d2c4;
+    --text-dim:#93a0b5;
+    --text-mute:#5d6a80;
+
+    --line:rgba(201,169,97,.14);
+    --line-2:rgba(255,255,255,.06);
+    --line-hi:rgba(201,169,97,.35);
+
+    --radius-lg:6px;
+    --radius-md:4px;
+    --radius-sm:3px;
+
+    --f-serif:'Libre Baskerville', Georgia, 'Times New Roman', serif;
+    --f-sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --f-mono:'JetBrains Mono', 'Courier New', monospace;
+
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow-md:0 4px 20px rgba(0,0,0,.35);
+    --shadow-lg:0 12px 40px rgba(0,0,0,.5);
 }
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font-b);color:var(--text-main);background:var(--bg-dark);min-height:100vh;overflow-x:hidden;line-height:1.5}
-body::before{content:'';position:fixed;inset:0;z-index:-2;
-    background:radial-gradient(circle at 10% 15%,rgba(56,189,248,.15),transparent 45%),
-               radial-gradient(circle at 90% 85%,rgba(129,140,248,.15),transparent 45%),
-               radial-gradient(circle at 50% 50%,rgba(16,185,129,.05),transparent 55%);
-    filter:blur(90px)}
-.app-container{display:grid;grid-template-columns:290px 1fr;min-height:100vh}
-@media(max-width:1100px){
-  .app-container{display:flex;flex-direction:column}
-  .sidebar{width:100%;padding:18px 24px;flex-direction:row;align-items:center;justify-content:space-between;border-right:none;border-bottom:1px solid var(--border-glass);box-shadow:0 4px 24px rgba(0,0,0,.3);z-index:10;flex-wrap:wrap;gap:12px}
-  .brand{margin-bottom:0;padding-bottom:0;border-bottom:none}
-  .brand-icon{width:42px;height:42px}
-  .brand-text h1{font-size:18px}
-  .side-group{margin-top:0;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
-  .side-group .side-label{display:none}
-  #backToDashboardBtn{width:auto !important;padding:8px 16px}
-  .main-content{padding:24px 20px}
-  .hero{flex-direction:column}
-  .layout{grid-template-columns:1fr}
+html{-webkit-text-size-adjust:100%}
+body{
+    font-family:var(--f-sans);
+    font-size:14px;
+    color:var(--text);
+    background:var(--ink-900);
+    min-height:100vh;
+    line-height:1.55;
+    letter-spacing:0.005em;
+    background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(201,169,97,.06), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(124,143,201,.04), transparent);
+    background-attachment:fixed;
 }
-@media(max-width:768px){
-  .vote-btns{grid-template-columns:1fr}
-  .vote-btn-row{grid-template-columns:1fr}
-  .tally-row{grid-template-columns:1fr}
-  .vote-tally{grid-template-columns:1fr}
+
+/* ── App shell ─────────────────────────────────────────────────────────── */
+.app-container{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+
+/* ── Sidebar ───────────────────────────────────────────────────────────── */
+.sidebar{
+    background:linear-gradient(180deg,var(--ink-800) 0%,var(--ink-900) 100%);
+    border-right:1px solid var(--line);
+    padding:28px 22px;
+    display:flex;flex-direction:column;
+    position:relative;
 }
-.sidebar{background:var(--bg-glass);backdrop-filter:blur(24px);border-right:1px solid var(--border-glass);
-    padding:32px 22px;display:flex;flex-direction:column;box-shadow:4px 0 30px rgba(0,0,0,.2)}
-.brand{display:flex;align-items:center;gap:14px;margin-bottom:36px;padding-bottom:20px;border-bottom:1px solid var(--border-glass)}
-.brand-icon{width:48px;height:48px;background:rgba(255,255,255,.03);border:1px solid var(--border-glass);
-    border-radius:14px;display:grid;place-items:center;padding:8px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
-.brand-icon img{width:100%;height:auto;border-radius:6px}
-.brand-text h1{font-family:var(--font-h);font-size:20px;font-weight:800;letter-spacing:.3px;line-height:1}
-.brand-text p{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-top:4px;font-weight:600}
+.sidebar::after{
+    content:'';position:absolute;top:0;bottom:0;right:-1px;width:1px;
+    background:linear-gradient(180deg,transparent,var(--gold-faint) 30%,var(--gold-faint) 70%,transparent);
+}
+.brand{display:flex;align-items:center;gap:12px;padding-bottom:22px;margin-bottom:24px;border-bottom:1px solid var(--line)}
+.brand-icon{width:42px;height:42px;border:1px solid var(--line);background:rgba(201,169,97,.05);
+    border-radius:4px;display:grid;place-items:center;padding:6px;flex-shrink:0}
+.brand-icon img{width:100%;height:auto}
+.brand-text h1{font-family:var(--f-serif);font-size:16px;font-weight:700;letter-spacing:.5px;color:var(--text-hi);line-height:1.1}
+.brand-text p{font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-top:4px;font-weight:600}
+
 .side-group{margin-top:22px}
-.side-label{font-size:11px;letter-spacing:1.8px;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px;font-weight:700}
-.panel-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-glass);
-    border-radius:999px;padding:8px 14px;margin:0 6px 8px 0;background:rgba(255,255,255,.025);
-    font-size:12px;color:var(--text-main);font-weight:600;backdrop-filter:blur(10px);transition:all .2s}
-.panel-chip:hover{border-color:var(--border-glass-hover);background:rgba(255,255,255,.05)}
-.panel-chip small{color:var(--text-muted);font-weight:500}
-.main-content{padding:36px 40px;overflow-y:auto}
-.hero{background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(11,17,31,.95));backdrop-filter:blur(20px);border:1px solid var(--border-glass);
-    border-radius:var(--radius-lg);padding:32px;display:flex;justify-content:space-between;
-    gap:24px;align-items:start;margin-bottom:28px;box-shadow:0 12px 36px rgba(0,0,0,.3),0 0 20px rgba(56,189,248,.05)}
-.crumb{color:var(--accent-primary);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
-.title{font-family:var(--font-h);font-size:30px;font-weight:800;letter-spacing:-.3px;
-    background:linear-gradient(135deg,#ffffff 30%,#94a3b8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.2}
-.subtitle{margin-top:10px;color:var(--text-sub);max-width:760px;line-height:1.6;font-size:14px}
-.hero-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
-.pill{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid transparent;backdrop-filter:blur(10px)}
-.pill.green{color:#6ee7b7;background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.25)}
-.pill.amber{color:#fcd34d;background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.25)}
-.pill.blue{color:#93c5fd;background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.25)}
-.pill.purple{color:#c4b5fd;background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.25)}
-.info{border:1px solid var(--border-glass);background:rgba(255,255,255,.025);border-radius:14px;padding:18px;min-width:210px;backdrop-filter:blur(12px)}
-.info-label{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px;font-weight:700}
-.info-value{font-size:17px;font-weight:800;color:var(--text-main);font-family:var(--font-h);letter-spacing:.2px}
-.layout{display:grid;grid-template-columns:minmax(0,1fr) 410px;gap:26px}
-@media(max-width:1100px){.layout{grid-template-columns:1fr}}
-.glass-panel{background:var(--bg-card);backdrop-filter:blur(20px);border:1px solid var(--border-glass);
-    border-radius:var(--radius-lg);overflow:hidden;display:flex;flex-direction:column;
-    box-shadow:0 12px 32px rgba(0,0,0,.25);transition:border-color .3s}
-.glass-panel:hover{border-color:rgba(255,255,255,.14)}
-.panel-header{padding:22px 26px;border-bottom:1px solid var(--border-glass);
-    display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(255,255,255,.015)}
-.panel-title{font-family:var(--font-h);font-size:17px;font-weight:800;display:flex;align-items:center;gap:10px;letter-spacing:.2px}
-.panel-body{padding:26px}
-.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;
-    font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border:1px solid transparent}
-.badge-amber{background:rgba(245,158,11,.12);color:#fcd34d;border-color:rgba(245,158,11,.25)}
-.badge-purple{background:rgba(139,92,246,.12);color:#c4b5fd;border-color:rgba(139,92,246,.25)}
-.badge-green{background:rgba(16,185,129,.12);color:#6ee7b7;border-color:rgba(16,185,129,.25)}
-.badge-blue{background:rgba(59,130,246,.12);color:#93c5fd;border-color:rgba(59,130,246,.25)}
-.badge-slate{background:rgba(148,163,184,.12);color:#cbd5e1;border-color:rgba(148,163,184,.25)}
-.offense-list{display:grid;gap:14px}
-.offense-item{border:1px solid var(--border-glass);background:rgba(255,255,255,.02);
-    border-radius:var(--radius-md);overflow:hidden;transition:all .3s ease}
-.offense-item:hover{background:rgba(255,255,255,.04);border-color:var(--border-glass-hover);box-shadow:0 6px 20px rgba(0,0,0,.2)}
-.offense-item summary{list-style:none;cursor:pointer;padding:18px 22px;
-    display:flex;justify-content:space-between;gap:14px;align-items:center}
+.side-label{font-size:10px;letter-spacing:2px;color:var(--text-mute);text-transform:uppercase;
+    margin-bottom:12px;font-weight:700;font-family:var(--f-sans);
+    padding-bottom:6px;border-bottom:1px solid var(--line-2)}
+.panel-chip{display:flex;align-items:center;gap:8px;border:1px solid var(--line-2);border-radius:4px;
+    padding:7px 11px;margin:0 0 6px 0;background:rgba(255,255,255,.015);font-size:12px;color:var(--text);
+    font-weight:500;line-height:1.35}
+.panel-chip small{color:var(--text-mute);font-weight:600;text-transform:uppercase;font-size:9.5px;letter-spacing:.8px}
+.panel-chip:hover{border-color:var(--line-hi);background:rgba(201,169,97,.04)}
+
+/* ── Main ──────────────────────────────────────────────────────────────── */
+.main-content{padding:32px 40px;max-width:100%;overflow-x:hidden}
+
+/* ── Chamber banner ────────────────────────────────────────────────────── */
+.chamber-banner{
+    display:flex;align-items:center;justify-content:space-between;
+    background:linear-gradient(180deg,var(--ink-800),var(--ink-700));
+    border:1px solid var(--line);
+    border-left:3px solid var(--gold);
+    padding:16px 24px;margin-bottom:26px;
+    box-shadow:var(--shadow-md);
+    gap:18px;flex-wrap:wrap;
+}
+.chamber-seal{display:flex;align-items:center;gap:16px}
+.chamber-seal-mark{
+    width:52px;height:52px;border:1.5px solid var(--gold);border-radius:50%;
+    display:grid;place-items:center;background:rgba(201,169,97,.06);
+    font-size:22px;flex-shrink:0;position:relative;
+}
+.chamber-seal-mark::before{
+    content:'';position:absolute;inset:3px;border:1px solid rgba(201,169,97,.3);border-radius:50%;
+}
+.chamber-title{
+    font-family:var(--f-serif);font-size:15px;font-weight:700;color:var(--text-hi);
+    letter-spacing:1px;text-transform:uppercase;line-height:1.2;
+}
+.chamber-sub{
+    font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1.8px;
+    font-weight:600;margin-top:5px;
+}
+.chamber-status{
+    display:inline-flex;align-items:center;gap:9px;
+    background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:3px;
+    padding:8px 15px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+    font-family:var(--f-sans);
+}
+.chamber-status .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.chamber-status .dot.live{background:var(--sage);box-shadow:0 0 0 3px rgba(110,158,126,.2)}
+.chamber-status .dot.paused{background:var(--rose);box-shadow:0 0 0 3px rgba(201,107,107,.2)}
+.chamber-status .dot.closed{background:var(--text-mute)}
+
+/* ── Docket card (hero) ────────────────────────────────────────────────── */
+.hero{
+    background:linear-gradient(180deg,var(--panel),var(--panel-hi));
+    border:1px solid var(--line);
+    border-top:3px solid var(--gold);
+    padding:30px 32px;
+    display:flex;justify-content:space-between;gap:32px;align-items:flex-start;
+    margin-bottom:26px;
+    box-shadow:var(--shadow-md);
+    position:relative;
+}
+.hero::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--gold) 0%,var(--gold-soft) 30%,transparent 100%);
+}
+.crumb{font-size:10.5px;color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:2.2px;
+    margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.title{
+    font-family:var(--f-serif);font-size:30px;font-weight:700;color:var(--text-hi);
+    letter-spacing:-.3px;line-height:1.15;
+}
+.subtitle{margin-top:12px;color:var(--text);font-size:14px;max-width:760px;line-height:1.65}
+.hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+
+.pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:6px 12px;border-radius:3px;
+    font-size:11px;font-weight:700;letter-spacing:.7px;
+    border:1px solid var(--line-2);background:rgba(255,255,255,.02);
+    text-transform:uppercase;
+}
+.pill.green{color:#9dc5a8;border-color:rgba(110,158,126,.35);background:var(--sage-soft)}
+.pill.amber{color:#dfb87c;border-color:rgba(201,152,91,.35);background:rgba(201,152,91,.1)}
+.pill.blue{color:#a5b6e0;border-color:rgba(124,143,201,.35);background:rgba(124,143,201,.1)}
+.pill.purple{color:#b4aee0;border-color:rgba(150,140,200,.35);background:rgba(150,140,200,.1)}
+.pill.gold{color:var(--gold-bright);border-color:var(--line-hi);background:var(--gold-faint)}
+
+.info-box{
+    border:1px solid var(--line);
+    background:rgba(0,0,0,.25);
+    padding:16px 18px;
+    min-width:230px;
+    border-radius:var(--radius-md);
+}
+.info-label{
+    font-size:10px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.8px;
+    margin-bottom:7px;font-weight:700;
+}
+.info-value{font-family:var(--f-serif);font-size:16px;font-weight:700;color:var(--text-hi);letter-spacing:.2px;line-height:1.3}
+
+.stack{display:grid;gap:20px}
+
+/* ── Layout ────────────────────────────────────────────────────────────── */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px}
+@media(max-width:1160px){.layout{grid-template-columns:1fr}}
+
+/* ── Panels ────────────────────────────────────────────────────────────── */
+.glass-panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius-md);
+    overflow:hidden;
+    display:flex;flex-direction:column;
+    box-shadow:var(--shadow-sm);
+}
+.panel-header{
+    padding:18px 24px;
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:rgba(0,0,0,.2);
+    position:relative;
+}
+.panel-header::before{
+    content:'';position:absolute;left:24px;right:24px;bottom:-1px;height:1px;
+    background:linear-gradient(90deg,var(--gold-faint),transparent);
+}
+.panel-title{
+    font-family:var(--f-serif);font-size:15px;font-weight:700;color:var(--text-hi);
+    display:flex;align-items:center;gap:10px;letter-spacing:.3px;
+}
+.panel-body{padding:24px}
+
+/* ── Badges ────────────────────────────────────────────────────────────── */
+.badge{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:4px 10px;border-radius:3px;
+    font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+    border:1px solid transparent;
+}
+.badge-amber{background:rgba(201,152,91,.12);color:#dfb87c;border-color:rgba(201,152,91,.35)}
+.badge-purple{background:rgba(150,140,200,.12);color:#b4aee0;border-color:rgba(150,140,200,.35)}
+.badge-green{background:var(--sage-soft);color:#9dc5a8;border-color:rgba(110,158,126,.35)}
+.badge-blue{background:rgba(124,143,201,.12);color:#a5b6e0;border-color:rgba(124,143,201,.35)}
+.badge-slate{background:rgba(147,160,181,.1);color:#b0bac9;border-color:rgba(147,160,181,.3)}
+.badge-emerald{background:var(--sage-soft);color:#9dc5a8;border-color:rgba(110,158,126,.4)}
+
+/* ── Offense list ──────────────────────────────────────────────────────── */
+.offense-list{display:grid;gap:12px}
+.offense-item{
+    border:1px solid var(--line-2);
+    background:rgba(0,0,0,.2);
+    border-radius:var(--radius-md);
+    overflow:hidden;
+    transition:border-color .2s,background .2s;
+}
+.offense-item:hover{border-color:var(--line-hi);background:rgba(201,169,97,.03)}
+.offense-item[open]{border-color:var(--line-hi);background:rgba(201,169,97,.02)}
+.offense-item summary{
+    list-style:none;cursor:pointer;padding:16px 20px;
+    display:flex;justify-content:space-between;gap:14px;align-items:center;
+}
 .offense-item summary::-webkit-details-marker{display:none}
-.offense-main{display:flex;flex-direction:column;gap:5px;min-width:0}
-.offense-code{font-size:12px;color:var(--accent-primary);font-weight:800;letter-spacing:1.2px}
-.offense-name{font-size:15px;font-weight:700;font-family:var(--font-h)}
-.offense-meta{color:var(--text-muted);font-size:12px;font-weight:500}
-.offense-body{padding:0 22px 22px;border-top:1px solid var(--border-glass);padding-top:18px;display:grid;gap:14px}
-.offense-row{display:grid;grid-template-columns:140px 1fr;gap:14px;align-items:start}
-.offense-row .label{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:1.2px;font-weight:700}
-.offense-row .value{color:var(--text-main);font-size:13.5px;line-height:1.6}
+.offense-main{display:flex;flex-direction:column;gap:4px;min-width:0}
+.offense-code{font-size:11px;color:var(--gold);font-weight:700;letter-spacing:1.5px;font-family:var(--f-mono)}
+.offense-name{font-family:var(--f-serif);font-size:15px;font-weight:700;color:var(--text-hi)}
+.offense-meta{color:var(--text-mute);font-size:11.5px;font-weight:500;letter-spacing:.3px}
+.offense-body{padding:0 20px 22px;border-top:1px solid var(--line-2);padding-top:18px;display:grid;gap:14px}
+.offense-row{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start}
+.offense-row .label{
+    color:var(--text-mute);font-size:10.5px;text-transform:uppercase;letter-spacing:1.5px;
+    font-weight:700;padding-top:2px;
+}
+.offense-row .value{color:var(--text);font-size:13.5px;line-height:1.65}
+
+/* ── Form fields ───────────────────────────────────────────────────────── */
 .field{display:grid;gap:8px}
-.field label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700}
-.fld-input{width:100%;border:1px solid var(--border-glass);background:rgba(0,0,0,.25);color:var(--text-main);
-    border-radius:12px;padding:12px 16px;font-family:var(--font-b);font-size:13.5px;transition:all .2s}
-.fld-input option, select option{background-color:#1e293b !important;color:#f8fafc !important;padding:10px 14px}
-.fld-input:focus{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px rgba(56,189,248,.2)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:12px;
-    cursor:pointer;padding:11px 20px;font-family:var(--font-b);font-size:13.5px;font-weight:700;text-decoration:none;transition:all .2s}
-.btn-primary{background:linear-gradient(135deg,var(--accent-primary),#6366f1);color:#fff;box-shadow:0 4px 16px rgba(56,189,248,.3)}
-.btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 22px rgba(56,189,248,.45)}
-.btn-secondary{background:rgba(255,255,255,.05);color:var(--text-main);border:1px solid var(--border-glass)}
-.btn-secondary:hover{background:rgba(255,255,255,.1);border-color:var(--border-glass-hover)}
-.btn-danger{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
-.btn-danger:hover{background:rgba(239,68,68,.28)}
-.btn-success{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
-.btn-success:hover{background:rgba(16,185,129,.28)}
-.chat-item{border:1px solid var(--border-glass);background:rgba(255,255,255,.025);
-    border-radius:var(--radius-md);padding:14px 18px;position:relative;margin-bottom:12px;backdrop-filter:blur(10px)}
-.chat-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}
-.chat-name{font-weight:700;font-size:13.5px;font-family:var(--font-h)}
-.chat-role{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:600}
-.chat-time{color:var(--text-muted);font-size:11px;white-space:nowrap}
-.chat-msg{color:#e2e8f0;line-height:1.65;font-size:13.5px;white-space:pre-wrap}
-.empty{color:var(--text-muted);font-size:13px;padding:14px 0;font-style:italic}
-.lock{border:1px dashed rgba(245,158,11,.4);background:rgba(245,158,11,.1);border-radius:var(--radius-md);padding:24px;color:#fcd34d;text-align:center}
-.stack{display:grid;gap:18px}
-hr{border-color:var(--border-glass);margin:18px 0}
+.field label{
+    font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.5px;
+    font-weight:700;
+}
+.fld-input{
+    width:100%;
+    border:1px solid var(--line-2);
+    background:rgba(0,0,0,.35);
+    color:var(--text-hi);
+    border-radius:var(--radius-sm);
+    padding:11px 14px;
+    font-family:var(--f-sans);font-size:13.5px;
+    transition:border-color .2s,background .2s;
+    line-height:1.5;
+}
+.fld-input:focus{outline:none;border-color:var(--gold);background:rgba(0,0,0,.5)}
+.fld-input::placeholder{color:var(--text-mute)}
+.fld-input option,select option{background-color:#0e1a2d !important;color:#f1ece0 !important;padding:10px}
 
-/* ── COOLDOWN ALERT ──────────────────────────────────────────────────── */
-.cooldown-alert{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);
-    border-radius:14px;padding:16px 18px;text-align:center;font-size:13.5px;color:#f87171}
-.cooldown-alert strong{font-size:22px;display:block;margin-top:6px;font-family:var(--font-h);
-    font-variant-numeric:tabular-nums}
+textarea.fld-input{min-height:90px;resize:vertical;font-family:var(--f-sans)}
 
-/* ── CONSENSUS BANNER ────────────────────────────────────────────────── */
-.consensus-banner{background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(5,150,105,.12));
-    border:2px solid rgba(16,185,129,.45);border-radius:var(--radius-md);padding:22px;text-align:center;margin-bottom:18px;box-shadow:0 8px 24px rgba(16,185,129,.15)}
-.consensus-banner-title{font-family:var(--font-h);font-size:19px;font-weight:800;color:#6ee7b7;margin-bottom:6px;letter-spacing:.3px}
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border:none;border-radius:var(--radius-sm);cursor:pointer;
+    padding:11px 20px;
+    font-family:var(--f-sans);font-size:12.5px;font-weight:700;
+    text-decoration:none;transition:all .18s;
+    letter-spacing:.5px;text-transform:uppercase;
+    line-height:1;
+}
+.btn-primary{
+    background:linear-gradient(180deg,var(--gold),var(--gold-soft));
+    color:#0a1220;
+    box-shadow:0 1px 0 rgba(255,255,255,.15) inset,0 2px 8px rgba(201,169,97,.25);
+    border:1px solid var(--gold-soft);
+}
+.btn-primary:hover{background:linear-gradient(180deg,var(--gold-bright),var(--gold));box-shadow:0 2px 14px rgba(201,169,97,.4)}
+.btn-secondary{
+    background:rgba(255,255,255,.03);color:var(--text);
+    border:1px solid var(--line-2);
+}
+.btn-secondary:hover{background:rgba(255,255,255,.06);border-color:var(--line-hi);color:var(--text-hi)}
+.btn-danger{
+    background:rgba(201,107,107,.12);color:#e0a0a0;
+    border:1px solid rgba(201,107,107,.35);
+}
+.btn-danger:hover{background:rgba(201,107,107,.22)}
+.btn-success{background:var(--sage-soft);color:#9dc5a8;border:1px solid rgba(110,158,126,.35)}
+.btn-success:hover{background:rgba(110,158,126,.22)}
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--line-2)}
+.btn-outline:hover{border-color:var(--line-hi);color:var(--text-hi)}
 
-/* ── PRESENCE OVERLAY ────────────────────────────────────────────────── */
-.presence-overlay{position:fixed;inset:0;z-index:3000;display:none;align-items:center;
-    justify-content:center;background:rgba(7,11,20,.88);backdrop-filter:blur(18px);padding:24px;text-align:center}
+/* ── Chat ──────────────────────────────────────────────────────────────── */
+.chat-item{
+    border:1px solid var(--line-2);background:rgba(0,0,0,.18);
+    border-radius:var(--radius-md);padding:13px 16px;margin-bottom:10px;
+}
+.chat-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:7px;align-items:baseline}
+.chat-name{font-family:var(--f-serif);font-weight:700;font-size:13.5px;color:var(--text-hi)}
+.chat-role{color:var(--text-mute);font-size:10px;text-transform:uppercase;letter-spacing:1.2px;font-weight:700}
+.chat-time{color:var(--text-mute);font-size:11px;white-space:nowrap;font-family:var(--f-mono)}
+.chat-msg{color:var(--text);line-height:1.65;font-size:13.5px;white-space:pre-wrap}
+
+/* ── Lock box ──────────────────────────────────────────────────────────── */
+.lock{
+    border:1px dashed rgba(201,152,91,.5);
+    background:rgba(201,152,91,.06);
+    border-radius:var(--radius-md);
+    padding:26px;color:#dfb87c;text-align:center;
+}
+.lock strong{color:var(--gold-bright);font-family:var(--f-serif);font-size:16px}
+.empty{color:var(--text-mute);font-size:13px;padding:14px 0;font-style:italic}
+
+hr{border:none;border-top:1px solid var(--line);margin:18px 0}
+
+/* ── Cooldown alert ────────────────────────────────────────────────────── */
+.cooldown-alert{
+    background:var(--rose-soft);border:1px solid rgba(201,107,107,.35);
+    border-radius:var(--radius-md);padding:16px;text-align:center;
+    font-size:13px;color:#e0a0a0;
+}
+.cooldown-alert strong{
+    font-size:24px;display:block;margin-top:6px;font-family:var(--f-mono);
+    font-variant-numeric:tabular-nums;color:#e0a0a0;letter-spacing:1px;
+}
+
+/* ── Consensus banner ──────────────────────────────────────────────────── */
+.consensus-banner{
+    background:var(--sage-soft);border:1px solid rgba(110,158,126,.4);
+    border-radius:var(--radius-md);padding:22px;text-align:center;margin-bottom:18px;
+}
+.consensus-banner-title{
+    font-family:var(--f-serif);font-size:17px;font-weight:700;color:#9dc5a8;
+    margin-bottom:6px;letter-spacing:1px;text-transform:uppercase;
+}
+
+/* ── Presence overlay ──────────────────────────────────────────────────── */
+.presence-overlay{
+    position:fixed;inset:0;z-index:3000;display:none;align-items:center;justify-content:center;
+    background:rgba(6,10,20,.94);backdrop-filter:blur(14px);padding:24px;text-align:center;
+}
 .presence-overlay.open{display:flex}
-.presence-card{background:var(--bg-card);border:1px solid var(--border-glass);border-radius:var(--radius-lg);
-    padding:44px;max-width:420px;width:100%;backdrop-filter:blur(24px);box-shadow:0 24px 48px rgba(0,0,0,.5)}
+.presence-card{
+    background:var(--panel);border:1px solid var(--line-hi);border-radius:var(--radius-md);
+    padding:44px;max-width:440px;width:100%;box-shadow:var(--shadow-lg);
+}
 
-/* ══════════════════════════════════════════════════════════════════════
-   VOTING MODAL — full-screen live voting popup
-══════════════════════════════════════════════════════════════════════ */
-.voting-modal{position:fixed;inset:0;z-index:9000;display:none;align-items:center;
-    justify-content:center;background:rgba(6,10,18,.96);backdrop-filter:blur(16px);padding:20px}
+/* ══════════════════════════════════════════════════════════════════════════
+   Voting modal — formal tribunal voting chamber
+══════════════════════════════════════════════════════════════════════════ */
+.voting-modal{
+    position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;
+    background:rgba(6,10,20,.95);backdrop-filter:blur(10px);padding:20px;
+}
 .voting-modal.open{display:flex}
-.vmc{background:linear-gradient(160deg,rgba(20,30,55,.98),rgba(11,17,31,.98));
-    border:2px solid var(--accent-primary);border-radius:var(--radius-lg);
-    padding:38px 34px;width:100%;max-width:590px;max-height:92vh;overflow-y:auto;
-    box-shadow:0 32px 70px rgba(0,0,0,.7),0 0 60px rgba(56,189,248,.25);
-    animation:popIn .35s cubic-bezier(.34,1.56,.64,1)}
-@keyframes popIn{from{transform:scale(.85) translateY(30px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
-.vmc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.vmc-title{font-family:var(--font-h);font-size:26px;font-weight:800;color:var(--accent-primary);letter-spacing:.2px}
-.vmc-live-badge{background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.4);
-    border-radius:999px;padding:4px 12px;font-size:11px;font-weight:800;text-transform:uppercase;
-    letter-spacing:1px;animation:blink 1.4s ease-in-out infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
-.vmc-sub{color:var(--text-sub);font-size:13.5px;margin-bottom:22px;line-height:1.55}
+.vmc{
+    background:linear-gradient(180deg,var(--panel),var(--ink-700));
+    border:1px solid var(--gold);border-radius:var(--radius-md);
+    padding:34px 32px;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;
+    box-shadow:var(--shadow-lg),0 0 0 1px rgba(201,169,97,.1);
+    position:relative;
+}
+.vmc::before{
+    content:'';position:absolute;top:0;left:24px;right:24px;height:3px;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent);
+}
+.vmc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.vmc-title{font-family:var(--f-serif);font-size:22px;font-weight:700;color:var(--text-hi);letter-spacing:.3px}
+.vmc-live-badge{
+    background:var(--rose-soft);color:#e0a0a0;border:1px solid rgba(201,107,107,.4);
+    border-radius:3px;padding:5px 11px;font-size:10px;font-weight:700;
+    text-transform:uppercase;letter-spacing:1.5px;
+}
+.vmc-sub{color:var(--text);font-size:13.5px;margin-bottom:22px;line-height:1.6}
 
-/* Timer bar */
-.timer-wrap{margin:0 0 20px}
-.timer-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
-.timer-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700}
-.timer-num{font-family:var(--font-h);font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;color:#fff;
-    transition:color .5s}
-.timer-num.urgent{color:#f87171;animation:pulseRed 1s ease-in-out infinite}
-@keyframes pulseRed{0%,100%{opacity:1}50%{opacity:.6}}
-.timer-bar-wrap{height:7px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}
-.timer-bar-fill{height:100%;border-radius:999px;transition:width 1s linear,background .5s}
+/* Timer */
+.timer-wrap{margin:0 0 22px}
+.timer-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.timer-label{font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.5px;font-weight:700}
+.timer-num{
+    font-family:var(--f-mono);font-size:26px;font-weight:600;
+    font-variant-numeric:tabular-nums;color:var(--text-hi);letter-spacing:1px;
+}
+.timer-num.urgent{color:#e0a0a0}
+.timer-bar-wrap{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.timer-bar-fill{height:100%;transition:width 1s linear,background .5s}
 
 /* Suggestion box */
-.sug-box{background:rgba(0,0,0,.35);border:1px solid rgba(56,189,248,.3);
-    border-radius:16px;padding:20px;margin:0 0 20px}
-.sug-cat{font-family:var(--font-h);font-size:21px;font-weight:800;color:#c4b5fd;margin-bottom:6px}
-.sug-desc{font-size:13.5px;color:#e2e8f0;line-height:1.6;margin-bottom:10px}
-.sug-note{background:rgba(255,255,255,.04);border-left:3px solid var(--accent-primary);
-    padding:10px 14px;border-radius:0 10px 10px 0;font-size:12.5px;color:var(--text-sub);font-style:italic;margin-top:10px}
-.sug-tag{display:inline-block;background:rgba(99,102,241,.18);color:#c4b5fd;border:1px solid rgba(99,102,241,.35);
-    border-radius:8px;padding:3px 10px;font-size:11.5px;font-weight:700;margin:3px 3px 0 0}
+.sug-box{
+    background:rgba(0,0,0,.35);border:1px solid var(--line-hi);
+    border-radius:var(--radius-md);padding:20px;margin:0 0 20px;
+}
+.sug-cat{font-family:var(--f-serif);font-size:19px;font-weight:700;color:var(--gold-bright);margin-bottom:6px}
+.sug-desc{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:10px}
+.sug-note{
+    background:rgba(255,255,255,.03);border-left:3px solid var(--gold);
+    padding:10px 14px;border-radius:0 4px 4px 0;font-size:12.5px;color:var(--text);font-style:italic;
+    margin-top:10px;
+}
+.sug-tag{
+    display:inline-block;background:rgba(201,169,97,.12);color:var(--gold-bright);
+    border:1px solid var(--line-hi);border-radius:3px;
+    padding:3px 9px;font-size:11px;font-weight:700;margin:3px 3px 0 0;letter-spacing:.3px;
+}
 
 /* Tally */
-.tally-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
-.tally-cell{background:rgba(0,0,0,.25);border-radius:14px;padding:14px;text-align:center;border:1px solid var(--border-glass)}
-.tally-cell label{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);display:block;margin-bottom:4px;font-weight:700}
-.tally-cell span{font-family:var(--font-h);font-size:26px;font-weight:800;transition:all .3s}
-.tc-agree span{color:#6ee7b7}.tc-disagree span{color:#f87171}.tc-pending span{color:#fcd34d}
-.tally-note{text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:16px}
+.tally-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.tally-cell{
+    background:rgba(0,0,0,.25);border-radius:var(--radius-md);padding:14px;text-align:center;
+    border:1px solid var(--line-2);
+}
+.tally-cell label{
+    font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-mute);
+    display:block;margin-bottom:5px;font-weight:700;
+}
+.tally-cell span{font-family:var(--f-mono);font-size:24px;font-weight:600;letter-spacing:.5px}
+.tc-agree span{color:#9dc5a8}
+.tc-disagree span{color:#e0a0a0}
+.tc-pending span{color:#dfb87c}
+.tally-note{text-align:center;font-size:11.5px;color:var(--text-mute);margin-bottom:16px;letter-spacing:.3px}
 
-/* Member vote list */
-.voter-list{display:grid;gap:10px;margin-bottom:20px}
-.voter-item{display:flex;align-items:center;justify-content:space-between;gap:12px;
-    padding:12px 16px;border:1px solid rgba(255,255,255,.08);border-radius:14px;
-    background:rgba(0,0,0,.25);transition:border-color .3s,background .3s}
-.voter-item.v-agree{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.08)}
-.voter-item.v-disagree{border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.08)}
-.voter-name{font-weight:700;font-size:13.5px}
-.voter-meta{font-size:11px;color:var(--text-muted);margin-top:2px}
-.v-pill{padding:4px 12px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
-.v-pill.agree{background:rgba(16,185,129,.18);color:#6ee7b7;border:1px solid rgba(16,185,129,.4)}
-.v-pill.disagree{background:rgba(239,68,68,.18);color:#f87171;border:1px solid rgba(239,68,68,.4)}
-.v-pill.pending{background:rgba(245,158,11,.18);color:#fcd34d;border:1px solid rgba(245,158,11,.4)}
-.v-pill.suggester{background:rgba(99,102,241,.18);color:#c4b5fd;border:1px solid rgba(99,102,241,.4)}
+/* Voter list */
+.voter-list{display:grid;gap:8px;margin-bottom:20px}
+.voter-item{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 16px;border:1px solid var(--line-2);border-radius:var(--radius-md);
+    background:rgba(0,0,0,.2);transition:border-color .3s,background .3s;
+}
+.voter-item.v-agree{border-color:rgba(110,158,126,.4);background:var(--sage-soft)}
+.voter-item.v-disagree{border-color:rgba(201,107,107,.4);background:var(--rose-soft)}
+.voter-name{font-weight:700;font-size:13px;color:var(--text-hi)}
+.voter-meta{font-size:10.5px;color:var(--text-mute);margin-top:2px;text-transform:uppercase;letter-spacing:1px}
+.v-pill{
+    padding:4px 10px;border-radius:3px;font-size:10px;font-weight:700;
+    text-transform:uppercase;letter-spacing:1.2px;border:1px solid transparent;
+}
+.v-pill.agree{background:var(--sage-soft);color:#9dc5a8;border-color:rgba(110,158,126,.4)}
+.v-pill.disagree{background:var(--rose-soft);color:#e0a0a0;border-color:rgba(201,107,107,.4)}
+.v-pill.pending{background:rgba(201,152,91,.1);color:#dfb87c;border-color:rgba(201,152,91,.35)}
+.v-pill.suggester{background:rgba(201,169,97,.15);color:var(--gold-bright);border-color:var(--line-hi)}
 
 /* Vote buttons */
-.vote-btn-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px}
-.btn-agree{background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;
-    border-radius:14px;padding:16px;font-family:var(--font-b);font-size:16px;font-weight:800;
-    cursor:pointer;transition:all .2s;width:100%;box-shadow:0 6px 20px rgba(16,185,129,.3)}
-.btn-agree:hover{transform:translateY(-3px);box-shadow:0 8px 26px rgba(16,185,129,.45)}
-.btn-disagree{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;border:none;
-    border-radius:14px;padding:16px;font-family:var(--font-b);font-size:16px;font-weight:800;
-    cursor:pointer;transition:all .2s;width:100%;box-shadow:0 6px 20px rgba(239,68,68,.3)}
-.btn-disagree:hover{transform:translateY(-3px);box-shadow:0 8px 26px rgba(239,68,68,.45)}
-.voted-conf{text-align:center;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);
-    border-radius:14px;padding:16px;font-size:14px;font-weight:600;color:#6ee7b7;margin-bottom:14px}
-.voted-conf small{display:block;font-size:11.5px;font-weight:400;color:var(--text-muted);margin-top:4px}
+.vote-btn-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.btn-agree{
+    background:linear-gradient(180deg,#5c8a6c,#4c7760);color:#fff;border:none;
+    border-radius:var(--radius-md);padding:16px;
+    font-family:var(--f-sans);font-size:14px;font-weight:800;cursor:pointer;
+    transition:all .18s;width:100%;letter-spacing:1.5px;text-transform:uppercase;
+    box-shadow:0 2px 0 rgba(0,0,0,.3) inset,0 3px 12px rgba(76,119,96,.35);
+}
+.btn-agree:hover{background:linear-gradient(180deg,#6ba075,#5c8a6c);box-shadow:0 4px 18px rgba(76,119,96,.5)}
+.btn-disagree{
+    background:linear-gradient(180deg,#a85858,#8d4747);color:#fff;border:none;
+    border-radius:var(--radius-md);padding:16px;
+    font-family:var(--f-sans);font-size:14px;font-weight:800;cursor:pointer;
+    transition:all .18s;width:100%;letter-spacing:1.5px;text-transform:uppercase;
+    box-shadow:0 2px 0 rgba(0,0,0,.3) inset,0 3px 12px rgba(141,71,71,.35);
+}
+.btn-disagree:hover{background:linear-gradient(180deg,#bc6666,#a85858);box-shadow:0 4px 18px rgba(141,71,71,.5)}
+.voted-conf{
+    text-align:center;background:var(--sage-soft);
+    border:1px solid rgba(110,158,126,.4);border-radius:var(--radius-md);
+    padding:16px;font-size:13.5px;font-weight:600;color:#9dc5a8;margin-bottom:14px;
+}
+.voted-conf small{display:block;font-size:11px;font-weight:400;color:var(--text-mute);margin-top:5px;letter-spacing:.3px}
 
-/* Result flash */
-.result-flash{border-radius:14px;padding:16px;text-align:center;font-weight:700;font-size:14px;margin-bottom:14px;display:none}
-.result-flash.consensus{background:rgba(16,185,129,.18);border:1px solid rgba(16,185,129,.4);color:#6ee7b7}
-.result-flash.disagreed{background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.4);color:#f87171}
+.result-flash{
+    border-radius:var(--radius-md);padding:15px;text-align:center;
+    font-weight:600;font-size:13.5px;margin-bottom:14px;display:none;
+}
+.result-flash.consensus{background:var(--sage-soft);border:1px solid rgba(110,158,126,.4);color:#9dc5a8}
+.result-flash.disagreed{background:var(--rose-soft);border:1px solid rgba(201,107,107,.4);color:#e0a0a0}
 
-/* Panel-side voting section */
-.vote-tally{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
-    background:rgba(0,0,0,.25);border-radius:14px;padding:16px;margin:18px 0;text-align:center;border:1px solid var(--border-glass)}
-.tally-item label{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);display:block;margin-bottom:4px;font-weight:700}
-.tally-item span{font-family:var(--font-h);font-size:24px;font-weight:800}
-.tally-agree span{color:#6ee7b7}.tally-disagree span{color:#f87171}.tally-pending span{color:#fcd34d}
-.suggestion-box{background:rgba(0,0,0,.35);border:1px solid rgba(56,189,248,.3);
-    border-radius:16px;padding:20px;margin:14px 0}
-.suggestion-category{font-family:var(--font-h);font-size:19px;font-weight:800;color:#c4b5fd;margin-bottom:8px}
-.vote-btns{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+/* Vote tally on panel */
+.vote-tally{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+    background:rgba(0,0,0,.25);border-radius:var(--radius-md);padding:16px;
+    margin:16px 0;text-align:center;border:1px solid var(--line-2);
+}
+.tally-item label{
+    font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-mute);
+    display:block;margin-bottom:5px;font-weight:700;
+}
+.tally-item span{font-family:var(--f-mono);font-size:22px;font-weight:600}
+.tally-agree span{color:#9dc5a8}
+.tally-disagree span{color:#e0a0a0}
+.tally-pending span{color:#dfb87c}
+.suggestion-box{
+    background:rgba(0,0,0,.3);border:1px solid var(--line-hi);
+    border-radius:var(--radius-md);padding:18px;margin:14px 0;
+}
+.suggestion-category{
+    font-family:var(--f-serif);font-size:17px;font-weight:700;
+    color:var(--gold-bright);margin-bottom:8px;
+}
+.vote-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
 .vote-btns form{display:contents}
-.btn-vote-agree{background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;
-    border-radius:14px;padding:15px;font-family:var(--font-b);font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(16,185,129,.3)}
-.btn-vote-agree:hover{transform:translateY(-2px);box-shadow:0 6px 22px rgba(16,185,129,.45)}
-.btn-vote-disagree{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;border:none;
-    border-radius:14px;padding:15px;font-family:var(--font-b);font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(239,68,68,.3)}
-.btn-vote-disagree:hover{transform:translateY(-2px);box-shadow:0 6px 22px rgba(239,68,68,.45)}
-.voted-confirmation{text-align:center;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);
-    border-radius:14px;padding:16px;font-size:14px;font-weight:600;color:#6ee7b7}
-.decision-box{border:1px solid rgba(56,189,248,.25);background:rgba(56,189,248,.06);
-    border-radius:var(--radius-md);padding:20px;display:grid;gap:10px}
-
-/* Final decision form inputs */
-#finalDecisionForm select,
-#finalDecisionForm textarea,
-#finalDecisionForm input[type=text],
-#finalDecisionForm input[type=number]{width:100%;border:1px solid var(--border-glass);background:rgba(0,0,0,.25);
-    color:var(--text-main);border-radius:12px;padding:12px 16px;font-family:var(--font-b);font-size:13.5px;transition:all .2s}
-#finalDecisionForm select:focus,
-#finalDecisionForm textarea:focus,
-#finalDecisionForm input[type=text]:focus,
-#finalDecisionForm input[type=number]:focus{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px rgba(56,189,248,.2)}
-#finalDecisionForm textarea{min-height:95px;resize:vertical}
-
-/* Spinner animation */
-.spinner-loader {
-    width: 50px;
-    height: 50px;
-    border: 4px solid rgba(255,255,255,.12);
-    border-top: 4px solid var(--accent-primary);
-    border-radius: 50%;
-    margin: 0 auto 20px;
-    animation: spin-loader 0.8s linear infinite;
+.btn-vote-agree{
+    background:linear-gradient(180deg,#5c8a6c,#4c7760);color:#fff;border:none;
+    border-radius:var(--radius-md);padding:14px;font-family:var(--f-sans);
+    font-size:13px;font-weight:800;cursor:pointer;transition:all .18s;
+    letter-spacing:1.2px;text-transform:uppercase;
 }
-@keyframes spin-loader {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.btn-vote-agree:hover{background:linear-gradient(180deg,#6ba075,#5c8a6c)}
+.btn-vote-disagree{
+    background:linear-gradient(180deg,#a85858,#8d4747);color:#fff;border:none;
+    border-radius:var(--radius-md);padding:14px;font-family:var(--f-sans);
+    font-size:13px;font-weight:800;cursor:pointer;transition:all .18s;
+    letter-spacing:1.2px;text-transform:uppercase;
+}
+.btn-vote-disagree:hover{background:linear-gradient(180deg,#bc6666,#a85858)}
+.voted-confirmation{
+    text-align:center;background:var(--sage-soft);border:1px solid rgba(110,158,126,.4);
+    border-radius:var(--radius-md);padding:15px;font-size:13.5px;font-weight:600;color:#9dc5a8;
 }
 
-/* Permanent Privacy Blur for Other Pending Cases */
-.case-details-blur {
-    filter: blur(6px);
-    user-select: none;
-    pointer-events: none;
-    border-radius: 6px;
-    padding: 2px 4px;
-    margin: -2px -4px;
+.decision-box{
+    border:1px solid var(--line-hi);background:var(--gold-faint);
+    border-radius:var(--radius-md);padding:18px;display:grid;gap:10px;
+}
+
+/* ── Tab navigation ────────────────────────────────────────────────────── */
+.case-breakdown-tabs{
+    display:flex;gap:6px;border-bottom:1px solid var(--line);
+    padding-bottom:12px;margin-bottom:20px;flex-wrap:wrap;
+}
+.btn-tab{
+    border-radius:3px;font-weight:700;font-size:11.5px;padding:9px 15px;
+    background:rgba(255,255,255,.03);color:var(--text-dim);
+    border:1px solid var(--line-2);cursor:pointer;transition:all .18s;
+    font-family:var(--f-sans);letter-spacing:.5px;text-transform:uppercase;
+}
+.btn-tab:hover{border-color:var(--line-hi);color:var(--text-hi)}
+
+/* ── Loading spinner ───────────────────────────────────────────────────── */
+.spinner-loader{
+    width:44px;height:44px;border:3px solid rgba(201,169,97,.15);
+    border-top:3px solid var(--gold);border-radius:50%;margin:0 auto 20px;
+    animation:spin-loader .8s linear infinite;
+}
+@keyframes spin-loader{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+
+/* Privacy blur */
+.case-details-blur{
+    filter:blur(6px);user-select:none;pointer-events:none;
+    border-radius:4px;padding:2px 4px;margin:-2px -4px;
+}
+
+/* ── Modal shells (generic) ────────────────────────────────────────────── */
+.modal-shell{
+    position:fixed;inset:0;z-index:9100;display:none;align-items:center;justify-content:center;
+    background:rgba(6,10,20,.94);backdrop-filter:blur(10px);padding:24px;
+}
+.modal-shell.open{display:flex}
+.modal-card{
+    background:var(--panel);border:1px solid var(--line-hi);border-radius:var(--radius-md);
+    padding:34px;max-width:440px;width:100%;text-align:center;box-shadow:var(--shadow-lg);
+    position:relative;
+}
+
+/* ── AI Drawer — keep but tone down ────────────────────────────────────── */
+#aiFloatingBubble{
+    position:fixed;bottom:24px;right:24px;z-index:100005;cursor:pointer;
+    display:flex;align-items:center;gap:12px;
+    background:linear-gradient(180deg,var(--panel),var(--ink-700));
+    color:var(--text-hi);padding:10px 20px 10px 14px;border-radius:4px;
+    border:1px solid var(--gold);
+    font-family:var(--f-sans);font-weight:700;font-size:13px;letter-spacing:.5px;
+    box-shadow:var(--shadow-md),0 0 0 1px rgba(201,169,97,.15);
+    transition:all .3s;
+}
+#aiFloatingBubble:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+
+.ai-bot-avatar-wrapper{position:relative;width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.ai-bot-svg{width:100%;height:100%;overflow:visible}
+.ai-bot-svg.idle{animation:botFloatIdle 4s ease-in-out infinite}
+@keyframes botFloatIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.ai-bot-svg.thinking{animation:botThink 1.4s ease-in-out infinite alternate}
+@keyframes botThink{0%{transform:translateY(-1px) rotate(-3deg)}100%{transform:translateY(-4px) rotate(3deg)}}
+.ai-bot-svg.speaking,.ai-bot-svg.happy{animation:botSpeak .8s ease-in-out infinite alternate}
+@keyframes botSpeak{0%{transform:translateY(-2px)}100%{transform:translateY(-5px)}}
+
+.bot-aura{fill:rgba(201,169,97,.12)}
+.bot-platform{fill:rgba(201,169,97,.18);filter:blur(2px)}
+.bot-head-shell{fill:url(#aiHeadGradUPCC);stroke:rgba(201,169,97,.5);stroke-width:2}
+.bot-visor{fill:url(#aiVisorGradUPCC);stroke:rgba(201,169,97,.4);stroke-width:1.5}
+.bot-ear{fill:#a98b4a;stroke:var(--gold);stroke-width:1.5}
+.bot-headband{fill:none;stroke:var(--gold);stroke-width:2.5;stroke-linecap:round}
+.bot-antenna-stem{stroke:var(--gold);stroke-width:2}
+.bot-antenna-bulb{fill:var(--gold);animation:antennaFlash 2s infinite alternate ease-in-out}
+@keyframes antennaFlash{0%{fill:var(--gold-soft);opacity:.5}100%{fill:var(--gold-bright);opacity:1}}
+.bot-brow{fill:none;stroke:var(--gold);stroke-width:1.8;stroke-linecap:round;opacity:.5}
+.bot-eye{fill:var(--gold-bright)}
+.ai-bot-svg.speaking .bot-eye,.ai-bot-svg.happy .bot-eye{fill:#9dc5a8}
+.bot-mouth-bar{fill:var(--gold);opacity:.6}
+.ai-bot-svg.speaking .bot-mouth-bar,.ai-bot-svg.happy .bot-mouth-bar{fill:#9dc5a8;opacity:1;animation:mouthBounce .4s infinite alternate ease-in-out}
+.ai-bot-svg.speaking .bar-1{animation-delay:0s}
+.ai-bot-svg.speaking .bar-2{animation-delay:.12s}
+.ai-bot-svg.speaking .bar-3{animation-delay:.24s}
+@keyframes mouthBounce{0%{height:3px;y:77px}100%{height:9px;y:71px}}
+
+.ai-dots-loader{display:inline-flex;align-items:center;gap:4px;margin-right:8px;vertical-align:middle}
+.ai-dots-loader span{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:aiDotPulse 1.4s infinite ease-in-out both}
+.ai-dots-loader span:nth-child(1){animation-delay:-0.32s}
+.ai-dots-loader span:nth-child(2){animation-delay:-0.16s}
+.ai-dots-loader span:nth-child(3){animation-delay:0s}
+@keyframes aiDotPulse{0%,80%,100%{transform:scale(.5);opacity:.35}40%{transform:scale(1.1);opacity:1}}
+
+.ai-shimmer-text{
+    background:linear-gradient(90deg,#93a0b5 0%,var(--gold-bright) 50%,#93a0b5 100%);
+    background-size:200% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    animation:aiShimmer 2s infinite linear;font-size:13px;font-weight:600;
+}
+@keyframes aiShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+.ai-avatar-container{
+    width:34px;height:34px;border-radius:50%;background:var(--ink-700);
+    border:1px solid var(--line-hi);display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;overflow:hidden;
+}
+.ai-avatar-img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+#aiChatDrawer *::-webkit-scrollbar{width:6px;height:6px}
+#aiChatDrawer *::-webkit-scrollbar-track{background:rgba(0,0,0,.4);border-radius:3px}
+#aiChatDrawer *::-webkit-scrollbar-thumb{background:var(--gold-soft);border-radius:3px}
+#aiChatDrawer *::-webkit-scrollbar-thumb:hover{background:var(--gold)}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media(max-width:1100px){
+    .app-container{grid-template-columns:1fr}
+    .sidebar{padding:18px 22px;flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-right:none;border-bottom:1px solid var(--line)}
+    .sidebar::after{display:none}
+    .brand{margin-bottom:0;padding-bottom:0;border-bottom:none}
+    .side-group{margin-top:0}
+    .side-group .side-label{display:none}
+    .side-group .panel-chip{display:inline-flex;margin:0 4px 0 0}
+    .main-content{padding:24px 20px}
+    .hero{flex-direction:column;padding:24px}
+    .title{font-size:24px}
+}
+@media(max-width:768px){
+    .vote-btn-row,.vote-btns{grid-template-columns:1fr}
+    .tally-row,.vote-tally{grid-template-columns:1fr}
+    .offense-row{grid-template-columns:1fr;gap:4px}
+    .offense-row .label{padding-top:8px}
+    .hero-meta .pill{font-size:10px}
+    .vmc{padding:24px 20px}
+    .chamber-banner{padding:14px 16px}
+    .chamber-title{font-size:13px}
 }
 </style>
 </head>
 <body>
-<div id="globalLoadingOverlay" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.92);backdrop-filter:blur(8px)">
+<div id="globalLoadingOverlay" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(6,10,20,.94);backdrop-filter:blur(8px)">
     <div style="text-align:center;color:#fff;padding:24px">
         <div class="spinner-loader"></div>
-        <div id="loadingOverlayText" style="font-family:var(--font-h);font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:6px">Submitting suggestion...</div>
-        <div style="font-size:12px;color:var(--text-muted)">Please wait, do not close or refresh this page.</div>
+        <div id="loadingOverlayText" style="font-family:var(--f-serif);font-size:18px;font-weight:700;color:#f1ece0;margin-bottom:6px;letter-spacing:.3px">Submitting suggestion…</div>
+        <div style="font-size:12px;color:#5d6a80;letter-spacing:.5px">Please wait — do not close or refresh this page.</div>
     </div>
 </div>
 <div class="app-container">
@@ -1146,10 +1539,10 @@ hr{border-color:var(--border-glass);margin:18px 0}
 <aside class="sidebar">
     <div class="brand">
         <div class="brand-icon"><img src="../assets/logo.png" alt="IdentiTrack"></div>
-        <div class="brand-text"><h1>UPCC Panel</h1><p>Case workspace</p></div>
+        <div class="brand-text"><h1>UPCC Panel</h1><p>Tribunal Workspace</p></div>
     </div>
     <div class="side-group">
-        <div class="side-label">Current Case</div>
+        <div class="side-label">Current Docket</div>
         <div class="panel-chip"><small>ID</small> <?= htmlspecialchars($caseLabel) ?></div>
         <div class="panel-chip"><small>Status</small> <?= htmlspecialchars($statusBadge['label']) ?></div>
         <div class="panel-chip"><small>Mode</small> <?= htmlspecialchars($decisionHint) ?></div>
@@ -1158,7 +1551,7 @@ hr{border-color:var(--border-glass);margin:18px 0}
         <div class="side-label">Assigned Panel</div>
         <?php if (!empty($panelMembers)): foreach ($panelMembers as $m): ?>
             <div class="panel-chip">
-                👤 <?= htmlspecialchars($m['full_name']) ?>
+                <span>👤</span> <?= htmlspecialchars($m['full_name']) ?>
                 <small>(<?= htmlspecialchars($m['role']) ?>)</small>
                 <?php if ((int)$m['upcc_id'] === $suggesterId && $isRoundActive): ?>
                     🗣️
@@ -1171,69 +1564,67 @@ hr{border-color:var(--border-glass);margin:18px 0}
         <?php endif; ?>
     </div>
     <div class="side-group" style="margin-top:auto; display:flex; flex-direction:column; gap:8px;">
-        <a id="backToDashboardBtn" class="btn btn-secondary" href="upccdashboard.php" style="width:100%; text-align:center;">← Back</a>
+        <a id="backToDashboardBtn" class="btn btn-secondary" href="upccdashboard.php" style="width:100%;">← Back to Dashboard</a>
     </div>
 </aside>
 
 <!-- ── MAIN ──────────────────────────────────────────────────────────────── -->
 <main class="main-content">
 
-    <!-- OFFICIAL HEARING CHAMBER TOP BANNER -->
-    <div class="hearing-chamber-header" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(15,23,42,0.95),rgba(7,11,20,0.98));border:1px solid rgba(56,189,248,0.25);border-left:4px solid var(--accent-primary);border-radius:16px;padding:16px 24px;margin-bottom:24px;box-shadow:0 10px 30px rgba(0,0,0,0.4);flex-wrap:wrap;gap:14px;">
-        <div style="display:flex;align-items:center;gap:14px;">
-            <div style="font-size:24px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);width:46px;height:46px;border-radius:12px;display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,0.3);">🏛️</div>
+    <!-- CHAMBER BANNER -->
+    <div class="chamber-banner">
+        <div class="chamber-seal">
+            <div class="chamber-seal-mark">⚖️</div>
             <div>
-                <div style="font-family:var(--font-h);font-size:16px;font-weight:800;letter-spacing:1px;color:#f8fafc;">NATIONAL UNIVERSITY DISCIPLINE BOARD</div>
-                <div style="font-size:11px;color:var(--accent-primary);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-top:2px;">OFFICIAL UPCC HEARING & TRIBUNAL CHAMBER • CONFIDENTIAL PROCEEDINGS</div>
+                <div class="chamber-title">National University · Discipline Board</div>
+                <div class="chamber-sub">Official UPCC Hearing &amp; Tribunal Chamber · Confidential Proceedings</div>
             </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.4);border:1px solid var(--border-glass);padding:8px 16px;border-radius:999px;font-size:12px;">
+        <div class="chamber-status">
             <?php if ($isHearingOpen && $isHearingPaused): ?>
-                <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 10px #ef4444;display:inline-block;"></span> 
-                <span style="color:#fca5a5;font-weight:800;letter-spacing:0.5px;">HEARING SUSPENDED / PAUSED</span>
+                <span class="dot paused"></span> <span style="color:#e0a0a0">Hearing Suspended</span>
             <?php elseif ($isHearingOpen): ?>
-                <span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;display:inline-block;animation:blink 1.4s ease-in-out infinite;"></span> 
-                <span style="color:#6ee7b7;font-weight:800;letter-spacing:0.5px;">TRIBUNAL IN SESSION (LIVE)</span>
+                <span class="dot live"></span> <span style="color:#9dc5a8">Tribunal in Session</span>
             <?php else: ?>
-                <span style="width:8px;height:8px;border-radius:50%;background:#64748b;display:inline-block;"></span> 
-                <span style="color:#cbd5e1;font-weight:800;letter-spacing:0.5px;">PROCEEDINGS CONCLUDED</span>
+                <span class="dot closed"></span> <span style="color:#b0bac9">Proceedings Concluded</span>
             <?php endif; ?>
         </div>
     </div>
 
     <!-- HERO / DOCKET CARD -->
-    <section class="hero" style="border-top:3px solid var(--accent-primary);">
+    <section class="hero">
         <div>
-            <div class="crumb" style="display:flex;align-items:center;gap:6px;">
-                <span>⚖️ OFFICIAL DOCKET FILE</span>
-                <span style="color:var(--text-muted);">•</span>
-                <span style="color:#fcd34d;font-weight:700;">CONFIDENTIAL</span>
+            <div class="crumb">
+                <span>Official Docket File</span>
+                <span style="color:var(--text-mute)">·</span>
+                <span style="color:var(--gold)">Confidential</span>
             </div>
-            <div class="title" style="font-size:32px;margin-top:4px;"><?= htmlspecialchars($caseLabel) ?></div>
-            <div class="subtitle" style="font-size:14.5px;color:#cbd5e1;margin-top:8px;">
-                Disciplinary proceedings active for Respondent <strong><?= htmlspecialchars($case['student_name']) ?></strong>. Review charges, evidentiary record, and record formal panel decision.
+            <div class="title"><?= htmlspecialchars($caseLabel) ?></div>
+            <div class="subtitle">
+                Disciplinary proceedings active for Respondent <strong style="color:var(--text-hi)"><?= htmlspecialchars($case['student_name']) ?></strong>. Review charges, evidentiary record, and record formal panel decision.
             </div>
             <div class="hero-meta">
-                <span class="pill amber" style="font-weight:800;">⚖️ <?= htmlspecialchars($decisionHint) ?></span>
+                <span class="pill amber">⚖️ <?= htmlspecialchars($decisionHint) ?></span>
                 <span class="pill purple">🏢 <?= htmlspecialchars($case['assigned_dept_name'] ?? 'No dept') ?></span>
-                <span class="pill blue">🎓 <?= htmlspecialchars($case['year_level']) ?> Yr • <?= htmlspecialchars($case['section'] ?? 'N/A') ?></span>
-                <span class="pill green" style="font-weight:800;">📌 STATUS: <?= htmlspecialchars($statusBadge['label']) ?></span>
+                <span class="pill blue">🎓 <?= htmlspecialchars($case['year_level']) ?> Yr · <?= htmlspecialchars($case['section'] ?? 'N/A') ?></span>
+                <span class="pill green">📌 <?= htmlspecialchars($statusBadge['label']) ?></span>
                 <?php if ($isHearingOpen && $isHearingPaused): ?>
-                  <span class="pill" data-pause-pill="1" style="background: rgba(239,68,68,0.2); color: #fca5a5; border-color: rgba(239,68,68,0.4); font-weight:800;">⏸️ HEARING PAUSED</span>
+                  <span class="pill" data-pause-pill="1" style="background:var(--rose-soft);color:#e0a0a0;border-color:rgba(201,107,107,.4)">⏸ Hearing Paused</span>
                 <?php elseif ($isHearingOpen): ?>
-                  <span class="pill" data-pause-pill="1" style="background: rgba(16,185,129,0.2); color: #6ee7b7; border-color: rgba(16,185,129,0.4); font-weight:800;"><span style="display:inline-block;width:6px;height:6px;background:#6ee7b7;border-radius:50%;margin-right:4px"></span> HEARING LIVE</span>
+                  <span class="pill" data-pause-pill="1" style="background:var(--sage-soft);color:#9dc5a8;border-color:rgba(110,158,126,.4)"><span style="width:6px;height:6px;background:#9dc5a8;border-radius:50%;display:inline-block"></span> Hearing Live</span>
                 <?php endif; ?>
             </div>
         </div>
-        <div class="stack" style="min-width:270px">
-            <div class="info" style="border:1px solid rgba(56,189,248,0.25);background:rgba(15,23,42,0.6);">
-                <div class="info-label" style="color:#38bdf8;">Respondent Student</div>
-                <div class="info-value" style="font-size:18px;color:#ffffff;"><?= htmlspecialchars($case['student_name']) ?></div>
-                <div style="margin-top:6px;font-size:13px;color:#94a3b8;font-weight:600;"><?= htmlspecialchars($case['student_id']) ?> • <?= htmlspecialchars($case['program']) ?></div>
+        <div class="stack" style="min-width:260px">
+            <div class="info-box">
+                <div class="info-label">Respondent Student</div>
+                <div class="info-value" style="font-size:17px"><?= htmlspecialchars($case['student_name']) ?></div>
+                <div style="margin-top:6px;font-size:12.5px;color:var(--text-dim);font-weight:500;font-family:var(--f-mono)"><?= htmlspecialchars($case['student_id']) ?></div>
+                <div style="margin-top:2px;font-size:12.5px;color:var(--text-dim)"><?= htmlspecialchars($case['program']) ?></div>
             </div>
-            <div class="info" style="border:1px solid var(--border-glass);">
-                <div class="info-label">Docket Filed Date</div>
-                <div class="info-value" style="font-size:15px;"><?= fmt_dt((string)$case['created_at']) ?></div>
+            <div class="info-box">
+                <div class="info-label">Docket Filed</div>
+                <div class="info-value" style="font-size:14px;font-family:var(--f-sans);font-weight:600"><?= fmt_dt((string)$case['created_at']) ?></div>
             </div>
         </div>
     </section>
@@ -1245,15 +1636,17 @@ hr{border-color:var(--border-glass);margin:18px 0}
             <!-- OFFENSE LIST -->
             <div class="glass-panel">
                 <div class="panel-header">
-                    <div><div class="panel-title">📋 Offense Breakdown</div>
-                    <div style="color:var(--text-muted);font-size:12px;margin-top:4px">Every offense linked to this case</div></div>
+                    <div>
+                        <div class="panel-title">📋 Offense Breakdown</div>
+                        <div style="color:var(--text-mute);font-size:11.5px;margin-top:4px;letter-spacing:.3px">Every offense linked to this case</div>
+                    </div>
                     <span class="badge <?= htmlspecialchars($statusBadge['class']) ?>"><?= htmlspecialchars($statusBadge['label']) ?></span>
                 </div>
                 <div class="panel-body">
                     <?php if (!$confidentialityAccepted): ?>
                         <div class="lock">
                             <div style="font-weight:800;margin-bottom:6px">Confidential case data is locked</div>
-                            <div style="line-height:1.5;margin-bottom:12px;color:#ffe8ad">Accept confidentiality to view offenses and join the discussion.</div>
+                            <div style="line-height:1.55;margin-bottom:14px;color:#dfb87c">Accept confidentiality to view offenses and join the discussion.</div>
                             <form method="post">
                                 <input type="hidden" name="action" value="accept_confidentiality">
                                 <button class="btn btn-primary" type="submit">I Accept Confidentiality</button>
@@ -1261,48 +1654,45 @@ hr{border-color:var(--border-glass);margin:18px 0}
                         </div>
                     <?php else: ?>
 
-
-
-                        <!-- Student Explanation (Only displayed if student submitted) -->
-                        <div id="studentExplanationBlock" style="<?= (!empty($case['student_explanation_text']) || !empty($case['student_explanation_at'])) ? 'display:block' : 'display:none' ?>; margin-bottom: 24px; background: rgba(79, 123, 255, 0.08); border: 1px solid rgba(79, 123, 255, 0.2); border-radius: 12px; padding: 16px;">
+                        <!-- Student Explanation -->
+                        <div id="studentExplanationBlock" style="<?= (!empty($case['student_explanation_text']) || !empty($case['student_explanation_at'])) ? 'display:block' : 'display:none' ?>; margin-bottom: 22px; background: rgba(124,143,201,.06); border: 1px solid rgba(124,143,201,.25); border-radius: var(--radius-md); padding: 16px;">
                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                              <span style="font-size: 11px; font-weight: 800; color: #a5b4fc; text-transform: uppercase; letter-spacing: 1px;">Student Submitted Explanation</span>
-                              <span id="explanationTime" style="font-size: 11px; color: var(--text-muted);"><?= $case['student_explanation_at'] ? 'Submitted ' . date('M j, Y g:i A', strtotime($case['student_explanation_at'])) : '' ?></span>
+                              <span style="font-size: 10.5px; font-weight: 700; color: #a5b6e0; text-transform: uppercase; letter-spacing: 1.5px;">Student Submitted Explanation</span>
+                              <span id="explanationTime" style="font-size: 11px; color: var(--text-mute); font-family:var(--f-mono)"><?= $case['student_explanation_at'] ? 'Submitted ' . date('M j, Y g:i A', strtotime($case['student_explanation_at'])) : '' ?></span>
                            </div>
-                           <div id="explanationText" style="font-size: 13px; line-height: 1.6; color: var(--text-main); white-space: pre-wrap; margin-bottom: 12px;"><?= htmlspecialchars($case['student_explanation_text'] ?? '') ?></div>
+                           <div id="explanationText" style="font-size: 13px; line-height: 1.65; color: var(--text); white-space: pre-wrap; margin-bottom: 12px;"><?= htmlspecialchars($case['student_explanation_text'] ?? '') ?></div>
                            <div id="explanationAttachments" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 8px;">
                               <?php if (!empty($case['student_explanation_image'])): ?>
-                                <a href="../<?= htmlspecialchars($case['student_explanation_image']) ?>" target="_blank" style="display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-glass);">
+                                <a href="../<?= htmlspecialchars($case['student_explanation_image']) ?>" target="_blank" style="display: block; border-radius: 4px; overflow: hidden; border: 1px solid var(--line-2);">
                                    <img src="../<?= htmlspecialchars($case['student_explanation_image']) ?>" style="max-width: 80px; max-height: 80px; display: block; object-fit: cover;">
                                 </a>
                               <?php endif; ?>
                               <?php if (!empty($case['student_explanation_pdf'])): ?>
-                                <a href="../<?= htmlspecialchars($case['student_explanation_pdf']) ?>" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; text-decoration: none; color: #fca5a5; font-size: 11px; font-weight: 600;">
+                                <a href="../<?= htmlspecialchars($case['student_explanation_pdf']) ?>" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--rose-soft); border: 1px solid rgba(201,107,107,.3); border-radius: 4px; text-decoration: none; color: #e0a0a0; font-size: 11px; font-weight: 700; letter-spacing:.5px;">
                                    <span>📄 View PDF Attachment</span>
                                 </a>
                               <?php endif; ?>
                            </div>
                         </div>
 
-                        <!-- SUB-TABS NAVIGATION FOR OFFENSES & STUDENT CASE HISTORY -->
-                        <div class="case-breakdown-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-glass); padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap;">
-                            <button type="button" class="btn btn-tab active-tab-btn" onclick="switchBreakdownTab('current-offenses', this)" style="border-radius: 8px; font-weight: 700; font-size: 12px; padding: 8px 14px; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); cursor: pointer; transition: all 0.2s;">
+                        <!-- SUB-TABS NAVIGATION -->
+                        <div class="case-breakdown-tabs">
+                            <button type="button" class="btn-tab active-tab-btn" onclick="switchBreakdownTab('current-offenses', this)" style="background:var(--gold-faint);color:var(--gold-bright);border-color:var(--line-hi)">
                                 📌 Current Case Offenses (<?= count($offenses) ?>)
                             </button>
-                            <button type="button" class="btn btn-tab" onclick="switchBreakdownTab('prior-resolved', this)" style="border-radius: 8px; font-weight: 700; font-size: 12px; padding: 8px 14px; background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid var(--border-glass); cursor: pointer; transition: all 0.2s;">
-                                ✅ Prior Resolved Cases (<?= count($priorResolvedCases) ?>)
+                            <button type="button" class="btn-tab" onclick="switchBreakdownTab('prior-resolved', this)">
+                                ✅ Prior Resolved (<?= count($priorResolvedCases) ?>)
                             </button>
                             <?php if (!empty($otherPendingCases)): ?>
-                            <button type="button" class="btn btn-tab" onclick="switchBreakdownTab('other-pending', this)" style="border-radius: 8px; font-weight: 700; font-size: 12px; padding: 8px 14px; background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); cursor: pointer; transition: all 0.2s;">
-                                ⏳ Other Pending Cases (<?= count($otherPendingCases) ?>)
+                            <button type="button" class="btn-tab" onclick="switchBreakdownTab('other-pending', this)">
+                                ⏳ Other Pending (<?= count($otherPendingCases) ?>)
                             </button>
                             <?php endif; ?>
                         </div>
 
-                        <!-- TAB 1: CURRENT CASE OFFENSES -->
+                        <!-- TAB 1: CURRENT OFFENSES -->
                         <div id="tab-current-offenses" class="breakdown-tab-content">
-                            <!-- Offense List Header -->
-                            <div style="font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 14px;">Case Offenses & Details</div>
+                            <div style="font-size: 12.5px; font-weight: 700; color: var(--text-hi); margin-bottom: 14px; letter-spacing:.5px; text-transform:uppercase;">Case Offenses &amp; Details</div>
                             <div class="offense-list">
                                 <?php if (empty($offenses)): ?>
                                     <div class="empty">No linked offenses found.</div>
@@ -1315,7 +1705,7 @@ hr{border-color:var(--border-glass);margin:18px 0}
                                             <div class="offense-main">
                                                 <div class="offense-code"><?= htmlspecialchars($offense['code']) ?></div>
                                                 <div class="offense-name"><?= htmlspecialchars($offense['offense_name']) ?></div>
-                                                <div class="offense-meta"><?= $lvl ?> • <?= fmt_dt((string)$offense['date_committed']) ?></div>
+                                                <div class="offense-meta"><?= $lvl ?> · <?= fmt_dt((string)$offense['date_committed']) ?></div>
                                             </div>
                                             <div class="badge <?= $lvlClass ?>"><?= $lvl ?></div>
                                         </summary>
@@ -1326,56 +1716,56 @@ hr{border-color:var(--border-glass);margin:18px 0}
                                                 <div class="value"><?= htmlspecialchars((string)$offense['description']) ?></div>
                                             </div>
                                             <?php endif; ?>
-                                             
-                                             <?php 
+
+                                             <?php
   $offEv = $offense['evidence_file'] ?? ($offense['incident_photo'] ?? null);
-  if (!empty($offEv)): 
+  if (!empty($offEv)):
     $ext = strtolower(pathinfo($offEv, PATHINFO_EXTENSION));
     $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true);
 ?>
 <div class="offense-row" style="margin-top:10px;">
-    <div class="label">Photo / Document Evidence</div>
+    <div class="label">Evidence File</div>
     <div class="value">
         <?php if ($isImg): ?>
             <div style="display:inline-block;">
-                <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" title="Click to view full resolution photo evidence" style="display: block; border-radius: 12px; overflow: hidden; border: 1.5px solid rgba(56, 189, 248, 0.4); box-shadow: 0 8px 24px rgba(0,0,0,0.5); transition: transform 0.2s ease;">
-                    <img src="../<?= htmlspecialchars($offEv) ?>" style="max-width: 280px; max-height: 180px; object-fit: cover; display: block; border-radius: 10px;">
+                <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" title="Click to view full resolution photo evidence" style="display: block; border-radius: 4px; overflow: hidden; border: 1px solid var(--line-hi);">
+                    <img src="../<?= htmlspecialchars($offEv) ?>" style="max-width: 280px; max-height: 180px; object-fit: cover; display: block;">
                 </a>
-                <div style="font-size:11px; font-weight:700; color:#38bdf8; margin-top:6px; display:flex; align-items:center; gap:6px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                    Click image to expand full resolution evidence
+                <div style="font-size:11px; font-weight:700; color:var(--gold); margin-top:6px; display:flex; align-items:center; gap:6px; letter-spacing:.5px; text-transform:uppercase;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                    Click to expand full resolution
                 </div>
             </div>
         <?php else: ?>
-            <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" style="color: #38bdf8; font-weight: 700; font-size: 12.5px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); border-radius: 8px; text-decoration: none;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <a href="../<?= htmlspecialchars($offEv) ?>" target="_blank" style="color: var(--gold); font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--gold-faint); border: 1px solid var(--line-hi); border-radius: 4px; text-decoration: none; letter-spacing:.5px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 <span>View Attached Evidence File</span>
             </a>
         <?php endif; ?>
     <?php endif; ?>
-                                            
+
                                             <?php if (!empty(trim((string)($offense['intervention_first'] ?? '')))): ?>
                                             <div class="offense-row">
-                                                <div class="label">1st intervention</div>
+                                                <div class="label">1st Intervention</div>
                                                 <div class="value">
                                                     <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$offense['intervention_first']))), ')-—')) ?: 'Formative Intervention: University Service, Counseling, & Evaluation') ?>
                                                     <?php if (!empty($priorResolvedCases)): ?>
-                                                        <span style="background:#059669; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">✔ Completed</span>
+                                                        <span style="background:rgba(110,158,126,.2); color:#9dc5a8; padding:3px 9px; border-radius:3px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px; letter-spacing:.8px;">✓ Completed</span>
                                                     <?php else: ?>
-                                                        <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">⏳ Ongoing Hearing</span>
+                                                        <span style="background:rgba(201,152,91,.2); color:#dfb87c; padding:3px 9px; border-radius:3px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px; letter-spacing:.8px;">⏳ Ongoing</span>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
                                             <?php endif; ?>
                                             <?php if (!empty(trim((string)($offense['intervention_second'] ?? '')))): ?>
                                             <div class="offense-row">
-                                                <div class="label">2nd intervention</div>
+                                                <div class="label">2nd Intervention</div>
                                                 <div class="value">
                                                     <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$offense['intervention_second']))), ')-—')) ?: '1 Semester Non-Readmission / Suspension') ?>
                                                     <?php if (!empty($priorResolvedCases)): ?>
-                                                        <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">⏳ Ongoing Hearing</span>
+                                                        <span style="background:rgba(201,152,91,.2); color:#dfb87c; padding:3px 9px; border-radius:3px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px; letter-spacing:.8px;">⏳ Ongoing</span>
                                                     <?php else: ?>
-                                                        <span style="background:rgba(255,255,255,0.15); color:var(--text-muted); padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px;">Pending</span>
+                                                        <span style="background:rgba(255,255,255,.06); color:var(--text-mute); padding:3px 9px; border-radius:3px; font-size:10px; font-weight:600; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px; letter-spacing:.8px;">Pending</span>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
@@ -1386,37 +1776,37 @@ hr{border-color:var(--border-glass);margin:18px 0}
                             </div>
                         </div>
 
-                        <!-- TAB 2: PRIOR RESOLVED CASES -->
+                        <!-- TAB 2: PRIOR RESOLVED -->
                         <div id="tab-prior-resolved" class="breakdown-tab-content" style="display: none;">
-                            <div style="font-size: 13px; font-weight: 700; color: #a7f3d0; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
-                                <span>📜</span> Student's Resolved Disciplinary History
+                            <div style="font-size: 12.5px; font-weight: 700; color: #9dc5a8; margin-bottom: 14px; letter-spacing:.5px; text-transform:uppercase;">
+                                Student's Resolved Disciplinary History
                             </div>
                             <?php if (empty($priorResolvedCases)): ?>
-                                <div class="empty" style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px; background: rgba(0,0,0,0.1); border-radius: 10px; border: 1px dashed var(--border-glass);">
+                                <div class="empty" style="text-align: center; padding: 26px; color: var(--text-mute); font-size: 13px; background: rgba(0,0,0,.15); border-radius: 4px; border: 1px dashed var(--line-2);">
                                     Clean Disciplinary Record: No prior resolved cases found for this student.
                                 </div>
                             <?php else: foreach ($priorResolvedCases as $rc):
                                 $isMajorResolved = ((int)($rc['major_count'] ?? 0)) > 0;
-                                $resolvedLvlBadge = $isMajorResolved 
-                                    ? '<span class="badge badge-blue" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4);">MAJOR OFFENSE</span>'
-                                    : '<span class="badge badge-amber" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4);">SECTION 4 (MINOR)</span>';
+                                $resolvedLvlBadge = $isMajorResolved
+                                    ? '<span class="badge badge-blue" style="font-size:10px">MAJOR OFFENSE</span>'
+                                    : '<span class="badge badge-amber" style="font-size:10px">SECTION 4 (MINOR)</span>';
                             ?>
-                                <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+                                <div style="background: var(--sage-soft); border: 1px solid rgba(110,158,126,.3); border-radius: var(--radius-md); padding: 14px; margin-bottom: 12px;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
                                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                            <span style="font-weight: 800; color: #6ee7b7; font-size: 13px;">Case #<?= htmlspecialchars((string)$rc['case_id']) ?></span>
+                                            <span style="font-weight: 800; color: #9dc5a8; font-size: 13px; font-family:var(--f-mono)">Case #<?= htmlspecialchars((string)$rc['case_id']) ?></span>
                                             <?= $resolvedLvlBadge ?>
                                         </div>
-                                        <span class="badge badge-emerald" style="font-size: 10px; text-transform: uppercase;">RESOLVED</span>
+                                        <span class="badge badge-emerald" style="font-size:10px">Resolved</span>
                                     </div>
-                                    <div style="font-weight: 700; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
+                                    <div style="font-weight: 700; color: var(--text-hi); font-size: 13px; margin-bottom: 4px;">
                                         <?= htmlspecialchars((string)($rc['offense_names'] ?: 'General Violation')) ?>
                                     </div>
-                                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
-                                        Code: <?= htmlspecialchars((string)($rc['offense_codes'] ?: 'N/A')) ?> • Resolved <?= fmt_dt((string)$rc['updated_at']) ?>
+                                    <div style="font-size: 11px; color: var(--text-mute); margin-bottom: 8px; font-family:var(--f-mono)">
+                                        Code: <?= htmlspecialchars((string)($rc['offense_codes'] ?: 'N/A')) ?> · Resolved <?= fmt_dt((string)$rc['updated_at']) ?>
                                     </div>
                                     <?php if (!empty($rc['decided_category'])): ?>
-                                        <div style="font-size: 11px; color: #a7f3d0; background: rgba(16,185,129,0.15); padding: 4px 8px; border-radius: 6px; display: inline-block; font-weight: 700;">
+                                        <div style="font-size: 11px; color: #9dc5a8; background: rgba(110,158,126,.15); padding: 4px 9px; border-radius: 3px; display: inline-block; font-weight: 700; letter-spacing:.5px; text-transform:uppercase;">
                                             Decided Penalty: Category <?= (int)$rc['decided_category'] ?>
                                         </div>
                                     <?php endif; ?>
@@ -1425,35 +1815,35 @@ hr{border-color:var(--border-glass);margin:18px 0}
                         </div>
 
                         <?php if (!empty($otherPendingCases)): ?>
-                        <!-- TAB 3: OTHER PENDING CASES -->
+                        <!-- TAB 3: OTHER PENDING -->
                         <div id="tab-other-pending" class="breakdown-tab-content" style="display: none;">
-                            <div style="font-size: 13px; font-weight: 700; color: #fcd34d; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
-                                <span>⚠️</span> Other Active / Pending Cases Under Investigation
+                            <div style="font-size: 12.5px; font-weight: 700; color: #dfb87c; margin-bottom: 14px; letter-spacing:.5px; text-transform:uppercase;">
+                                Other Active / Pending Cases Under Investigation
                             </div>
                             <?php foreach ($otherPendingCases as $pc):
                                 $isMajorPending = ((int)($pc['major_count'] ?? 0)) > 0;
-                                $pendingLvlBadge = $isMajorPending 
-                                    ? '<span class="badge badge-blue" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4);">MAJOR OFFENSE</span>'
-                                    : '<span class="badge badge-amber" style="font-size: 10px; text-transform: uppercase; font-weight: 800; background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4);">SECTION 4 (MINOR)</span>';
+                                $pendingLvlBadge = $isMajorPending
+                                    ? '<span class="badge badge-blue" style="font-size:10px">MAJOR OFFENSE</span>'
+                                    : '<span class="badge badge-amber" style="font-size:10px">SECTION 4 (MINOR)</span>';
                             ?>
-                                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+                                <div style="background: rgba(201,152,91,.06); border: 1px solid rgba(201,152,91,.28); border-radius: var(--radius-md); padding: 14px; margin-bottom: 12px;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
                                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                            <a href="case_view.php?id=<?= (int)$pc['case_id'] ?>" style="font-weight: 800; color: #fcd34d; font-size: 13px; text-decoration: underline;">
+                                            <a href="case_view.php?id=<?= (int)$pc['case_id'] ?>" style="font-weight: 800; color: #dfb87c; font-size: 13px; text-decoration: underline; font-family:var(--f-mono)">
                                                 Case #<?= htmlspecialchars((string)$pc['case_id']) ?> ↗
                                             </a>
                                             <?= $pendingLvlBadge ?>
                                         </div>
-                                        <span class="badge badge-amber" style="font-size: 10px; text-transform: uppercase;">
+                                        <span class="badge badge-amber" style="font-size:10px">
                                             <?= htmlspecialchars(str_replace('_', ' ', (string)$pc['status'])) ?>
                                         </span>
                                     </div>
                                     <div class="case-details-blur">
-                                        <div style="font-weight: 700; color: var(--text-main); font-size: 13px; margin-bottom: 4px;">
+                                        <div style="font-weight: 700; color: var(--text-hi); font-size: 13px; margin-bottom: 4px;">
                                             <?= htmlspecialchars((string)($pc['offense_names'] ?: 'General Violation')) ?>
                                         </div>
-                                        <div style="font-size: 11px; color: var(--text-muted);">
-                                            Code: <?= htmlspecialchars((string)($pc['offense_codes'] ?: 'N/A')) ?> • Created <?= fmt_dt((string)$pc['created_at']) ?>
+                                        <div style="font-size: 11px; color: var(--text-mute);">
+                                            Code: <?= htmlspecialchars((string)($pc['offense_codes'] ?: 'N/A')) ?> · Created <?= fmt_dt((string)$pc['created_at']) ?>
                                         </div>
                                     </div>
                                 </div>
@@ -1466,21 +1856,21 @@ hr{border-color:var(--border-glass);margin:18px 0}
 
             <!-- LIVE CHAT -->
             <div class="glass-panel" id="chat-room">
-                <div class="panel-header"><div class="panel-title">💬 Live Panel Chat</div></div>
+                <div class="panel-header"><div class="panel-title">💬 Live Panel Deliberation</div></div>
                 <div class="panel-body" style="display:flex;flex-direction:column;padding:0">
                     <?php if (!$confidentialityAccepted): ?>
                         <div class="lock" style="margin:24px">Accept confidentiality to join the discussion.</div>
                     <?php else: ?>
-                        <div id="live-chat-box" style="height:350px;overflow-y:auto;background:rgba(0,0,0,.15);
-                            border:1px solid var(--border-glass);border-radius:12px;padding:12px;margin:16px 24px 0">
-                            <div style="text-align:center;color:var(--text-muted);font-size:11px">Loading…</div>
+                        <div id="live-chat-box" style="height:340px;overflow-y:auto;background:rgba(0,0,0,.15);
+                            border:1px solid var(--line-2);border-radius:var(--radius-md);padding:14px;margin:16px 24px 0">
+                            <div style="text-align:center;color:var(--text-mute);font-size:11px">Loading…</div>
                         </div>
-                        <div id="replying-to-container" style="display:none;background:rgba(79,123,255,.1);
-                            padding:8px 24px;border-top:1px solid rgba(79,123,255,.2);font-size:11px;color:#dbe5ff">
+                        <div id="replying-to-container" style="display:none;background:rgba(124,143,201,.1);
+                            padding:9px 24px;border-top:1px solid rgba(124,143,201,.25);font-size:11.5px;color:#c7d2fe">
                             <strong>Replying to <span id="reply-to-name"></span>:</strong>
-                            <span id="reply-to-text" style="color:var(--text-muted)"></span>
+                            <span id="reply-to-text" style="color:var(--text-mute)"></span>
                             <button type="button" class="btn btn-secondary" onclick="cancelReply()"
-                                style="float:right;padding:2px 6px;font-size:10px;min-height:0">✕</button>
+                                style="float:right;padding:2px 7px;font-size:10px;min-height:0">✕</button>
                         </div>
                         <form id="chat-form" style="padding:16px 24px 24px">
                             <input type="hidden" id="reply_to" name="reply_to" value="">
@@ -1488,9 +1878,9 @@ hr{border-color:var(--border-glass);margin:18px 0}
                             <input type="hidden" name="case_id" value="<?= $caseId ?>">
                             <?php $isHearingOpen = ((int)$case['hearing_is_open'] === 1); ?>
                             <div class="field">
-                                <textarea id="chat_message" name="message" class="fld-input" 
-                                    placeholder="<?= $isHearingOpen && !$isHearingPaused ? 'Type your message…' : ($isHearingPaused ? 'Chat disabled - hearing is paused' : 'Chat disabled until hearing is open…') ?>" 
-                                    required style="min-height:60px" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_message_input"></textarea>
+                                <textarea id="chat_message" name="message" class="fld-input"
+                                    placeholder="<?= $isHearingOpen && !$isHearingPaused ? 'Type your message…' : ($isHearingPaused ? 'Chat disabled — hearing is paused' : 'Chat disabled until hearing opens…') ?>"
+                                    required style="min-height:70px" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_message_input"></textarea>
                             </div>
                             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
                                 <button class="btn btn-primary" type="submit" <?= (!$isHearingOpen || $isHearingPaused) ? 'disabled' : '' ?> id="chat_submit_btn">Post Message</button>
@@ -1505,15 +1895,13 @@ hr{border-color:var(--border-glass);margin:18px 0}
         <!-- ── RIGHT COLUMN ──────────────────────────────────────────── -->
         <aside class="stack">
 
-
-
-            <!-- CASE INFO BOX -->
+            <!-- DECISION PANEL INFO -->
             <div class="glass-panel" id="decision-panel">
                 <div class="panel-header"><div class="panel-title">🗳️ Decision Panel</div></div>
                 <div class="panel-body">
                     <div class="decision-box">
-                        <div style="font-family:var(--font-h);font-size:14px;font-weight:700"><?= htmlspecialchars($decisionHint) ?></div>
-                        <div style="font-size:13px;color:#c7d2fe;line-height:1.5">
+                        <div style="font-family:var(--f-serif);font-size:14px;font-weight:700;color:var(--gold-bright);letter-spacing:.3px"><?= htmlspecialchars($decisionHint) ?></div>
+                        <div style="font-size:13px;color:var(--text);line-height:1.6">
                             <?= $isSection4
                                 ? 'Escalation from repeated minor offenses. Confirm whether facts support Section 4 outcome.'
                                 : 'Select the category matching the panel decision and write the sanction clearly.' ?>
@@ -1525,8 +1913,10 @@ hr{border-color:var(--border-glass);margin:18px 0}
             <!-- PANEL MEMBERS -->
             <div class="glass-panel">
                 <div class="panel-header">
-                    <div><div class="panel-title">👥 Panel Members</div>
-                    <div style="color:var(--text-muted);font-size:12px;margin-top:4px">Assigned to this case</div></div>
+                    <div>
+                        <div class="panel-title">👥 Panel Members</div>
+                        <div style="color:var(--text-mute);font-size:11.5px;margin-top:4px;letter-spacing:.3px">Assigned to this case</div>
+                    </div>
                 </div>
                 <div class="panel-body" style="display:grid;gap:10px">
                     <?php if (empty($panelMembers)): ?>
@@ -1536,16 +1926,16 @@ hr{border-color:var(--border-glass);margin:18px 0}
                         $isSug = $uid === $suggesterId && $isRoundActive;
                         $vote  = $votesByMember[$uid] ?? null;
                     ?>
-                        <div class="info">
-                            <div class="info-value"><?= htmlspecialchars($m['full_name']) ?> <?= $uid === $panelId ? '<small style="color:var(--text-muted)">(you)</small>' : '' ?></div>
-                            <div style="color:var(--text-muted);font-size:12px;margin-top:2px"><?= htmlspecialchars(ucfirst($m['role'])) ?></div>
-                            <div style="font-size:12px;margin-top:6px">
+                        <div class="info-box" style="min-width:0">
+                            <div style="font-family:var(--f-serif);font-weight:700;color:var(--text-hi);font-size:14px"><?= htmlspecialchars($m['full_name']) ?> <?= $uid === $panelId ? '<small style="color:var(--text-mute);font-family:var(--f-sans);font-size:10px;letter-spacing:1px">(YOU)</small>' : '' ?></div>
+                            <div style="color:var(--text-mute);font-size:11px;margin-top:2px;text-transform:uppercase;letter-spacing:1px;font-weight:600"><?= htmlspecialchars(ucfirst($m['role'])) ?></div>
+                            <div style="font-size:12px;margin-top:8px">
                                 <?php if ($isSug): ?>
-                                    <span style="color:#c4b5fd">🗣️ Suggested this round</span>
+                                    <span style="color:var(--gold-bright);font-weight:700">🗣️ Suggested this round</span>
                                 <?php elseif ($vote !== null && $isRoundActive): ?>
-                                    <?= $vote > 0 ? '<span style="color:#6ee7b7">✅ Agreed</span>' : '<span style="color:#f87171">❌ Disagreed</span>' ?>
+                                    <?= $vote > 0 ? '<span style="color:#9dc5a8;font-weight:700">✅ Agreed</span>' : '<span style="color:#e0a0a0;font-weight:700">❌ Disagreed</span>' ?>
                                 <?php elseif ($isRoundActive): ?>
-                                    <span style="color:#fcd34d">⏳ Pending vote</span>
+                                    <span style="color:#dfb87c;font-weight:700">⏳ Pending vote</span>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -1556,8 +1946,10 @@ hr{border-color:var(--border-glass);margin:18px 0}
             <!-- VOTING / SUGGESTION SECTION -->
             <div class="glass-panel" id="voting-section">
                 <div class="panel-header">
-                    <div><div class="panel-title">⚡ Penalty Suggestion & Voting</div>
-                    <div style="color:var(--text-muted);font-size:12px;margin-top:4px">One member suggests; ALL others must agree</div></div>
+                    <div>
+                        <div class="panel-title">⚖️ Penalty Suggestion &amp; Voting</div>
+                        <div style="color:var(--text-mute);font-size:11.5px;margin-top:4px;letter-spacing:.3px">One member suggests · majority must agree</div>
+                    </div>
                 </div>
                 <div class="panel-body">
 
@@ -1567,31 +1959,29 @@ hr{border-color:var(--border-glass);margin:18px 0}
                     <?php elseif ($isAwaitingAdmin): ?>
                         <!-- ── CONSENSUS REACHED ── -->
                         <div class="consensus-banner">
-                            <div class="consensus-banner-title">✅ CONSENSUS REACHED</div>
-                            <div style="font-size:20px;font-weight:800;color:#a7f3d0;margin:6px 0">Category <?= $consensusCategory ?></div>
-                            <div style="font-size:12px;color:var(--text-muted)">Awaiting Admin to record the final decision.</div>
+                            <div class="consensus-banner-title">Consensus Reached</div>
+                            <div style="font-family:var(--f-serif);font-size:20px;font-weight:700;color:#a7f3d0;margin:8px 0">Category <?= $consensusCategory ?></div>
+                            <div style="font-size:12px;color:var(--text-mute)">Awaiting Admin to record the final decision.</div>
                         </div>
-                        <div class="info" style="margin-bottom:16px">
+                        <div class="info-box" style="margin-bottom:16px;min-width:0">
                             <div class="info-label">Agreed Penalty</div>
-                            <div style="font-size:13px;line-height:1.5;margin-top:4px"><?= htmlspecialchars($categoryDescriptions[$consensusCategory] ?? '') ?></div>
+                            <div style="font-size:13px;line-height:1.6;margin-top:6px;color:var(--text)"><?= htmlspecialchars($categoryDescriptions[$consensusCategory] ?? '') ?></div>
                             <?php
                             $cda = $case['hearing_vote_suggested_details'] ? json_decode($case['hearing_vote_suggested_details'], true) : null;
                             ?>
                             <?php if ($consensusCategory === 1 && !empty($cda['probation_terms'])): ?>
-                                <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">Probation: <?= (int)$cda['probation_terms'] ?> term(s)</div>
+                                <div style="margin-top:8px;font-size:12px;color:var(--text-mute)">Probation: <?= (int)$cda['probation_terms'] ?> term(s)</div>
                             <?php endif; ?>
                             <?php if ($consensusCategory === 2 && !empty($cda['interventions'])): ?>
-                                <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">
+                                <div style="margin-top:8px;font-size:12px;color:var(--text-mute)">
                                     Interventions: <?= htmlspecialchars(implode(', ', $cda['interventions'])) ?>
                                     <?php if (!empty($cda['service_hours'])): ?>(<?= _formatCsHoursStr($cda['service_hours']) ?>)<?php endif; ?>
                                 </div>
                             <?php endif; ?>
                             <?php if (!empty($cda['description'])): ?>
-                                <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-glass);font-size:13px;line-height:1.5"><?= nl2br(htmlspecialchars($cda['description'])) ?></div>
+                                <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2);font-size:13px;line-height:1.6"><?= nl2br(htmlspecialchars($cda['description'])) ?></div>
                             <?php endif; ?>
                         </div>
-
-                        <!-- Admin records final decision, panel waits -->
 
                     <?php elseif ($isRoundActive && $suggestedDetails): ?>
                         <!-- ── ACTIVE ROUND ── -->
@@ -1606,14 +1996,14 @@ hr{border-color:var(--border-glass);margin:18px 0}
                                 <label>⏳ Pending</label><span id="panelPending"><?= $totalVoters - $agreeVotes - $disagreeVotes ?></span>
                             </div>
                         </div>
-                        <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-bottom:12px">
+                        <div style="text-align:center;font-size:11px;color:var(--text-mute);margin-bottom:12px;letter-spacing:.3px">
                             Majority of the panel must agree to finalize<br>
-                            <button type="button" class="btn btn-secondary" onclick="openVotingModalForRound(<?= $roundNo ?>)" style="margin-top:6px;padding:4px 10px;font-size:11px;">Re-open Voting Window</button>
+                            <button type="button" class="btn btn-secondary" onclick="openVotingModalForRound(<?= $roundNo ?>)" style="margin-top:8px;padding:6px 12px;font-size:10.5px;">Re-open Voting Window</button>
                         </div>
 
                         <div class="suggestion-box">
                             <div class="suggestion-category">Category <?= $suggestedDetails['category'] ?></div>
-                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Suggested by <strong style="color:var(--text-main)"><?= htmlspecialchars($suggesterName) ?></strong></div>
+                            <div style="font-size:11.5px;color:var(--text-mute);margin-bottom:8px;letter-spacing:.3px">Suggested by <strong style="color:var(--text-hi);font-family:var(--f-serif)"><?= htmlspecialchars($suggesterName) ?></strong></div>
                             <?php _renderSugDetails($suggestedDetails); ?>
                         </div>
 
@@ -1621,9 +2011,9 @@ hr{border-color:var(--border-glass);margin:18px 0}
                             <form method="post" onsubmit="return confirm('Cancel your suggestion? The panel can submit a new suggestion immediately.')">
                                 <input type="hidden" name="action" value="cancel_suggestion">
                                 <input type="hidden" name="round_no" value="<?= $roundNo ?>">
-                                <button type="submit" class="btn btn-danger" style="width:100%">❌ Cancel My Suggestion</button>
+                                <button type="submit" class="btn btn-danger" style="width:100%">Cancel My Suggestion</button>
                             </form>
-                            <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:8px">You are the suggester — waiting for others to vote</div>
+                            <div style="text-align:center;font-size:11px;color:var(--text-mute);margin-top:10px">You are the suggester — waiting for others to vote</div>
                         <?php elseif ($showVoteButtons): ?>
                             <div class="vote-btns">
                                 <form method="post">
@@ -1644,7 +2034,7 @@ hr{border-color:var(--border-glass);margin:18px 0}
                         <?php elseif ($isRoundActive): ?>
                             <div class="voted-confirmation">
                                 <?= $currentMemberVote > 0 ? '✅ You voted <strong>AGREE</strong>' : '❌ You voted <strong>DISAGREE</strong>' ?>
-                                <div style="font-size:11px;margin-top:4px;color:var(--text-muted)">Waiting for other panel members…</div>
+                                <div style="font-size:11px;margin-top:4px;color:var(--text-mute)">Waiting for other panel members…</div>
                             </div>
                         <?php endif; ?>
 
@@ -1652,14 +2042,14 @@ hr{border-color:var(--border-glass);margin:18px 0}
                         <!-- ── NO ACTIVE ROUND: SUGGEST FORM ── -->
                         <?php if ($isInCooldown): ?>
                             <div class="cooldown-alert">
-                                ⏳ Cooldown active — any panel member can suggest after:
+                                Cooldown active — any panel member can suggest after:
                                 <strong id="cooldownDisplay"><?= sprintf('%02d:%02d', floor($cooldownRemainingSecs / 60), $cooldownRemainingSecs % 60) ?></strong>
                             </div>
                         <?php endif; ?>
 
                         <?php if (!$isInCooldown && !$isClosed): ?>
                             <details id="suggestDetails" style="margin-top:8px">
-                                <summary id="suggestDetailsSummary" style="cursor:pointer;color:var(--accent-primary);font-weight:600;padding:8px 0;font-size:14px">
+                                <summary id="suggestDetailsSummary" style="cursor:pointer;color:var(--gold-bright);font-weight:700;padding:10px 0;font-size:12.5px;letter-spacing:.5px;text-transform:uppercase;">
                                     ➕ Suggest a Penalty Category
                                 </summary>
                                 <form method="post" style="margin-top:16px" id="suggestForm">
@@ -1675,8 +2065,8 @@ hr{border-color:var(--border-glass);margin:18px 0}
                                     </div>
 
                                     <!-- CAT 1 -->
-                                    <div id="sugCat1" style="display:none;margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:10px;border:1px solid var(--border-glass)">
-                                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">Probation Details</div>
+                                    <div id="sugCat1" style="display:none;margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:var(--radius-md);border:1px solid var(--line-2)">
+                                        <div style="font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;font-weight:700">Probation Details</div>
                                         <div class="field" style="margin-bottom:0">
                                             <label>Number of probation terms</label>
                                             <select name="suggest_cat1_terms" class="fld-input">
@@ -1685,41 +2075,41 @@ hr{border-color:var(--border-glass);margin:18px 0}
                                                 <option value="3" selected>3 terms (maximum)</option>
                                             </select>
                                         </div>
-                                        <div style="margin-top:8px;font-size:12px;color:var(--text-muted);line-height:1.5">
+                                        <div style="margin-top:10px;font-size:12px;color:var(--text-mute);line-height:1.55">
                                             ℹ️ Any subsequent major offense during probation triggers Suspension or Non-Readmission.
                                         </div>
                                     </div>
 
                                     <!-- CAT 2 -->
-                                    <div id="sugCat2" style="display:none;margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:10px;border:1px solid var(--border-glass)">
-                                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">Formative Interventions</div>
+                                    <div id="sugCat2" style="display:none;margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:var(--radius-md);border:1px solid var(--line-2)">
+                                        <div style="font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;font-weight:700">Formative Interventions</div>
                                         <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
                                             <input type="checkbox" id="sug_us" name="suggest_cat2_university_service" value="1" onchange="toggleSugHours()">
                                             University Service (Community Service)
                                         </label>
                                         <div id="sugHoursBox" style="display:none;margin-left:22px;margin-bottom:8px">
-                                            <label style="font-size:11px;color:var(--text-muted)">Required Hours</label>
-                                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px" id="sugHoursBtns">
+                                            <label style="font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">Required Hours</label>
+                                            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px" id="sugHoursBtns">
                                                 <?php foreach ([100,150,200,250,300,350,400,450,500] as $h): ?>
                                                     <button type="button" class="sug-hrs-btn" data-h="<?= $h ?>"
                                                         onclick="selectSugHours('<?= $h ?>', this)"
-                                                        style="padding:6px 16px;font-size:12px;border-radius:8px;border:1px solid var(--border-glass);
-                                                               background:rgba(0,0,0,.2);color:var(--text-muted);cursor:pointer;font-family:var(--font-b)">
+                                                        style="padding:6px 14px;font-size:11.5px;border-radius:3px;border:1px solid var(--line-2);
+                                                               background:rgba(0,0,0,.2);color:var(--text-dim);cursor:pointer;font-family:var(--f-sans);font-weight:600">
                                                         <?= $h ?> hrs
                                                     </button>
                                                 <?php endforeach; ?>
                                                     <button type="button" class="sug-hrs-btn" data-h="OTHER"
                                                         onclick="selectSugHours('OTHER', this)"
-                                                        style="padding:6px 16px;font-size:12px;border-radius:8px;border:1px solid var(--border-glass);
-                                                               background:rgba(0,0,0,.2);color:var(--text-muted);cursor:pointer;font-family:var(--font-b)">
+                                                        style="padding:6px 14px;font-size:11.5px;border-radius:3px;border:1px solid var(--line-2);
+                                                               background:rgba(0,0,0,.2);color:var(--text-dim);cursor:pointer;font-family:var(--f-sans);font-weight:600">
                                                         Other
                                                     </button>
                                             </div>
                                             <div id="sug_cat2_custom_wrap" style="display:none;align-items:center;gap:6px;margin-top:8px">
-                                                <input type="number" id="sug_cat2_service_hours_custom_h" name="suggest_cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="width:80px;padding:8px 6px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
-                                                <span style="color:var(--text-muted);font-size:12px">hrs</span>
-                                                <input type="number" id="sug_cat2_service_hours_custom_m" name="suggest_cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Minutes" style="width:90px;padding:8px 6px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
-                                                <span style="color:var(--text-muted);font-size:12px">mins</span>
+                                                <input type="number" id="sug_cat2_service_hours_custom_h" name="suggest_cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="width:80px;padding:8px 8px;border-radius:3px;background:rgba(0,0,0,.3);color:var(--text-hi);border:1px solid var(--line-2);font-family:var(--f-sans);font-size:13px">
+                                                <span style="color:var(--text-mute);font-size:12px">hrs</span>
+                                                <input type="number" id="sug_cat2_service_hours_custom_m" name="suggest_cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Minutes" style="width:90px;padding:8px 8px;border-radius:3px;background:rgba(0,0,0,.3);color:var(--text-hi);border:1px solid var(--line-2);font-family:var(--f-sans);font-size:13px">
+                                                <span style="color:var(--text-mute);font-size:12px">mins</span>
                                             </div>
                                             <input type="hidden" id="sug_cat2_service_hours" name="suggest_cat2_service_hours" value="">
                                         </div>
@@ -1735,18 +2125,18 @@ hr{border-color:var(--border-glass);margin:18px 0}
                                     </div>
 
                                     <!-- CAT 3/4/5 -->
-                                    <div id="sugCat345" style="display:none;margin-bottom:12px;padding:14px;background:rgba(239,68,68,.08);border-radius:10px;border:1px solid rgba(239,68,68,.2)">
-                                        <div style="font-size:13px;color:#fca5a5;line-height:1.5" id="sugCat345Text"></div>
-                                        <div style="margin-top:8px;font-size:12px;color:#f87171;font-weight:700">⚠️ Student account will be frozen upon finalization.</div>
+                                    <div id="sugCat345" style="display:none;margin-bottom:12px;padding:14px;background:var(--rose-soft);border-radius:var(--radius-md);border:1px solid rgba(201,107,107,.3)">
+                                        <div style="font-size:13px;color:#e0a0a0;line-height:1.55" id="sugCat345Text"></div>
+                                        <div style="margin-top:8px;font-size:12px;color:#e0a0a0;font-weight:700">⚠️ Student account will be frozen upon finalization.</div>
                                     </div>
 
                                     <div class="field" style="margin-bottom:14px">
-                                        <label>Penalty Rationale / Notes <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+                                        <label>Penalty Rationale / Notes <span style="color:var(--text-mute);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
                                         <textarea name="suggest_description" class="fld-input" rows="3" placeholder="Describe the reasoning…"></textarea>
                                     </div>
 
                                     <button id="suggestSubmitBtn" type="submit" class="btn btn-primary" style="width:100%">📝 Suggest This Penalty</button>
-                                    <div id="suggestLockNote" style="display:none;margin-top:8px;font-size:12px;color:#fcd34d;text-align:center"></div>
+                                    <div id="suggestLockNote" style="display:none;margin-top:10px;font-size:12px;color:#dfb87c;text-align:center"></div>
                                 </form>
                             </details>
                         <?php elseif ($isClosed): ?>
@@ -1768,7 +2158,7 @@ function _renderSugDetails(array $sd): void {
     $cat     = $sd['category'];
     $details = $sd['details'] ?? [];
     if ($cat === 1 && !empty($details['probation_terms'])):
-        echo '<div style="font-size:13px;color:#e2e8f0;margin-bottom:6px">🗓️ Probation: <strong>' . (int)$details['probation_terms'] . ' term(s)</strong></div>';
+        echo '<div style="font-size:13px;color:var(--text);margin-bottom:6px">🗓️ Probation: <strong>' . (int)$details['probation_terms'] . ' term(s)</strong></div>';
     endif;
     if ($cat === 2 && !empty($details['interventions'])):
         echo '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">';
@@ -1804,35 +2194,35 @@ function _renderSugDetails(array $sd): void {
 <!-- ── PRESENCE OVERLAY ───────────────────────────────────────────────── -->
 <div id="presenceOverlay" class="presence-overlay" style="display:none">
     <div class="presence-card">
-        <div id="presenceIcon" style="font-size:48px;margin-bottom:20px">🚪</div>
-        <div id="presenceTitle" style="font-family:var(--font-h);font-size:28px;font-weight:800;margin-bottom:12px">Waiting Room</div>
-        <div id="presenceText" style="font-size:15px;line-height:1.6;color:var(--text-muted)">Please wait for the Admin to let you in.</div>
+        <div id="presenceIcon" style="font-size:44px;margin-bottom:20px">🚪</div>
+        <div id="presenceTitle" style="font-family:var(--f-serif);font-size:24px;font-weight:700;margin-bottom:12px;color:var(--text-hi)">Waiting Room</div>
+        <div id="presenceText" style="font-size:14.5px;line-height:1.65;color:var(--text-dim)">Please wait for the Admin to let you in.</div>
         <div style="margin-top:24px;display:flex;gap:10px;flex-direction:column">
-            <button id="requestJoinBtn" class="btn btn-primary" style="width:100%;justify-content:center;display:none" onclick="requestJoinHearing()">🔔 Request to Join Hearing</button>
-            <button id="exitHearingBtn" class="btn btn-secondary" style="width:100%;justify-content:center;display:none" onclick="exitHearing()">🚪 Exit Hearing</button>
+            <button id="requestJoinBtn" class="btn btn-primary" style="width:100%;display:none" onclick="requestJoinHearing()">🔔 Request to Join Hearing</button>
+            <button id="exitHearingBtn" class="btn btn-secondary" style="width:100%;display:none" onclick="exitHearing()">🚪 Exit Hearing</button>
         </div>
     </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     VOTING MODAL — appears on ALL panel members' screens when vote active
+     VOTING MODAL
 ══════════════════════════════════════════════════════════════════════ -->
 <div id="votingModal" class="voting-modal <?= $showVotingPopup ? 'open' : '' ?>">
     <div class="vmc" id="vmcInner">
 
         <div class="vmc-header">
-            <div class="vmc-title">🗳️ Live Voting Session</div>
+            <div class="vmc-title">Live Voting Session</div>
             <span class="vmc-live-badge" id="vmcLiveBadge">● Live</span>
         </div>
         <div class="vmc-sub" id="vmcSub">
             <?php if ($isCurrentUserSuggester): ?>
                 You submitted this penalty proposal. Your screen will stay in waiting mode until the other panel members vote.
             <?php else: ?>
-                <strong><?= htmlspecialchars($suggesterName ?? '') ?></strong> submitted a penalty proposal. Choose <strong>Agree</strong> or <strong>Disagree</strong> before the 10-minute voting window ends.
+                <strong style="color:var(--text-hi)"><?= htmlspecialchars($suggesterName ?? '') ?></strong> submitted a penalty proposal. Choose <strong>Agree</strong> or <strong>Disagree</strong> before the 10-minute voting window ends.
             <?php endif; ?>
         </div>
 
-        <!-- 30-min countdown -->
+        <!-- Timer -->
         <div class="timer-wrap">
             <div class="timer-top">
                 <span class="timer-label">Time to vote</span>
@@ -1841,7 +2231,7 @@ function _renderSugDetails(array $sd): void {
             <div class="timer-bar-wrap">
                 <div class="timer-bar-fill" id="vmcTimerBar"
                      style="width:<?= $roundSecondsRemaining > 0 ? round(($roundSecondsRemaining / 600) * 100) : 0 ?>%;
-                            background:<?= $roundSecondsRemaining > 600 ? '#10b981' : ($roundSecondsRemaining > 180 ? '#f59e0b' : '#ef4444') ?>"></div>
+                            background:<?= $roundSecondsRemaining > 600 ? '#6e9e7e' : ($roundSecondsRemaining > 180 ? '#c9985b' : '#c96b6b') ?>"></div>
             </div>
         </div>
 
@@ -1862,7 +2252,7 @@ function _renderSugDetails(array $sd): void {
         </div>
         <div class="tally-note" id="vmcNote">All <?= $totalVoters ?> voter(s) must agree to pass</div>
 
-        <!-- Per-member vote list -->
+        <!-- Voter list -->
         <div class="voter-list" id="vmcVoterList">
             <?php foreach ($panelMembers as $m):
                 $uid    = (int)$m['upcc_id'];
@@ -1873,7 +2263,7 @@ function _renderSugDetails(array $sd): void {
             ?>
                 <div class="voter-item <?= $cls ?><?= $isSug ? ' v-suggester' : '' ?>" id="voter-<?= $uid ?>">
                     <div>
-                        <div class="voter-name"><?= htmlspecialchars($m['full_name']) ?><?= $uid === $panelId ? ' <small style="color:var(--text-muted)">(you)</small>' : '' ?></div>
+                        <div class="voter-name"><?= htmlspecialchars($m['full_name']) ?><?= $uid === $panelId ? ' <small style="color:var(--text-mute);font-size:10px">(YOU)</small>' : '' ?></div>
                         <div class="voter-meta"><?= htmlspecialchars(ucfirst($m['role'])) ?></div>
                     </div>
                     <div id="vpill-<?= $uid ?>">
@@ -1903,11 +2293,11 @@ function _renderSugDetails(array $sd): void {
                     <form method="post" onsubmit="return confirm('Cancel your suggestion? The panel can submit a new suggestion immediately.')">
                         <input type="hidden" name="action" value="cancel_suggestion">
                         <input type="hidden" name="round_no" value="<?= $roundNo ?>">
-                        <button type="submit" class="btn btn-danger" style="width:100%;padding:14px;font-size:15px">❌ Cancel My Suggestion</button>
+                        <button type="submit" class="btn btn-danger" style="width:100%;padding:14px;font-size:13px">❌ Cancel My Suggestion</button>
                     </form>
-                    <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:8px">You are the suggester. Only the other panel members can vote.</div>
+                    <div style="text-align:center;font-size:11px;color:var(--text-mute);margin-top:10px">You are the suggester. Only the other panel members can vote.</div>
                     <div style="text-align:center;margin-top:12px;">
-                        <button type="button" class="btn btn-secondary" onclick="closeVotingModal()" style="padding:6px 12px;font-size:12px;">Hide Window</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeVotingModal()" style="padding:6px 14px;font-size:11px;">Hide Window</button>
                     </div>
                 <?php elseif (!$hasVoted): ?>
                     <div class="vote-btn-row">
@@ -1931,14 +2321,14 @@ function _renderSugDetails(array $sd): void {
                         <?= $currentMemberVote > 0 ? '✅ You voted <strong>AGREE</strong>' : '❌ You voted <strong>DISAGREE</strong>' ?>
                         <small>Waiting for other panel members…</small>
                         <div style="margin-top:12px;">
-                            <button type="button" class="btn btn-secondary" onclick="closeVotingModal()" style="padding:6px 12px;font-size:12px;">Hide Window</button>
+                            <button type="button" class="btn btn-secondary" onclick="closeVotingModal()" style="padding:6px 14px;font-size:11px;">Hide Window</button>
                         </div>
                     </div>
                 <?php endif; ?>
             <?php endif; ?>
         </div>
 
-        <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--text-muted)">
+        <div style="text-align:center;margin-top:16px;font-size:11.5px;color:var(--text-mute);letter-spacing:.3px">
             This live voting window remains open for up to 10 minutes, or until consensus/cancellation.
         </div>
     </div>
@@ -1970,7 +2360,7 @@ function setPauseWaitingState() {
     if (optionsState) optionsState.style.display = 'none';
     if (waitingState) waitingState.style.display = 'block';
     if (typeof showToast === 'function') {
-        showToast('⏳ Waiting for Admin', 'You are in waiting mode. The hearing will automatically resume once the admin returns.', 'info');
+        showToast('Waiting for Admin', 'You are in waiting mode. The hearing will automatically resume once the admin returns.', 'info');
     }
 }
 
@@ -1994,32 +2384,29 @@ function closePauseModal() {
 </script>
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     COOLDOWN OVERLAY — shown globally after cancel/disagree/expire
+     COOLDOWN MODAL
 ══════════════════════════════════════════════════════════════════════ -->
-<div id="cooldownModal" style="position:fixed;inset:0;z-index:9100;display:none;align-items:center;
-    justify-content:center;background:rgba(7,17,31,.96);backdrop-filter:blur(12px);padding:16px">
-    <div style="background:var(--bg-card);border:2px solid rgba(239,68,68,.4);border-radius:var(--radius-lg);
-        padding:40px 36px;max-width:420px;width:100%;text-align:center;
-        box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(239,68,68,.2)">
-        <div style="font-size:40px;margin-bottom:16px">⏳</div>
-        <div style="font-family:var(--font-h);font-size:22px;font-weight:800;margin-bottom:8px">Voting Cooldown Active</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.5" id="cooldownModalReason">
+<div id="cooldownModal" class="modal-shell">
+    <div class="modal-card" style="border-color:rgba(201,107,107,.4);max-width:420px">
+        <div style="font-size:36px;margin-bottom:14px">⏳</div>
+        <div style="font-family:var(--f-serif);font-size:20px;font-weight:700;margin-bottom:8px;color:var(--text-hi)">Voting Cooldown Active</div>
+        <div style="font-size:12.5px;color:var(--text-mute);margin-bottom:20px;line-height:1.55" id="cooldownModalReason">
             Voting ended. Any panel member may suggest again after:
         </div>
-        <div style="font-family:var(--font-h);font-size:48px;font-weight:800;color:#fcd34d;
-            font-variant-numeric:tabular-nums;margin-bottom:8px" id="cooldownModalTimer">3:00</div>
-        <div style="font-size:12px;color:var(--text-muted)">Panel will be unlocked automatically</div>
+        <div style="font-family:var(--f-mono);font-size:44px;font-weight:600;color:#dfb87c;
+            font-variant-numeric:tabular-nums;margin-bottom:8px;letter-spacing:2px" id="cooldownModalTimer">3:00</div>
+        <div style="font-size:11.5px;color:var(--text-mute);letter-spacing:.5px">Panel will be unlocked automatically</div>
     </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
      AWAITING ADMIN MODAL
 ══════════════════════════════════════════════════════════════════════ -->
-<div id="awaitingAdminModal" style="position:fixed;inset:0;z-index:9200;display:<?= $isAwaitingAdmin ? 'flex' : 'none' ?>;align-items:center;justify-content:center;background:rgba(15,23,42,.9);backdrop-filter:blur(8px);padding:24px">
-    <div style="background:var(--bg-card);border:2px solid #10b981;border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:420px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5)">
-        <div style="font-size:48px;margin-bottom:16px">⏳</div>
-        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#6ee7b7;margin-bottom:12px">Waiting for Admin</div>
-        <div style="font-size:14px;color:var(--text-muted);line-height:1.6">
+<div id="awaitingAdminModal" class="modal-shell" style="<?= $isAwaitingAdmin ? 'display:flex' : 'display:none' ?>">
+    <div class="modal-card" style="border-color:rgba(110,158,126,.5);max-width:420px">
+        <div style="font-size:44px;margin-bottom:16px">⏳</div>
+        <div style="font-family:var(--f-serif);font-size:22px;font-weight:700;color:#a7f3d0;margin-bottom:12px">Waiting for Admin</div>
+        <div style="font-size:13.5px;color:var(--text-dim);line-height:1.65">
             The panel has reached a consensus.<br><br>
             Please wait while the Admin reviews and records the final decision. You will be redirected automatically once the case is closed.
         </div>
@@ -2029,61 +2416,61 @@ function closePauseModal() {
 <!-- ══════════════════════════════════════════════════════════════════════
      CASE RESOLVED MODAL
 ══════════════════════════════════════════════════════════════════════ -->
-<div id="caseResolvedModal" style="position:fixed;inset:0;z-index:9300;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.95);backdrop-filter:blur(12px);padding:24px">
-    <div style="background:var(--bg-card);border:2px solid #3b82f6;border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:420px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(59,130,246,.2);position:relative">
-        <button onclick="dismissResolvedModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1" title="Dismiss">✕</button>
-        <div style="font-size:48px;margin-bottom:16px">🎓</div>
-        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#93c5fd;margin-bottom:12px">Case Resolved</div>
-        <div style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:24px">
+<div id="caseResolvedModal" class="modal-shell" style="display:none">
+    <div class="modal-card" style="border-color:rgba(124,143,201,.5);max-width:420px">
+        <button onclick="dismissResolvedModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;color:var(--text-mute);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1" title="Dismiss">✕</button>
+        <div style="font-size:44px;margin-bottom:16px">🎓</div>
+        <div style="font-family:var(--f-serif);font-size:22px;font-weight:700;color:#a5b6e0;margin-bottom:12px">Case Resolved</div>
+        <div style="font-size:13.5px;color:var(--text-dim);line-height:1.65;margin-bottom:24px">
             The Admin has finalized and recorded the decision. This case is now permanently closed.
         </div>
-        <a href="upccdashboard.php" class="btn btn-primary" style="width:100%;justify-content:center;padding:14px;font-size:15px">Return to Dashboard</a>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:12px">Auto-redirecting in <span id="resolvedCountdown">5</span>s...</div>
+        <a href="upccdashboard.php" class="btn btn-primary" style="width:100%;padding:14px;font-size:13px">Return to Dashboard</a>
+        <div style="font-size:11px;color:var(--text-mute);margin-top:12px">Auto-redirecting in <span id="resolvedCountdown">5</span>s…</div>
     </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     HEARING PAUSED MODAL — shown when hearing is paused while panel is in
+     HEARING PAUSED MODAL
 ══════════════════════════════════════════════════════════════════════ -->
-<div id="hearingPausedModal" style="position:fixed;inset:0;z-index:9200;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.96);backdrop-filter:blur(12px);padding:24px">
-    <!-- State 1: Initial Paused Options -->
-    <div id="pauseModalStateOptions" style="background:var(--bg-card);border:2px solid rgba(239,68,68,.4);border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:480px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(239,68,68,.2)">
-        <div style="font-size:48px;margin-bottom:16px">⏸️</div>
-        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#fca5a5;margin-bottom:8px">Hearing Has Been Paused</div>
-        <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:24px">
+<div id="hearingPausedModal" class="modal-shell" style="display:none">
+    <!-- State 1 -->
+    <div id="pauseModalStateOptions" class="modal-card" style="border-color:rgba(201,107,107,.4);max-width:480px">
+        <div style="font-size:44px;margin-bottom:16px">⏸️</div>
+        <div style="font-family:var(--f-serif);font-size:22px;font-weight:700;color:#e0a0a0;margin-bottom:10px">Hearing Has Been Paused</div>
+        <div style="font-size:13px;color:var(--text-dim);line-height:1.65;margin-bottom:24px">
             <p id="pauseReasonText" style="margin:0 0 12px">The admin has paused the hearing.</p>
             <p style="margin:0;font-size:12px;font-style:italic">You can stay in the hearing and wait for it to resume, or return to your dashboard.</p>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-            <button type="button" class="btn btn-primary" onclick="setPauseWaitingState();" style="padding:14px;font-size:14px;">⏳ Waiting for Admin</button>
-            <button type="button" class="btn btn-secondary" onclick="exitHearing()" style="padding:14px;font-size:14px;">← Go to Dashboard</button>
+            <button type="button" class="btn btn-primary" onclick="setPauseWaitingState();" style="padding:14px;font-size:12.5px;">⏳ Waiting for Admin</button>
+            <button type="button" class="btn btn-secondary" onclick="exitHearing()" style="padding:14px;font-size:12.5px;">← Dashboard</button>
         </div>
-        <div style="padding:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:12px;color:#6ee7b7">
+        <div style="padding:12px;background:var(--sage-soft);border:1px solid rgba(110,158,126,.3);border-radius:var(--radius-sm);font-size:12px;color:#9dc5a8">
             The hearing will automatically resume. Stay and keep your place in the panel.
         </div>
     </div>
 
-    <!-- State 2: Waiting for Admin Active Screen -->
-    <div id="pauseModalStateWaiting" style="display:none;background:var(--bg-card);border:2px solid rgba(99,102,241,.4);border-radius:var(--radius-lg);padding:40px;text-align:center;max-width:480px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(99,102,241,.2)">
-        <div style="font-size:48px;margin-bottom:16px">⏳</div>
-        <div style="font-family:var(--font-h);font-size:24px;font-weight:800;color:#a5b4fc;margin-bottom:8px">Waiting for Admin...</div>
-        <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:20px">
+    <!-- State 2 -->
+    <div id="pauseModalStateWaiting" class="modal-card" style="display:none;border-color:rgba(124,143,201,.4);max-width:480px">
+        <div style="font-size:44px;margin-bottom:16px">⏳</div>
+        <div style="font-family:var(--f-serif);font-size:22px;font-weight:700;color:#a5b6e0;margin-bottom:10px">Waiting for Admin…</div>
+        <div style="font-size:13px;color:var(--text-dim);line-height:1.65;margin-bottom:20px">
             <p style="margin:0 0 10px">You are currently waiting in the live hearing session.</p>
-            <p style="margin:0;font-size:12px;color:#cbd5e1">The hearing will automatically resume as soon as the admin returns. Stay and keep your place in the panel.</p>
+            <p style="margin:0;font-size:12px;color:var(--text)">The hearing will automatically resume as soon as the admin returns. Stay and keep your place in the panel.</p>
         </div>
-        <div style="padding:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:12px;color:#6ee7b7;margin-bottom:20px">
-            ✓ Connected to live session. Standing by...
+        <div style="padding:12px;background:var(--sage-soft);border:1px solid rgba(110,158,126,.3);border-radius:var(--radius-sm);font-size:12px;color:#9dc5a8;margin-bottom:20px">
+            ✓ Connected to live session. Standing by…
         </div>
-        <button type="button" class="btn btn-secondary" onclick="exitHearing()" style="width:100%;padding:14px;font-size:14px;">← Go to Dashboard</button>
+        <button type="button" class="btn btn-secondary" onclick="exitHearing()" style="width:100%;padding:14px;font-size:12.5px;">← Dashboard</button>
     </div>
 </div>
 
 <!-- Confirm Exit Hearing Modal -->
-<div id="confirmExitHearingModal" style="position:fixed;inset:0;z-index:9300;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.96);backdrop-filter:blur(12px);padding:24px">
-    <div style="background:var(--bg-card);border:2px solid rgba(239,68,68,.4);border-radius:var(--radius-lg);padding:32px;text-align:center;max-width:400px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5),0 0 40px rgba(239,68,68,.2)">
-        <div style="font-size:40px;margin-bottom:12px">⚠️</div>
-        <div style="font-family:var(--font-h);font-size:22px;font-weight:800;color:#fca5a5;margin-bottom:8px">Leave Hearing?</div>
-        <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:24px">
+<div id="confirmExitHearingModal" class="modal-shell" style="display:none;z-index:9300">
+    <div class="modal-card" style="border-color:rgba(201,107,107,.4);max-width:400px">
+        <div style="font-size:38px;margin-bottom:12px">⚠️</div>
+        <div style="font-family:var(--f-serif);font-size:20px;font-weight:700;color:#e0a0a0;margin-bottom:8px">Leave Hearing?</div>
+        <div style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:24px">
             If you leave now, you will need the admin's permission to rejoin the hearing later. Are you sure?
         </div>
         <div style="display:flex;gap:12px;justify-content:center">
@@ -2094,10 +2481,10 @@ function closePauseModal() {
 </div>
 
 <!-- Rejoin Sent Modal -->
-<div id="rejoinSentModal" style="position:fixed;inset:0;z-index:9400;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);padding:16px">
-    <div style="background:var(--bg-card);border-radius:12px;padding:20px;max-width:360px;width:100%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.45)">
-        <div style="font-size:22px;margin-bottom:8px">🔔 Rejoin Request Sent</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Your request to rejoin has been sent. Please wait for the Admin to let you in.</div>
+<div id="rejoinSentModal" class="modal-shell" style="display:none;z-index:9400">
+    <div class="modal-card" style="max-width:360px">
+        <div style="font-size:20px;font-weight:700;margin-bottom:10px;color:var(--text-hi)">🔔 Rejoin Request Sent</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:18px;line-height:1.55">Your request to rejoin has been sent. Please wait for the Admin to let you in.</div>
         <div style="display:flex;gap:8px;justify-content:center">
             <button class="btn btn-outline" onclick="document.getElementById('rejoinSentModal').style.display='none'">Close</button>
         </div>
@@ -2165,12 +2552,11 @@ function startVotingTimer() {
         }
         if (barEl) {
             barEl.style.width = pct + '%';
-            barEl.style.background = rem > 600 ? '#10b981' : rem > 180 ? '#f59e0b' : '#ef4444';
+            barEl.style.background = rem > 600 ? '#6e9e7e' : rem > 180 ? '#c9985b' : '#c96b6b';
         }
 
         if (rem <= 0) {
             clearInterval(timerInterval);
-            // Server will expire the round; just trigger a sync
             syncLive();
         }
     }
@@ -2192,7 +2578,6 @@ function startCooldownDisplay(seconds, reason) {
     if (reason) reason2.textContent = reason;
     modal.style.display = 'flex';
     cooldownModalOpen = true;
-    // Close voting modal
     document.getElementById('votingModal')?.classList.remove('open');
 
     clearInterval(cooldownInterval);
@@ -2233,7 +2618,6 @@ function setSuggestionLocked(locked, remainingSeconds) {
         }
     });
 
-    // Keep hidden fields enabled so normal form semantics are preserved once unlocked.
     form.querySelectorAll('input[type="hidden"]').forEach(el => el.removeAttribute('disabled'));
 
     if (locked) {
@@ -2263,7 +2647,7 @@ function toggleSugFields() {
     const v = parseInt(sugCatEl?.value || '0', 10);
     const show = id => { const el = document.getElementById(id); if (el) el.style.setProperty('display', 'block', 'important'); };
     const hide = id => { const el = document.getElementById(id); if (el) el.style.setProperty('display', 'none', 'important'); };
-    
+
     hide('sugCat1');
     hide('sugCat2');
     hide('sugCat345');
@@ -2299,8 +2683,8 @@ function toggleSugHours() {
     if (!cb?.checked) {
         document.getElementById('sug_cat2_service_hours').value = '';
         document.querySelectorAll('.sug-hrs-btn').forEach(b => {
-            b.style.background = 'rgba(0,0,0,.2)'; b.style.color = 'var(--text-muted)';
-            b.style.border = '1px solid var(--border-glass)';
+            b.style.background = 'rgba(0,0,0,.2)'; b.style.color = 'var(--text-dim)';
+            b.style.border = '1px solid var(--line-2)';
         });
     }
 }
@@ -2318,10 +2702,10 @@ function selectSugHours(h, btn) {
 
     document.querySelectorAll('.sug-hrs-btn').forEach(b => {
         const active = b.dataset.h == h;
-        b.style.background = active ? 'rgba(99,102,241,.2)' : 'rgba(0,0,0,.2)';
-        b.style.color      = active ? '#c4b5fd' : 'var(--text-muted)';
-        b.style.border     = active ? '1px solid rgba(99,102,241,.4)' : '1px solid var(--border-glass)';
-        b.style.fontWeight = active ? '700' : '400';
+        b.style.background = active ? 'var(--gold-faint)' : 'rgba(0,0,0,.2)';
+        b.style.color      = active ? 'var(--gold-bright)' : 'var(--text-dim)';
+        b.style.border     = active ? '1px solid var(--line-hi)' : '1px solid var(--line-2)';
+        b.style.fontWeight = active ? '700' : '600';
     });
 }
 
@@ -2363,36 +2747,36 @@ function toggleFinalCatFields() {
 
     if (cat === 1) {
         container.innerHTML = `
-        <div style="margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:10px;border:1px solid var(--border-glass)">
-            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600">Probation Details</div>
-            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Number of terms</label>
-            <select name="cat1_terms" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:10px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
+        <div style="margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:var(--radius-md);border:1px solid var(--line-2)">
+            <div style="font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;font-weight:700">Probation Details</div>
+            <label style="font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">Number of terms</label>
+            <select name="cat1_terms" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:var(--radius-sm);background:rgba(0,0,0,.35);color:var(--text-hi);border:1px solid var(--line-2);font-family:var(--f-sans);font-size:13px">
                 <option value="1">1 term</option>
                 <option value="2">2 terms</option>
                 <option value="3" selected>3 terms (maximum)</option>
             </select>
-            <div style="margin-top:8px;font-size:12px;color:var(--text-muted);line-height:1.5">Any subsequent major offense triggers Suspension or Non-Readmission.</div>
+            <div style="margin-top:8px;font-size:12px;color:var(--text-mute);line-height:1.55">Any subsequent major offense triggers Suspension or Non-Readmission.</div>
         </div>`;
     } else if (cat === 2) {
         container.innerHTML = `
-        <div style="margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:10px;border:1px solid var(--border-glass)">
-            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">Formative Interventions</div>
+        <div style="margin-bottom:12px;padding:14px;background:rgba(0,0,0,.2);border-radius:var(--radius-md);border:1px solid var(--line-2)">
+            <div style="font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;font-weight:700">Formative Interventions</div>
             <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
                 <input type="checkbox" name="cat2_university_service" value="1" onchange="toggleFinalHours(this)"> University Service
             </label>
             <div id="finalHoursBox" style="display:none;margin-left:22px;margin-bottom:10px">
-                <label style="font-size:11px;color:var(--text-muted)">Required Hours</label>
-                <select name="cat2_service_hours" style="width:100%;margin-top:4px;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px" onchange="this.parentElement.querySelector('.cat2-custom-wrap').style.display = this.value === 'OTHER' ? 'flex' : 'none'">
+                <label style="font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">Required Hours</label>
+                <select name="cat2_service_hours" style="width:100%;margin-top:4px;padding:8px 12px;border-radius:var(--radius-sm);background:rgba(0,0,0,.35);color:var(--text-hi);border:1px solid var(--line-2);font-family:var(--f-sans);font-size:13px" onchange="this.parentElement.querySelector('.cat2-custom-wrap').style.display = this.value === 'OTHER' ? 'flex' : 'none'">
                     <?php foreach ([100,150,200,250,300,350,400,450,500] as $h): ?>
                         <option value="<?= $h ?>"><?= $h ?> hours</option>
                     <?php endforeach; ?>
                     <option value="OTHER">Other</option>
                 </select>
                 <div class="cat2-custom-wrap" style="display:none;align-items:center;gap:8px;margin-top:6px">
-                    <input type="number" name="cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
-                    <span style="color:var(--text-muted);font-size:12px">hrs</span>
-                    <input type="number" name="cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Minutes" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.25);color:var(--text-main);border:1px solid var(--border-glass);font-family:var(--font-b);font-size:13px">
-                    <span style="color:var(--text-muted);font-size:12px">mins</span>
+                    <input type="number" name="cat2_service_hours_custom_h" min="0" step="1" placeholder="Hours" style="flex:1;padding:8px 12px;border-radius:var(--radius-sm);background:rgba(0,0,0,.35);color:var(--text-hi);border:1px solid var(--line-2);font-family:var(--f-sans);font-size:13px">
+                    <span style="color:var(--text-mute);font-size:12px">hrs</span>
+                    <input type="number" name="cat2_service_hours_custom_m" min="0" max="59" step="1" placeholder="Minutes" style="flex:1;padding:8px 12px;border-radius:var(--radius-sm);background:rgba(0,0,0,.35);color:var(--text-hi);border:1px solid var(--line-2);font-family:var(--f-sans);font-size:13px">
+                    <span style="color:var(--text-mute);font-size:12px">mins</span>
                 </div>
             </div>
             <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
@@ -2412,8 +2796,8 @@ function toggleFinalCatFields() {
             5: '⚠️ Expulsion: The student will be permanently disqualified. Account will be permanently frozen.',
         };
         container.innerHTML = `
-        <div style="margin-bottom:12px;padding:14px;background:rgba(239,68,68,.08);border-radius:10px;border:1px solid rgba(239,68,68,.2)">
-            <div style="font-size:13px;color:#fca5a5;font-weight:600;line-height:1.5">${msgs[cat] || ''}</div>
+        <div style="margin-bottom:12px;padding:14px;background:var(--rose-soft);border-radius:var(--radius-md);border:1px solid rgba(201,107,107,.3)">
+            <div style="font-size:13px;color:#e0a0a0;font-weight:600;line-height:1.55">${msgs[cat] || ''}</div>
         </div>`;
     } else {
         container.innerHTML = '';
@@ -2437,7 +2821,7 @@ function voteSig(votes) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-//  PARTIAL RELOAD — refreshes voting section + modal without full page load
+//  PARTIAL RELOAD
 // ─────────────────────────────────────────────────────────────────────────
 function partialReload() {
     if (isPartialReloading) return;
@@ -2459,7 +2843,6 @@ function partialReload() {
                     }
                 }
             });
-            // Re-init form toggles
             initFormToggles();
             isPartialReloading = false;
         })
@@ -2473,20 +2856,20 @@ function renderChat(msgs) {
     const box = document.getElementById('live-chat-box');
     if (!box) return;
     if (!msgs || !msgs.length) {
-        box.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:11px">No messages yet.</div>';
+        box.innerHTML = '<div style="text-align:center;color:var(--text-mute);font-size:11px">No messages yet.</div>';
         return;
     }
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
     box.innerHTML = msgs.map(m => {
         if (m.is_system) {
             return `<div style="text-align:center;margin:14px 0">
-                <span style="background:rgba(240,192,64,.12);color:#f8d77c;border:1px solid rgba(240,192,64,.25);
-                    padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700">${esc(m.message)}</span>
+                <span style="background:var(--gold-faint);color:var(--gold-bright);border:1px solid var(--line-hi);
+                    padding:6px 14px;border-radius:3px;font-size:11px;font-weight:700;letter-spacing:.5px">${esc(m.message)}</span>
             </div>`;
         }
         const isMe   = !!m.is_me;
-        const bg     = isMe ? 'rgba(79,123,255,.12)' : 'rgba(255,255,255,.03)';
-        const border = isMe ? '1px solid rgba(79,123,255,.25)' : '1px solid var(--border-glass)';
+        const bg     = isMe ? 'rgba(201,169,97,.06)' : 'rgba(0,0,0,.18)';
+        const border = isMe ? '1px solid var(--line-hi)' : '1px solid var(--line-2)';
         return `<div class="chat-item" style="background:${bg};border:${border}">
             <div class="chat-head">
                 <div><div class="chat-name">${esc(m.sender_name)}</div><div class="chat-role">${esc(m.sender_role)}</div></div>
@@ -2499,7 +2882,7 @@ function renderChat(msgs) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-//  UPDATE VOTER LIST IN MODAL (live, no reload)
+//  UPDATE VOTER LIST
 // ─────────────────────────────────────────────────────────────────────────
 function updateVoterPill(uid, cat, suggesterId) {
     const item = document.getElementById('voter-' + uid);
@@ -2540,96 +2923,47 @@ function normalizePauseState(value) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────
 //  PAUSE STATE HANDLERS
 // ─────────────────────────────────────────────────────────────────────────
 function updatePauseUI(isPaused, pauseReason = null) {
     const heroMeta = document.querySelector('.hero-meta');
     if (!heroMeta) return;
-    
-    // Remove old pause pill if exists
+
     const oldPausePill = heroMeta.querySelector('[data-pause-pill]');
     if (oldPausePill) oldPausePill.remove();
-    
+
     if (isPaused) {
         const pill = document.createElement('span');
         pill.className = 'pill';
         pill.setAttribute('data-pause-pill', '1');
-        pill.style.background = '#fca5a5';
-        pill.style.color = '#7f1d1d';
-        pill.style.borderColor = '#ef4444';
-        pill.innerHTML = '⏸️ HEARING PAUSED';
+        pill.style.background = 'var(--rose-soft)';
+        pill.style.color = '#e0a0a0';
+        pill.style.borderColor = 'rgba(201,107,107,.4)';
+        pill.innerHTML = '⏸ HEARING PAUSED';
         heroMeta.appendChild(pill);
     } else {
         const pill = document.createElement('span');
         pill.className = 'pill';
         pill.setAttribute('data-pause-pill', '1');
-        pill.style.background = '#86efac';
-        pill.style.color = '#15803d';
-        pill.style.borderColor = '#22c55e';
-        pill.innerHTML = '<span style="display:inline-block;width:6px;height:6px;background:#15803d;border-radius:50%;margin-right:4px"></span> HEARING LIVE';
+        pill.style.background = 'var(--sage-soft)';
+        pill.style.color = '#9dc5a8';
+        pill.style.borderColor = 'rgba(110,158,126,.4)';
+        pill.innerHTML = '<span style="display:inline-block;width:6px;height:6px;background:#9dc5a8;border-radius:50%;margin-right:4px"></span> HEARING LIVE';
         heroMeta.appendChild(pill);
     }
 }
 
 function disablePauseableControls() {
-    // Disable chat
     const chatInput = document.getElementById('chat_message_input');
     const chatSubmit = document.getElementById('chat_submit_btn');
     if (chatInput) {
         chatInput.disabled = true;
-        chatInput.placeholder = 'Chat disabled - hearing is paused';
+        chatInput.placeholder = 'Chat disabled — hearing is paused';
     }
     if (chatSubmit) chatSubmit.disabled = true;
-    
-    // Disable voting buttons
-    document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = true);
-    
-    // Disable suggestion form
-    const suggestForm = document.getElementById('suggestForm');
-    if (suggestForm) {
-        suggestForm.querySelectorAll('input:not([type=\"hidden\"]), select, textarea, button').forEach(el => el.disabled = true);
-    }
-}
 
-function enablePauseableControls() {
-    // Only re-enable if hearing is still open (not just unpaused, but actually open)
-    const hearingOpen = <?= $isHearingOpen ? 'true' : 'false' ?>;
-    if (!hearingOpen) return;
-    
-    // Enable chat
-    const chatInput = document.getElementById('chat_message_input');
-    const chatSubmit = document.getElementById('chat_submit_btn');
-    if (chatInput) {
-        chatInput.disabled = false;
-        chatInput.placeholder = 'Type your message…';
-    }
-    if (chatSubmit) chatSubmit.disabled = false;
-    
-    // Enable voting buttons
-    document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = false);
-    
-    // Enable suggestion form
-    const suggestForm = document.getElementById('suggestForm');
-    if (suggestForm) {
-        suggestForm.querySelectorAll('input:not([type=\"hidden\"]), select, textarea, button').forEach(el => el.disabled = false);
-    }
-}
-
-function disablePauseableControls() {
-    // Disable chat
-    const chatInput = document.getElementById('chat_message_input');
-    const chatSubmit = document.getElementById('chat_submit_btn');
-    if (chatInput) {
-        chatInput.disabled = true;
-        chatInput.placeholder = 'Chat disabled - hearing is paused';
-    }
-    if (chatSubmit) chatSubmit.disabled = true;
-    
-    // Disable voting buttons
     document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = true);
-    
-    // Disable suggestion form
+
     const suggestForm = document.getElementById('suggestForm');
     if (suggestForm) {
         suggestForm.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach(el => el.disabled = true);
@@ -2637,11 +2971,9 @@ function disablePauseableControls() {
 }
 
 function enablePauseableControls() {
-    // Only re-enable if hearing is still open (not just unpaused, but actually open)
     const hearingOpen = <?= $isHearingOpen ? 'true' : 'false' ?>;
     if (!hearingOpen) return;
-    
-    // Enable chat
+
     const chatInput = document.getElementById('chat_message_input');
     const chatSubmit = document.getElementById('chat_submit_btn');
     if (chatInput) {
@@ -2649,11 +2981,9 @@ function enablePauseableControls() {
         chatInput.placeholder = 'Type your message…';
     }
     if (chatSubmit) chatSubmit.disabled = false;
-    
-    // Enable voting buttons
+
     document.querySelectorAll('.btn-vote-agree, .btn-vote-disagree').forEach(btn => btn.disabled = false);
-    
-    // Enable suggestion form
+
     const suggestForm = document.getElementById('suggestForm');
     if (suggestForm) {
         suggestForm.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach(el => el.disabled = false);
@@ -2664,7 +2994,7 @@ function exitHearingDueToPause() {
     const fd = new FormData();
     fd.append('action', 'exit_hearing');
     fd.append('case_id', CASE_ID);
-    
+
     fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
         .then(() => {
             window.location.href = 'upccdashboard.php?msg=exited_due_to_pause';
@@ -2689,15 +3019,15 @@ function showToast(title, message, type = 'info') {
     wrap.style.bottom = '16px';
     wrap.style.zIndex = '9999';
     wrap.style.maxWidth = '340px';
-    wrap.style.padding = '12px 14px';
-    wrap.style.borderRadius = '10px';
-    wrap.style.border = '1px solid rgba(255,255,255,.15)';
-    wrap.style.background = type === 'warning' ? 'rgba(245, 158, 11, .18)' : 'rgba(59, 130, 246, .18)';
+    wrap.style.padding = '12px 16px';
+    wrap.style.borderRadius = '4px';
+    wrap.style.border = '1px solid var(--line-hi)';
+    wrap.style.background = type === 'warning' ? 'rgba(201,152,91,.15)' : (type === 'success' ? 'rgba(110,158,126,.15)' : 'var(--panel)');
     wrap.style.backdropFilter = 'blur(8px)';
-    wrap.style.color = '#e2e8f0';
-    wrap.style.boxShadow = '0 8px 20px rgba(0,0,0,.35)';
-    wrap.innerHTML = `<div style="font-weight:700;font-size:12px;margin-bottom:2px">${esc(title)}</div>
-                      <div style="font-size:12px;line-height:1.35">${esc(message)}</div>`;
+    wrap.style.color = 'var(--text)';
+    wrap.style.boxShadow = 'var(--shadow-md)';
+    wrap.innerHTML = `<div style="font-weight:700;font-size:12px;margin-bottom:3px;color:var(--text-hi);letter-spacing:.3px">${esc(title)}</div>
+                      <div style="font-size:12px;line-height:1.4">${esc(message)}</div>`;
     document.body.appendChild(wrap);
     setTimeout(() => wrap.remove(), 4200);
 }
@@ -2707,12 +3037,11 @@ let resolvedModalDismissed = false;
 function showCaseResolvedModal() {
     if (resolvedModalDismissed) return;
     if (document.getElementById('caseResolvedModal').style.display === 'flex') return;
-    
-    // Hide other modals to ensure clean UI
+
     document.getElementById('votingModal')?.classList.remove('open');
     if (document.getElementById('cooldownModal')) document.getElementById('cooldownModal').style.display = 'none';
     if (document.getElementById('awaitingAdminModal')) document.getElementById('awaitingAdminModal').style.display = 'none';
-    
+
     document.getElementById('caseResolvedModal').style.display = 'flex';
     let secs = 5;
     const el = document.getElementById('resolvedCountdown');
@@ -2740,20 +3069,19 @@ function syncLive() {
         .then(data => {
             if (!data.ok) return;
 
-            // ── CHECK IF CASE IS RESOLVED OR PAUSED ───────────────────
             const aiInput = document.getElementById('aiChatInput');
             const aiStatusBadge = document.getElementById('aiStatusBadge');
-            
+
             if (data.is_closed || (data.case_status && (data.case_status === 'CLOSED' || data.case_status === 'RESOLVED'))) {
                 if (aiInput) {
                     aiInput.disabled = true;
                     aiInput.placeholder = "🔒 Case Concluded — AI Read-only";
                 }
                 if (aiStatusBadge) {
-                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#64748b;display:inline-block;"></span> Concluded';
+                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#5d6a80;display:inline-block;"></span> Concluded';
                 }
                 showCaseResolvedModal();
-                return; // Stop processing further state changes
+                return;
             }
 
             if (data.hearing_open === false) {
@@ -2762,7 +3090,7 @@ function syncLive() {
                     aiInput.placeholder = "⏸️ Hearing Paused — AI Assistant on standby";
                 }
                 if (aiStatusBadge) {
-                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block;"></span> Paused (Standby)';
+                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#c9985b;display:inline-block;"></span> Paused (Standby)';
                 }
             } else {
                 if (aiInput) {
@@ -2770,37 +3098,35 @@ function syncLive() {
                     aiInput.placeholder = "Ask AI about this hearing...";
                 }
                 if (aiStatusBadge) {
-                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span> Hearing Advisory System';
+                    aiStatusBadge.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#6e9e7e;display:inline-block;"></span> Hearing Advisory System';
                 }
             }
 
-            // ── CHAT ──────────────────────────────────────────────────
             if (Array.isArray(data.chat) && data.chat.length !== lastChatCount) {
                 renderChat(data.chat);
                 lastChatCount = data.chat.length;
             }
 
-            // ── STUDENT EXPLANATION LIVE UPDATE ───────────────────────
             if (data.student_explanation && data.student_explanation.submitted_at) {
                 const block = document.getElementById('studentExplanationBlock');
                 const text = document.getElementById('explanationText');
                 const time = document.getElementById('explanationTime');
-                
+
                 if (block && block.style.display === 'none') {
                     block.style.display = 'block';
                     if (text) text.textContent = data.student_explanation.text || '';
                     if (time) time.textContent = 'Submitted ' + data.student_explanation.submitted_at;
-                    
+
                     const attachments = document.getElementById('explanationAttachments');
                     if (attachments) {
                         attachments.innerHTML = '';
                         if (data.student_explanation.image) {
-                            attachments.innerHTML += `<a href="../${data.student_explanation.image}" target="_blank" style="display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-glass);">
+                            attachments.innerHTML += `<a href="../${data.student_explanation.image}" target="_blank" style="display: block; border-radius: 4px; overflow: hidden; border: 1px solid var(--line-2);">
                                 <img src="../${data.student_explanation.image}" style="max-width: 80px; max-height: 80px; display: block; object-fit: cover;">
                             </a>`;
                         }
                         if (data.student_explanation.pdf) {
-                            attachments.innerHTML += `<a href="../${data.student_explanation.pdf}" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; text-decoration: none; color: #fca5a5; font-size: 11px; font-weight: 600;">
+                            attachments.innerHTML += `<a href="../${data.student_explanation.pdf}" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--rose-soft); border: 1px solid rgba(201,107,107,.3); border-radius: 4px; text-decoration: none; color: #e0a0a0; font-size: 11px; font-weight: 700; letter-spacing:.5px;">
                                 <span>📄 View PDF Explanation</span>
                             </a>`;
                         }
@@ -2808,7 +3134,6 @@ function syncLive() {
                 }
             }
 
-            // ── VOTE STATE ────────────────────────────────────────────
             const roundActive  = data.round && parseInt(data.round.is_active, 10) === 1;
             const hasConsensus = parseInt(data.consensus || 0, 10) > 0;
             const hasCooldown  = !!data.cooldown;
@@ -2819,7 +3144,6 @@ function syncLive() {
             if (sig !== lastVoteSig) {
                 lastVoteSig = sig;
 
-                // Update tally counts
                 let agree = 0, disagree = 0;
                 const suggId = data.round ? parseInt(data.round.suggested_by || 0, 10) : 0;
                 votes.forEach(v => {
@@ -2835,7 +3159,6 @@ function syncLive() {
                 ['vmcPending','panelPending'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = pending; });
             }
 
-            // ── TRANSITIONS ───────────────────────────────────────────
             const needsReload =
                 (roundActive !== prevRoundActive) ||
                 (hasConsensus !== prevConsensus)  ||
@@ -2860,7 +3183,6 @@ function syncLive() {
                 partialReload();
             }
 
-            // ── UI UPDATES FOR ACTIVE VOTE ─────────────────────────────
             const btnBack = document.getElementById('backToDashboardBtn');
             if (btnBack) {
                 btnBack.style.pointerEvents = roundActive ? 'none' : 'auto';
@@ -2868,7 +3190,6 @@ function syncLive() {
                 btnBack.title = roundActive ? 'Cannot exit while voting is active' : '';
             }
 
-            // ── MODAL VISIBILITY ──────────────────────────────────────
             const modal = document.getElementById('votingModal');
             if (modal) {
                 if (roundActive && !cooldownModalOpen) {
@@ -2882,7 +3203,6 @@ function syncLive() {
                 }
             }
 
-            // ── COOLDOWN MODAL ────────────────────────────────────────
             if (hasCooldown && !cooldownModalOpen) {
                 const rem = parseInt(data.cooldown_seconds || 180, 10);
                 startCooldownDisplay(rem, null);
@@ -2890,38 +3210,30 @@ function syncLive() {
                 setSuggestionLocked(false, 0);
             }
 
-            // ── PAUSE STATE HANDLING ──────────────────────────────────
             const nextPauseState = !!data.is_paused;
             if (data.is_paused !== undefined && nextPauseState !== currentPauseState) {
                 currentPauseState = nextPauseState;
                 pauseReason = data.pause_reason || null;
-                
-                // Update UI to reflect pause state
+
                 updatePauseUI(currentPauseState, pauseReason);
-                
+
                 if (currentPauseState) {
-                    // Hearing is now paused
-                    const reason = pauseReason === 'AUTO_PAUSE_ADMIN_LEFT' 
-                        ? 'Admin disconnected' 
+                    const reason = pauseReason === 'AUTO_PAUSE_ADMIN_LEFT'
+                        ? 'Admin disconnected'
                         : 'Admin paused the hearing';
-                    showToast('⏸️ Hearing Paused', reason, 'warning');
-                    
+                    showToast('Hearing Paused', reason, 'warning');
+
                     if (pauseReason === 'AUTO_PAUSE_ADMIN_LEFT') {
-                        // Allow panel members to wait for the admin to return
                         showPauseModal(pauseReason);
                     } else {
-                        // Show pause modal so panel members have options
                         showPauseModal(pauseReason);
                     }
                 } else {
-                    // Hearing is now resumed
-                    showToast('▶️ Hearing Resumed', 'You may continue voting and messaging.', 'success');
-                    
-                    // Close modal if open
+                    showToast('Hearing Resumed', 'You may continue voting and messaging.', 'success');
+
                     if (pauseModalOpen) {
                         closePauseModal();
                     }
-                    // Reload once so every server-rendered badge/placeholder syncs to the live state
                     if (!resumeReloadQueued) {
                         resumeReloadQueued = true;
                         setTimeout(() => window.location.reload(), 500);
@@ -2929,7 +3241,6 @@ function syncLive() {
                 }
             }
 
-            // ── CONSENSUS FLASH & MODAL ───────────────────────────────
             const awaitingModal = document.getElementById('awaitingAdminModal');
             if (hasConsensus) {
                 const flash = document.getElementById('vmcResult');
@@ -2947,7 +3258,6 @@ function syncLive() {
                 if (flash) flash.style.display = 'none';
             }
 
-            // ── PRESENCE ──────────────────────────────────────────────
             const overlay = document.getElementById('presenceOverlay');
             if (overlay) {
                 const stat = String(data.my_status || 'ADMITTED').toUpperCase();
@@ -2957,7 +3267,7 @@ function syncLive() {
                 } else {
                     overlay.classList.add('open');
                     overlay.style.display = 'flex';
-                    
+
                     const pTitle = document.getElementById('presenceTitle');
                     const pText  = document.getElementById('presenceText');
                     const rBtn   = document.getElementById('requestJoinBtn');
@@ -2974,7 +3284,6 @@ function syncLive() {
                         if (rBtn)   rBtn.style.display = 'flex';
                         if (eBtn)   eBtn.style.display = 'flex';
                     } else {
-                        // generic fallback
                         if (pTitle) pTitle.textContent = 'Waiting Room';
                         if (pText)  pText.textContent  = 'Please wait for the Admin to let you in.';
                         if (rBtn)   rBtn.style.display = 'flex';
@@ -3054,11 +3363,9 @@ function exitHearing() {
         alert('Cannot exit the hearing while a voting round is active.');
         return;
     }
-    
-    // Show custom confirmation modal instead of native confirm
+
     const m = document.getElementById('confirmExitHearingModal');
     if (m) {
-        // Hide pause modal if it's currently showing
         if (pauseModalOpen) {
             document.getElementById('hearingPausedModal').style.display = 'none';
         }
@@ -3068,7 +3375,6 @@ function exitHearing() {
 
 function cancelExitHearing() {
     document.getElementById('confirmExitHearingModal').style.display = 'none';
-    // If the hearing was paused, bring the pause modal back
     if (pauseModalOpen) {
         document.getElementById('hearingPausedModal').style.display = 'flex';
     }
@@ -3077,7 +3383,7 @@ function cancelExitHearing() {
 function proceedExitHearing() {
     const btn = document.getElementById('confirmExitHearingBtn');
     if (btn) { btn.innerHTML = 'Leaving...'; btn.disabled = true; }
-    
+
     const fd = new FormData();
     fd.append('action', 'exit_hearing'); fd.append('case_id', CASE_ID);
     fd.append('actor', 'upcc');
@@ -3102,21 +3408,21 @@ document.addEventListener('submit', e => {
                 if (action === 'suggest_penalty' && !form.checkValidity()) {
                     return;
                 }
-                
+
                 isSubmitting = true;
-                
+
                 const overlay = document.getElementById('globalLoadingOverlay');
                 const text = document.getElementById('loadingOverlayText');
-                
+
                 if (overlay && text) {
                     if (action === 'vote_on_suggestion') {
                         const voteAgreeInput = form.querySelector('input[name="vote_agree"]');
                         const isAgree = voteAgreeInput && voteAgreeInput.value === '1';
-                        text.textContent = isAgree ? 'Submitting your AGREE vote...' : 'Submitting your DISAGREE vote...';
+                        text.textContent = isAgree ? 'Submitting your AGREE vote…' : 'Submitting your DISAGREE vote…';
                     } else if (action === 'suggest_penalty') {
-                        text.textContent = 'Submitting your penalty suggestion...';
+                        text.textContent = 'Submitting your penalty suggestion…';
                     } else if (action === 'cancel_suggestion') {
-                        text.textContent = 'Cancelling suggestion...';
+                        text.textContent = 'Cancelling suggestion…';
                     }
                     overlay.style.display = 'flex';
                 }
@@ -3157,7 +3463,6 @@ document.addEventListener('keydown', e => { if (e.ctrlKey && ['p','s'].includes(
 //  INIT
 // ─────────────────────────────────────────────────────────────────────────
 function initFormToggles() {
-    // suggestion form
     const sugCat = document.getElementById('suggest_category');
     if (sugCat) {
         sugCat.removeEventListener('change', toggleSugFields);
@@ -3165,7 +3470,6 @@ function initFormToggles() {
         toggleSugFields();
     }
     bindSuggestFormValidation();
-    // final decision form
     const finalCat = document.getElementById('decided_category');
     if (finalCat?.value) toggleFinalCatFields();
 
@@ -3182,39 +3486,38 @@ function initFormToggles() {
 
 initFormToggles();
 
-// Start cooldown display if active on page load
 <?php if ($isInCooldown && $cooldownRemainingSecs > 0): ?>
 startCooldownDisplay(<?= $cooldownRemainingSecs ?>, null);
 <?php endif; ?>
 
 startVotingTimer();
-setInterval(syncLive,    3000);   // poll every 3 seconds
-setInterval(pingPresence, 5000);  // ping presence every 5 seconds
-syncLive(); // immediate first call
+setInterval(syncLive,    3000);
+setInterval(pingPresence, 5000);
+syncLive();
 
 function switchBreakdownTab(tabName, btn) {
     document.querySelectorAll('.breakdown-tab-content').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.case-breakdown-tabs .btn-tab').forEach(b => {
-        b.style.background = 'rgba(255, 255, 255, 0.05)';
-        b.style.color = 'var(--text-muted)';
-        b.style.borderColor = 'var(--border-glass)';
+        b.style.background = 'rgba(255, 255, 255, 0.03)';
+        b.style.color = 'var(--text-dim)';
+        b.style.borderColor = 'var(--line-2)';
     });
 
     const target = document.getElementById('tab-' + tabName);
     if (target) target.style.display = 'block';
 
     if (tabName === 'current-offenses') {
-        btn.style.background = 'rgba(59, 130, 246, 0.2)';
-        btn.style.color = '#93c5fd';
-        btn.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+        btn.style.background = 'var(--gold-faint)';
+        btn.style.color = 'var(--gold-bright)';
+        btn.style.borderColor = 'var(--line-hi)';
     } else if (tabName === 'prior-resolved') {
-        btn.style.background = 'rgba(16, 185, 129, 0.2)';
-        btn.style.color = '#6ee7b7';
-        btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        btn.style.background = 'rgba(110,158,126,.1)';
+        btn.style.color = '#9dc5a8';
+        btn.style.borderColor = 'rgba(110,158,126,.4)';
     } else if (tabName === 'other-pending') {
-        btn.style.background = 'rgba(245, 158, 11, 0.2)';
-        btn.style.color = '#fcd34d';
-        btn.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+        btn.style.background = 'rgba(201,152,91,.1)';
+        btn.style.color = '#dfb87c';
+        btn.style.borderColor = 'rgba(201,152,91,.35)';
     }
 }
 
@@ -3270,8 +3573,8 @@ async function runAiAnalysis() {
         if (stepIdx < steps.length) {
             const el = document.getElementById(steps[stepIdx].id);
             const dEl = document.getElementById(steps[stepIdx].dId);
-            if (el) { el.innerHTML = steps[stepIdx].text; el.style.color = '#f8fafc'; el.style.fontWeight = '600'; }
-            if (dEl) { dEl.innerHTML = steps[stepIdx].text; dEl.style.color = '#f8fafc'; dEl.style.fontWeight = '600'; }
+            if (el) { el.innerHTML = steps[stepIdx].text; el.style.color = '#f1ece0'; el.style.fontWeight = '600'; }
+            if (dEl) { dEl.innerHTML = steps[stepIdx].text; dEl.style.color = '#f1ece0'; dEl.style.fontWeight = '600'; }
             stepIdx++;
         } else {
             clearInterval(interval);
@@ -3358,7 +3661,7 @@ async function runAiAnalysis() {
         if (data.historical_distribution) {
             let html = '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
             for (const [cat, cnt] of Object.entries(data.historical_distribution)) {
-                html += `<div style="background:rgba(30,41,59,0.9);border:1px solid rgba(255,255,255,0.15);padding:5px 10px;border-radius:8px;font-weight:600;color:#f8fafc;">${escapeHtml(cat)}: <span style="color:#38bdf8;">${cnt}</span></div>`;
+                html += `<div style="background:rgba(0,0,0,.3);border:1px solid var(--line-2);padding:5px 10px;border-radius:3px;font-weight:600;color:#f1ece0;font-family:var(--f-mono);font-size:12px">${escapeHtml(cat)}: <span style="color:var(--gold-bright);">${cnt}</span></div>`;
             }
             html += '</div>';
             if (distTable) distTable.innerHTML = html;
@@ -3391,20 +3694,20 @@ function openSimilarCasesModal() {
 
     let listHtml = '';
     if (cases.length === 0) {
-        listHtml = `<div style="padding:20px;text-align:center;color:#94a3b8;font-size:0.88rem;">No prior historical cases matching this exact offense were found in the dataset.<br><span style="color:#64748b;">Recommendation is evaluated directly against the NU Lipa Student Handbook Penalty Matrix.</span></div>`;
+        listHtml = `<div style="padding:20px;text-align:center;color:var(--text-mute);font-size:0.88rem;">No prior historical cases matching this exact offense were found in the dataset.<br><span style="color:var(--text-mute);">Recommendation is evaluated directly against the NU Lipa Student Handbook Penalty Matrix.</span></div>`;
     } else {
         cases.forEach((c, idx) => {
             const letter = String.fromCharCode(65 + idx);
             const simScore = c.similarity_score ? (c.similarity_score > 1 ? c.similarity_score : Math.round(c.similarity_score * 100)) : 0;
             listHtml += `
-                <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+                <div style="background:rgba(0,0,0,.25);border:1px solid var(--line-2);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:10px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                        <strong style="font-size:0.9rem;color:#f8fafc;">Case ${letter} (${escHtml(c.case_uuid || 'HIST')})</strong>
-                        <span style="background:rgba(56, 189, 248, 0.2);color:#38bdf8;font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:10px;">Similarity: ${simScore}%</span>
+                        <strong style="font-size:0.9rem;color:var(--text-hi);font-family:var(--f-mono)">Case ${letter} (${escHtml(c.case_uuid || 'HIST')})</strong>
+                        <span style="background:var(--gold-faint);color:var(--gold-bright);font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:.5px;">Similarity: ${simScore}%</span>
                     </div>
-                    <div style="font-size:0.8rem;color:#cbd5e1;">
+                    <div style="font-size:0.8rem;color:var(--text);">
                         Offense: <strong>${escHtml(c.offense_name || '')}</strong> (${escHtml(c.offense_level || '')})<br>
-                        Final Intervention: <strong style="color:#38bdf8;">${escHtml(c.decided_category || '')}</strong>
+                        Final Intervention: <strong style="color:var(--gold-bright);">${escHtml(c.decided_category || '')}</strong>
                         ${c.punishment_details ? `<br>Details: <em>${escHtml(c.punishment_details)}</em>` : ''}
                     </div>
                 </div>
@@ -3434,420 +3737,6 @@ function closeHandbookModal() {
 }
 </script>
 
-<style>
-/* AI BOT AVATAR & DRAWER ANIMATIONS */
-.ai-dots-loader {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-right: 8px;
-  vertical-align: middle;
-}
-.ai-dots-loader span {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: #38bdf8;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
-  animation: aiDotPulse 1.4s infinite ease-in-out both;
-}
-.ai-dots-loader span:nth-child(1) { animation-delay: -0.32s; }
-.ai-dots-loader span:nth-child(2) { animation-delay: -0.16s; }
-.ai-dots-loader span:nth-child(3) { animation-delay: 0s; }
-@keyframes aiDotPulse {
-  0%, 80%, 100% { transform: scale(0.55); opacity: 0.35; }
-  40% { transform: scale(1.25); opacity: 1; filter: drop-shadow(0 0 8px #38bdf8); }
-}
-
-.ai-shimmer-text {
-  background: linear-gradient(90deg, #94a3b8 0%, #38bdf8 50%, #94a3b8 100%);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: aiShimmer 2s infinite linear;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-}
-@keyframes aiShimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.ai-avatar-container {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(15, 23, 42, 0.95);
-  border: 1.5px solid rgba(56, 189, 248, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.ai-avatar-container:hover {
-  transform: scale(1.08);
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.7);
-}
-.ai-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-}
-
-.ai-bot-avatar-wrapper {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.ai-bot-svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.ai-bot-svg.idle {
-  animation: botFloatIdle 3.5s ease-in-out infinite;
-}
-@keyframes botFloatIdle {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-6px) rotate(2deg); }
-}
-.ai-bot-svg.thinking {
-  animation: botThink 1.2s ease-in-out infinite alternate;
-}
-@keyframes botThink {
-  0% { transform: translateY(-2px) rotate(-6deg) scale(1.05); }
-  100% { transform: translateY(-8px) rotate(6deg) scale(1.08); }
-}
-.ai-bot-svg.speaking, .ai-bot-svg.happy {
-  animation: botSpeak 0.6s ease-in-out infinite alternate;
-}
-@keyframes botSpeak {
-  0% { transform: translateY(-4px) scale(1.05); }
-  100% { transform: translateY(-10px) scale(1.12); }
-}
-.bot-aura {
-  fill: radial-gradient(circle, rgba(14, 165, 233, 0.35) 0%, rgba(0,0,0,0) 70%);
-  animation: botAuraPulse 2.8s infinite alternate ease-in-out;
-}
-@keyframes botAuraPulse {
-  0% { opacity: 0.3; r: 44; }
-  100% { opacity: 0.85; r: 52; }
-}
-.bot-platform {
-  fill: rgba(56, 189, 248, 0.25);
-  filter: blur(2px);
-  animation: platformGlow 2s infinite alternate;
-}
-@keyframes platformGlow {
-  0% { rx: 22; opacity: 0.4; }
-  100% { rx: 30; opacity: 0.9; }
-}
-.bot-head-shell {
-  fill: url(#aiHeadGrad);
-  stroke: rgba(56, 189, 248, 0.7);
-  stroke-width: 2.5;
-  filter: drop-shadow(0 4px 12px rgba(14, 165, 233, 0.4));
-}
-.bot-visor {
-  fill: url(#aiVisorGrad);
-  stroke: rgba(56, 189, 248, 0.5);
-  stroke-width: 1.5;
-}
-.bot-ear {
-  fill: #0ea5e9;
-  stroke: #38bdf8;
-  stroke-width: 1.5;
-  filter: drop-shadow(0 0 6px #0ea5e9);
-}
-.bot-headband {
-  fill: none;
-  stroke: #38bdf8;
-  stroke-width: 3;
-  stroke-linecap: round;
-}
-.bot-antenna-stem {
-  stroke: #38bdf8;
-  stroke-width: 2.5;
-}
-.bot-antenna-bulb {
-  fill: #38bdf8;
-  filter: drop-shadow(0 0 10px #38bdf8);
-  animation: antennaFlash 1.5s infinite alternate ease-in-out;
-}
-@keyframes antennaFlash {
-  0% { fill: #38bdf8; filter: drop-shadow(0 0 6px #38bdf8); }
-  100% { fill: #a855f7; filter: drop-shadow(0 0 16px #a855f7); }
-}
-.bot-brow {
-  fill: none;
-  stroke: #38bdf8;
-  stroke-width: 2;
-  stroke-linecap: round;
-  opacity: 0.6;
-}
-.bot-eye {
-  fill: #38bdf8;
-  filter: drop-shadow(0 0 8px #38bdf8);
-  transition: all 0.3s;
-}
-.ai-bot-svg.thinking .bot-eye {
-  fill: #c084fc;
-  filter: drop-shadow(0 0 12px #c084fc);
-  animation: eyeScanStep 0.7s infinite alternate;
-}
-@keyframes eyeScanStep {
-  0% { transform: translateX(-4px); }
-  100% { transform: translateX(4px); }
-}
-.ai-bot-svg.speaking .bot-eye, .ai-bot-svg.happy .bot-eye {
-  fill: #34d399;
-  filter: drop-shadow(0 0 12px #34d399);
-}
-.bot-mouth-bar {
-  fill: #38bdf8;
-  opacity: 0.6;
-  transition: all 0.2s;
-}
-.ai-bot-svg.speaking .bot-mouth-bar, .ai-bot-svg.happy .bot-mouth-bar {
-  fill: #34d399;
-  opacity: 1;
-  animation: mouthBounce 0.35s infinite alternate ease-in-out;
-}
-.ai-bot-svg.speaking .bar-1 { animation-delay: 0s; }
-.ai-bot-svg.speaking .bar-2 { animation-delay: 0.12s; }
-.ai-bot-svg.speaking .bar-3 { animation-delay: 0.24s; }
-@keyframes mouthBounce {
-  0% { height: 3px; y: 77px; }
-  100% { height: 11px; y: 69px; }
-}
-
-/* CUSTOM GLASS SCROLLBARS FOR DRAWER */
-#aiChatDrawer *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-#aiChatDrawer *::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
-  border-radius: 10px;
-}
-#aiChatDrawer *::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0ea5e9, #6366f1);
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.1);
-}
-#aiChatDrawer *::-webkit-scrollbar-thumb:hover {
-  background: #38bdf8;
-}
-</style>
-
-
-
-
-
-<!-- MODAL: Anonymized Similar Historical Cases -->
-<div id="similarCasesModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
-  <div class="modal-content" style="background:#1e293b; width:100%; max-width:540px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5); position:relative; border:1px solid rgba(255,255,255,0.1);">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
-      <h3 style="margin:0; font-size:18px; font-weight:800; color:#f8fafc;">📋 Similar Verified Historical Cases</h3>
-      <button type="button" onclick="closeSimilarCasesModal()" style="background:none; border:none; font-size:20px; color:#94a3b8; cursor:pointer;">✕</button>
-    </div>
-    <div id="similarCasesModalList" style="max-height:360px; overflow-y:auto; padding-right:6px;"></div>
-    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
-      <button type="button" class="btn btn-secondary" onclick="closeSimilarCasesModal()" style="padding:8px 18px; border-radius:8px; font-weight:700;">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: Handbook Basis -->
-<div id="handbookBasisModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
-  <div class="modal-content" style="background:#1e293b; width:100%; max-width:560px; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5); position:relative; border:1px solid rgba(255,255,255,0.1);">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
-      <h3 style="margin:0; font-size:18px; font-weight:800; color:#f8fafc;">📖 Applicable Student Handbook Basis</h3>
-      <button type="button" onclick="closeHandbookModal()" style="background:none; border:none; font-size:20px; color:#94a3b8; cursor:pointer;">✕</button>
-    </div>
-    <div style="font-size:13.5px; color:#cbd5e1; line-height:1.6; max-height:380px; overflow-y:auto; padding-right:6px;">
-      <div style="background:rgba(56, 189, 248, 0.15); border-left:4px solid #38bdf8; padding:12px; border-radius:8px; margin-bottom:12px;">
-        <strong style="color:#38bdf8;">NU Lipa Student Code of Discipline (Section IV & Section V)</strong>
-      </div>
-      <p><strong>Section IV — Minor Offenses & 3-Attempt Rule:</strong><br>
-      • 1st & 2nd Offense: Category 1 Warning & Written Reprimand (0 CS Hours).<br>
-      • 3rd Offense: Automatic escalation to Category 2 Major Offense (150–250 CS Hours).</p>
-
-      <p><strong>Section V — Major Offenses & Sanction Categories:</strong><br>
-      • Category 1: Formal Reprimand & Active Semester Probation (0 Hours CS).<br>
-      • Category 2: Formative Community Service (150 to 250 Hours) + Counseling / Education.<br>
-      • Category 3: Non-Readmission / Suspension.<br>
-      • Category 4 / 5: Exclusion or Expulsion for extreme violence, theft, or weapons.</p>
-    </div>
-    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
-      <button type="button" class="btn btn-primary" onclick="closeHandbookModal()" style="padding:8px 20px; border-radius:8px; font-weight:700; background:#0284c7; border-color:#0284c7;">Understood</button>
-    </div>
-  </div>
-</div>
-
-<style>
-/* AI BOT AVATAR & DRAWER ANIMATIONS */
-.ai-bot-avatar-wrapper {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.ai-bot-svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.ai-bot-svg.idle {
-  animation: botFloatIdle 3.5s ease-in-out infinite;
-}
-@keyframes botFloatIdle {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-6px) rotate(2deg); }
-}
-.ai-bot-svg.thinking {
-  animation: botThink 1.2s ease-in-out infinite alternate;
-}
-@keyframes botThink {
-  0% { transform: translateY(-2px) rotate(-6deg) scale(1.05); }
-  100% { transform: translateY(-8px) rotate(6deg) scale(1.08); }
-}
-.ai-bot-svg.speaking, .ai-bot-svg.happy {
-  animation: botSpeak 0.6s ease-in-out infinite alternate;
-}
-@keyframes botSpeak {
-  0% { transform: translateY(-4px) scale(1.05); }
-  100% { transform: translateY(-10px) scale(1.12); }
-}
-.bot-aura {
-  fill: radial-gradient(circle, rgba(14, 165, 233, 0.35) 0%, rgba(0,0,0,0) 70%);
-  animation: botAuraPulse 2.8s infinite alternate ease-in-out;
-}
-@keyframes botAuraPulse {
-  0% { opacity: 0.3; r: 44; }
-  100% { opacity: 0.85; r: 52; }
-}
-.bot-platform {
-  fill: rgba(56, 189, 248, 0.25);
-  filter: blur(2px);
-  animation: platformGlow 2s infinite alternate;
-}
-@keyframes platformGlow {
-  0% { rx: 22; opacity: 0.4; }
-  100% { rx: 30; opacity: 0.9; }
-}
-.bot-head-shell {
-  fill: url(#aiHeadGradUPCC);
-  stroke: rgba(56, 189, 248, 0.7);
-  stroke-width: 2.5;
-  filter: drop-shadow(0 4px 12px rgba(14, 165, 233, 0.4));
-}
-.bot-visor {
-  fill: url(#aiVisorGradUPCC);
-  stroke: rgba(56, 189, 248, 0.5);
-  stroke-width: 1.5;
-}
-.bot-ear {
-  fill: #0ea5e9;
-  stroke: #38bdf8;
-  stroke-width: 1.5;
-  filter: drop-shadow(0 0 6px #0ea5e9);
-}
-.bot-headband {
-  fill: none;
-  stroke: #38bdf8;
-  stroke-width: 3;
-  stroke-linecap: round;
-}
-.bot-antenna-stem {
-  stroke: #38bdf8;
-  stroke-width: 2.5;
-}
-.bot-antenna-bulb {
-  fill: #38bdf8;
-  filter: drop-shadow(0 0 10px #38bdf8);
-  animation: antennaFlash 1.5s infinite alternate ease-in-out;
-}
-@keyframes antennaFlash {
-  0% { fill: #38bdf8; filter: drop-shadow(0 0 6px #38bdf8); }
-  100% { fill: #a855f7; filter: drop-shadow(0 0 16px #a855f7); }
-}
-.bot-brow {
-  fill: none;
-  stroke: #38bdf8;
-  stroke-width: 2;
-  stroke-linecap: round;
-  opacity: 0.6;
-}
-.bot-eye {
-  fill: #38bdf8;
-  filter: drop-shadow(0 0 8px #38bdf8);
-  transition: all 0.3s;
-}
-.ai-bot-svg.thinking .bot-eye {
-  fill: #c084fc;
-  filter: drop-shadow(0 0 12px #c084fc);
-  animation: eyeScanStep 0.7s infinite alternate;
-}
-@keyframes eyeScanStep {
-  0% { transform: translateX(-4px); }
-  100% { transform: translateX(4px); }
-}
-.ai-bot-svg.speaking .bot-eye, .ai-bot-svg.happy .bot-eye {
-  fill: #34d399;
-  filter: drop-shadow(0 0 12px #34d399);
-}
-.bot-mouth-bar {
-  fill: #38bdf8;
-  opacity: 0.6;
-  transition: all 0.2s;
-}
-.ai-bot-svg.speaking .bot-mouth-bar, .ai-bot-svg.happy .bot-mouth-bar {
-  fill: #34d399;
-  opacity: 1;
-  animation: mouthBounce 0.35s infinite alternate ease-in-out;
-}
-.ai-bot-svg.speaking .bar-1 { animation-delay: 0s; }
-.ai-bot-svg.speaking .bar-2 { animation-delay: 0.12s; }
-.ai-bot-svg.speaking .bar-3 { animation-delay: 0.24s; }
-@keyframes mouthBounce {
-  0% { height: 3px; y: 77px; }
-  100% { height: 11px; y: 69px; }
-}
-
-/* CUSTOM GLASS SCROLLBARS FOR DRAWER */
-#aiChatDrawer *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-#aiChatDrawer *::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
-  border-radius: 10px;
-}
-#aiChatDrawer *::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0ea5e9, #6366f1);
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.1);
-}
-#aiChatDrawer *::-webkit-scrollbar-thumb:hover {
-  background: #38bdf8;
-}
-</style>
-
 <script>
 function setAiHeadExpression(mode) {
     const svgs = document.querySelectorAll('.ai-bot-svg');
@@ -3864,7 +3753,7 @@ function toggleAiDrawer(forceState) {
     const drawer = document.getElementById('aiChatDrawer');
     const bubble = document.getElementById('aiFloatingBubble');
     if (!drawer) return;
-    
+
     if (typeof forceState === 'boolean') {
         isAiDrawerOpen = forceState;
     } else {
@@ -3904,7 +3793,7 @@ async function fetchInitialAiSanctionRecommendation() {
     if (!thread) return;
 
     thread.innerHTML = '';
-    
+
     const aiMsgDiv = document.createElement('div');
     aiMsgDiv.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
     const aiBubbleId = 'ai-initial-msg-' + Date.now();
@@ -3912,7 +3801,7 @@ async function fetchInitialAiSanctionRecommendation() {
         <div class="ai-avatar-container">
             <img src="../assets/identilogo.png" alt="IdentiTrack AI" class="ai-avatar-img">
         </div>
-        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:16px 18px;font-size:16.5px;color:#f8fafc;line-height:1.75;max-width:92%;letter-spacing:0.2px;">
+        <div id="${aiBubbleId}" style="background:rgba(0,0,0,.35);border:1px solid var(--line-2);border-radius:14px;border-top-left-radius:3px;padding:16px 18px;font-size:15px;color:var(--text);line-height:1.7;max-width:92%;">
             <div style="display:inline-flex;align-items:center;">
                 <div class="ai-dots-loader"><span></span><span></span><span></span></div>
                 <span class="ai-shimmer-text">Analyzing hearing file & handbook policies...</span>
@@ -3936,7 +3825,7 @@ async function fetchInitialAiSanctionRecommendation() {
         if (!bubble) return;
 
         let replyText = (data && data.ok && data.reply) ? data.reply : (data && data.error ? data.error : "Unable to analyze hearing file.");
-        
+
         if (typeof setAiHeadExpression === 'function') setAiHeadExpression('speaking');
         typeOutAiResponse(bubble, replyText, thread);
 
@@ -3953,19 +3842,17 @@ function toggleDrawerWhyPanel() {
     const p = document.getElementById('ai-drawer-why-panel');
     if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
 }
-
-
 </script>
 
-<!-- FLOATING AI ANIMATED HEAD BOT BUBBLE (Bottom-Right) -->
-<div id="aiFloatingBubble" onclick="toggleAiDrawer()" style="position:fixed;bottom:24px;right:24px;z-index:100005;cursor:pointer;display:flex;align-items:center;gap:14px;background:rgba(15, 23, 42, 0.96);backdrop-filter:blur(20px);color:#fff;padding:8px 22px 8px 12px;border-radius:50px;box-shadow:0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.35);border:1px solid rgba(56, 189, 248, 0.6);font-family:inherit;font-weight:700;font-size:14px;letter-spacing:0.3px;transition:all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);" onmouseover="this.style.transform='translateY(-6px) scale(1.05)';this.style.borderColor='rgba(56, 189, 248, 0.95)';" onmouseout="this.style.transform='translateY(0) scale(1)';this.style.borderColor='rgba(56, 189, 248, 0.6)';">
-  <div class="ai-bot-avatar-wrapper" style="width:44px;height:44px;">
+<!-- FLOATING AI BUBBLE -->
+<div id="aiFloatingBubble" onclick="toggleAiDrawer()">
+  <div class="ai-bot-avatar-wrapper" style="width:40px;height:40px;">
     <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="aiHeadGradUPCC" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#1e293b" />
-          <stop offset="50%" stop-color="#0f172a" />
-          <stop offset="100%" stop-color="#030712" />
+          <stop offset="0%" stop-color="#0e1a2d" />
+          <stop offset="50%" stop-color="#0a1220" />
+          <stop offset="100%" stop-color="#060a14" />
         </linearGradient>
         <linearGradient id="aiVisorGradUPCC" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#0c1427" />
@@ -3997,20 +3884,20 @@ function toggleDrawerWhyPanel() {
     </svg>
   </div>
   <div style="display:flex;flex-direction:column;">
-    <span style="font-weight:800;color:#f8fafc;font-size:14px;line-height:1.2;letter-spacing:0.3px;">IdentiTrack AI</span>
-    <span style="font-size:10px;color:#38bdf8;font-weight:600;display:flex;align-items:center;gap:4px;margin-top:2px;">
-      <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;"></span> Online Assistant
+    <span style="font-weight:800;color:var(--text-hi);font-size:13px;line-height:1.2;letter-spacing:.5px;">IdentiTrack AI</span>
+    <span style="font-size:10px;color:var(--gold);font-weight:600;display:flex;align-items:center;gap:5px;margin-top:2px;letter-spacing:.8px;text-transform:uppercase;">
+      <span style="width:6px;height:6px;border-radius:50%;background:#6e9e7e;"></span> Advisory Assistant
     </span>
   </div>
 </div>
 
-<!-- SLIDE-UP FLOATING GLASS DRAWER WITH COMSICE AI SANCTION PREDICTOR UI -->
-<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:560px;height:740px;max-width:96vw;max-height:92vh;background:rgba(9, 14, 28, 0.97);backdrop-filter:blur(28px);border:1px solid rgba(56, 189, 248, 0.4);border-radius:28px;box-shadow:0 30px 70px rgba(0,0,0,0.85), 0 0 50px rgba(14, 165, 233, 0.25);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%) scale(0.95);opacity:0;visibility:hidden;pointer-events:none;transition:transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;box-sizing:border-box;">
-  
-  <!-- DRAWER HEADER WITH ANIMATED AI HEAD AVATAR -->
-  <div style="background:rgba(15, 23, 42, 0.95);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div class="ai-bot-avatar-wrapper" style="width:42px;height:42px;">
+<!-- AI DRAWER -->
+<div id="aiChatDrawer" style="position:fixed;bottom:24px;right:24px;width:540px;height:720px;max-width:96vw;max-height:92vh;background:linear-gradient(180deg,var(--panel),var(--ink-700));backdrop-filter:blur(20px);border:1px solid var(--gold);border-radius:var(--radius-md);box-shadow:var(--shadow-lg);z-index:100000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(120%) scale(0.95);opacity:0;visibility:hidden;pointer-events:none;transition:transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, visibility 0.3s ease;box-sizing:border-box;">
+
+  <!-- DRAWER HEADER -->
+  <div style="background:rgba(0,0,0,.4);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="ai-bot-avatar-wrapper" style="width:40px;height:40px;">
         <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
           <circle cx="60" cy="65" r="50" class="bot-aura" />
           <ellipse cx="60" cy="100" rx="26" ry="6" class="bot-platform" />
@@ -4037,24 +3924,24 @@ function toggleDrawerWhyPanel() {
         </svg>
       </div>
       <div>
-        <div style="font-weight:800;font-size:16px;color:#f8fafc;letter-spacing:0.3px;display:flex;align-items:center;gap:8px;">
-          IdentiTrack AI <span style="font-size:10px;background:rgba(56,189,248,0.12);color:#38bdf8;padding:2px 8px;border-radius:12px;border:1px solid rgba(56,189,248,0.3);font-weight:700;letter-spacing:0.05em;">ON-PREMISE</span>
+        <div style="font-family:var(--f-serif);font-weight:700;font-size:15px;color:var(--text-hi);letter-spacing:.3px;display:flex;align-items:center;gap:8px;">
+          IdentiTrack AI <span style="font-size:9.5px;background:var(--gold-faint);color:var(--gold-bright);padding:2px 8px;border-radius:3px;border:1px solid var(--line-hi);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;font-family:var(--f-sans)">On-Premise</span>
         </div>
-        <div style="font-size:11.5px;color:#38bdf8;display:flex;align-items:center;gap:5px;margin-top:2px;font-weight:600;">
-          <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block;"></span> Hearing Advisory Assistant
+        <div style="font-size:10.5px;color:var(--gold);display:flex;align-items:center;gap:6px;margin-top:3px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#6e9e7e;"></span> Hearing Advisory Assistant
         </div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:4px;">
-      <button onclick="toggleAiDrawer(false)" title="Close" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;" onmouseover="this.style.background='rgba(239,68,68,0.25)';this.style.color='#ef4444';this.style.borderColor='rgba(239,68,68,0.4)';" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#94a3b8';this.style.borderColor='rgba(255,255,255,0.1)';">✕</button>
+      <button onclick="toggleAiDrawer(false)" title="Close" style="background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--text-mute);width:32px;height:32px;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .2s;" onmouseover="this.style.background='var(--rose-soft)';this.style.color='#e0a0a0';this.style.borderColor='rgba(201,107,107,.4)';" onmouseout="this.style.background='rgba(255,255,255,.04)';this.style.color='var(--text-mute)';this.style.borderColor='var(--line-2)';">✕</button>
     </div>
   </div>
 
-  <!-- COMSICE PREDICTOR FORM & RESULTS PANEL -->
+  <!-- PREDICTOR FORM & RESULTS PANEL -->
   <?php
     $autoFirstOffense = $offenses[0] ?? null;
     $autoLevel = !empty($autoFirstOffense['level']) ? strtoupper($autoFirstOffense['level']) : 'MINOR';
-    
+
     $hasMajorOffenseInCase = false;
     if (!empty($offenses) && is_array($offenses)) {
         foreach ($offenses as $off) {
@@ -4073,7 +3960,7 @@ function toggleDrawerWhyPanel() {
     } else {
         $isSec4 = (stripos((string)($case['case_summary'] ?? ''), 'Section 4 Minor Escalation') !== false);
     }
-    
+
     $priorSec4Count = 0;
     $priorMajorCount = 0;
     if (!empty($priorResolvedCases)) {
@@ -4123,7 +4010,6 @@ function toggleDrawerWhyPanel() {
         $autoCaseTypeStr = ($effectivePriorCount >= 1) ? "Automatic Major - {$attemptNum}{$suffix} Offense" : 'Automatic Major - 1st Offense';
     }
 
-    // --- BUILD COMPREHENSIVE MULTI-OFFENSE VIOLATION & INCIDENT SUMMARY ---
     $offenseNamesList = [];
     $offenseDescItems = [];
 
@@ -4131,11 +4017,10 @@ function toggleDrawerWhyPanel() {
         foreach ($offenses as $idx => $off) {
             $name = !empty($off['offense_name']) ? trim($off['offense_name']) : 'Minor Offense';
             $desc = !empty($off['description']) ? trim($off['description']) : '';
-            
+
             $offenseNamesList[] = $name;
 
             if ($desc !== '') {
-                // Label each offense's description if there are multiple offenses
                 if (count($offenses) > 1) {
                     $offenseDescItems[] = "• " . $name . " (#" . ($idx + 1) . "): " . $desc;
                 } else {
@@ -4145,7 +4030,6 @@ function toggleDrawerWhyPanel() {
         }
     }
 
-    // Format Violation string (e.g. "Littering (3x)" or "Littering, No ID Badge, Improper Attire")
     if (empty($offenseNamesList)) {
         $autoViolation = 'General Handbook Violation';
     } else {
@@ -4157,7 +4041,6 @@ function toggleDrawerWhyPanel() {
         $autoViolation = implode(', ', $formattedNames);
     }
 
-    // Format Incident Summary / Notes string
     if (!empty($offenseDescItems)) {
         $autoDesc = implode("\n", $offenseDescItems);
     } elseif (!empty($case['case_summary'])) {
@@ -4166,49 +4049,46 @@ function toggleDrawerWhyPanel() {
         $autoDesc = $autoViolation;
     }
   ?>
-  <div style="flex:1;padding:20px 24px;overflow-y:auto;display:flex;flex-direction:column;box-sizing:border-box;gap:16px;">
-    
-    <!-- HIDDEN INPUT VALUES FOR BACKEND PREDICTION ENGINE -->
+  <div style="flex:1;padding:20px 22px;overflow-y:auto;display:flex;flex-direction:column;box-sizing:border-box;gap:16px;">
+
     <input type="hidden" id="comsiceCategory" value="<?= htmlspecialchars($autoCategory) ?>">
     <input type="hidden" id="comsiceNumOffense" value="<?= htmlspecialchars($autoCaseTypeStr) ?>">
     <input type="hidden" id="comsiceViolation" value="<?= htmlspecialchars($autoViolation) ?>">
     <input type="hidden" id="comsiceDescription" value="<?= htmlspecialchars((string)$autoDesc) ?>">
 
-    <!-- LOCKED AUTO-FETCHED CASE PARAMETERS (READ-ONLY FOR PANEL) -->
-    <div style="width:100%;background:rgba(15,23,42,0.8);border:1px solid rgba(56,189,248,0.25);border-radius:16px;padding:14px 16px;box-sizing:border-box;">
-      <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+    <!-- Auto-fetched params -->
+    <div style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;box-sizing:border-box;">
+      <div style="font-size:10.5px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
         <span style="display:flex;align-items:center;gap:6px;"><span>🔒</span> Auto-Fetched Case Parameters</span>
-        <span style="font-size:10px;color:#10b981;background:rgba(16,185,129,0.15);padding:2px 8px;border-radius:10px;border:1px solid rgba(16,185,129,0.3);font-weight:700;">Database Verified</span>
+        <span style="font-size:9.5px;color:#9dc5a8;background:var(--sage-soft);padding:2px 8px;border-radius:3px;border:1px solid rgba(110,158,126,.3);font-weight:700;letter-spacing:1px;">Database Verified</span>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
-          <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Category</div>
-          <div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-top:2px;"><?= htmlspecialchars($autoCategory) ?></div>
+        <div style="background:rgba(255,255,255,.02);padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--line-2);">
+          <div style="font-size:9.5px;color:var(--text-mute);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">Category</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-hi);margin-top:3px;"><?= htmlspecialchars($autoCategory) ?></div>
         </div>
-        <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
-          <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Hearing Type / Cycle</div>
-          <div style="font-size:12px;font-weight:700;color:#38bdf8;margin-top:2px;"><?= htmlspecialchars($autoCaseTypeStr) ?></div>
+        <div style="background:rgba(255,255,255,.02);padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--line-2);">
+          <div style="font-size:9.5px;color:var(--text-mute);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">Hearing Type</div>
+          <div style="font-size:12px;font-weight:700;color:var(--gold-bright);margin-top:3px;"><?= htmlspecialchars($autoCaseTypeStr) ?></div>
         </div>
       </div>
 
-      <div style="margin-bottom:8px;background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
-        <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Offense Violation</div>
-        <div style="font-size:12.5px;font-weight:700;color:#f8fafc;margin-top:2px;"><?= htmlspecialchars($autoViolation) ?></div>
+      <div style="margin-bottom:8px;background:rgba(255,255,255,.02);padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--line-2);">
+        <div style="font-size:9.5px;color:var(--text-mute);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">Offense Violation</div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--text-hi);margin-top:3px;"><?= htmlspecialchars($autoViolation) ?></div>
       </div>
 
-      <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
-        <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Incident Summary / Notes</div>
-        <div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;line-height:1.45;background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:8px;max-height:90px;overflow-y:auto;white-space:pre-wrap;"><?= htmlspecialchars((string)$autoDesc) ?></div>
+      <div style="background:rgba(255,255,255,.02);padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--line-2);">
+        <div style="font-size:9.5px;color:var(--text-mute);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">Incident Summary</div>
+        <div style="font-size:11.5px;color:var(--text);margin-top:5px;line-height:1.5;background:rgba(0,0,0,.25);padding:6px 8px;border-radius:3px;max-height:90px;overflow-y:auto;white-space:pre-wrap;"><?= htmlspecialchars((string)$autoDesc) ?></div>
       </div>
     </div>
 
-    <!-- INITIAL READY TO ANALYZE CARD WITH SUGGEST BUTTON -->
+    <!-- Initial -->
     <div id="comsiceInitialStateBox" style="display:flex;flex-direction:column;align-items:center;text-align:center;max-width:440px;width:100%;margin:20px auto 0 auto;">
-      
-      <!-- GLOWING CENTER ROBOT HEAD AVATAR -->
-      <div style="width:76px;height:76px;margin-bottom:16px;position:relative;">
-        <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;filter:drop-shadow(0 0 16px rgba(56,189,248,0.5));">
+      <div style="width:72px;height:72px;margin-bottom:16px;position:relative;">
+        <svg class="ai-bot-svg idle" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
           <circle cx="60" cy="65" r="50" class="bot-aura" />
           <ellipse cx="60" cy="100" rx="26" ry="6" class="bot-platform" />
           <rect x="14" y="52" width="10" height="26" rx="5" class="bot-ear bot-ear-left" />
@@ -4234,67 +4114,62 @@ function toggleDrawerWhyPanel() {
         </svg>
       </div>
 
-      <!-- GREETING TITLE -->
-      <h3 style="font-size:20px;font-weight:800;color:#ffffff;margin:0 0 10px 0;letter-spacing:-0.2px;">Hi! Would you like me to analyze this student's case?</h3>
+      <h3 style="font-family:var(--f-serif);font-size:18px;font-weight:700;color:var(--text-hi);margin:0 0 10px 0;letter-spacing:.3px;line-height:1.35;">Would you like me to analyze this student's case?</h3>
 
-      <!-- DESCRIPTION PARAGRAPH -->
-      <p style="font-size:13.5px;color:#94a3b8;line-height:1.55;margin:0 0 22px 0;max-width:380px;">
+      <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin:0 0 22px 0;max-width:380px;">
         Click the button below and the AI will analyze case details against <?= number_format(get_total_ai_dataset_count()) ?> verified historical UPCC precedents and Student Handbook rules to recommend a sanction category &amp; Community Service hours.
       </p>
 
-      <!-- YES, ANALYZE CASE BUTTON -->
-      <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#ffffff;padding:14px 40px;border-radius:14px;font-weight:900;font-size:15px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 26px rgba(2,132,199,0.5);transition:all 0.25s;" onmouseover="this.style.transform='translateY(-2px) scale(1.03)';" onmouseout="this.style.transform='translateY(0) scale(1)';">
-        <span>🤖</span> Yes, Analyze Case
+      <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(180deg,var(--gold),var(--gold-soft));border:1px solid var(--gold-soft);color:#0a1220;padding:13px 34px;border-radius:3px;font-weight:800;font-size:12.5px;letter-spacing:1.2px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 12px rgba(201,169,97,.3);transition:all 0.2s;text-transform:uppercase;">
+        <span>🤖</span> Analyze Case
       </button>
 
-      <!-- FOOTER ADVISORY NOTE -->
-      <p style="font-size:11px;color:#64748b;margin:24px 0 0 0;">
-        Advisory decision support. Final authority remains with SDO / UPCC.
+      <p style="font-size:10.5px;color:var(--text-mute);margin:24px 0 0 0;letter-spacing:.3px;">
+        Advisory decision support · Final authority remains with SDO / UPCC
       </p>
     </div>
 
-    <!-- MULTI-STEP ANIMATED LOADING SCREEN -->
-    <div id="comsiceLoadingBox" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px;background:rgba(15,23,42,0.9);border:1px solid rgba(56,189,248,0.3);border-radius:24px;text-align:center;gap:16px;box-shadow:0 12px 40px rgba(0,0,0,0.6);width:100%;max-width:440px;margin:auto 0;">
+    <!-- Loading -->
+    <div id="comsiceLoadingBox" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:var(--radius-md);text-align:center;gap:16px;width:100%;max-width:440px;margin:auto 0;">
       <div class="ai-dots-loader" style="margin-bottom:4px;"><span></span><span></span><span></span></div>
-      <div id="comsiceLoadingStep" style="font-size:14.5px;font-weight:800;color:#38bdf8;transition:all 0.3s;line-height:1.4;">
+      <div id="comsiceLoadingStep" style="font-size:13.5px;font-weight:700;color:var(--gold-bright);transition:all 0.3s;line-height:1.4;letter-spacing:.3px;">
         🔍 Fetching student history &amp; prior offense records...
       </div>
-      <div style="font-size:12px;color:#64748b;font-weight:600;line-height:1.5;">
+      <div style="font-size:11.5px;color:var(--text-mute);font-weight:500;line-height:1.55;">
         Analyzing case details against <?= number_format(get_total_ai_dataset_count()) ?> verified historical UPCC precedents &amp; Student Handbook rules
       </div>
     </div>
 
-    <!-- PREDICTION OUTPUT RESULT CARD -->
-    <div id="comsiceResultCard" style="display:none;background:rgba(15,23,42,0.95);border:1px solid rgba(56,189,248,0.35);border-radius:22px;padding:22px;box-shadow:0 15px 35px rgba(0,0,0,0.5);width:100%;">
-      <div style="font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">🤖 COMSICE ML Prediction Result</div>
-      
-      <div id="comsicePredictedSanction" style="font-size:18px;font-weight:800;color:#38bdf8;margin-bottom:14px;line-height:1.35;">
+    <!-- Result -->
+    <div id="comsiceResultCard" style="display:none;background:rgba(0,0,0,.3);border:1px solid var(--line-hi);border-radius:var(--radius-md);padding:22px;width:100%;">
+      <div style="font-size:10.5px;font-weight:700;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.8px;margin-bottom:10px;">🤖 COMSICE ML Prediction Result</div>
+
+      <div id="comsicePredictedSanction" style="font-family:var(--f-serif);font-size:17px;font-weight:700;color:var(--gold-bright);margin-bottom:14px;line-height:1.4;">
         Violation slip issued by the SDO
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
-        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:9px 10px;border-radius:12px;">
-          <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Category</div>
-          <div id="comsiceSanctionCategory" style="font-size:13.5px;font-weight:800;color:#38bdf8;margin-top:2px;">Category 1</div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--line-2);padding:9px 10px;border-radius:var(--radius-sm);">
+          <div style="font-size:9.5px;color:var(--text-mute);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">Category</div>
+          <div id="comsiceSanctionCategory" style="font-size:13px;font-weight:700;color:var(--gold-bright);margin-top:3px;">Category 1</div>
         </div>
-        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:9px 10px;border-radius:12px;">
-          <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Confidence</div>
-          <div id="comsiceConfidenceScore" style="font-size:13.5px;font-weight:800;color:#4ade80;margin-top:2px;">88.5%</div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--line-2);padding:9px 10px;border-radius:var(--radius-sm);">
+          <div style="font-size:9.5px;color:var(--text-mute);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">Confidence</div>
+          <div id="comsiceConfidenceScore" style="font-size:13px;font-weight:700;color:#9dc5a8;margin-top:3px;font-family:var(--f-mono)">88.5%</div>
         </div>
-        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);padding:9px 10px;border-radius:12px;">
-          <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Severity</div>
-          <div id="comsiceSeverityBadge" style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:12px;font-weight:800;margin-top:2px;background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4);">Medium</div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--line-2);padding:9px 10px;border-radius:var(--radius-sm);">
+          <div style="font-size:9.5px;color:var(--text-mute);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">Severity</div>
+          <div id="comsiceSeverityBadge" style="display:inline-block;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:800;margin-top:3px;background:rgba(201,152,91,.15);color:#dfb87c;border:1px solid rgba(201,152,91,.35);letter-spacing:.5px;">Medium</div>
         </div>
       </div>
 
-      <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px;">💡 Recommendation Explanation:</div>
-      <div id="comsiceExplanation" style="font-size:13px;color:#94a3b8;line-height:1.55;background:rgba(0,0,0,0.35);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);max-height:260px;overflow-y:auto;">
+      <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;text-transform:uppercase;letter-spacing:1.2px;">💡 Recommendation Explanation:</div>
+      <div id="comsiceExplanation" style="font-size:12.5px;color:var(--text-dim);line-height:1.65;background:rgba(0,0,0,.3);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--line-2);max-height:260px;overflow-y:auto;">
         The XGBoost classifier evaluated the offense against <?= number_format(get_total_ai_dataset_count()) ?> historical campus precedent records.
       </div>
 
-      <!-- RE-ANALYZE BUTTON ONLY -->
       <div style="margin-top:18px;display:flex;justify-content:center;">
-        <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2));border:1px solid rgba(56,189,248,0.4);color:#38bdf8;padding:12px 24px;border-radius:12px;font-weight:800;font-size:13px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(56,189,248,0.15);transition:all 0.2s;" onmouseover="this.style.background='linear-gradient(135deg, #0284c7, #2563eb)';this.style.color='#ffffff';this.style.borderColor='transparent';this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2))';this.style.color='#38bdf8';this.style.borderColor='rgba(56,189,248,0.4)';this.style.transform='translateY(0)';">
+        <button type="button" onclick="runComsicePrediction()" style="background:rgba(201,169,97,.1);border:1px solid var(--line-hi);color:var(--gold-bright);padding:11px 22px;border-radius:3px;font-weight:700;font-size:12px;letter-spacing:1px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s;text-transform:uppercase;" onmouseover="this.style.background='linear-gradient(180deg,var(--gold),var(--gold-soft))';this.style.color='#0a1220';this.style.borderColor='var(--gold-soft)';" onmouseout="this.style.background='rgba(201,169,97,.1)';this.style.color='var(--gold-bright)';this.style.borderColor='var(--line-hi)';">
           <span>🔄</span> Re-Analyze
         </button>
       </div>
@@ -4324,22 +4199,22 @@ function renderComsiceResult(data) {
         document.getElementById('comsicePredictedSanction').textContent = data.sanction || 'Violation slip issued by the SDO';
         document.getElementById('comsiceConfidenceScore').textContent = (data.confidence !== undefined && data.confidence !== null ? data.confidence : 88.5) + '%';
         document.getElementById('comsiceSanctionCategory').textContent = data.category_label || (data.category_num ? `Category ${data.category_num}` : 'Category 1');
-        
+
         const sevEl = document.getElementById('comsiceSeverityBadge');
         const sev = data.severity || 'Medium';
         sevEl.textContent = sev;
         if (sev === 'Critical' || sev === 'High') {
-            sevEl.style.background = 'rgba(239, 68, 68, 0.2)';
-            sevEl.style.color = '#ef4444';
-            sevEl.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            sevEl.style.background = 'var(--rose-soft)';
+            sevEl.style.color = '#e0a0a0';
+            sevEl.style.borderColor = 'rgba(201,107,107,.4)';
         } else if (sev === 'Medium') {
-            sevEl.style.background = 'rgba(245, 158, 11, 0.2)';
-            sevEl.style.color = '#f59e0b';
-            sevEl.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+            sevEl.style.background = 'rgba(201,152,91,.15)';
+            sevEl.style.color = '#dfb87c';
+            sevEl.style.borderColor = 'rgba(201,152,91,.35)';
         } else {
-            sevEl.style.background = 'rgba(16, 185, 129, 0.2)';
-            sevEl.style.color = '#10b981';
-            sevEl.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+            sevEl.style.background = 'var(--sage-soft)';
+            sevEl.style.color = '#9dc5a8';
+            sevEl.style.borderColor = 'rgba(110,158,126,.4)';
         }
 
         document.getElementById('comsiceExplanation').innerHTML = (data.ai_explanation || data.reply || '')
@@ -4362,7 +4237,7 @@ async function runComsicePrediction() {
     const resCard = document.getElementById('comsiceResultCard');
     const loadingBox = document.getElementById('comsiceLoadingBox');
     const stepEl = document.getElementById('comsiceLoadingStep');
-    
+
     if (initBox) initBox.style.display = 'none';
     if (resCard) resCard.style.display = 'none';
     if (loadingBox) loadingBox.style.display = 'flex';
@@ -4383,7 +4258,7 @@ async function runComsicePrediction() {
             body: `category=${encodeURIComponent(category)}&violation=${encodeURIComponent(violation)}&number_of_offense=${encodeURIComponent(numOffense)}&description=${encodeURIComponent(description)}`
         });
         const data = await res.json();
-        
+
         clearTimeout(timer1);
         clearTimeout(timer2);
 
@@ -4404,7 +4279,6 @@ async function runComsicePrediction() {
     }
 }
 
-// Auto-run fresh AI prediction on page load / hard refresh
 document.addEventListener('DOMContentLoaded', function() {
     try {
         const caseId = <?= (int)$caseId ?>;
@@ -4422,7 +4296,7 @@ function setAiGeneratingState(isGenerating) {
     isAiGenerating = isGenerating;
     const stopContainer = document.getElementById('aiStopGeneratingContainer');
     if (stopContainer) stopContainer.style.display = isGenerating ? 'block' : 'none';
-    
+
     const sendBtn = document.getElementById('aiChatSendBtn');
     if (sendBtn) {
         sendBtn.disabled = isGenerating;
@@ -4430,7 +4304,7 @@ function setAiGeneratingState(isGenerating) {
         sendBtn.style.cursor = isGenerating ? 'not-allowed' : 'pointer';
         sendBtn.style.pointerEvents = isGenerating ? 'none' : 'auto';
     }
-    
+
     const input = document.getElementById('aiDrawerChatInput');
     if (input) {
         input.disabled = isGenerating;
@@ -4459,7 +4333,7 @@ function stopAiTyping() {
     }
     setAiGeneratingState(false);
     if (typeof setAiHeadExpression === 'function') setAiHeadExpression('idle');
-    
+
     const activeCursor = document.querySelector('.ai-typing-cursor');
     if (activeCursor) activeCursor.remove();
 }
@@ -4473,20 +4347,18 @@ async function handleAiChatSubmit(e) {
 
     input.value = '';
     input.style.height = '48px';
-    
-    // Append User Message to Thread
+
     const thread = document.getElementById('aiChatThread');
     const userMsgDiv = document.createElement('div');
     userMsgDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:4px;';
     userMsgDiv.innerHTML = `
-        <div style="background:linear-gradient(135deg, #2563eb, #1d4ed8);border-radius:18px;border-top-right-radius:4px;padding:14px 18px;font-size:16px;color:#ffffff;line-height:1.65;max-width:88%;box-shadow:0 4px 14px rgba(37,99,235,0.35);">
+        <div style="background:linear-gradient(180deg,var(--gold),var(--gold-soft));border-radius:14px;border-top-right-radius:3px;padding:14px 18px;font-size:15px;color:#0a1220;line-height:1.6;max-width:88%;font-weight:500;">
             ${escHtml(query)}
         </div>
     `;
     thread.appendChild(userMsgDiv);
     thread.scrollTop = thread.scrollHeight;
 
-    // Append AI Typing Placeholder Bubble
     const aiMsgDiv = document.createElement('div');
     aiMsgDiv.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
     const aiBubbleId = 'ai-msg-' + Date.now();
@@ -4494,7 +4366,7 @@ async function handleAiChatSubmit(e) {
         <div class="ai-avatar-container">
             <img src="../assets/identilogo.png" alt="IdentiTrack AI" class="ai-avatar-img">
         </div>
-        <div id="${aiBubbleId}" style="background:rgba(30,41,59,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:18px;border-top-left-radius:4px;padding:16px 18px;font-size:16.5px;color:#f8fafc;line-height:1.75;max-width:92%;letter-spacing:0.2px;">
+        <div id="${aiBubbleId}" style="background:rgba(0,0,0,.35);border:1px solid var(--line-2);border-radius:14px;border-top-left-radius:3px;padding:16px 18px;font-size:15px;color:var(--text);line-height:1.7;max-width:92%;">
             <div style="display:inline-flex;align-items:center;">
                 <div class="ai-dots-loader"><span></span><span></span><span></span></div>
                 <span class="ai-shimmer-text">Analyzing hearing file & handbook...</span>
@@ -4515,7 +4387,7 @@ async function handleAiChatSubmit(e) {
             body: `query=${encodeURIComponent(query)}&user_query=${encodeURIComponent(query)}`
         });
         const data = await res.json();
-        
+
         const bubble = document.getElementById(aiBubbleId);
         if (!bubble) return;
 
@@ -4526,7 +4398,6 @@ async function handleAiChatSubmit(e) {
             replyText = data && data.error ? data.error : "I am strictly scoped to the NU Lipa Student Handbook and active case data. Please try rephrasing your question.";
         }
 
-        // Start Smooth Typing Effect
         if (typeof setAiHeadExpression === 'function') setAiHeadExpression('speaking');
         typeOutAiResponse(bubble, replyText, thread);
 
@@ -4541,8 +4412,7 @@ async function handleAiChatSubmit(e) {
 
 function typeOutAiResponse(containerEl, fullText, threadEl) {
     containerEl.innerHTML = '';
-    
-    // Clean any lingering 'RAG' phrases from text to keep advisory labels clean
+
     fullText = (fullText || '')
         .replace(/Handbook RAG Sanction Recommendation/gi, 'Suggested Punishment & Advisory Recommendation')
         .replace(/\(Handbook RAG\)/gi, '')
@@ -4550,31 +4420,28 @@ function typeOutAiResponse(containerEl, fullText, threadEl) {
         .replace(/Handbook RAG/gi, 'Student Handbook Policy')
         .replace(/\bRAG\b/g, 'Policy');
 
-    // Parse markdown into clean HTML with larger typography
     let formattedText = fullText
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-hi);font-weight:700;">$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/^### (.*$)/gim, '<strong style="color:#38bdf8;font-size:17.5px;display:block;margin:14px 0 6px;font-weight:700;">$1</strong>')
-        .replace(/^## (.*$)/gim, '<strong style="color:#38bdf8;font-size:18.5px;display:block;margin:16px 0 8px;font-weight:800;">$1</strong>')
-        .replace(/^# (.*$)/gim, '<strong style="color:#38bdf8;font-size:20px;display:block;margin:18px 0 10px;font-weight:800;">$1</strong>')
-        .replace(/^[\u2022\-\*] (.*$)/gim, '<div style="margin-left:8px;margin-bottom:6px;line-height:1.75;font-size:16.5px;">• $1</div>')
+        .replace(/^### (.*$)/gim, '<strong style="color:var(--gold-bright);font-size:16px;display:block;margin:14px 0 6px;font-weight:700;">$1</strong>')
+        .replace(/^## (.*$)/gim, '<strong style="color:var(--gold-bright);font-size:17px;display:block;margin:16px 0 8px;font-weight:800;">$1</strong>')
+        .replace(/^# (.*$)/gim, '<strong style="color:var(--gold-bright);font-size:18px;display:block;margin:18px 0 10px;font-weight:800;">$1</strong>')
+        .replace(/^[\u2022\-\*] (.*$)/gim, '<div style="margin-left:8px;margin-bottom:6px;line-height:1.7;font-size:15px;">• $1</div>')
         .replace(/\n/g, '<br>')
-        // Category styling: Bold white text, larger font size, clear emphasis
-        .replace(/\bCategory ([1-5])\b/gi, '<strong style="color:#ffffff;font-weight:800;font-size:18px;">Category $1</strong>');
+        .replace(/\bCategory ([1-5])\b/gi, '<strong style="color:var(--text-hi);font-weight:800;font-size:16px;">Category $1</strong>');
 
     const textSpan = document.createElement('div');
-    textSpan.style.cssText = 'font-size:16.5px;line-height:1.75;color:#f8fafc;word-break:break-word;letter-spacing:0.2px;';
+    textSpan.style.cssText = 'font-size:15px;line-height:1.7;color:var(--text);word-break:break-word;';
 
     const cursorSpan = document.createElement('span');
     cursorSpan.className = 'ai-typing-cursor';
-    cursorSpan.style.cssText = 'color:#38bdf8;font-weight:900;animation:blink 0.7s infinite;margin-left:3px;display:inline-block;font-size:16px;';
+    cursorSpan.style.cssText = 'color:var(--gold-bright);font-weight:900;margin-left:3px;display:inline-block;font-size:14px;';
     cursorSpan.textContent = '▌';
 
     containerEl.appendChild(textSpan);
     containerEl.appendChild(cursorSpan);
 
-    // Tokenize text keeping HTML tags intact for smooth typing
     const tokens = formattedText.match(/<[^>]+>|[^<>\s]+|\s+/g) || [formattedText];
 
     let tokenIdx = 0;
@@ -4608,7 +4475,6 @@ function typeOutAiResponse(containerEl, fullText, threadEl) {
         }
 
         if (tokenIdx < tokens.length) {
-            // Process all consecutive tags in one batch
             while (tokenIdx < tokens.length && tokens[tokenIdx].startsWith('<')) {
                 accumulatedHtml += tokens[tokenIdx];
                 tokenIdx++;
@@ -4640,5 +4506,105 @@ function typeOutAiResponse(containerEl, fullText, threadEl) {
     renderNextFrame();
 }
 </script>
+
+<!-- MODAL: Similar Cases -->
+<div id="similarCasesModal" class="modal-shell" style="display:none;z-index:9999">
+  <div class="modal-card" style="max-width:560px;text-align:left;padding:24px">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:12px;">
+      <h3 style="margin:0; font-family:var(--f-serif); font-size:16px; font-weight:700; color:var(--text-hi);">📋 Similar Verified Historical Cases</h3>
+      <button type="button" onclick="closeSimilarCasesModal()" style="background:none; border:none; font-size:18px; color:var(--text-mute); cursor:pointer;">✕</button>
+    </div>
+    <div id="similarCasesModalList" style="max-height:360px; overflow-y:auto; padding-right:6px;"></div>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button type="button" class="btn btn-secondary" onclick="closeSimilarCasesModal()" style="padding:8px 18px;">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Handbook Basis -->
+<div id="handbookBasisModal" class="modal-shell" style="display:none;z-index:9999">
+  <div class="modal-card" style="max-width:580px;text-align:left;padding:24px">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:12px;">
+      <h3 style="margin:0; font-family:var(--f-serif); font-size:16px; font-weight:700; color:var(--text-hi);">📖 Applicable Student Handbook Basis</h3>
+      <button type="button" onclick="closeHandbookModal()" style="background:none; border:none; font-size:18px; color:var(--text-mute); cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:13px; color:var(--text); line-height:1.65; max-height:380px; overflow-y:auto; padding-right:6px;">
+      <div style="background:var(--gold-faint); border-left:3px solid var(--gold); padding:12px; border-radius:4px; margin-bottom:12px;">
+        <strong style="color:var(--gold-bright);font-family:var(--f-serif)">NU Lipa Student Code of Discipline (Section IV &amp; Section V)</strong>
+      </div>
+      <p><strong>Section IV — Minor Offenses &amp; 3-Attempt Rule:</strong><br>
+      • 1st &amp; 2nd Offense: Category 1 Warning &amp; Written Reprimand (0 CS Hours).<br>
+      • 3rd Offense: Automatic escalation to Category 2 Major Offense (150–250 CS Hours).</p>
+
+      <p><strong>Section V — Major Offenses &amp; Sanction Categories:</strong><br>
+      • Category 1: Formal Reprimand &amp; Active Semester Probation (0 Hours CS).<br>
+      • Category 2: Formative Community Service (150 to 250 Hours) + Counseling / Education.<br>
+      • Category 3: Non-Readmission / Suspension.<br>
+      • Category 4 / 5: Exclusion or Expulsion for extreme violence, theft, or weapons.</p>
+    </div>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button type="button" class="btn btn-primary" onclick="closeHandbookModal()" style="padding:8px 20px;">Understood</button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Duplicate AI bot styles kept in case the earlier block gets overridden */
+.ai-bot-avatar-wrapper{position:relative;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.ai-bot-svg{width:100%;height:100%;overflow:visible}
+.ai-bot-svg.idle{animation:botFloatIdle 4s ease-in-out infinite}
+@keyframes botFloatIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.ai-bot-svg.thinking{animation:botThink 1.4s ease-in-out infinite alternate}
+@keyframes botThink{0%{transform:translateY(-1px) rotate(-3deg)}100%{transform:translateY(-4px) rotate(3deg)}}
+.ai-bot-svg.speaking,.ai-bot-svg.happy{animation:botSpeak .8s ease-in-out infinite alternate}
+@keyframes botSpeak{0%{transform:translateY(-2px)}100%{transform:translateY(-5px)}}
+.bot-aura{fill:rgba(201,169,97,.12)}
+.bot-platform{fill:rgba(201,169,97,.18);filter:blur(2px)}
+.bot-head-shell{fill:url(#aiHeadGradUPCC);stroke:rgba(201,169,97,.5);stroke-width:2}
+.bot-visor{fill:url(#aiVisorGradUPCC);stroke:rgba(201,169,97,.4);stroke-width:1.5}
+.bot-ear{fill:#a98b4a;stroke:#c9a961;stroke-width:1.5}
+.bot-headband{fill:none;stroke:#c9a961;stroke-width:2.5;stroke-linecap:round}
+.bot-antenna-stem{stroke:#c9a961;stroke-width:2}
+.bot-antenna-bulb{fill:#c9a961;animation:antennaFlash 2s infinite alternate ease-in-out}
+@keyframes antennaFlash{0%{fill:#a98b4a;opacity:.5}100%{fill:#e3c789;opacity:1}}
+.bot-brow{fill:none;stroke:#c9a961;stroke-width:1.8;stroke-linecap:round;opacity:.5}
+.bot-eye{fill:#e3c789}
+.ai-bot-svg.speaking .bot-eye,.ai-bot-svg.happy .bot-eye{fill:#9dc5a8}
+.bot-mouth-bar{fill:#c9a961;opacity:.6}
+.ai-bot-svg.speaking .bot-mouth-bar,.ai-bot-svg.happy .bot-mouth-bar{fill:#9dc5a8;opacity:1;animation:mouthBounce .4s infinite alternate ease-in-out}
+.ai-bot-svg.speaking .bar-1{animation-delay:0s}
+.ai-bot-svg.speaking .bar-2{animation-delay:.12s}
+.ai-bot-svg.speaking .bar-3{animation-delay:.24s}
+@keyframes mouthBounce{0%{height:3px;y:77px}100%{height:9px;y:71px}}
+
+.ai-dots-loader{display:inline-flex;align-items:center;gap:4px;margin-right:8px;vertical-align:middle}
+.ai-dots-loader span{width:6px;height:6px;border-radius:50%;background:#c9a961;animation:aiDotPulse 1.4s infinite ease-in-out both}
+.ai-dots-loader span:nth-child(1){animation-delay:-0.32s}
+.ai-dots-loader span:nth-child(2){animation-delay:-0.16s}
+.ai-dots-loader span:nth-child(3){animation-delay:0s}
+@keyframes aiDotPulse{0%,80%,100%{transform:scale(.5);opacity:.35}40%{transform:scale(1.1);opacity:1}}
+
+.ai-shimmer-text{
+    background:linear-gradient(90deg,#93a0b5 0%,#e3c789 50%,#93a0b5 100%);
+    background-size:200% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    animation:aiShimmer 2s infinite linear;font-size:13px;font-weight:600;
+}
+@keyframes aiShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+.ai-avatar-container{
+    width:34px;height:34px;border-radius:50%;background:#0e1a2d;
+    border:1px solid rgba(201,169,97,.35);display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;overflow:hidden;
+}
+.ai-avatar-img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+#aiChatDrawer *::-webkit-scrollbar{width:6px;height:6px}
+#aiChatDrawer *::-webkit-scrollbar-track{background:rgba(0,0,0,.4);border-radius:3px}
+#aiChatDrawer *::-webkit-scrollbar-thumb{background:#a98b4a;border-radius:3px}
+#aiChatDrawer *::-webkit-scrollbar-thumb:hover{background:#c9a961}
+
+.ai-typing-cursor{animation:blinkCursor .7s infinite}
+@keyframes blinkCursor{0%,100%{opacity:1}50%{opacity:0}}
+</style>
 </body>
 </html>
