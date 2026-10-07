@@ -3258,11 +3258,11 @@ async function runAiAnalysis() {
                 suggested_category: data && data.suggested_category ? data.suggested_category : 1,
                 suggested_category_label: data && data.suggested_category_label ? data.suggested_category_label : 'CATEGORY 1',
                 community_service_hours: data && data.community_service_hours ? data.community_service_hours : 0,
-                confidence: data && data.confidence ? data.confidence : 0.88,
-                similar_cases: data && data.similar_cases ? data.similar_cases : 8,
+                confidence: data && data.confidence ? data.confidence : 0,
+                similar_cases: data && data.similar_cases ? data.similar_cases : 0,
                 most_common_historical: data && data.most_common_historical ? data.most_common_historical : 'Category 1',
-                historical_distribution: data && data.historical_distribution ? data.historical_distribution : { 'Category 1': 8 },
-                similar_cases_list: data && data.similar_cases_list ? data.similar_cases_list : null
+                historical_distribution: data && data.historical_distribution ? data.historical_distribution : {},
+                similar_cases_list: data && data.similar_cases_list ? data.similar_cases_list : []
             };
             currentAiResult = data;
         }
@@ -3286,7 +3286,7 @@ async function runAiAnalysis() {
         let csText = "0 Hours (Formal Reprimand / Advisory)";
         const effectiveCat = data.category_num || data.suggested_category || 1;
         if (effectiveCat === 2) {
-            csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "150–250 Hours Formative Community Service";
+            csText = csHours > 0 ? `${csHours} Hours Formative Community Service` : "Formative Community Service";
         } else if (effectiveCat === 3) {
             csText = "0 Hours (Non-Readmission / Suspension)";
         } else if (effectiveCat === 4) {
@@ -3297,16 +3297,20 @@ async function runAiAnalysis() {
         const csTextEl = document.getElementById('drawer-ai-cs-text');
         if (csTextEl) csTextEl.textContent = csText;
 
-        const evLabel = `${data.similar_cases || 8} similar verified cases`;
+        const similarCount = (data.similar_cases !== undefined && data.similar_cases !== null) ? data.similar_cases : 0;
+        const evLabel = `${similarCount} similar verified case(s)`;
         if (evCnt) evCnt.textContent = evLabel;
         if (dEvCnt) dEvCnt.textContent = evLabel;
 
-        const mostCommon = data.most_common_historical || `Category ${data.suggested_category || 1}`;
-        const patLabel = `${data.similar_cases || 8} similar cases → ${mostCommon}`;
+        const mostCommon = data.most_common_historical || `Category ${effectiveCat}`;
+        const patLabel = (similarCount > 0)
+            ? `${similarCount} similar case(s) → ${mostCommon}`
+            : `Handbook Matrix → ${mostCommon}`;
         if (patStr) patStr.textContent = patLabel;
         if (dPatStr) dPatStr.textContent = patLabel;
 
-        const confVal = Math.round((data.confidence || 0.88) * 100) + '%';
+        const rawConf = data.confidence || 0;
+        const confVal = rawConf > 0 ? (rawConf > 1 ? Math.round(rawConf) : Math.round(rawConf * 100)) + '%' : 'N/A';
         if (confPct) confPct.textContent = confVal;
         if (dConfPct) dConfPct.textContent = confVal;
 
@@ -3344,28 +3348,32 @@ function toggleWhyPanel() {
 }
 
 function openSimilarCasesModal() {
-    let cases = currentAiResult && currentAiResult.similar_cases_list ? currentAiResult.similar_cases_list : [
-        { case_uuid: 'Case A', offense_name: '<?= htmlspecialchars($offenseName ?? "Offense") ?>', offense_level: '<?= htmlspecialchars($offenseLevel ?? "MINOR") ?>', severity: 'Moderate', decided_category: 'Category 2', similarity_score: 91.0 },
-        { case_uuid: 'Case B', offense_name: '<?= htmlspecialchars($offenseName ?? "Offense") ?>', offense_level: '<?= htmlspecialchars($offenseLevel ?? "MINOR") ?>', severity: 'Moderate', decided_category: 'Category 2', similarity_score: 88.5 },
-        { case_uuid: 'Case C', offense_name: '<?= htmlspecialchars($offenseName ?? "Offense") ?>', offense_level: '<?= htmlspecialchars($offenseLevel ?? "MINOR") ?>', severity: 'Low', decided_category: 'Category 1', similarity_score: 84.0 }
-    ];
+    let cases = currentAiResult && currentAiResult.similar_cases_list && Array.isArray(currentAiResult.similar_cases_list)
+        ? currentAiResult.similar_cases_list
+        : [];
 
     let listHtml = '';
-    cases.forEach((c, idx) => {
-        const letter = String.fromCharCode(65 + idx);
-        listHtml += `
-            <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 16px;margin-bottom:10px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                    <strong style="font-size:0.9rem;color:#f8fafc;">Case ${letter} (${escHtml(c.case_uuid || 'HIST')})</strong>
-                    <span style="background:rgba(56, 189, 248, 0.2);color:#38bdf8;font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:10px;">Similarity: ${c.similarity_score}%</span>
+    if (cases.length === 0) {
+        listHtml = `<div style="padding:20px;text-align:center;color:#94a3b8;font-size:0.88rem;">No prior historical cases matching this exact offense were found in the dataset.<br><span style="color:#64748b;">Recommendation is evaluated directly against the NU Lipa Student Handbook Penalty Matrix.</span></div>`;
+    } else {
+        cases.forEach((c, idx) => {
+            const letter = String.fromCharCode(65 + idx);
+            const simScore = c.similarity_score ? (c.similarity_score > 1 ? c.similarity_score : Math.round(c.similarity_score * 100)) : 0;
+            listHtml += `
+                <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                        <strong style="font-size:0.9rem;color:#f8fafc;">Case ${letter} (${escHtml(c.case_uuid || 'HIST')})</strong>
+                        <span style="background:rgba(56, 189, 248, 0.2);color:#38bdf8;font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:10px;">Similarity: ${simScore}%</span>
+                    </div>
+                    <div style="font-size:0.8rem;color:#cbd5e1;">
+                        Offense: <strong>${escHtml(c.offense_name || '')}</strong> (${escHtml(c.offense_level || '')})<br>
+                        Final Intervention: <strong style="color:#38bdf8;">${escHtml(c.decided_category || '')}</strong>
+                        ${c.punishment_details ? `<br>Details: <em>${escHtml(c.punishment_details)}</em>` : ''}
+                    </div>
                 </div>
-                <div style="font-size:0.8rem;color:#cbd5e1;">
-                    Offense: <strong>${escHtml(c.offense_name)}</strong> (${escHtml(c.offense_level)})<br>
-                    Final Intervention: <strong style="color:#38bdf8;">${escHtml(c.decided_category)}</strong>
-                </div>
-            </div>
-        `;
-    });
+            `;
+        });
+    }
 
     const bodyEl = document.getElementById('similarCasesModalList');
     if (bodyEl) bodyEl.innerHTML = listHtml;
@@ -4189,17 +4197,17 @@ function toggleDrawerWhyPanel() {
         </svg>
       </div>
 
-      <!-- TITLE -->
-      <h3 style="font-size:20px;font-weight:800;color:#ffffff;margin:0 0 10px 0;letter-spacing:-0.2px;">Ready to analyze this case</h3>
+      <!-- GREETING TITLE -->
+      <h3 style="font-size:20px;font-weight:800;color:#ffffff;margin:0 0 10px 0;letter-spacing:-0.2px;">Hi! Would you like me to analyze this student's case?</h3>
 
       <!-- DESCRIPTION PARAGRAPH -->
       <p style="font-size:13.5px;color:#94a3b8;line-height:1.55;margin:0 0 22px 0;max-width:380px;">
-        The AI will analyze case details against <?= number_format(get_total_ai_dataset_count()) ?> verified historical UPCC precedents and Student Handbook rules to recommend a sanction &amp; Community Service hours.
+        Click the button below and the AI will analyze case details against <?= number_format(get_total_ai_dataset_count()) ?> verified historical UPCC precedents and Student Handbook rules to recommend a sanction category &amp; Community Service hours.
       </p>
 
-      <!-- CENTERED SUGGEST BUTTON -->
-      <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#ffffff;padding:14px 44px;border-radius:14px;font-weight:900;font-size:15px;letter-spacing:0.06em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 26px rgba(2,132,199,0.5);transition:all 0.25s;" onmouseover="this.style.transform='translateY(-2px) scale(1.03)';" onmouseout="this.style.transform='translateY(0) scale(1)';">
-        <span>✦</span> SUGGEST
+      <!-- YES, ANALYZE CASE BUTTON -->
+      <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, #0284c7, #2563eb);border:none;color:#ffffff;padding:14px 40px;border-radius:14px;font-weight:900;font-size:15px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 26px rgba(2,132,199,0.5);transition:all 0.25s;" onmouseover="this.style.transform='translateY(-2px) scale(1.03)';" onmouseout="this.style.transform='translateY(0) scale(1)';">
+        <span>🤖</span> Yes, Analyze Case
       </button>
 
       <!-- FOOTER ADVISORY NOTE -->
@@ -4247,12 +4255,9 @@ function toggleDrawerWhyPanel() {
         The XGBoost classifier evaluated the offense against <?= number_format(get_total_ai_dataset_count()) ?> historical campus precedent records.
       </div>
 
-      <!-- ACTION BUTTONS: APPLY SUGGESTED PUNISHMENT & RE-ANALYZE -->
-      <div style="margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-        <button type="button" onclick="applyComsicePredictionToForm()" style="background:linear-gradient(135deg, #059669, #10b981);border:none;color:#ffffff;padding:12px 24px;border-radius:12px;font-weight:800;font-size:13.5px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(16,185,129,0.4);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px) scale(1.02)';" onmouseout="this.style.transform='translateY(0) scale(1)';">
-          <span>✨</span> Auto-Fill AI Punishment into Form
-        </button>
-        <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2));border:1px solid rgba(56,189,248,0.4);color:#38bdf8;padding:12px 20px;border-radius:12px;font-weight:800;font-size:13px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(56,189,248,0.15);transition:all 0.2s;" onmouseover="this.style.background='linear-gradient(135deg, #0284c7, #2563eb)';this.style.color='#ffffff';this.style.borderColor='transparent';this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2))';this.style.color='#38bdf8';this.style.borderColor='rgba(56,189,248,0.4)';this.style.transform='translateY(0)';">
+      <!-- RE-ANALYZE BUTTON ONLY -->
+      <div style="margin-top:18px;display:flex;justify-content:center;">
+        <button type="button" onclick="runComsicePrediction()" style="background:linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2));border:1px solid rgba(56,189,248,0.4);color:#38bdf8;padding:12px 24px;border-radius:12px;font-weight:800;font-size:13px;letter-spacing:0.04em;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(56,189,248,0.15);transition:all 0.2s;" onmouseover="this.style.background='linear-gradient(135deg, #0284c7, #2563eb)';this.style.color='#ffffff';this.style.borderColor='transparent';this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(56,189,248,0.15), rgba(37,99,235,0.2))';this.style.color='#38bdf8';this.style.borderColor='rgba(56,189,248,0.4)';this.style.transform='translateY(0)';">
           <span>🔄</span> Re-Analyze
         </button>
       </div>

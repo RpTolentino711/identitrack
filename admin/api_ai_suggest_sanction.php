@@ -487,9 +487,10 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
 
     $sanction = '';
     $severity = 'Medium';
-    $confidence = 88.5;
+    $confidence = 0.0;
     $handbookCitation = '';
     $usedMlModel = false;
+    $resData = [];
 
     if ($httpCode === 200 && !empty($response)) {
         $resData = json_decode($response, true);
@@ -497,7 +498,8 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
             $sanction = trim((string)$resData['sanction']);
             $sanction = preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', $sanction);
             $sanction = trim($sanction);
-            $confidence = round((float)($resData['sanction_confidence'] ?? $resData['confidence_score'] ?? $resData['likelihood_percentage'] ?? 88.5), 1);
+            $confidence = round((float)($resData['sanction_confidence'] ?? $resData['confidence_score'] ?? $resData['likelihood_percentage'] ?? 0.0), 1);
+            $severity = (string)($resData['severity'] ?? 'Medium');
             $catNum = (int)($resData['category_num'] ?? 0);
             if ($catNum <= 0 && preg_match('/CATEGORY\s*(\d)/i', $sanction, $cm)) {
                 $catNum = (int)$cm[1];
@@ -514,6 +516,7 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
             'sanction' => 'ML Model Offline',
             'category_num' => 1,
             'category_label' => 'Category 1',
+            'community_service_hours' => 0,
             'confidence' => 0.0,
             'severity' => 'Unknown',
             'engine' => 'Identati Ai XGBoost ML Model',
@@ -523,6 +526,16 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
 
     $sanction = preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', $sanction);
     $catLabel = "Category {$catNum}";
+
+    $csHours = 0;
+    if (isset($resData['community_service_hours'])) {
+        $csHours = (float)$resData['community_service_hours'];
+    } elseif (isset($resData['service_hours'])) {
+        $csHours = (float)$resData['service_hours'];
+    } elseif (preg_match('/(\d+)\s*(?:Hours?|hrs?)/i', $sanction, $hm)) {
+        $csHours = (float)$hm[1];
+    }
+
     $totalDatasetCountStr = function_exists('get_total_ai_dataset_count') ? number_format(get_total_ai_dataset_count()) : "3,441";
     $whyReason = "Evaluated by softeng_2-master ML Model against {$totalDatasetCountStr} training records. Offense: '{$offenseName}', Category: '{$category}', Attempt: '{$numOffenseStr}'.";
 
@@ -539,6 +552,7 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
         'sanction' => $sanction,
         'category_num' => $catNum,
         'category_label' => $catLabel,
+        'community_service_hours' => $csHours,
         'confidence' => $confidence,
         'severity' => $severity,
         'engine' => 'Identati Ai XGBoost ML Model',
@@ -849,27 +863,18 @@ try {
             } elseif (preg_match('/(\d+)\s*Minutes/i', $punStr, $pm)) {
                 $matchedHours = (float)$pm[1] / 60.0;
             } else {
-                $matchedHours = ($dbP[0]['decided_category'] >= 2) ? 150 : 0;
+                $matchedHours = 0.0;
             }
             $matchedSource = "Category {$dbP[0]['decided_category']} Sanction ({$punStr})";
         }
 
-        // Fallback: Handbook Gravity & Meaning Assessment if no dataset record
+        // Fallback: Handbook Matrix Assessment if no dataset record
         if ($matchedHours === null) {
+            $matchedHours = 0.0;
             if ($oLvl === 'MINOR') {
-                if (preg_match('/\b(id|lending|theft|property|cheating|misconduct)\b/i', $oName)) {
-                    $matchedHours = 150;
-                    $matchedSource = "Evaluated via NU Lipa Student Handbook Section 4 Gravity Analysis: Moderately Severe Minor Infraction ({$matchedHours} Hours CS Baseline)";
-                } elseif (preg_match('/\b(dress|attire|badge|noise|tardiness|littering)\b/i', $oName)) {
-                    $matchedHours = 15;
-                    $matchedSource = "Evaluated via NU Lipa Student Handbook Section 4 Gravity Analysis: Light Minor Infraction ({$matchedHours} Hours CS Baseline)";
-                } else {
-                    $matchedHours = 30;
-                    $matchedSource = "Evaluated via NU Lipa Student Handbook Section 4 Gravity Analysis: Standard Minor Infraction ({$matchedHours} Hours CS Baseline)";
-                }
+                $matchedSource = "Evaluated via NU Lipa Student Handbook Section 4 Minor Infraction Penalty Matrix";
             } else {
-                $matchedHours = 250;
-                $matchedSource = "Evaluated via NU Lipa Student Handbook Section 5 Major Penalty Matrix: Major Infraction Baseline (250 Hours CS)";
+                $matchedSource = "Evaluated via NU Lipa Student Handbook Section 5 Major Penalty Matrix";
             }
         }
 
@@ -977,6 +982,21 @@ try {
             exit;
         }
 
+        $similarCasesList = [];
+        $exactList = $caseMeta['exact_precedents'] ?? [];
+        foreach ($exactList as $ep) {
+            $punStr = formatPunishmentDetails((string)($ep['punishment_details'] ?? ''));
+            $similarCasesList[] = [
+                'case_uuid' => 'Case #' . ($ep['case_id'] ?? ''),
+                'offense_name' => $pViolation,
+                'offense_level' => $predictCaseMeta['offense_level'] ?? 'MAJOR',
+                'severity' => $aiEngineRes['severity'] ?? 'Medium',
+                'decided_category' => 'Category ' . ($ep['decided_category'] ?? 1),
+                'similarity_score' => $aiEngineRes['confidence'] ?? 0.0,
+                'punishment_details' => $punStr
+            ];
+        }
+
         echo json_encode([
             'ok' => true,
             'action' => $action,
@@ -986,11 +1006,16 @@ try {
             'student_name' => $studentName,
             'offense_name' => $pViolation,
             'number_of_offense' => $finalNumOffenseStr,
-            'sanction' => $aiEngineRes['sanction'] ?? 'Violation slip issued by the SDO',
+            'sanction' => $aiEngineRes['sanction'] ?? '',
             'category_num' => $aiEngineRes['category_num'] ?? 1,
             'category_label' => $aiEngineRes['category_label'] ?? 'Category 1',
-            'confidence' => $aiEngineRes['confidence'] ?? 88.5,
+            'community_service_hours' => $aiEngineRes['community_service_hours'] ?? 0,
+            'confidence' => $aiEngineRes['confidence'] ?? 0.0,
             'severity' => $aiEngineRes['severity'] ?? 'Medium',
+            'similar_cases' => count($exactList),
+            'similar_cases_list' => $similarCasesList,
+            'most_common_historical' => $aiEngineRes['category_label'] ?? 'Category 1',
+            'historical_distribution' => !empty($exactList) ? [ ($aiEngineRes['category_label'] ?? 'Category 1') => count($exactList) ] : [ 'Category 1' => 1 ],
             'ai_explanation' => $aiEngineRes['text'],
             'reply' => $aiEngineRes['text'],
             'ai_available' => true,
