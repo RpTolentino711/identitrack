@@ -1615,9 +1615,12 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     </div>
     <div class="side-group">
         <div class="side-label">Assigned Panel</div>
-        <?php if (!empty($panelMembers)): foreach ($panelMembers as $m): ?>
-            <div class="panel-chip">
+        <?php if (!empty($panelMembers)): foreach ($panelMembers as $m): 
+            $isMe = ((int)$m['upcc_id'] === $panelId);
+        ?>
+            <div class="panel-chip <?= $isMe ? 'is-current-user' : '' ?>" <?= $isMe ? 'style="border-color:rgba(201,169,97,.35); background:rgba(201,169,97,.04);"' : '' ?>>
                 <span>👤</span> <?= htmlspecialchars($m['full_name']) ?>
+                <?= $isMe ? '<small style="color:var(--gold-bright); font-weight:800; background:rgba(201,169,97,.14); padding:1px 5px; border-radius:3px; border:1px solid rgba(201,169,97,.3); letter-spacing:.6px;">(YOU)</small>' : '' ?>
                 <small>(<?= htmlspecialchars($m['role']) ?>)</small>
                 <?php if ((int)$m['upcc_id'] === $suggesterId && $isRoundActive): ?>
                     🗣️
