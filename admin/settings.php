@@ -2,6 +2,7 @@
 // File: admin/settings.php
 require_once __DIR__ . '/../database/database.php';
 require_admin();
+ensure_student_department_schema();
 
 $activeSidebar = 'settings';
 
@@ -142,22 +143,23 @@ if (
     try {
         db_exec(
             "INSERT INTO student
-             (student_id, student_fn, student_ln, year_level, section, school, program,
+             (student_id, student_fn, student_ln, year_level, department, section, school, program,
               student_email, phone_number, scanner_id_hash, is_active, created_at, updated_at)
              VALUES
-             (:sid, :fn, :ln, :yr, :section, :school, :program, :email, :phone, :hash,
+             (:sid, :fn, :ln, :yr, :dept, :section, :school, :program, :email, :phone, :hash,
               1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
             [
-                ':sid'     => (string) $pending['student_id'],
-                ':fn'      => (string) $pending['student_fn'],
-                ':ln'      => (string) $pending['student_ln'],
-                ':yr'      => (int)    $pending['year_level'],
-                ':section' => (string) $pending['section'],
-                ':school'  => (string) $pending['school'],
-                ':program' => (string) $pending['program'],
-                ':email'   => (string) $pending['student_email'],
-                ':phone'   => (string) $pending['phone_number'],
-                ':hash'    => $scanHash,
+                ':sid'        => (string) $pending['student_id'],
+                ':fn'         => (string) $pending['student_fn'],
+                ':ln'         => (string) $pending['student_ln'],
+                ':yr'         => (int)    $pending['year_level'],
+                ':dept'       => (string) ($pending['department'] ?? ''),
+                ':section'    => (string) $pending['section'],
+                ':school'     => (string) $pending['school'],
+                ':program'    => (string) $pending['program'],
+                ':email'      => (string) $pending['student_email'],
+                ':phone'      => (string) $pending['phone_number'],
+                ':hash'       => $scanHash,
             ]
         );
 
@@ -198,6 +200,65 @@ if (
     header('Content-Type: application/json; charset=utf-8');
     clear_pending_nfc_registration();
     echo json_encode(['ok' => true, 'message' => 'Pending registration cleared.']);
+    exit;
+}
+
+// ─── AJAX: Get departments ────────────────────────────────────────────────────
+
+if (
+    $_SERVER['REQUEST_METHOD'] === 'GET' &&
+    isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
+    strtolower((string) $_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest' &&
+    (string) ($_GET['action'] ?? '') === 'get_departments'
+) {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $deptRows  = db_all("SELECT DISTINCT dept_name FROM departments WHERE is_active = 1 ORDER BY dept_name ASC");
+    $studDepts = db_all("SELECT DISTINCT department FROM student WHERE department IS NOT NULL AND department <> '' ORDER BY department");
+
+    $list = array_merge(
+        array_map(fn($d) => trim((string)($d['dept_name'] ?? '')), $deptRows ?: []),
+        array_map(fn($d) => trim((string)($d['department'] ?? '')), $studDepts ?: [])
+    );
+
+    $pending = $_SESSION['pending_departments'] ?? [];
+    foreach ($pending as $pd) {
+        if ($pd) $list[] = trim((string)$pd);
+    }
+
+    $list = array_values(array_unique(array_filter($list, fn($x) => $x !== '')));
+    natcasesort($list);
+
+    echo json_encode(['ok' => true, 'departments' => array_values($list)]);
+    exit;
+}
+
+// ─── AJAX: Add a new department ───────────────────────────────────────────────
+
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
+    strtolower((string) $_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest' &&
+    (string) ($_POST['action'] ?? '') === 'add_department'
+) {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $deptName = trim((string) ($_POST['dept_name'] ?? ''));
+    if ($deptName === '') {
+        echo json_encode(['ok' => false, 'message' => 'Department name is required.']);
+        exit;
+    }
+
+    try {
+        db_exec("INSERT INTO departments (dept_name) VALUES (:n) ON DUPLICATE KEY UPDATE dept_name = :n", [':n' => $deptName]);
+    } catch (\Throwable $e) {}
+
+    $_SESSION['pending_departments'] = $_SESSION['pending_departments'] ?? [];
+    if (!in_array($deptName, $_SESSION['pending_departments'], true)) {
+        $_SESSION['pending_departments'][] = $deptName;
+    }
+
+    echo json_encode(['ok' => true, 'message' => 'Department created successfully.', 'department' => $deptName]);
     exit;
 }
 
@@ -619,6 +680,7 @@ $form = [
     'student_ln'          => trim((string) ($_POST['student_ln'] ?? '')),
     'academic_group'      => trim((string) ($_POST['academic_group'] ?? 'COLLEGE')),
     'year_level'          => trim((string) ($_POST['year_level'] ?? '')),
+    'department'          => trim((string) ($_POST['department'] ?? '')),
     'section'             => trim((string) ($_POST['section'] ?? '')),
     'college_department'  => trim((string) ($_POST['college_department'] ?? '')),
     'shs_track'           => trim((string) ($_POST['shs_track'] ?? '')),
@@ -640,7 +702,7 @@ $editStudentId = trim((string) ($_GET['edit_student_id'] ?? ''));
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $editStudentId !== '') {
     $row = db_one(
-        "SELECT s.student_id, s.student_fn, s.student_ln, s.year_level, s.section,
+        "SELECT s.student_id, s.student_fn, s.student_ln, s.year_level, s.department, s.section,
                 s.school, s.program, s.student_email, s.phone_number, g.guardian_email
          FROM student s
          LEFT JOIN guardian g ON g.student_id = s.student_id
@@ -656,6 +718,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $editStudentId !== '') {
         $form['student_ln']         = (string) ($row['student_ln'] ?? '');
         $form['academic_group']     = $isShs ? 'SHS' : 'COLLEGE';
         $form['year_level']         = (string) ($row['year_level'] ?? '');
+        $form['department']         = (string) ($row['department'] ?? '');
         $form['section']            = (string) ($row['section'] ?? '');
         $form['college_department'] = $isShs ? '' : (string) ($row['program'] ?? '');
         $form['shs_track']          = $isShs ? (string) ($row['program'] ?? '') : '';
@@ -728,6 +791,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
             'student_fn'      => $form['student_fn'],
             'student_ln'      => $form['student_ln'],
             'year_level'      => (int) $form['year_level'],
+            'department'      => $form['department'],
             'section'         => $form['section'],
             'school'          => $school,
             'program'         => $program,
@@ -798,7 +862,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
 
         db_exec(
             "UPDATE student
-             SET student_fn = :fn, student_ln = :ln, year_level = :yr, section = :section,
+             SET student_fn = :fn, student_ln = :ln, year_level = :yr, department = :dept, section = :section,
                  school = :school, program = :program, student_email = :email,
                  phone_number = :phone, updated_at = CURRENT_TIMESTAMP
              WHERE student_id = :sid",
@@ -806,6 +870,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
                 ':fn'      => $form['student_fn'],
                 ':ln'      => $form['student_ln'],
                 ':yr'      => (int) $form['year_level'],
+                ':dept'    => $form['department'],
                 ':section' => $form['section'],
                 ':school'  => $school,
                 ':program' => $program,
@@ -853,11 +918,11 @@ $updatedStudentId  = trim((string) ($_GET['student_id'] ?? ''));
 $nfcQuery    = trim((string) ($_GET['nfc_q'] ?? ''));
 $queryParams = $nfcQuery !== '' ? [':q' => '%' . $nfcQuery . '%'] : [];
 $whereClause = $nfcQuery !== ''
-    ? "AND (s.student_id LIKE :q OR s.student_fn LIKE :q OR s.student_ln LIKE :q OR s.program LIKE :q OR s.section LIKE :q)"
+    ? "AND (s.student_id LIKE :q OR s.student_fn LIKE :q OR s.student_ln LIKE :q OR s.department LIKE :q OR s.program LIKE :q OR s.section LIKE :q)"
     : '';
 
 $nfcMappings = db_all(
-    "SELECT s.student_id, s.student_fn, s.student_ln, s.school, s.program, s.year_level,
+    "SELECT s.student_id, s.student_fn, s.student_ln, s.school, s.department, s.program, s.year_level,
             s.section, s.student_email, g.guardian_email, s.updated_at
      FROM student s
      LEFT JOIN guardian g ON g.student_id = s.student_id
@@ -1678,10 +1743,22 @@ $nfcMappings = db_all(
                     </select>
                   </div>
 
+                  <div id="deptWrap" class="field-group">
+                    <div style="display: flex; gap: 8px; align-items: flex-end;">
+                      <div style="flex: 1;">
+                        <label for="department">Department</label>
+                        <select id="department" name="department" required>
+                          <option value="">Select department</option>
+                        </select>
+                      </div>
+                      <button type="button" id="addDeptBtn" class="btn btn-sm" style="padding: 8px 12px; white-space: nowrap;">+ Add Department</button>
+                    </div>
+                  </div>
+
                   <div id="collegeWrap" class="field-group">
                     <div style="display: flex; gap: 8px; align-items: flex-end;">
                       <div style="flex: 1;">
-                        <label for="college_department">Course / Department</label>
+                        <label for="college_department">Course</label>
                         <select id="college_department" name="college_department">
                           <option value="">Select course</option>
                         </select>
@@ -1854,6 +1931,7 @@ $nfcMappings = db_all(
                     <th>Student ID</th>
                     <th>Full Name</th>
                     <th>School</th>
+                    <th>Department</th>
                     <th>Program</th>
                     <th>Year / Section</th>
                     <th>Student Email</th>
@@ -1865,7 +1943,7 @@ $nfcMappings = db_all(
                 <tbody>
                   <?php if (empty($nfcMappings)): ?>
                     <tr>
-                      <td colspan="9">
+                      <td colspan="10">
                         <div class="empty-state">No NFC-linked students found<?php echo $nfcQuery !== '' ? ' for your search' : ''; ?>.</div>
                       </td>
                     </tr>
@@ -1879,6 +1957,7 @@ $nfcMappings = db_all(
                             <?php echo htmlspecialchars((string) ($row['school'] ?? '')); ?>
                           </span>
                         </td>
+                        <td><?php echo htmlspecialchars((string) ($row['department'] ?? '—')); ?></td>
                         <td><?php echo htmlspecialchars((string) ($row['program'] ?? '—')); ?></td>
                         <td><?php echo htmlspecialchars((string) ($row['year_level'] ?? '') . ' / ' . (string) ($row['section'] ?? '')); ?></td>
                         <td style="color:var(--slate-600);"><?php echo htmlspecialchars((string) ($row['student_email'] ?? '')); ?></td>
@@ -1901,6 +1980,26 @@ $nfcMappings = db_all(
 
       </div><!-- .page -->
     </main>
+  </div>
+
+  <!-- ── Add Department Modal ──────────────────────────────────────────── -->
+  <div id="addDeptModal" class="modal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="addDeptTitle">
+      <div class="modal-header">
+        <div class="modal-title" id="addDeptTitle">Add New Department</div>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label for="newDeptName">Department Name / Code</label>
+          <input type="text" id="newDeptName" placeholder="e.g., School of Architecture, Computing, and Engineering (SACE)" maxlength="150"/>
+          <div class="field-hint">Example: School of Architecture, Computing, and Engineering (SACE)</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" id="addDeptConfirmBtn">Create Department</button>
+        <button type="button" class="btn" id="addDeptCloseBtn">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <!-- ── Add Course Modal ──────────────────────────────────────────────── -->
@@ -2511,16 +2610,22 @@ $nfcMappings = db_all(
   (function () {
     'use strict';
 
+    var addDeptBtn              = document.getElementById('addDeptBtn');
     var addCourseBtn            = document.getElementById('addCourseBtn');
     var addSectionBtn           = document.getElementById('addSectionBtn');
+    var addDeptModal            = document.getElementById('addDeptModal');
     var addCourseModal          = document.getElementById('addCourseModal');
     var addSectionModal         = document.getElementById('addSectionModal');
+    var newDeptNameInput        = document.getElementById('newDeptName');
     var newCourseNameInput      = document.getElementById('newCourseName');
     var newSectionNameInput     = document.getElementById('newSectionName');
+    var addDeptConfirmBtn       = document.getElementById('addDeptConfirmBtn');
     var addCourseConfirmBtn     = document.getElementById('addCourseConfirmBtn');
     var addSectionConfirmBtn    = document.getElementById('addSectionConfirmBtn');
+    var addDeptCloseBtn         = document.getElementById('addDeptCloseBtn');
     var addCourseCloseBtn       = document.getElementById('addCourseCloseBtn');
     var addSectionCloseBtn      = document.getElementById('addSectionCloseBtn');
+    var deptSel                 = document.getElementById('department');
     var collegeDep              = document.getElementById('college_department');
     var shsTrack                = document.getElementById('shs_track');
     var sectionSel              = document.getElementById('section');
@@ -2810,6 +2915,12 @@ $nfcMappings = db_all(
       });
     }
 
+    if (addDeptModal) {
+      addDeptModal.addEventListener('click', function(e) {
+        if (e.target === addDeptModal) closeModal(addDeptModal);
+      });
+    }
+
     if (addCourseModal) {
       addCourseModal.addEventListener('click', function(e) {
         if (e.target === addCourseModal) closeModal(addCourseModal);
@@ -2819,6 +2930,12 @@ $nfcMappings = db_all(
     if (addSectionModal) {
       addSectionModal.addEventListener('click', function(e) {
         if (e.target === addSectionModal) closeModal(addSectionModal);
+      });
+    }
+
+    if (newDeptNameInput) {
+      newDeptNameInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && addDeptConfirmBtn) addDeptConfirmBtn.click();
       });
     }
 
@@ -2833,6 +2950,70 @@ $nfcMappings = db_all(
         if (e.key === 'Enter' && addSectionConfirmBtn) addSectionConfirmBtn.click();
       });
     }
+
+    function refreshDepartments(selectedDept) {
+      if (!deptSel) return Promise.resolve();
+      return fetch('settings.php?action=get_departments', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data || !data.ok) return;
+          var wanted = String(selectedDept || deptSel.value || '').trim();
+          deptSel.innerHTML = '<option value="">Select department</option>';
+          (data.departments || []).forEach(function(dept) {
+            var opt = document.createElement('option');
+            opt.value = dept;
+            opt.textContent = dept;
+            if (dept === wanted) opt.selected = true;
+            deptSel.appendChild(opt);
+          });
+          if (wanted) deptSel.value = wanted;
+        });
+    }
+
+    if (addDeptBtn) {
+      addDeptBtn.addEventListener('click', function() {
+        if (newDeptNameInput) newDeptNameInput.value = '';
+        openModal(addDeptModal);
+        if (newDeptNameInput) {
+          setTimeout(function() { newDeptNameInput.focus(); }, 80);
+        }
+      });
+    }
+
+    if (addDeptCloseBtn) {
+      addDeptCloseBtn.addEventListener('click', function() {
+        closeModal(addDeptModal);
+      });
+    }
+
+    if (addDeptConfirmBtn) {
+      addDeptConfirmBtn.addEventListener('click', function() {
+        var deptName = String(newDeptNameInput ? newDeptNameInput.value : '').trim();
+        if (!deptName) {
+          showAlert('Please enter a department name.');
+          return;
+        }
+
+        postAction('add_department', { dept_name: deptName })
+          .then(function(data) {
+            if (!data || !data.ok) {
+              showAlert('Error: ' + ((data && data.message) || 'Could not create department.'));
+              return;
+            }
+
+            return refreshDepartments(deptName)
+              .then(function() {
+                closeModal(addDeptModal);
+              });
+          })
+          .catch(function(e) {
+            showAlert('Network error: ' + e.message);
+          });
+      });
+    }
+
+    var initialDept = <?php echo json_encode((string)($form['department'] ?? '')); ?>;
+    refreshDepartments(initialDept);
   })();
   </script>
 </body>

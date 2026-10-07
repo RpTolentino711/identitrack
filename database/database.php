@@ -412,6 +412,44 @@ function ensure_admin_schema(): void
   $checked = true;
 }
 
+function ensure_student_department_schema(): void
+{
+  static $checked = false;
+  if ($checked) return;
+  try {
+    db_exec("CREATE TABLE IF NOT EXISTS `departments` (
+        `dept_id` int(11) NOT NULL AUTO_INCREMENT,
+        `dept_name` varchar(150) NOT NULL,
+        `dept_code` varchar(50) DEFAULT NULL,
+        `is_active` tinyint(1) NOT NULL DEFAULT 1,
+        `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+        `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+        PRIMARY KEY (`dept_id`),
+        UNIQUE KEY `dept_name` (`dept_name`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+    $hasDeptCol = db_one("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'student' AND COLUMN_NAME = 'department'");
+    if (!$hasDeptCol) {
+      db_exec("ALTER TABLE `student` ADD COLUMN `department` VARCHAR(150) DEFAULT NULL AFTER `year_level`");
+    }
+
+    $deptCount = (int)(db_one("SELECT COUNT(*) AS c FROM departments")['c'] ?? 0);
+    if ($deptCount === 0) {
+      $defaults = [
+        'School of Architecture, Computing, and Engineering (SACE)',
+        'School of Business and Accountancy (SBA)',
+        'School of Arts and Sciences (SAS)',
+        'School of Allied Health (SAH)',
+        'Senior High School (SHS)',
+      ];
+      foreach ($defaults as $dName) {
+        db_exec("INSERT INTO departments (dept_name) VALUES (:n) ON DUPLICATE KEY UPDATE dept_name = :n", [':n' => $dName]);
+      }
+    }
+  } catch (\Throwable $e) {}
+  $checked = true;
+}
+
 function admin_find_by_username(string $username): ?array
 {
   ensure_admin_schema();
