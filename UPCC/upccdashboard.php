@@ -241,9 +241,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
               <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && (int)($c['hearing_is_paused'] ?? 0) !== 1): ?>
                 <div style="display:flex; gap:8px; align-items:center;">
                   <?php if ($myPresenceStatus === 'WAITING'): ?>
-                    <span class="badge badge-warning" style="font-size:10px; padding:5px 12px; background:rgba(245, 158, 11, 0.1); color:#fbbf24; border:1px solid rgba(245, 158, 11, 0.25);">Awaiting Admin Admission</span>
+                    <span class="badge badge-warning" style="font-size:10px; padding:5px 12px;">Awaiting Admin Admission</span>
                   <?php else: ?>
-                    <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 12px; background:rgba(245, 158, 11, 0.15); color:#fbbf24; border:1px solid rgba(245, 158, 11, 0.3);">Request Rejoin</button>
+                    <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 12px;">Request Rejoin</button>
                   <?php endif; ?>
                 </div>
               <?php else: ?>
@@ -431,374 +431,626 @@ $firstName = htmlspecialchars($nameParts[0]);
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>UPCC Panel Workspace — Dashboard</title>
+<title>UPCC Panel Workspace — Docket Queue</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-:root {
-  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  
-  --bg-dark: #090d16;
-  --bg-sidebar: #0e1526;
-  --bg-card: rgba(18, 26, 43, 0.75);
-  --bg-glass: rgba(15, 22, 38, 0.85);
-  
-  --border-glass: rgba(255, 255, 255, 0.08);
-  --border-glass-hover: rgba(255, 255, 255, 0.16);
-  
-  --accent-primary: #38bdf8;
-  --accent-secondary: #6366f1;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  
-  --text-main: #f8fafc;
-  --text-sub: #cbd5e1;
-  --text-muted: #64748b;
-  
-  --radius-lg: 16px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
+/* ══════════════════════════════════════════════════════════════════════════
+   UPCC TRIBUNAL — Docket Queue
+   Deep navy + antique gold. Formal institutional document feel.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+    --ink-900:#060a14;
+    --ink-800:#0a1220;
+    --ink-700:#0e1a2d;
+    --ink-600:#132340;
+
+    --panel:#101c31;
+    --panel-hi:#152540;
+
+    --gold:#c9a961;
+    --gold-soft:#a98b4a;
+    --gold-bright:#e3c789;
+    --gold-faint:rgba(201,169,97,.15);
+
+    --rose:#c96b6b;
+    --rose-soft:rgba(201,107,107,.14);
+    --sage:#6e9e7e;
+    --sage-soft:rgba(110,158,126,.14);
+    --amber:#c9985b;
+    --indigo:#7c8fc9;
+
+    --text-hi:#f1ece0;
+    --text:#d8d2c4;
+    --text-dim:#93a0b5;
+    --text-mute:#5d6a80;
+
+    --line:rgba(201,169,97,.14);
+    --line-2:rgba(255,255,255,.06);
+    --line-hi:rgba(201,169,97,.35);
+
+    --radius-lg:6px;
+    --radius-md:4px;
+    --radius-sm:3px;
+
+    --f-serif:'Libre Baskerville', Georgia, 'Times New Roman', serif;
+    --f-sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --f-mono:'JetBrains Mono', 'Courier New', monospace;
+
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow-md:0 4px 20px rgba(0,0,0,.35);
+    --shadow-lg:0 12px 40px rgba(0,0,0,.5);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
-  font-family: var(--font-body);
-  color: var(--text-main);
-  background: var(--bg-dark);
-  min-height: 100vh;
-  position: relative;
-  overflow-x: hidden;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+body{
+    font-family:var(--f-sans);
+    font-size:14px;
+    color:var(--text);
+    background:var(--ink-900);
+    min-height:100vh;
+    line-height:1.55;
+    letter-spacing:0.005em;
+    -webkit-font-smoothing:antialiased;
+    background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(201,169,97,.06), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(124,143,201,.04), transparent);
+    background-attachment:fixed;
 }
 
-body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: -2;
-  background: radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.08), transparent 45%),
-              radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.08), transparent 45%),
-              radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.03), transparent 50%);
-  filter: blur(80px);
+.app-container{
+    display:grid;
+    grid-template-columns:280px 1fr;
+    min-height:100vh;
 }
 
-.app-container {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  min-height: 100vh;
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+.sidebar{
+    background:linear-gradient(180deg,var(--ink-800) 0%,var(--ink-900) 100%);
+    border-right:1px solid var(--line);
+    padding:28px 22px;
+    display:flex;flex-direction:column;
+    position:relative;
+}
+.sidebar::after{
+    content:'';position:absolute;top:0;bottom:0;right:-1px;width:1px;
+    background:linear-gradient(180deg,transparent,var(--gold-faint) 30%,var(--gold-faint) 70%,transparent);
+}
+.brand{
+    display:flex;align-items:center;gap:12px;
+    padding-bottom:22px;margin-bottom:26px;
+    border-bottom:1px solid var(--line);
+}
+.brand-icon{
+    width:44px;height:44px;border:1px solid var(--line);
+    background:rgba(201,169,97,.05);border-radius:4px;
+    display:grid;place-items:center;padding:6px;flex-shrink:0;
+}
+.brand-icon img{width:100%;height:auto;display:block;border-radius:3px}
+.brand-text h1{
+    font-family:var(--f-serif);font-size:16px;font-weight:700;
+    letter-spacing:.5px;color:var(--text-hi);line-height:1.1;
+}
+.brand-text p{
+    font-size:10px;color:var(--gold);text-transform:uppercase;
+    letter-spacing:2px;margin-top:4px;font-weight:600;
 }
 
-/* Sidebar */
-.sidebar {
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border-glass);
-  padding: 28px 20px;
-  display: flex;
-  flex-direction: column;
+.side-section{margin-bottom:22px}
+.side-label{
+    font-size:10px;letter-spacing:2px;color:var(--text-mute);
+    text-transform:uppercase;margin-bottom:12px;font-weight:700;
+    padding-bottom:6px;border-bottom:1px solid var(--line-2);
 }
 
-.brand {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 36px; padding-bottom: 20px;
-  border-bottom: 1px solid var(--border-glass);
+.nav-link{
+    display:flex;align-items:center;gap:11px;
+    padding:11px 14px;margin-bottom:6px;
+    border-radius:4px;color:var(--text-dim);
+    text-decoration:none;font-weight:500;font-size:13px;
+    background:transparent;border:1px solid transparent;
+    transition:all .2s ease;letter-spacing:.2px;
 }
-.brand-icon {
-  width: 44px; height: 44px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border-glass);
-  border-radius: 10px;
-  display: grid; place-items: center;
-  padding: 6px;
+.nav-link:hover{
+    background:rgba(255,255,255,.03);
+    color:var(--text-hi);
+    border-color:var(--line-2);
 }
-.brand-icon img { width: 100%; height: auto; display: block; border-radius: 4px; }
-.brand-text h1 { font-family: var(--font-heading); font-size: 17px; font-weight: 700; letter-spacing: 0.3px; line-height: 1.2; }
-.brand-text p { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; margin-top: 2px; }
+.nav-link.active{
+    background:var(--gold-faint);
+    border:1px solid var(--line-hi);
+    color:var(--gold-bright);
+    font-weight:700;
+}
+.nav-link svg{flex-shrink:0}
 
-.nav-link {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 16px; margin-bottom: 8px;
-  border-radius: var(--radius-sm);
-  color: var(--text-sub); text-decoration: none;
-  font-weight: 500; font-size: 13.5px;
-  background: transparent; border: 1px solid transparent;
-  transition: all 0.2s ease;
+.side-info{
+    margin-top:auto;
+    border-top:1px solid var(--line);
+    padding-top:18px;
+    font-size:11.5px;
+    color:var(--text-mute);
+    line-height:1.6;
 }
-.nav-link:hover {
-  background: rgba(255,255,255,0.04);
-  color: var(--text-main);
-  border-color: var(--border-glass);
-}
-.nav-link.active {
-  background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  color: #38bdf8;
-  font-weight: 600;
-}
+.side-info .side-info-row{display:flex;justify-content:space-between;margin-bottom:6px}
+.side-info .side-info-label{color:var(--text-mute);font-size:10.5px;letter-spacing:.5px}
+.side-info .side-info-value{color:var(--text-dim);font-weight:600;font-family:var(--f-mono);font-size:11px}
 
-/* Main Content */
-.main-content {
-  padding: 36px 40px;
-  overflow-y: auto;
-}
-.header {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 28px;
-}
-.greeting h2 {
-  font-family: var(--font-heading); font-size: 26px; font-weight: 700;
-  color: var(--text-main); letter-spacing: -0.3px;
-}
-.greeting p { color: var(--text-muted); margin-top: 4px; font-size: 14px; }
+/* ── Main Content ────────────────────────────────────────────────────── */
+.main-content{padding:32px 40px;overflow-y:auto}
 
-.institutional-badge {
-  font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
-  color: #94a3b8; background: rgba(255,255,255,0.03);
-  padding: 8px 16px; border: 1px solid var(--border-glass); border-radius: 8px;
-  display: inline-flex; align-items: center; gap: 8px;
+/* ── Chamber Banner ──────────────────────────────────────────────────── */
+.chamber-banner{
+    display:flex;align-items:center;justify-content:space-between;
+    background:linear-gradient(180deg,var(--ink-800),var(--ink-700));
+    border:1px solid var(--line);
+    border-left:3px solid var(--gold);
+    padding:14px 22px;margin-bottom:26px;
+    box-shadow:var(--shadow-md);
+    gap:18px;flex-wrap:wrap;
 }
-.institutional-badge .secure-dot {
-  width: 6px; height: 6px; border-radius: 50%; background: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+.chamber-seal{display:flex;align-items:center;gap:14px}
+.chamber-seal-mark{
+    width:48px;height:48px;border:1.5px solid var(--gold);border-radius:50%;
+    display:grid;place-items:center;background:rgba(201,169,97,.06);
+    font-size:20px;flex-shrink:0;position:relative;
 }
-
-/* Controls */
-.toolbar {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px;
+.chamber-seal-mark::before{
+    content:'';position:absolute;inset:3px;border:1px solid rgba(201,169,97,.3);border-radius:50%;
 }
-.search-wrapper { position: relative; width: 380px; max-width: 60%; }
-.search-wrapper svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
-.search-input {
-  width: 100%; padding: 10px 14px 10px 40px; border-radius: 10px; border: 1px solid var(--border-glass);
-  background: rgba(18, 26, 43, 0.5); color: var(--text-main); font-family: var(--font-body); font-size: 13px;
-  outline: none; transition: border-color .15s ease, box-shadow .15s ease;
+.chamber-title{
+    font-family:var(--f-serif);font-size:14px;font-weight:700;color:var(--text-hi);
+    letter-spacing:1px;text-transform:uppercase;line-height:1.2;
 }
-.search-input:focus { border-color: rgba(56, 189, 248, 0.5); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12); }
-
-.filter-select {
-  padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-glass);
-  background: rgba(18, 26, 43, 0.5); color: var(--text-sub); font-family: var(--font-body); font-size: 13px; outline: none; cursor: pointer;
+.chamber-sub{
+    font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1.8px;
+    font-weight:600;margin-top:5px;
 }
-.filter-select option { background: #0f172a; color: #fff; }
-
-/* Stats Grid */
-.stats-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
-  margin-bottom: 28px;
+.chamber-status{
+    display:inline-flex;align-items:center;gap:9px;
+    background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:3px;
+    padding:8px 15px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+    color:var(--text-dim);
 }
-.stat-card {
-  background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg);
-  padding: 20px 24px;
-  position: relative;
-}
-.stat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.stat-title { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-.stat-icon-wrap {
-  width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center;
-  background: rgba(255,255,255,0.04); border: 1px solid var(--border-glass); color: var(--text-sub);
-}
-.stat-value { font-family: var(--font-heading); font-size: 34px; font-weight: 700; color: var(--text-main); line-height: 1; margin-bottom: 4px; }
-.stat-desc { font-size: 12.5px; color: var(--text-muted); }
-
-.st-total .stat-icon-wrap { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.2); }
-.st-active .stat-icon-wrap { color: #fbbf24; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2); }
-.st-resolved .stat-icon-wrap { color: #34d399; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); }
-
-/* Layout Grid */
-.dashboard-layout {
-  display: grid; grid-template-columns: 1fr 320px; gap: 24px;
+.chamber-status .dot{
+    width:7px;height:7px;border-radius:50%;display:inline-block;
+    background:var(--sage);box-shadow:0 0 0 3px rgba(110,158,126,.2);
 }
 
-/* Glass Panels */
-.glass-panel {
-  background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  display: flex; flex-direction: column;
+/* ── Greeting ────────────────────────────────────────────────────────── */
+.header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    margin-bottom:26px;gap:20px;flex-wrap:wrap;
 }
-.panel-header {
-  padding: 20px 24px; border-bottom: 1px solid var(--border-glass);
-  display: flex; align-items: center; justify-content: space-between;
-  background: rgba(255, 255, 255, 0.01);
+.greeting h2{
+    font-family:var(--f-serif);font-size:26px;font-weight:700;
+    color:var(--text-hi);letter-spacing:-.2px;line-height:1.15;
 }
-.panel-title {
-  display: flex; align-items: center; gap: 10px;
-  font-family: var(--font-heading); font-size: 16px; font-weight: 700; color: var(--text-main);
+.greeting p{
+    color:var(--text-mute);margin-top:6px;font-size:13px;
+    letter-spacing:.3px;
 }
-.panel-title svg { color: var(--accent-primary); }
-
-/* Executive Table */
-.table-wrapper { overflow-x: auto; padding: 0 24px 20px; }
-.table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
-.table th {
-  text-align: left; padding: 12px 16px;
-  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
-  color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border-glass);
-}
-.table td {
-  padding: 16px; background: rgba(255,255,255,0.015);
-  font-size: 13.5px; border-top: 1px solid var(--border-glass); border-bottom: 1px solid var(--border-glass);
-  vertical-align: middle;
-}
-.table td:first-child { border-left: 1px solid var(--border-glass); border-radius: 10px 0 0 10px; }
-.table td:last-child { border-right: 1px solid var(--border-glass); border-radius: 0 10px 10px 0; }
-.table tr { transition: all 0.2s ease; }
-
-.table tr:not(.case-locked):not(.case-resolved-row):hover td {
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.15);
-  cursor: pointer;
-}
-.table tr.case-locked { opacity: 0.6; }
-.table tr.case-locked:hover td { cursor: not-allowed; background: rgba(255,255,255,0.015); }
-
-.table tr.case-needs-action {
-  position: relative;
-  background: rgba(16, 185, 129, 0.03);
-}
-.table tr.case-needs-action td {
-  border-color: rgba(16, 185, 129, 0.25);
+.header-meta{
+    font-size:11px;color:var(--text-mute);
+    font-family:var(--f-mono);letter-spacing:.5px;
+    border:1px solid var(--line);border-radius:3px;
+    padding:7px 12px;background:rgba(0,0,0,.3);
 }
 
-.t-id { font-family: monospace; font-weight: 700; color: #38bdf8; font-size: 13px; }
-.t-name { font-weight: 600; color: var(--text-main); display: block; margin-bottom: 2px; }
-.t-sub { font-size: 12px; color: var(--text-muted); }
-
-/* Badges */
-.badge {
-  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
-  border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
-  border: 1px solid transparent; text-transform: uppercase;
+/* ── Toolbar ─────────────────────────────────────────────────────────── */
+.toolbar{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;margin-bottom:22px;flex-wrap:wrap;
 }
-.badge-pending { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: rgba(245, 158, 11, 0.25); }
-.badge-resolved { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.25); }
-.badge-appeal { background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.25); }
-.badge-success { background: rgba(16, 185, 129, 0.12); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
-.badge-muted { background: rgba(100, 116, 139, 0.12); color: #94a3b8; border-color: rgba(100, 116, 139, 0.25); }
-.badge-warning { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3); }
-.badge-online { background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.25); color: #7dd3fc; padding: 2px 6px; font-size: 10px; border-radius: 4px; }
-
-.dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-.dot-live { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.8); }
-.dot-paused { background: #94a3b8; }
-
-.confidential-blur-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11.5px; color: var(--text-muted); font-style: italic;
-  background: rgba(255,255,255,0.03); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-glass);
+.search-wrapper{position:relative;width:380px;max-width:100%}
+.search-wrapper svg{
+    position:absolute;left:13px;top:50%;transform:translateY(-50%);
+    color:var(--text-mute);pointer-events:none;
 }
-
-.action-btn {
-  background: #2563eb; color: #fff; border: none; padding: 7px 14px; border-radius: 8px;
-  font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s ease; text-decoration: none;
-  display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent;
+.search-input{
+    width:100%;padding:10px 14px 10px 40px;
+    border-radius:3px;border:1px solid var(--line-2);
+    background:rgba(0,0,0,.3);color:var(--text-hi);
+    font-family:var(--f-sans);font-size:13px;outline:none;
+    transition:border-color .15s ease,background .15s ease;
 }
-.action-btn:hover { background: #1d4ed8; transform: translateY(-1px); }
-.btn-join { background: #059669; border-color: #10b981; }
-.btn-join:hover { background: #047857; }
-.btn-ack-yes { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px; padding: 5px 10px; }
-.btn-ack-yes:hover { background: rgba(16, 185, 129, 0.25); }
-.btn-ack-no { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 11px; padding: 5px 10px; }
-.btn-ack-no:hover { background: rgba(239, 68, 68, 0.25); }
-
-.need-action-box {
-  display: flex; flex-direction: column; gap: 4px;
+.search-input:focus{
+    border-color:var(--gold);
+    background:rgba(0,0,0,.5);
 }
-.need-action-label {
-  font-size: 10px; color: #fbbf24; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+.search-input::placeholder{color:var(--text-mute)}
+
+.filter-select{
+    padding:10px 14px;border-radius:3px;border:1px solid var(--line-2);
+    background:rgba(0,0,0,.3);color:var(--text);
+    font-family:var(--f-sans);font-size:12.5px;outline:none;cursor:pointer;
+    letter-spacing:.3px;
+}
+.filter-select:focus{border-color:var(--gold)}
+.filter-select option{background:#0e1a2d;color:#f1ece0}
+
+/* ── Notification ────────────────────────────────────────────────────── */
+.notif-banner{
+    background:var(--sage-soft);
+    border:1px solid rgba(110,158,126,.35);
+    border-left:3px solid var(--sage);
+    color:#9dc5a8;padding:13px 18px;border-radius:3px;
+    margin-bottom:22px;display:flex;align-items:center;gap:10px;
+    font-size:13px;font-weight:500;letter-spacing:.2px;
 }
 
-.dismiss-resolved-btn {
-  background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171;
-  width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-  font-size: 16px; cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+/* ── Stats ───────────────────────────────────────────────────────────── */
+.stats-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);
+    gap:16px;margin-bottom:26px;
 }
-.dismiss-resolved-btn:hover { background: rgba(239, 68, 68, 0.35); color: #fff; }
-
-/* Offense Badge & Tooltip */
-.offense-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 10px; border-radius: 6px;
-  font-weight: 700; font-size: 11px; letter-spacing: 0.5px;
-  position: relative; cursor: help; transition: all 0.2s; white-space: nowrap;
+.stat-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius-md);
+    padding:20px 22px;
+    position:relative;overflow:hidden;
+    transition:border-color .2s;
 }
-.offense-badge.major { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; }
-.offense-badge.minor { background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; }
-.offense-badge:hover { transform: translateY(-1px); }
-
-.offense-tooltip {
-  position: absolute; top: 100%; left: 50%; transform: translateX(-50%) translateY(8px);
-  background: #0f172a; border-radius: 10px; padding: 14px; min-width: 280px;
-  border: 1px solid var(--border-glass-hover); box-shadow: 0 16px 36px rgba(0,0,0,0.6);
-  opacity: 0; visibility: hidden; z-index: 99; transition: all 0.2s ease; pointer-events: none;
+.stat-card::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,var(--gold-faint),transparent);
 }
-.offense-badge:hover .offense-tooltip { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(4px); }
-.offense-tooltip-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 10px; border-bottom: 1px solid var(--border-glass); padding-bottom: 6px; }
-.offense-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12px; }
-.offense-level-badge { padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 10px; min-width: 26px; text-align: center; }
-.offense-level-4 { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-.offense-level-3 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-.offense-level-2 { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
-.offense-level-1 { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-.offense-name { color: var(--text-sub); flex: 1; }
-
-/* Profile Card */
-.profile-wrap { padding: 24px; text-align: center; }
-.avatar {
-  width: 80px; height: 80px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass);
-  border-radius: 50%; margin: 0 auto 16px; display: grid; place-items: center;
-  font-size: 26px; font-weight: 700; font-family: var(--font-heading); color: var(--text-main);
-  background-size: cover; background-position: center;
+.stat-card:hover{border-color:var(--line-hi)}
+.stat-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.stat-title{
+    font-size:10.5px;color:var(--text-mute);
+    text-transform:uppercase;letter-spacing:1.5px;font-weight:700;
 }
-.profile-name { font-family: var(--font-heading); font-size: 18px; font-weight: 700; margin-bottom: 2px; }
-.profile-role { font-size: 12px; color: var(--accent-primary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
-
-.profile-meta { text-align: left; border-top: 1px solid var(--border-glass); padding-top: 16px; }
-.meta-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12.5px; }
-.meta-row .label { color: var(--text-muted); }
-.meta-row .value { font-weight: 500; color: var(--text-sub); }
-.meta-row .value.ok { color: var(--success); }
-
-.quick-links { margin-top: 16px; display: grid; gap: 8px; }
-.q-link {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-radius: 10px;
-  background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass);
-  color: var(--text-sub); text-decoration: none; font-size: 13px; font-weight: 500; transition: all 0.2s;
+.stat-icon-wrap{
+    width:34px;height:34px;border-radius:3px;display:grid;place-items:center;
+    background:rgba(255,255,255,.03);border:1px solid var(--line-2);
 }
-.q-link:hover { background: rgba(255,255,255,0.05); border-color: var(--border-glass-hover); color: var(--text-main); }
-.q-link.danger:hover { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #f87171; }
-
-/* Modals */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
-  z-index: 1000; display: none; place-items: center; padding: 20px;
+.stat-value{
+    font-family:var(--f-serif);font-size:32px;font-weight:700;
+    color:var(--text-hi);line-height:1;margin-bottom:6px;
 }
-.modal-overlay.show { display: grid; }
-.modal-content {
-  background: #0f172a; border: 1px solid var(--border-glass-hover); border-radius: var(--radius-lg);
-  padding: 32px; max-width: 480px; text-align: center; box-shadow: 0 24px 48px rgba(0,0,0,0.6); position: relative;
-}
-.modal-title { font-family: var(--font-heading); font-size: 20px; font-weight: 700; margin-bottom: 10px; color: var(--text-main); }
-.modal-desc { color: var(--text-muted); font-size: 13.5px; margin-bottom: 24px; line-height: 1.5; }
-.modal-actions { display: flex; gap: 12px; justify-content: center; }
+.stat-desc{font-size:12px;color:var(--text-mute);letter-spacing:.2px}
 
-@media (max-width: 1024px) {
-  .app-container { display: flex; flex-direction: column; }
-  .sidebar { width: 100%; padding: 16px 20px; flex-direction: row; align-items: center; justify-content: space-between; border-right: none; border-bottom: 1px solid var(--border-glass); }
-  .brand { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-  .dashboard-layout { grid-template-columns: 1fr; }
-  .stats-grid { grid-template-columns: 1fr; }
-  .search-wrapper { width: 100%; max-width: 100%; }
-  .toolbar { flex-direction: column; align-items: stretch; }
+.st-total .stat-icon-wrap{color:var(--gold-bright);background:var(--gold-faint);border-color:var(--line-hi)}
+.st-active .stat-icon-wrap{color:#dfb87c;background:rgba(201,152,91,.1);border-color:rgba(201,152,91,.3)}
+.st-resolved .stat-icon-wrap{color:#9dc5a8;background:var(--sage-soft);border-color:rgba(110,158,126,.3)}
+
+/* ── Layout ──────────────────────────────────────────────────────────── */
+.dashboard-layout{
+    display:grid;grid-template-columns:1fr 320px;gap:22px;
+}
+
+/* ── Panels ──────────────────────────────────────────────────────────── */
+.glass-panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius-md);
+    overflow:hidden;
+    display:flex;flex-direction:column;
+    box-shadow:var(--shadow-sm);
+}
+.panel-header{
+    padding:18px 22px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;
+    background:rgba(0,0,0,.2);position:relative;
+}
+.panel-header::before{
+    content:'';position:absolute;left:22px;right:22px;bottom:-1px;height:1px;
+    background:linear-gradient(90deg,var(--gold-faint),transparent);
+}
+.panel-title{
+    display:flex;align-items:center;gap:10px;
+    font-family:var(--f-serif);font-size:15px;font-weight:700;
+    color:var(--text-hi);letter-spacing:.3px;
+}
+.panel-title svg{color:var(--gold)}
+
+/* ── Table ───────────────────────────────────────────────────────────── */
+.table-wrapper{overflow-x:auto;padding:0 22px 22px}
+.table{width:100%;border-collapse:separate;border-spacing:0 6px}
+.table th{
+    text-align:left;padding:12px 16px;
+    font-size:10.5px;text-transform:uppercase;letter-spacing:1.5px;
+    color:var(--text-mute);font-weight:700;
+    border-bottom:1px solid var(--line);
+}
+.table td{
+    padding:16px;background:rgba(255,255,255,.015);
+    font-size:13.5px;border-top:1px solid var(--line-2);
+    border-bottom:1px solid var(--line-2);
+    vertical-align:middle;
+}
+.table td:first-child{
+    border-left:1px solid var(--line-2);
+    border-radius:4px 0 0 4px;
+}
+.table td:last-child{
+    border-right:1px solid var(--line-2);
+    border-radius:0 4px 4px 0;
+}
+.table tr{transition:all .2s ease}
+
+.table tr:not(.case-locked):not(.case-resolved-row):hover td{
+    background:rgba(201,169,97,.04);
+    border-color:rgba(201,169,97,.28);
+    cursor:pointer;
+}
+.table tr.case-locked{opacity:.6}
+.table tr.case-locked:hover td{
+    cursor:not-allowed;
+    background:rgba(255,255,255,.015);
+}
+.table tr.case-needs-action{position:relative}
+.table tr.case-needs-action td{
+    border-color:rgba(110,158,126,.35);
+    background:rgba(110,158,126,.03);
+}
+.table tr.case-resolved-row td{background:rgba(0,0,0,.2)}
+
+.t-id{
+    font-family:var(--f-mono);font-weight:700;
+    color:var(--gold-bright);font-size:12.5px;letter-spacing:.3px;
+}
+.t-name{
+    font-family:var(--f-serif);font-weight:700;
+    color:var(--text-hi);display:block;margin-bottom:2px;font-size:13.5px;
+}
+.t-sub{font-size:11.5px;color:var(--text-mute);letter-spacing:.2px}
+
+/* ── Badges ──────────────────────────────────────────────────────────── */
+.badge{
+    display:inline-flex;align-items:center;gap:6px;padding:4px 10px;
+    border-radius:3px;font-size:10px;font-weight:700;letter-spacing:1.2px;
+    border:1px solid transparent;text-transform:uppercase;
+}
+.badge-pending{background:rgba(201,152,91,.12);color:#dfb87c;border-color:rgba(201,152,91,.35)}
+.badge-resolved{background:var(--sage-soft);color:#9dc5a8;border-color:rgba(110,158,126,.35)}
+.badge-appeal{background:var(--rose-soft);color:#e0a0a0;border-color:rgba(201,107,107,.35)}
+.badge-success{background:var(--sage-soft);color:#9dc5a8;border-color:rgba(110,158,126,.4)}
+.badge-muted{background:rgba(147,160,181,.1);color:#b0bac9;border-color:rgba(147,160,181,.3)}
+.badge-warning{background:rgba(201,152,91,.12);color:#dfb87c;border-color:rgba(201,152,91,.35)}
+.badge-online{
+    background:rgba(124,143,201,.12);border:1px solid rgba(124,143,201,.3);
+    color:#a5b6e0;padding:2px 7px;font-size:9.5px;border-radius:3px;
+    letter-spacing:.8px;font-weight:700;text-transform:uppercase;
+}
+
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.dot-live{background:#6e9e7e;box-shadow:0 0 6px rgba(110,158,126,.7)}
+.dot-paused{background:#93a0b5}
+
+.confidential-blur-pill{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:11px;color:var(--text-mute);font-style:italic;
+    background:rgba(255,255,255,.03);padding:5px 10px;border-radius:3px;
+    border:1px solid var(--line-2);letter-spacing:.2px;
+}
+
+/* ── Action buttons ──────────────────────────────────────────────────── */
+.action-btn{
+    background:linear-gradient(180deg,var(--gold),var(--gold-soft));
+    color:#0a1220;border:none;padding:7px 14px;border-radius:3px;
+    font-weight:700;font-size:11px;cursor:pointer;
+    transition:all .18s ease;text-decoration:none;
+    display:inline-flex;align-items:center;gap:6px;
+    letter-spacing:.8px;text-transform:uppercase;
+    font-family:var(--f-sans);
+    border:1px solid var(--gold-soft);
+    box-shadow:0 1px 0 rgba(255,255,255,.15) inset;
+}
+.action-btn:hover{
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+    box-shadow:0 2px 10px rgba(201,169,97,.4);
+}
+
+.btn-join{background:linear-gradient(180deg,#5c8a6c,#4c7760);color:#fff;border-color:#4c7760}
+.btn-join:hover{background:linear-gradient(180deg,#6ba075,#5c8a6c)}
+
+.btn-ack-yes{
+    background:var(--sage-soft);color:#9dc5a8;
+    border:1px solid rgba(110,158,126,.4);
+    font-size:10.5px;padding:5px 10px;letter-spacing:.8px;
+}
+.btn-ack-yes:hover{background:rgba(110,158,126,.25)}
+
+.btn-ack-no{
+    background:var(--rose-soft);color:#e0a0a0;
+    border:1px solid rgba(201,107,107,.4);
+    font-size:10.5px;padding:5px 10px;letter-spacing:.8px;
+}
+.btn-ack-no:hover{background:rgba(201,107,107,.25)}
+
+.need-action-box{display:flex;flex-direction:column;gap:5px}
+.need-action-label{
+    font-size:9.5px;color:#dfb87c;font-weight:700;
+    text-transform:uppercase;letter-spacing:1.2px;
+}
+
+.dismiss-resolved-btn{
+    background:var(--rose-soft);border:1px solid rgba(201,107,107,.4);
+    color:#e0a0a0;width:26px;height:26px;border-radius:3px;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:15px;cursor:pointer;transition:all .2s;flex-shrink:0;
+    line-height:1;font-family:var(--f-sans);
+}
+.dismiss-resolved-btn:hover{background:rgba(201,107,107,.3);color:#fff}
+
+/* ── Offense badge ───────────────────────────────────────────────────── */
+.offense-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:5px 10px;border-radius:3px;
+    font-weight:700;font-size:10px;letter-spacing:1.2px;
+    position:relative;cursor:help;transition:all .2s;white-space:nowrap;
+    text-transform:uppercase;
+}
+.offense-badge.major{
+    background:var(--rose-soft);border:1px solid rgba(201,107,107,.4);color:#e0a0a0;
+}
+.offense-badge.minor{
+    background:rgba(124,143,201,.12);border:1px solid rgba(124,143,201,.35);color:#a5b6e0;
+}
+.offense-badge:hover{transform:translateY(-1px)}
+
+.offense-tooltip{
+    position:absolute;top:100%;left:50%;
+    transform:translateX(-50%) translateY(8px);
+    background:var(--panel-hi);
+    border-radius:4px;padding:14px;min-width:280px;
+    border:1px solid var(--line-hi);
+    box-shadow:var(--shadow-lg);
+    opacity:0;visibility:hidden;z-index:99;
+    transition:all .2s ease;pointer-events:none;
+    text-transform:none;letter-spacing:0;
+}
+.offense-badge:hover .offense-tooltip{
+    opacity:1;visibility:visible;pointer-events:auto;
+    transform:translateX(-50%) translateY(4px);
+}
+.offense-tooltip-title{
+    font-size:10px;color:var(--gold);text-transform:uppercase;
+    letter-spacing:1.5px;font-weight:700;margin-bottom:10px;
+    border-bottom:1px solid var(--line);padding-bottom:8px;
+}
+.offense-item{
+    display:flex;align-items:center;gap:8px;
+    padding:6px 0;font-size:12px;
+}
+.offense-level-badge{
+    padding:2px 6px;border-radius:3px;font-weight:700;font-size:9.5px;
+    min-width:26px;text-align:center;letter-spacing:.5px;
+    font-family:var(--f-mono);
+}
+.offense-level-4{background:var(--rose-soft);color:#e0a0a0}
+.offense-level-3{background:rgba(201,152,91,.2);color:#dfb87c}
+.offense-level-2{background:rgba(124,143,201,.2);color:#a5b6e0}
+.offense-level-1{background:var(--sage-soft);color:#9dc5a8}
+.offense-name{color:var(--text);flex:1}
+
+/* ── Profile ─────────────────────────────────────────────────────────── */
+.profile-wrap{padding:24px;text-align:center}
+.avatar{
+    width:80px;height:80px;
+    background:linear-gradient(180deg,var(--ink-700),var(--ink-800));
+    border:2px solid var(--line-hi);border-radius:50%;
+    margin:0 auto 16px;display:grid;place-items:center;
+    font-size:24px;font-weight:700;font-family:var(--f-serif);
+    color:var(--gold-bright);background-size:cover;background-position:center;
+    letter-spacing:.5px;
+}
+.profile-name{
+    font-family:var(--f-serif);font-size:17px;font-weight:700;
+    margin-bottom:4px;color:var(--text-hi);letter-spacing:.2px;
+}
+.profile-role{
+    font-size:10.5px;color:var(--gold);font-weight:700;
+    text-transform:uppercase;letter-spacing:1.8px;margin-bottom:22px;
+}
+
+.profile-meta{
+    text-align:left;border-top:1px solid var(--line);
+    padding-top:16px;
+}
+.meta-row{
+    display:flex;justify-content:space-between;margin-bottom:10px;
+    font-size:12px;gap:10px;
+}
+.meta-row .label{
+    color:var(--text-mute);letter-spacing:.3px;
+    text-transform:uppercase;font-size:10.5px;font-weight:600;
+}
+.meta-row .value{
+    font-weight:600;color:var(--text);font-family:var(--f-mono);
+    font-size:11.5px;text-align:right;
+}
+.meta-row .value.ok{color:#9dc5a8}
+
+.quick-links{margin-top:16px;display:grid;gap:8px}
+.q-link{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:11px 15px;border-radius:3px;
+    background:rgba(255,255,255,.02);border:1px solid var(--line-2);
+    color:var(--text);text-decoration:none;font-size:12.5px;
+    font-weight:500;transition:all .2s;letter-spacing:.2px;
+}
+.q-link:hover{
+    background:rgba(255,255,255,.05);
+    border-color:var(--line-hi);color:var(--text-hi);
+}
+.q-link.danger:hover{
+    background:var(--rose-soft);
+    border-color:rgba(201,107,107,.4);color:#e0a0a0;
+}
+
+/* ── Modals ──────────────────────────────────────────────────────────── */
+.modal-overlay{
+    position:fixed;inset:0;
+    background:rgba(6,10,20,.94);
+    backdrop-filter:blur(10px);
+    z-index:1000;display:none;place-items:center;padding:20px;
+}
+.modal-overlay.show{display:grid}
+.modal-content{
+    background:var(--panel);
+    border:1px solid var(--line-hi);
+    border-radius:var(--radius-md);
+    padding:32px;max-width:480px;text-align:center;
+    box-shadow:var(--shadow-lg);position:relative;
+    max-height:92vh;overflow-y:auto;
+}
+.modal-content::before{
+    content:'';position:absolute;top:0;left:24px;right:24px;height:3px;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent);
+}
+.modal-title{
+    font-family:var(--f-serif);font-size:19px;font-weight:700;
+    margin-bottom:12px;color:var(--text-hi);letter-spacing:.3px;
+    margin-top:8px;
+}
+.modal-desc{
+    color:var(--text-dim);font-size:13px;margin-bottom:24px;
+    line-height:1.6;
+}
+.modal-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
+/* ── Progress circle (rejoin) ────────────────────────────────────────── */
+.rejoin-circle{
+    width:70px;height:70px;border-radius:50%;
+    background:var(--gold-faint);
+    border:3px solid var(--line-hi);
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 20px;position:relative;
+}
+.rejoin-circle span{
+    font-size:1.3rem;font-weight:700;color:var(--gold-bright);
+    font-family:var(--f-mono);font-variant-numeric:tabular-nums;
+    letter-spacing:.5px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .app-container{display:flex;flex-direction:column}
+    .sidebar{
+        width:100%;padding:16px 22px;
+        flex-direction:row;align-items:center;justify-content:space-between;
+        border-right:none;border-bottom:1px solid var(--line);
+        flex-wrap:wrap;gap:12px;
+    }
+    .sidebar::after{display:none}
+    .brand{margin-bottom:0;padding-bottom:0;border-bottom:none}
+    .side-section{margin-bottom:0;display:flex;align-items:center;gap:8px}
+    .side-section .side-label{display:none}
+    .side-info{display:none}
+    .dashboard-layout{grid-template-columns:1fr}
+    .stats-grid{grid-template-columns:1fr}
+    .search-wrapper{width:100%;max-width:100%}
+    .toolbar{flex-direction:column;align-items:stretch}
+    .main-content{padding:22px 20px}
 }
 </style>
 </head>
@@ -812,51 +1064,76 @@ body::before {
         <img src="../assets/logo.png" alt="IdentiTrack logo">
       </div>
       <div class="brand-text">
-        <h1>Identitrack</h1>
+        <h1>IdentiTrack</h1>
         <p>UPCC Portal</p>
       </div>
     </div>
-    <nav>
-      <a href="upccdashboard.php" class="nav-link active">
-        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-        Dashboard Overview
-      </a>
-    </nav>
+
+    <div class="side-section">
+      <div class="side-label">Navigation</div>
+      <nav>
+        <a href="upccdashboard.php" class="nav-link active">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          Docket Queue
+        </a>
+        <a href="upcc_settings.php" class="nav-link">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          Security Settings
+        </a>
+      </nav>
+    </div>
+
+    <div class="side-info">
+      <div class="side-info-row">
+        <span class="side-info-label">USER</span>
+        <span class="side-info-value"><?php echo htmlspecialchars($user['username']); ?></span>
+      </div>
+      <div class="side-info-row">
+        <span class="side-info-label">SESSION</span>
+        <span class="side-info-value" style="color:#9dc5a8">ACTIVE</span>
+      </div>
+      <div class="side-info-row">
+        <span class="side-info-label">CLEARANCE</span>
+        <span class="side-info-value">PANEL</span>
+      </div>
+      <div class="side-info-row" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line-2)">
+        <span class="side-info-label">TIME</span>
+        <span class="side-info-value"><?php echo date('H:i:s'); ?></span>
+      </div>
+    </div>
   </aside>
 
   <!-- Main View -->
   <main class="main-content">
-    <header class="header">
-      <div class="greeting">
-        <h2><?php echo $greeting; ?>, <?php echo $firstName; ?></h2>
-        <p>University Disciplinary Board Case Workspace</p>
+
+    <!-- Chamber banner -->
+    <div class="chamber-banner">
+      <div class="chamber-seal">
+        <div class="chamber-seal-mark">⚖️</div>
+        <div>
+          <div class="chamber-title">National University · Discipline Board</div>
+          <div class="chamber-sub">UPCC Panel Workspace · Confidential Proceedings</div>
+        </div>
       </div>
-      <div class="institutional-badge">
-        <span class="secure-dot"></span>
-        <span>SECURE PANEL SYSTEM</span>
-        <span style="opacity:0.4;">|</span>
-        <span><?php echo date('Y-m-d H:i:s'); ?></span>
+      <div class="chamber-status">
+        <span class="dot"></span> Secure Panel System
       </div>
-    </header>
-    
-    <!-- Toolbar: Search + Filters -->
-    <div class="toolbar">
-      <div class="search-wrapper">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="caseSearch" class="search-input" type="search" placeholder="Search by Case ID or Respondent Name...">
-      </div>
-      <select id="caseFilter" class="filter-select">
-        <option value="">All Hearing Statuses</option>
-        <option value="Near Hearing">Scheduled Today</option>
-        <option value="Hearing Live">Live Hearings</option>
-        <option value="Paused">Paused Hearings</option>
-        <option value="Locked">Locked Cases</option>
-      </select>
     </div>
 
+    <!-- Greeting -->
+    <header class="header">
+      <div class="greeting">
+        <h2><?php echo $greeting; ?>, <?php echo $firstName; ?>.</h2>
+        <p>University Disciplinary Board Case Workspace · Review assigned dockets below.</p>
+      </div>
+      <div class="header-meta">
+        <?php echo date('Y-m-d H:i:s'); ?>
+      </div>
+    </header>
+
     <?php if (isset($_GET['hearing_msg'])): ?>
-      <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: #34d399; padding: 14px 18px; border-radius: 10px; margin-bottom: 24px; display:flex; align-items:center; gap:10px; font-size:13.5px; font-weight:500;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+      <div class="notif-banner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
         <?php echo htmlspecialchars((string)$_GET['hearing_msg']); ?>
       </div>
     <?php endif; ?>
@@ -867,7 +1144,7 @@ body::before {
         <div class="stat-header">
           <span class="stat-title">Assigned Cases</span>
           <div class="stat-icon-wrap">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           </div>
         </div>
         <div class="stat-value"><?php echo $totalCases; ?></div>
@@ -878,7 +1155,7 @@ body::before {
         <div class="stat-header">
           <span class="stat-title">Active / Pending</span>
           <div class="stat-icon-wrap">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
         </div>
         <div class="stat-value"><?php echo $pendingCases; ?></div>
@@ -889,7 +1166,7 @@ body::before {
         <div class="stat-header">
           <span class="stat-title">Resolved Cases</span>
           <div class="stat-icon-wrap">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
         </div>
         <div class="stat-value"><?php echo $resolvedCases; ?></div>
@@ -897,34 +1174,50 @@ body::before {
       </div>
     </div>
 
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="search-wrapper">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="caseSearch" class="search-input" type="search" placeholder="Search by Case ID or Respondent Name…">
+      </div>
+      <select id="caseFilter" class="filter-select">
+        <option value="">All Hearing Statuses</option>
+        <option value="Near Hearing">Scheduled Today</option>
+        <option value="Hearing Live">Live Hearings</option>
+        <option value="Paused">Paused Hearings</option>
+        <option value="Locked">Locked Cases</option>
+      </select>
+    </div>
+
     <div class="dashboard-layout">
       <!-- Cases List -->
       <div class="glass-panel">
         <div class="panel-header">
           <div class="panel-title">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             Assigned Case Queue
           </div>
         </div>
-        
+
         <?php if (empty($recentCases)): ?>
-          <div style="padding: 60px 20px; text-align: center; color: var(--text-muted);">
-            <p>No assigned cases present in queue.</p>
+          <div style="padding:60px 20px;text-align:center;color:var(--text-mute);font-style:italic;">
+            <div style="font-family:var(--f-serif);font-size:15px;color:var(--text-dim);margin-bottom:6px">No assigned cases present in queue.</div>
+            <div style="font-size:12.5px">New docket assignments will appear here.</div>
           </div>
         <?php else: ?>
           <div class="table-wrapper">
-            <table class="table" style="margin-top: 12px;">
+            <table class="table" style="margin-top:12px">
               <thead>
                 <tr>
                   <th>Case ID</th>
                   <th>Respondent</th>
                   <th>Offenses</th>
                   <th>Hearing Schedule</th>
-                  <th style="min-width: 180px;">Status / Action</th>
+                  <th style="min-width:180px">Status / Action</th>
                 </tr>
               </thead>
               <tbody>
-                <?php foreach ($recentCases as $c): 
+                <?php foreach ($recentCases as $c):
                   if (in_array((int)$c['case_id'], $_SESSION['dismissed_cases'] ?? [])) continue;
                   $cid = fmt_case_id((int)$c['case_id'], $c['created_at']);
                   $href = 'case_view.php?id=' . (int)$c['case_id'];
@@ -940,9 +1233,9 @@ body::before {
                   if ($isResolved) {
                       $lockedClass .= ' case-resolved-row';
                   }
-                  
+
                   $adminOffline = false;
-                  
+
                   if ($c['hearing_is_open'] == 1) {
                     if ((int)($c['hearing_is_paused'] ?? 0) === 1) {
                         $stClass = 'badge-muted';
@@ -964,7 +1257,7 @@ body::before {
                       default               => ucfirst(strtolower($c['status'])),
                     };
                   }
-                  
+
                   $hearingDate = !empty($c['hearing_date']) ? date('M j, Y', strtotime($c['hearing_date'])) : 'Not scheduled';
                   $offenseDetails = [];
                   if (!empty($c['offense_details'])) {
@@ -987,7 +1280,7 @@ body::before {
                   <td>
                     <?php if ($isResolved): ?>
                     <span class="t-name" style="opacity:0.4; font-style:italic;">[ Respondent Confidential ]</span>
-                  <?php else: 
+                  <?php else:
                                   $sName = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
                                   if ($sName === '') $sName = (string)($c['student_id'] ?? 'N/A');
                                   ?>
@@ -999,7 +1292,7 @@ body::before {
                     <?php if (!$accepted): ?>
                       <span class="confidential-blur-pill"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Confidential Data Locked</span>
                     <?php else: ?>
-                      <?php 
+                      <?php
                       $offenseDetails = [];
                       if (!empty($c['offense_details'])) {
                         $detailPairs = explode('||', $c['offense_details']);
@@ -1010,11 +1303,11 @@ body::before {
                           }
                         }
                       }
-                      
+
                       $maxLevel = (int)($c['offense_level'] ?? 1);
                       $majorOffenses = array_filter($offenseDetails, fn($o) => $o['level'] >= 4);
                       $minorOffenses = array_filter($offenseDetails, fn($o) => $o['level'] < 4);
-                      
+
                       $isSection4 = (string)($c['case_kind'] ?? '') === 'SECTION4_MINOR_ESCALATION' || stripos((string)($c['case_summary'] ?? ''), 'Section 4') !== false || count($minorOffenses) >= 3;
                       $hasMajor = !empty($majorOffenses) || $isSection4;
                       if ($isSection4 && $maxLevel < 4) {
@@ -1022,14 +1315,14 @@ body::before {
                       }
                       $badgeClass = $hasMajor ? 'major' : 'minor';
                       ?>
-                      
+
                       <div class="offense-badge <?php echo $badgeClass; ?>">
                         <?php if ($hasMajor): ?>
                           <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg> SECTION <?php echo $maxLevel; ?></span>
                         <?php else: ?>
                           <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> MINOR</span>
                         <?php endif; ?>
-                        
+
                         <div class="offense-tooltip">
                           <div class="offense-tooltip-title">
                             <?php echo $hasMajor ? 'SECTION '.($maxLevel).' OFFENSES' : 'MINOR OFFENSES'; ?>
@@ -1052,24 +1345,24 @@ body::before {
                   </td>
                   <td>
                     <?php if ($c['hearing_is_open'] == 1 || !empty($c['hearing_date'])): ?>
-                      <span class="t-name" style="font-size:12px; display:block; margin-bottom:4px;"><?php echo $hearingDate; ?></span>
+                      <span class="t-name" style="font-size:12px; display:block; margin-bottom:5px;font-family:var(--f-sans);font-weight:600;"><?php echo $hearingDate; ?></span>
                       <?php if ($c['hearing_is_open'] == 1): ?>
                         <?php if ((int)($c['hearing_is_paused'] ?? 0) === 1): ?>
-                          <span class="badge badge-muted" style="font-size:10px;"><span class="dot dot-paused"></span> Paused</span>
+                          <span class="badge badge-muted"><span class="dot dot-paused"></span> Paused</span>
                         <?php else: ?>
-                          <span class="badge badge-success" style="font-size:10px;"><span class="dot dot-live"></span> Live Hearing</span>
+                          <span class="badge badge-success"><span class="dot dot-live"></span> Live Hearing</span>
                         <?php endif; ?>
                       <?php else: ?>
-                        <span class="badge badge-muted" style="font-size:10px;">Pending Admin Open</span>
+                        <span class="badge badge-muted">Pending Admin Open</span>
                       <?php endif; ?>
                       <?php if($c['hearing_type'] === 'ONLINE'): ?>
-                        <span class="badge-online" style="margin-left:4px;">Online</span>
+                        <span class="badge-online" style="margin-left:5px;">Online</span>
                       <?php endif; ?>
                     <?php else: ?>
                       <span class="t-sub">—</span>
                     <?php endif; ?>
                   </td>
-                  <td style="padding: 12px 16px; min-width: 180px;">
+                  <td style="padding: 14px 16px; min-width: 180px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-width: 170px;">
                       <div style="display: flex; align-items: center; gap: 8px;">
                         <?php if ($accepted): ?>
@@ -1080,9 +1373,9 @@ body::before {
                           <?php elseif ($c['hearing_is_open'] == 1 && !$accessGranted && (int)($c['hearing_is_paused'] ?? 0) !== 1): ?>
                             <div style="display:flex; gap:8px; align-items:center;">
                               <?php if ($myPresenceStatus === 'WAITING'): ?>
-                                <span class="badge badge-warning" style="font-size:10px; padding:5px 12px; background:rgba(245, 158, 11, 0.1); color:#fbbf24; border:1px solid rgba(245, 158, 11, 0.25);">Awaiting Admin Admission</span>
+                                <span class="badge badge-warning" style="padding:6px 12px;">Awaiting Admission</span>
                               <?php else: ?>
-                                <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="badge badge-warning action-btn" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 12px; background:rgba(245, 158, 11, 0.15); color:#fbbf24; border:1px solid rgba(245, 158, 11, 0.3);">Request Rejoin</button>
+                                <button onclick="event.stopPropagation(); triggerRejoin(<?php echo (int)$c['case_id']; ?>)" class="action-btn badge-warning" style="font-size:10px; cursor:pointer; pointer-events:auto; padding:6px 12px;">Request Rejoin</button>
                               <?php endif; ?>
                             </div>
                           <?php else: ?>
@@ -1093,7 +1386,7 @@ body::before {
                         <?php else: ?>
                           <div class="need-action-box">
                             <span class="need-action-label">Assignment Acknowledgement Required</span>
-                            <div style="display:flex; gap:8px; margin-top:4px;">
+                            <div style="display:flex; gap:6px; margin-top:2px;">
                               <button class="action-btn btn-ack-yes" onclick="event.stopPropagation(); triggerAcknowledge(<?php echo (int)$c['case_id']; ?>);">Accept Role</button>
                               <button class="action-btn btn-ack-no" onclick="event.stopPropagation(); triggerDecline(<?php echo (int)$c['case_id']; ?>);">Decline</button>
                             </div>
@@ -1118,39 +1411,40 @@ body::before {
         <!-- Profile Card -->
         <div class="glass-panel profile-wrap">
           <?php if (!empty($user['photo_path'])): ?>
-            <div class="avatar" style="background-image: url('<?php echo htmlspecialchars($user['photo_path']); ?>'); border-color: var(--accent-primary);"></div>
+            <div class="avatar" style="background-image: url('<?php echo htmlspecialchars($user['photo_path']); ?>');"></div>
           <?php else: ?>
             <div class="avatar"><?php echo $initials; ?></div>
           <?php endif; ?>
           <div class="profile-name"><?php echo htmlspecialchars($user['full_name']); ?></div>
           <div class="profile-role">UPCC Panel Member</div>
-          
+
           <div class="profile-meta">
             <div class="meta-row"><span class="label">Username</span><span class="value"><?php echo htmlspecialchars($user['username']); ?></span></div>
-            <div class="meta-row"><span class="label">Session Status</span><span class="value ok">Authenticated</span></div>
-            <div class="meta-row"><span class="label">Security Level</span><span class="value">Institutional Panel</span></div>
+            <div class="meta-row"><span class="label">Session</span><span class="value ok">Authenticated</span></div>
+            <div class="meta-row"><span class="label">Clearance</span><span class="value">Institutional Panel</span></div>
           </div>
         </div>
 
         <!-- Quick Actions -->
         <div class="glass-panel">
-          <div class="panel-header" style="padding: 16px 20px;">
-            <div class="panel-title" style="font-size:14px;">Panel Actions</div>
+          <div class="panel-header" style="padding:14px 20px;">
+            <div class="panel-title" style="font-size:13.5px;">Panel Actions</div>
           </div>
-          <div style="padding: 16px 20px;">
+          <div style="padding:16px 20px;">
             <div class="quick-links">
               <a href="upcc_settings.php" class="q-link">
                 <div style="display:flex; align-items:center; gap:10px;">
-                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                   Security Settings
                 </div>
-                <span>&rarr;</span>
+                <span style="color:var(--gold)">→</span>
               </a>
               <a href="javascript:void(0)" onclick="document.getElementById('logoutModal').classList.add('show');" class="q-link danger">
                 <div style="display:flex; align-items:center; gap:10px;">
-                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                   Sign Out Session
                 </div>
+                <span style="color:var(--text-mute)">→</span>
               </a>
             </div>
           </div>
@@ -1168,25 +1462,25 @@ body::before {
       You are about to access protected student disciplinary records. Panel members must adhere to strict institutional confidentiality protocols. Unauthorized sharing or exporting of case information is strictly prohibited.
     </div>
     <div class="modal-actions">
-      <button type="button" class="action-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);" onclick="closeAckModal()">Cancel</button>
+      <button type="button" class="action-btn" style="background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--text);" onclick="closeAckModal()">Cancel</button>
       <button type="button" class="action-btn btn-join" onclick="showAckStep2()">I Acknowledge &amp; Proceed</button>
     </div>
   </div>
 </div>
 
-<!-- Modal Acknowledge Step 2: Confirmation -->
+<!-- Modal Acknowledge Step 2 -->
 <div id="ackModalStep2" class="modal-overlay">
-  <div class="modal-content" style="border-color: rgba(239, 68, 68, 0.4);">
-    <div class="modal-title" style="color:#f87171;">Final Legal Confirmation</div>
-    <div class="modal-desc" style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 12px; border-radius: 6px; text-align: left; font-size: 12.5px; color: #fca5a5;">
-      <strong>NOTICE:</strong> Accessing these records generates an audit log. Any breach of student confidentiality or institutional policy will result in immediate termination of panel privileges and formal disciplinary proceedings.
+  <div class="modal-content" style="border-color: rgba(201,107,107,.5);">
+    <div class="modal-title" style="color:#e0a0a0;">Final Legal Confirmation</div>
+    <div class="modal-desc" style="background: var(--rose-soft); border-left: 3px solid var(--rose); padding: 14px; border-radius: 3px; text-align: left; font-size: 12.5px; color: #e0a0a0;">
+      <strong style="color:#e0a0a0;font-family:var(--f-serif);">NOTICE:</strong> Accessing these records generates an audit log. Any breach of student confidentiality or institutional policy will result in immediate termination of panel privileges and formal disciplinary proceedings.
     </div>
-    <form method="post" action="upccdashboard.php" style="margin-top:20px;">
+    <form method="post" action="upccdashboard.php" style="margin-top:22px;">
       <input type="hidden" name="action" value="accept_confidentiality">
       <input type="hidden" name="case_id" id="ackCaseIdStep2" value="">
       <div class="modal-actions">
-        <button type="button" class="action-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);" onclick="backToAckStep1()">&larr; Back</button>
-        <button type="submit" class="action-btn" style="background:#dc2626; border-color:#dc2626; color:#fff;">Confirm &amp; Accept Role</button>
+        <button type="button" class="action-btn" style="background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--text);" onclick="backToAckStep1()">← Back</button>
+        <button type="submit" class="action-btn" style="background:linear-gradient(180deg,#a85858,#8d4747);color:#fff;border-color:#8d4747;">Confirm &amp; Accept Role</button>
       </div>
     </form>
   </div>
@@ -1203,12 +1497,12 @@ body::before {
       <input type="hidden" name="action" value="decline_assignment">
       <input type="hidden" name="case_id" id="declineCaseId" value="">
       <div style="margin-bottom: 20px; text-align: left;">
-        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px; font-weight:600; text-transform:uppercase;">Reason for Declining</label>
-        <textarea name="reason" rows="3" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-glass); background:rgba(0,0,0,0.3); color:#fff; font-family:var(--font-body); font-size:13px; outline:none; resize:none;" placeholder="Specify reason..."></textarea>
+        <label style="display:block; font-size:10.5px; color:var(--text-mute); margin-bottom:8px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px;">Reason for Declining</label>
+        <textarea name="reason" rows="3" style="width:100%; padding:11px 14px; border-radius:3px; border:1px solid var(--line-2); background:rgba(0,0,0,.35); color:var(--text-hi); font-family:var(--f-sans); font-size:13px; outline:none; resize:none;" placeholder="Specify reason..."></textarea>
       </div>
       <div class="modal-actions">
-        <button type="button" class="action-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);" onclick="closeDeclineModal()">Cancel</button>
-        <button type="submit" class="action-btn" style="background:var(--danger);">Decline Assignment</button>
+        <button type="button" class="action-btn" style="background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--text);" onclick="closeDeclineModal()">Cancel</button>
+        <button type="submit" class="action-btn" style="background:linear-gradient(180deg,#a85858,#8d4747);color:#fff;border-color:#8d4747;">Decline Assignment</button>
       </div>
     </form>
   </div>
@@ -1225,32 +1519,32 @@ body::before {
       </div>
       <input type="hidden" id="rejoinCaseId" value="">
       <div class="modal-actions">
-        <button type="button" class="action-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);" onclick="closeRejoinModal()">Cancel</button>
+        <button type="button" class="action-btn" style="background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--text);" onclick="closeRejoinModal()">Cancel</button>
         <button type="button" id="btnSendRejoin" class="action-btn btn-join" onclick="sendRejoinRequest()">Submit Rejoin Request</button>
       </div>
     </div>
     <!-- Step 2 -->
     <div id="rejoinStep2" style="display:none; text-align:center;">
       <div class="modal-title">Awaiting Administrator Approval</div>
-      <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">Your request has been submitted. Please wait while the administrator reviews your entry request.</p>
-      <div style="width:70px; height:70px; border-radius:50%; background:rgba(56,189,248,0.1); border:3px solid rgba(56,189,248,0.3); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; position:relative;">
-        <span id="rejoinCountdown" style="font-size:1.4rem; font-weight:700; color:#38bdf8;">5:00</span>
+      <p style="color:var(--text-dim); font-size:13px; margin-bottom:22px; line-height:1.6;">Your request has been submitted. Please wait while the administrator reviews your entry request.</p>
+      <div class="rejoin-circle">
+        <span id="rejoinCountdown">5:00</span>
         <svg style="position:absolute;top:-3px;left:-3px;width:76px;height:76px;" viewBox="0 0 88 88">
-          <circle id="rejoinProgressCircle" cx="44" cy="44" r="40" fill="none" stroke="#38bdf8" stroke-width="3" stroke-dasharray="251" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 1s linear;"/>
+          <circle id="rejoinProgressCircle" cx="44" cy="44" r="40" fill="none" stroke="#c9a961" stroke-width="3" stroke-dasharray="251" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 1s linear;"/>
         </svg>
       </div>
       <div id="rejoinRetryArea" style="display:none;">
-        <p style="color:#fbbf24; font-size:12.5px; font-weight:600; margin-bottom:12px;">Admin response pending. You may resend the request.</p>
-        <button type="button" class="action-btn" style="background:var(--accent-secondary);" onclick="resendRejoinRequest()">Resend Request</button>
+        <p style="color:#dfb87c; font-size:12.5px; font-weight:600; margin-bottom:12px;">Admin response pending. You may resend the request.</p>
+        <button type="button" class="action-btn" style="background:linear-gradient(180deg,var(--gold),var(--gold-soft));color:#0a1220;" onclick="resendRejoinRequest()">Resend Request</button>
       </div>
-      <button type="button" class="action-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-glass); margin-top:12px;" onclick="closeRejoinModal()">Cancel</button>
+      <button type="button" class="action-btn" style="background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--text); margin-top:12px;" onclick="closeRejoinModal()">Cancel</button>
     </div>
     <!-- Step 3 -->
     <div id="rejoinStep3" style="display:none; text-align:center;">
       <div class="modal-title">Admitted to Hearing</div>
-      <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">Redirecting to live hearing workspace...</p>
+      <p style="color:var(--text-dim); font-size:13px; margin-bottom:20px; line-height:1.6;">Redirecting to live hearing workspace…</p>
       <div style="width: 80%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; margin: 0 auto 16px; overflow: hidden;">
-        <div id="rejoinStep3Progress" style="width: 0%; height: 100%; background: #10b981; border-radius: 2px; transition: width 2s ease-in-out;"></div>
+        <div id="rejoinStep3Progress" style="width: 0%; height: 100%; background: #6e9e7e; border-radius: 2px; transition: width 2s ease-in-out;"></div>
       </div>
     </div>
   </div>
@@ -1264,8 +1558,8 @@ body::before {
       Are you sure you want to terminate your current UPCC Panel session?
     </div>
     <div class="modal-actions">
-      <button type="button" class="action-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);" onclick="document.getElementById('logoutModal').classList.remove('show');">Cancel</button>
-      <button type="button" class="action-btn" style="background:var(--danger);" onclick="window.location.href='upccpanel.php?action=logout'">Sign Out</button>
+      <button type="button" class="action-btn" style="background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--text);" onclick="document.getElementById('logoutModal').classList.remove('show');">Cancel</button>
+      <button type="button" class="action-btn" style="background:linear-gradient(180deg,#a85858,#8d4747);color:#fff;border-color:#8d4747;" onclick="window.location.href='upccpanel.php?action=logout'">Sign Out</button>
     </div>
   </div>
 </div>
