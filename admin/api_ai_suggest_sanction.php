@@ -997,29 +997,58 @@ try {
             ];
         }
 
+        $suggestedCategoryNum = $aiEngineRes['category_num'] ?? 1;
+        $suggestedCategoryLabel = $aiEngineRes['category_label'] ?? 'Category 1';
+        $suggestedSanction = $aiEngineRes['sanction'] ?? '';
+        $suggestedCsHours = $aiEngineRes['community_service_hours'] ?? 0;
+        $aiExplanationText = $aiEngineRes['text'];
+
+        if (!empty($exactList)) {
+            $firstPrecedent = $exactList[0];
+            $precCatNum = (int)($firstPrecedent['decided_category'] ?? $suggestedCategoryNum);
+            if ($precCatNum > 0) {
+                $suggestedCategoryNum = $precCatNum;
+                $suggestedCategoryLabel = "Category {$precCatNum}";
+            }
+            $precDetails = formatPunishmentDetails((string)($firstPrecedent['punishment_details'] ?? ''));
+            if (!empty($precDetails) && $precDetails !== 'n/a') {
+                $suggestedSanction = $precDetails;
+                if (preg_match('/(\d+)\s*Hours/i', $precDetails, $hm)) {
+                    $suggestedCsHours = (float)$hm[1];
+                }
+            }
+            $precedentNotice = "Based on existing resolved cases in our historical database, the standard punishment for this kind of offense (**{$pViolation}**) is **{$suggestedCategoryLabel}**" . ($suggestedCsHours > 0 ? " ({$suggestedCsHours} Hours Community Service)." : ".");
+            $aiExplanationText = "🤖 **Identati Ai Precedent Analysis & Recommendation**:\n\n"
+                . "• **Sanction Category**: **{$suggestedCategoryLabel}**\n"
+                . "• **Suggested Punishment**: **{$suggestedSanction}**\n"
+                . ($suggestedCsHours > 0 ? "• **Recommended Service Time**: **{$suggestedCsHours} Hours Community Service**\n" : "")
+                . "• **Precedent Analysis**: {$precedentNotice}\n\n"
+                . "💡 **Why? (Reason)**: Found " . count($exactList) . " resolved historical case(s) with decided intervention in official campus database records.";
+        }
+
         echo json_encode([
             'ok' => true,
             'action' => $action,
-            'source' => 'comscie_xgboost_ml_model',
+            'source' => !empty($exactList) ? 'resolved_db_precedents' : 'comscie_xgboost_ml_model',
             'is_new_offense_type' => false,
             'student_id' => $targetStudentId,
             'student_name' => $studentName,
             'offense_name' => $pViolation,
             'number_of_offense' => $finalNumOffenseStr,
-            'sanction' => $aiEngineRes['sanction'] ?? '',
-            'category_num' => $aiEngineRes['category_num'] ?? 1,
-            'category_label' => $aiEngineRes['category_label'] ?? 'Category 1',
-            'community_service_hours' => $aiEngineRes['community_service_hours'] ?? 0,
+            'sanction' => $suggestedSanction,
+            'category_num' => $suggestedCategoryNum,
+            'category_label' => $suggestedCategoryLabel,
+            'community_service_hours' => $suggestedCsHours,
             'confidence' => $aiEngineRes['confidence'] ?? 0.0,
             'severity' => $aiEngineRes['severity'] ?? 'Medium',
             'similar_cases' => count($exactList),
             'similar_cases_list' => $similarCasesList,
-            'most_common_historical' => $aiEngineRes['category_label'] ?? 'Category 1',
-            'historical_distribution' => !empty($exactList) ? [ ($aiEngineRes['category_label'] ?? 'Category 1') => count($exactList) ] : [ 'Category 1' => 1 ],
-            'ai_explanation' => $aiEngineRes['text'],
-            'reply' => $aiEngineRes['text'],
+            'most_common_historical' => $suggestedCategoryLabel,
+            'historical_distribution' => !empty($exactList) ? [ $suggestedCategoryLabel => count($exactList) ] : [ $suggestedCategoryLabel => 1 ],
+            'ai_explanation' => $aiExplanationText,
+            'reply' => $aiExplanationText,
             'ai_available' => true,
-            'engine' => $aiEngineRes['engine'],
+            'engine' => !empty($exactList) ? 'Identati Ai Historical Precedent Alignment Engine' : $aiEngineRes['engine'],
             'privacy' => $aiEngineRes['privacy']
         ]);
         exit;
