@@ -695,14 +695,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } else if ($hearing_date === '' || $hearing_time === '') {
                 $regError = 'Please select both a hearing date and time.';
             } else {
-                $ctx = db_one("SELECT s.department, s.program, s.school, d.dept_name
-                               FROM upcc_case uc
-                           JOIN student s ON s.student_id = uc.student_id
-                           JOIN departments d ON d.dept_id = :dept
-                           WHERE uc.case_id = :id", [':id' => $case_id, ':dept' => $dept_id]);
-            if ($ctx && panel_bias_conflict((string)($ctx['department'] ?? ''), (string)($ctx['program'] ?? ''), (string)($ctx['school'] ?? ''), (string)$ctx['dept_name'])) {
-                $regError = 'Cannot assign a lead department or panel members from the same department as the student to prevent bias.';
-            } else {
+                // Fetch student's department info for anti-bias check
+                $stInfo = db_one("SELECT s.department, s.program, s.school FROM upcc_case uc JOIN student s ON s.student_id = uc.student_id WHERE uc.case_id = :id", [':id' => $case_id]);
+                $stDept = (string)($stInfo['department'] ?? '');
+                $stProg = (string)($stInfo['program'] ?? '');
+                $stSch  = (string)($stInfo['school'] ?? '');
+
+                // 1. Check Lead Department bias
+                if ($dept_id > 0) {
+                    $deptRow = db_one("SELECT dept_name FROM departments WHERE dept_id = :dept", [':dept' => $dept_id]);
+                    if ($deptRow && panel_bias_conflict($stDept, $stProg, $stSch, (string)$deptRow['dept_name'])) {
+                        $regError = 'Cannot assign a lead department from the same department as the student to prevent bias.';
+                    }
+                }
+
+                // 2. Check EVERY assigned panel member for bias
+                if ($regError === '' && !empty($panelIds)) {
+                    $inPlaceholders = implode(',', array_fill(0, count($panelIds), '?'));
+                    $pMembers = db_all("SELECT u.upcc_id, u.full_name, u.department_id, d.dept_name
+                                        FROM upcc_user u
+                                        LEFT JOIN departments d ON d.dept_id = u.department_id
+                                        WHERE u.upcc_id IN ($inPlaceholders)", $panelIds);
+                    foreach ($pMembers as $pm) {
+                        $pmDeptName = (string)($pm['dept_name'] ?? '');
+                        if ($pmDeptName !== '' && panel_bias_conflict($stDept, $stProg, $stSch, $pmDeptName)) {
+                            $regError = "Anti-Bias Violation: Panel member '" . htmlspecialchars($pm['full_name']) . "' belongs to the student's home department (" . htmlspecialchars($stDept ?: $pmDeptName) . ") and cannot be assigned to this hearing.";
+                            break;
+                        }
+                    }
+                }
+
+                if ($regError === '') {
                 db_exec("UPDATE upcc_case
                          SET assigned_department_id = :dept,
                              assigned_panel_members = :panel,
@@ -3353,37 +3376,55 @@ function filterPanelDropdown() {
     const selectedDeptId = deptSelect.value;
     const studentDept = (overlay && overlay.dataset.studentDept) ? overlay.dataset.studentDept.trim() : '';
     
-    let availableStaff = committeeMembers.filter(m => String(m.is_active) === '1');
-    
-    // Anti-Bias Rule: Exclude any committee members belonging to student's home department
-    if (studentDept) {
-        availableStaff = availableStaff.filter(m => !isBiasedDeptName(studentDept, m.dept_name || ''));
+    // Require selecting a Lead Department first before showing panel members
+    if (!selectedDeptId) {
+        dropdown.innerHTML = '<div style="padding:12px;font-size:12px;color:#64748b;text-align:center;font-weight:600;">⚠️ Please select a Lead Department above first to view and select panel members.</div>';
+        return;
     }
 
-    // Filter by selected lead department (if any is selected)
-    if (selectedDeptId) {
-        availableStaff = availableStaff.filter(m => String(m.department_id) === String(selectedDeptId));
-    }
+    let availableStaff = committeeMembers.filter(m => String(m.is_active) === '1');
     
-    // Available staff are those not currently selected
+    // STRICT RULE: Panel select dropdown MUST ONLY show members belonging to the selected Lead Department
+    availableStaff = availableStaff.filter(m => String(m.department_id) === String(selectedDeptId));
+    
+    // Filter out already selected members
     availableStaff = availableStaff.filter(m => !selectedPanelMembers.includes(String(m.upcc_id)));
     
-    // Filter by query
-    const filtered = availableStaff.filter(m => 
-        (m.full_name && m.full_name.toLowerCase().includes(query)) ||
-        (m.role && m.role.toLowerCase().includes(query)) ||
-        (m.dept_name && m.dept_name.toLowerCase().includes(query))
-    );
+    // Filter by search query
+    const filtered = availableStaff.filter(m => {
+        const mDept = m.dept_name || (m.department_id && typeof deptNames !== 'undefined' ? deptNames[m.department_id] : '') || '';
+        return (m.full_name && m.full_name.toLowerCase().includes(query)) ||
+               (m.role && m.role.toLowerCase().includes(query)) ||
+               (mDept && mDept.toLowerCase().includes(query));
+    });
     
     if (filtered.length === 0) {
-        dropdown.innerHTML = '<div style="padding:10px;font-size:12px;color:#888;">No members found for this department.</div>';
+        const selectedOpt = deptSelect.options[deptSelect.selectedIndex];
+        const selectedDeptName = selectedOpt ? selectedOpt.text.replace(/\s*\(Student Home Department — Disabled to Avoid Bias\)/gi, '').trim() : 'Selected Department';
+        dropdown.innerHTML = `<div style="padding:12px;font-size:12px;color:#888;text-align:center;">No active panel members found for department "${escH(selectedDeptName)}".</div>`;
     } else {
         let html = '';
         filtered.slice(0, 15).forEach(m => {
-            html += `<div class="dropdown-item" onmousedown="addPanelMember('${m.upcc_id}'); event.preventDefault();">
-                        <div class="dropdown-item-title">${escH(m.full_name)} <span style="font-size:10px;color:#1b2b6b;background:#e2e9ff;padding:2px 6px;border-radius:10px;">${escH(m.role)}</span></div>
-                        <div class="dropdown-item-sub">${escH(m.dept_name || 'No Department')}</div>
-                     </div>`;
+            const mDeptName = m.dept_name || (m.department_id && typeof deptNames !== 'undefined' ? deptNames[m.department_id] : '') || '';
+            const isBiased = studentDept !== '' && isBiasedDeptName(studentDept, mDeptName);
+
+            if (isBiased) {
+                html += `<div class="dropdown-item disabled" style="opacity:0.55; background:#f8fafc; cursor:not-allowed; border-bottom:1px solid #f1f5f9; padding:8px 12px;">
+                            <div class="dropdown-item-title" style="color:#64748b; font-weight:600; display:flex; align-items:center; justify-content:space-between;">
+                                <span>${escH(m.full_name)}</span> 
+                                <span style="font-size:10px;color:#dc2626;background:#fee2e2;border:1px solid #fca5a5;padding:1px 6px;border-radius:10px;font-weight:800;">🚫 Disabled (Student Home Dept)</span>
+                            </div>
+                            <div class="dropdown-item-sub" style="color:#94a3b8; font-size:11px;">${escH(mDeptName || 'Student Home Dept')} · Conflict of Interest</div>
+                         </div>`;
+            } else {
+                html += `<div class="dropdown-item" onmousedown="addPanelMember('${m.upcc_id}'); event.preventDefault();" style="cursor:pointer; padding:8px 12px; border-bottom:1px solid #f1f5f9;">
+                            <div class="dropdown-item-title" style="font-weight:700; color:#1e293b; display:flex; align-items:center; justify-content:space-between;">
+                                <span>${escH(m.full_name)}</span> 
+                                <span style="font-size:10px;color:#1b2b6b;background:#e2e9ff;padding:2px 6px;border-radius:10px;font-weight:700;">${escH(m.role)}</span>
+                            </div>
+                            <div class="dropdown-item-sub" style="color:#64748b; font-size:11px;">${escH(mDeptName || 'No Department')}</div>
+                         </div>`;
+            }
         });
         dropdown.innerHTML = html;
     }
@@ -3391,6 +3432,16 @@ function filterPanelDropdown() {
 
 function addPanelMember(id) {
     id = String(id);
+    const overlay = document.getElementById('manage-hearing-overlay');
+    const studentDept = (overlay && overlay.dataset.studentDept) ? overlay.dataset.studentDept.trim() : '';
+    const staff = committeeMembers.find(m => String(m.upcc_id) === id);
+    if (staff) {
+        const staffDeptName = staff.dept_name || (staff.department_id && typeof deptNames !== 'undefined' ? deptNames[staff.department_id] : '') || '';
+        if (studentDept !== '' && isBiasedDeptName(studentDept, staffDeptName)) {
+            alert('Anti-Bias Violation: Panel member "' + (staff.full_name || '') + '" belongs to the student\'s home department (' + studentDept + ') and cannot be assigned.');
+            return;
+        }
+    }
     if (!selectedPanelMembers.includes(id)) {
         selectedPanelMembers.push(id);
         renderSelectedPanelMembers();
