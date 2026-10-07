@@ -201,9 +201,14 @@ if ($studentId !== '') {
         $majorCount = 0;
         $minorCount = 0;
         $otherMinorTypeCounts = [];
+        $otherMajorNames = [];
         foreach ($ocOffenses as $ooff) {
             if (strtoupper($ooff['level'] ?? '') === 'MAJOR') {
                 $majorCount++;
+                $mName = trim((string)($ooff['offense_name'] ?? ($ooff['code'] ?? 'Major Offense')));
+                if ($mName !== '' && !in_array($mName, $otherMajorNames, true)) {
+                    $otherMajorNames[] = $mName;
+                }
             } else {
                 $minorCount++;
                 $tName = trim((string)($ooff['offense_name'] ?? ($ooff['code'] ?? '')));
@@ -233,7 +238,7 @@ if ($studentId !== '') {
                 : '⚠️ Section 4 Minor Escalation (4 Different Minor Offenses)';
         } elseif ($caseKind === 'MAJOR_OFFENSE' || $majorCount > 0) {
             $triggerType = 'AUTOMATIC_MAJOR';
-            $triggerLabel = '🚨 Automatic Major Offense';
+            $triggerLabel = '🚨 Automatic Major Offense' . (!empty($otherMajorNames) ? ' (' . $otherMajorNames[0] . ')' : ' (Direct Infraction)');
         } else {
             $triggerType = 'STANDARD_MINOR';
             $triggerLabel = 'ℹ️ Standard Disciplinary Case';
@@ -2142,9 +2147,19 @@ body {
                 $currMajorCount = 0;
                 $currMinorCount = 0;
                 $minorTypeCounts = [];
+                $majorOffenseNames = [];
+                $majorInitialCategories = [];
                 foreach ($offenses as $off) {
                     if (strtoupper($off['level'] ?? '') === 'MAJOR') {
                         $currMajorCount++;
+                        $mName = trim((string)($off['offense_name'] ?? ($off['code'] ?? 'Major Offense')));
+                        if ($mName !== '' && !in_array($mName, $majorOffenseNames, true)) {
+                            $majorOffenseNames[] = $mName;
+                        }
+                        $mCat = (int)($off['major_category'] ?? 0);
+                        if ($mCat > 0 && !in_array($mCat, $majorInitialCategories, true)) {
+                            $majorInitialCategories[] = $mCat;
+                        }
                     } else {
                         $currMinorCount++;
                         $tName = trim((string)($off['offense_name'] ?? ($off['code'] ?? 'Minor Offense')));
@@ -2155,6 +2170,10 @@ body {
                 $cDecidedCat = (int)($case['decided_category'] ?? 0);
                 $isAutoMajor = ($cKind === 'MAJOR_OFFENSE' || $currMajorCount > 0);
                 $isSection4 = (!$isAutoMajor && ($cKind === 'SECTION4_MINOR_ESCALATION' || $currMinorCount >= 3));
+
+                // Major offense strings
+                $majorNamesList = !empty($majorOffenseNames) ? implode(', ', $majorOffenseNames) : '';
+                $majorInitCatStr = !empty($majorInitialCategories) ? 'Category ' . implode('/', $majorInitialCategories) : '';
 
                 // Determine if Section 4 was triggered by 3 of the same minor or 4 different/mixed minors
                 $sameMinorName = '';
@@ -2183,7 +2202,7 @@ body {
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
                   <strong style="font-size:.9rem; font-weight:800; display:flex; align-items:center; gap:6px;">
                     <?php if ($isAutoMajor): ?>
-                      🚨 Automatic Major Offense
+                      🚨 Automatic Major Offense<?= !empty($majorOffenseNames) ? ' (' . htmlspecialchars($majorOffenseNames[0]) . ')' : ' (Direct Major Infraction)' ?>
                     <?php elseif ($isSection4): ?>
                       <?php if ($is3SameMinor): ?>
                         ⚠️ Section 4 Minor Escalation (3 Same Minor Offenses)
@@ -2201,7 +2220,7 @@ body {
                     </span>
                   <?php elseif ($isAutoMajor): ?>
                     <span style="font-size:.72rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5;">
-                      Major Offense Level (Pending Category)
+                      <?= !empty($majorInitCatStr) ? htmlspecialchars($majorInitCatStr) . ' Level' : 'Direct Major Referral' ?>
                     </span>
                   <?php elseif ($isSection4): ?>
                     <span style="font-size:.72rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">
@@ -2212,7 +2231,7 @@ body {
 
                 <div style="font-size:.78rem; line-height:1.45; opacity:0.95;">
                   <?php if ($isAutoMajor): ?>
-                    This case is classified as an <strong>Automatic Major Offense</strong> due to major infraction(s) committed by the student.
+                    This case was automatically referred to the UPCC as an <strong>Automatic Major Offense</strong> because the student committed <?= $currMajorCount > 1 ? "<strong>{$currMajorCount} direct major infractions</strong>" : "a <strong>direct major infraction</strong>" ?><?= !empty($majorNamesList) ? ' (<em>' . htmlspecialchars($majorNamesList) . '</em>)' : '' ?>. Direct major infractions immediately require formal UPCC Tribunal investigation and Category (1–5) sanction review without requiring prior minor offense accumulation.
                     <?= !empty($categoryDescriptions[$cDecidedCat]) ? '<br><strong>Assigned Category Definition:</strong> ' . htmlspecialchars($categoryDescriptions[$cDecidedCat]) : '' ?>
                   <?php elseif ($isSection4): ?>
                     <?php if ($is3SameMinor): ?>
