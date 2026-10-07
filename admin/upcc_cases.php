@@ -69,10 +69,10 @@ function dept_norm(string $value): string {
     return preg_replace('/[^a-z0-9]+/i', '', strtolower(trim($value)));
 }
 
-function panel_bias_conflict(string $studentProgram, string $studentSchool, string $deptName): bool {
+function panel_bias_conflict(string $studentDept, string $studentProgram, string $studentSchool, string $deptName): bool {
     $d = dept_norm($deptName);
     if ($d === '') return false;
-    $tokens = [dept_norm($studentProgram), dept_norm($studentSchool)];
+    $tokens = [dept_norm($studentDept), dept_norm($studentProgram), dept_norm($studentSchool)];
     foreach ($tokens as $t) {
         if ($t === '') continue;
         if ($d === $t || str_contains($t, $d) || str_contains($d, $t)) return true;
@@ -228,6 +228,9 @@ $cases = db_all("SELECT
         uc.hearing_is_paused,
         (SELECT MAX(p.last_ping) FROM upcc_hearing_presence p WHERE p.case_id = uc.case_id AND p.user_type = 'ADMIN') as admin_last_ping,
         s.student_id,
+        s.department AS student_department,
+        s.course AS student_course,
+        s.section AS student_section,
         " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ",
         GROUP_CONCAT(ot.name ORDER BY ot.offense_type_id SEPARATOR ' | ') AS offense_names,
         MAX(ot.level) AS offense_level,
@@ -625,13 +628,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $panel   = isset($_POST['panel_members']) && is_array($_POST['panel_members']) ? $_POST['panel_members'] : [];
         $panelIds = array_values(array_unique(array_map('intval', $panel)));
         if ($case_id && $dept_id) {
-            $ctx = db_one("SELECT s.program, s.school, d.dept_name
+            $ctx = db_one("SELECT s.department, s.program, s.school, d.dept_name
                            FROM upcc_case uc
                            JOIN student s ON s.student_id = uc.student_id
                            JOIN departments d ON d.dept_id = :dept
                            WHERE uc.case_id = :id", [':id' => $case_id, ':dept' => $dept_id]);
-            if ($ctx && panel_bias_conflict((string)$ctx['program'], (string)$ctx['school'], (string)$ctx['dept_name'])) {
-                $regError = 'Cannot assign a panel from the same department/program as the student.';
+            if ($ctx && panel_bias_conflict((string)($ctx['department'] ?? ''), (string)($ctx['program'] ?? ''), (string)($ctx['school'] ?? ''), (string)$ctx['dept_name'])) {
+                $regError = 'Cannot assign a panel from the same department as the student to prevent bias.';
             } else {
             db_exec("UPDATE upcc_case
                      SET assigned_department_id = :dept,
@@ -691,13 +694,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } else if ($hearing_date === '' || $hearing_time === '') {
                 $regError = 'Please select both a hearing date and time.';
             } else {
-                $ctx = db_one("SELECT s.program, s.school, d.dept_name
+                $ctx = db_one("SELECT s.department, s.program, s.school, d.dept_name
                                FROM upcc_case uc
                            JOIN student s ON s.student_id = uc.student_id
                            JOIN departments d ON d.dept_id = :dept
                            WHERE uc.case_id = :id", [':id' => $case_id, ':dept' => $dept_id]);
-            if ($ctx && panel_bias_conflict((string)$ctx['program'], (string)$ctx['school'], (string)$ctx['dept_name'])) {
-                $regError = 'Cannot assign a panel from the same department/program as the student.';
+            if ($ctx && panel_bias_conflict((string)($ctx['department'] ?? ''), (string)($ctx['program'] ?? ''), (string)($ctx['school'] ?? ''), (string)$ctx['dept_name'])) {
+                $regError = 'Cannot assign a lead department or panel members from the same department as the student to prevent bias.';
             } else {
                 db_exec("UPDATE upcc_case
                          SET assigned_department_id = :dept,
@@ -2058,6 +2061,18 @@ function fmt_case_id(int $id, string $created): string {
             <form method="post" action="upcc_cases.php" class="es-form" onsubmit="return validateHearingConfigForm()">
                 <input type="hidden" name="action" value="update_hearing_config">
                 <input type="hidden" name="case_id" id="manage-case-id" value="">
+                
+                <!-- Anti-Bias Student Home Department Notice Banner -->
+                <div id="manage-student-dept-notice" style="margin-bottom:16px; padding:12px 14px; background:#fffbe0; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:10px; font-size:12px; color:#78350f; display:none;">
+                    <div style="font-weight:800; color:#92400e; margin-bottom:2px; display:flex; align-items:center; gap:6px;">
+                        <span>🎓 Student Home Department:</span>
+                        <span id="manage-student-dept-text" style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:900; border:1px solid #fcd34d;"></span>
+                    </div>
+                    <div style="font-size:11px; margin-top:4px; color:#92400e; font-weight:600;">
+                        ⚖️ <strong>Anti-Bias Rule Enforced:</strong> Lead department and panel members matching the student's home department are disabled to prevent conflict of interest.
+                    </div>
+                </div>
+
                 <div class="es-field"><label>Lead Department</label><select name="assigned_department_id" id="manage-dept" onchange="filterPanelDropdown()"><option value="">-- Select department --</option><?php foreach ($departments as $d): ?><option value="<?= $d['dept_id'] ?>"><?= e($d['dept_name']) ?></option><?php endforeach; ?></select></div>
                 <div class="es-field">
                     <label id="manage-panel-label">Panel Members (Select from lead department)</label>
@@ -3125,6 +3140,18 @@ function selectCase(row) {
     }
 }
 
+function normDeptName(str) {
+    if (!str) return '';
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isBiasedDeptName(studentDept, deptName) {
+    const s = normDeptName(studentDept);
+    const d = normDeptName(deptName);
+    if (!s || !d) return false;
+    return s === d || s.includes(d) || d.includes(s);
+}
+
 function openManageHearingModal(caseId, row) {
     if (!row) {
         row = document.querySelector('#cases-table tbody tr.selected');
@@ -3148,6 +3175,39 @@ function openManageHearingModal(caseId, row) {
 
     caseIdInput.value = caseId;
     const assignedDept = row.dataset.assignedDept || '';
+    const studentDept = (row.dataset.studentDept || '').trim();
+
+    overlay.dataset.studentDept = studentDept;
+
+    const noticeEl = document.getElementById('manage-student-dept-notice');
+    const noticeTextEl = document.getElementById('manage-student-dept-text');
+    if (noticeEl && noticeTextEl) {
+        if (studentDept !== '') {
+            noticeTextEl.textContent = studentDept;
+            noticeEl.style.display = 'block';
+        } else {
+            noticeEl.style.display = 'none';
+        }
+    }
+
+    for (let i = 0; i < deptSelect.options.length; i++) {
+        const opt = deptSelect.options[i];
+        if (!opt.value) continue;
+        const cleanName = opt.text.replace(/\s*\(Student Home Department — Disabled to Avoid Bias\)/gi, '').trim();
+        const isBiased = studentDept !== '' && isBiasedDeptName(studentDept, cleanName);
+        if (isBiased) {
+            opt.disabled = true;
+            opt.text = cleanName + ' (Student Home Department — Disabled to Avoid Bias)';
+            opt.style.color = '#94a3b8';
+            opt.style.background = '#f1f5f9';
+        } else {
+            opt.disabled = false;
+            opt.text = cleanName;
+            opt.style.color = '';
+            opt.style.background = '';
+        }
+    }
+
     let assignedPanel = [];
     if (row.dataset.assignedPanel) {
         try {
@@ -3284,14 +3344,21 @@ function filterPanelDropdown() {
     const input = document.getElementById('panel-member-search');
     const dropdown = document.getElementById('panel-member-dropdown');
     const deptSelect = document.getElementById('manage-dept');
+    const overlay = document.getElementById('manage-hearing-overlay');
     if (!input || !dropdown || !deptSelect) return;
     
     const query = input.value.toLowerCase().trim();
     const selectedDeptId = deptSelect.value;
+    const studentDept = (overlay && overlay.dataset.studentDept) ? overlay.dataset.studentDept.trim() : '';
     
     let availableStaff = committeeMembers.filter(m => String(m.is_active) === '1');
     
-    // Filter by selected department (if any is selected)
+    // Anti-Bias Rule: Exclude any committee members belonging to student's home department
+    if (studentDept) {
+        availableStaff = availableStaff.filter(m => !isBiasedDeptName(studentDept, m.dept_name || ''));
+    }
+
+    // Filter by selected lead department (if any is selected)
     if (selectedDeptId) {
         availableStaff = availableStaff.filter(m => String(m.department_id) === String(selectedDeptId));
     }

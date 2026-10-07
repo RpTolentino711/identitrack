@@ -19,7 +19,7 @@ $JITSI_DOMAIN = 'meet.jit.si';
 $case = db_one("SELECT uc.*,
            CONCAT(s.student_fn,' ',s.student_ln) AS student_name,
            s.student_fn, s.student_ln,
-           s.year_level, s.section, s.program, s.school,
+           s.year_level, s.section, s.program, s.school, s.department AS student_department, s.course AS student_course,
            s.student_email, s.phone_number, s.home_address,
            d.dept_name AS assigned_dept_name
     FROM upcc_case uc
@@ -85,7 +85,7 @@ function dept_norm(string $v): string { return preg_replace('/[^a-z0-9]+/i', '',
 function is_biased_department(array $case, string $deptName): bool {
     $d = dept_norm($deptName);
     if ($d === '') return false;
-    foreach ([dept_norm((string)($case['program'] ?? '')), dept_norm((string)($case['school'] ?? ''))] as $t) {
+    foreach ([dept_norm((string)($case['student_department'] ?? '')), dept_norm((string)($case['department'] ?? '')), dept_norm((string)($case['program'] ?? '')), dept_norm((string)($case['school'] ?? ''))] as $t) {
         if ($t !== '' && ($d === $t || str_contains($t, $d) || str_contains($d, $t))) return true;
     }
     return false;
