@@ -993,6 +993,7 @@ $showRecoveryLink = ($currentFailures >= 3);
             </div>
             <button type="button" id="btnSaveCredentials" class="btn-login" onclick="saveNewCredentials()">Save &amp; Sign In &rarr;</button>
         </div>
+    </div>
 </div>
 
 <!-- First-Time User Setup Modal -->
