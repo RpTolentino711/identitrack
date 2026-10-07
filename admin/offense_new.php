@@ -958,18 +958,20 @@ function getStudentActiveMinorCycle(string $studentId, ?int $includeNewTypeId = 
     }
 
     $distinctTypesCount = count($typeCounts);
-    $isSameTypeTarget = ($maxSameTypeCount >= 3);
+    $isSameTypeTarget = ($distinctTypesCount <= 1);
     $requiredForEscalation = $isSameTypeTarget ? 3 : 4;
 
     $isEscalationTriggered = false;
     $triggerReason = 'NONE';
 
-    if ($maxSameTypeCount >= 3) {
+    if ($distinctTypesCount === 1 && $maxSameTypeCount >= 3) {
         $isEscalationTriggered = true;
         $triggerReason = 'SAME_TYPE_3';
+        $requiredForEscalation = 3;
     } elseif ($projectedCount >= 4) {
         $isEscalationTriggered = true;
         $triggerReason = 'DIFF_TYPES_4';
+        $requiredForEscalation = 4;
     }
 
     return [
@@ -1008,7 +1010,7 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
   $maxSame = $cycleInfo ? (int)$cycleInfo['max_same_type_count'] : 1;
   $cycleNum = $cycleInfo ? (int)$cycleInfo['current_cycle_num'] : max(1, (int)ceil($projectedCount / 3));
   $cycleOrd = getOrdinal($cycleNum);
-  $isEsc = $cycleInfo ? (bool)$cycleInfo['is_escalation_triggered'] : ($projectedActiveCount >= 4 || ($maxSame >= 3 && $projectedActiveCount >= 3));
+  $isEsc = $cycleInfo ? (bool)$cycleInfo['is_escalation_triggered'] : ($projectedActiveCount >= 4 || ($maxSame >= 3 && ($cycleInfo['distinct_types_count'] ?? 1) <= 1));
 
   $selCode = $cycleInfo['selected_type_code'] ?? '';
   $selName = $cycleInfo['selected_type_name'] ?? '';
@@ -1158,9 +1160,9 @@ function renderMinorAlert(int $projectedCount, string $guardianEmail, int $curre
   $displayActiveCount = $isEsc ? $reqCount : max(1, $existingActiveCount);
   $isDiffTypes = ($reqCount === 4) || ($cycleInfo && $cycleInfo['trigger_reason'] === 'DIFF_TYPES_4');
 
-  $trigDesc = ($maxSame >= 3 || ($cycleInfo && $cycleInfo['trigger_reason'] === 'SAME_TYPE_3'))
-    ? '3 minor offenses of the SAME type accumulated (' . htmlspecialchars($cycleInfo['max_same_type_name'] ?? 'Same Type') . '). Section 4 Escalation triggered!'
-    : '4 minor offenses of DIFFERENT types accumulated. Section 4 Escalation triggered!';
+  $trigDesc = $isDiffTypes
+    ? '4 minor offenses of DIFFERENT types accumulated. Section 4 Escalation triggered!'
+    : '3 minor offenses of the SAME type accumulated (' . htmlspecialchars($cycleInfo['max_same_type_name'] ?? 'Same Type') . '). Section 4 Escalation triggered!';
 
   $stepsHtml = $isDiffTypes
     ? '<div class="ap-step ap-step--done">1st Minor ✓</div>'
@@ -3973,7 +3975,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const cycleNum = cycle.current_cycle_num || 1;
     const isEsc = typeof cycle.is_escalation_triggered !== 'undefined'
       ? Boolean(cycle.is_escalation_triggered)
-      : (projectedActiveCount >= 4 || (maxSame >= 3 && projectedActiveCount >= 3));
+      : (projectedActiveCount >= 4 || (maxSame >= 3 && Number(cycle.distinct_types_count || 1) <= 1));
 
     function getOrd(n) {
       const s = ['th','st','nd','rd'], v = n % 100;

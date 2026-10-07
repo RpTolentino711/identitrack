@@ -2265,18 +2265,20 @@ if (!function_exists('getStudentActiveMinorCycle')) {
         }
 
         $distinctTypesCount = count($typeCounts);
-        $isSameTypeTarget = ($maxSameTypeCount >= 3);
+        $isSameTypeTarget = ($distinctTypesCount <= 1);
         $requiredForEscalation = $isSameTypeTarget ? 3 : 4;
 
         $isEscalationTriggered = false;
         $triggerReason = 'NONE';
 
-        if ($maxSameTypeCount >= 3) {
+        if ($distinctTypesCount === 1 && $maxSameTypeCount >= 3) {
             $isEscalationTriggered = true;
             $triggerReason = 'SAME_TYPE_3';
+            $requiredForEscalation = 3;
         } elseif ($projectedCount >= 4) {
             $isEscalationTriggered = true;
             $triggerReason = 'DIFF_TYPES_4';
+            $requiredForEscalation = 4;
         }
 
         return [
