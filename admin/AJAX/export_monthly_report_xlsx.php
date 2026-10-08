@@ -134,6 +134,7 @@ $offenseRows = db_all(
       " . db_decrypt_col('description', 'o') . " AS description,
       uc.case_id,
       uc.case_kind,
+      COALESCE(NULLIF(ot.major_category, 0), 0) AS registered_category,
       COALESCE(NULLIF(uc.decided_category,0), 0) AS decided_category,
       " . db_decrypt_col('final_decision', 'uc') . " AS final_decision,
       " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
@@ -179,6 +180,7 @@ if ($category !== 'MINOR') {
         COALESCE(" . db_decrypt_col('case_summary', 'uc') . ", uc.case_kind, 'UPCC Case Record') AS description,
         uc.case_id,
         uc.case_kind,
+        COALESCE((SELECT COALESCE(NULLIF(ot2.major_category, 0), 0) FROM upcc_case_offense uco2 JOIN offense o2 ON o2.offense_id = uco2.offense_id JOIN offense_type ot2 ON ot2.offense_type_id = o2.offense_type_id WHERE uco2.case_id = uc.case_id ORDER BY ot2.major_category DESC LIMIT 1), 0) AS registered_category,
         COALESCE(NULLIF(uc.decided_category,0), 0) AS decided_category,
         " . db_decrypt_col('final_decision', 'uc') . " AS final_decision,
         " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
@@ -747,6 +749,8 @@ try {
               $offenseStatus = strtoupper((string)($r['status'] ?? ''));
               $appealStatus = strtoupper((string)($r['appeal_status'] ?? ''));
               $decidedCat = (int)($r['decided_category'] ?? 0);
+              $regCat = (int)($r['registered_category'] ?? 0);
+              $displayRegCat = ($regCat > 0) ? $regCat : (($decidedCat > 0) ? $decidedCat : 0);
               $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
 
               $isApprovedAppeal = ($appealStatus === 'APPROVED' || $caseStatus === 'CANCELLED' || ($offenseStatus === 'VOID' && $appealStatus === 'APPROVED'));
@@ -767,26 +771,26 @@ try {
                   $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos(strtoupper((string)($r['case_kind'] ?? '')), 'SECTION4') !== false);
                   if ($isDismissed) {
                       $rowCategory = 'DISMISSED CASE';
-                      $pendingCol = 'N/A (Dismissed)';
+                      $pendingCol = '';
                       $resolvedCol = 'DISMISSED CASE';
                       $displayLevel = 'DISMISSED CASE';
                   } elseif ($isSec4Case) {
                       $caseIdx++;
                       $cOrd = ($caseIdx === 1) ? '1ST' : (($caseIdx === 2) ? '2ND' : (($caseIdx === 3) ? '3RD' : "{$caseIdx}TH"));
                       $rowCategory = "{$cOrd} CYCLE SECTION 4 ESCALATION";
-                      $pendingCol = $isPending ? 'PENDING UPCC HEARING' : 'N/A (Resolved / Closed)';
-                      $resolvedCol = $isResolved ? (($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : "SECTION 4 MAJOR (RESOLVED)") : 'N/A (Pending Case)';
+                      $pendingCol = $isPending ? 'PENDING UPCC HEARING' : '';
+                      $resolvedCol = $isResolved ? (($decidedCat > 0) ? "SECTION 4 MAJOR (CATEGORY {$decidedCat})" : "SECTION 4 MAJOR (RESOLVED)") : '';
                       $displayLevel = $isApprovedAppeal ? (($decidedCat > 0) ? "APPROVED APPEAL (CATEGORY {$decidedCat})" : "APPROVED APPEAL (SANCTION VOIDED)") : (($isResolved && $decidedCat > 0) ? "{$cOrd} CYCLE SECTION 4 MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "{$cOrd} CYCLE SECTION 4 MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "{$cOrd} CYCLE SECTION 4 MAJOR (RESOLVED)"));
                   } else {
                       $rowCategory = 'AUTOMATIC MAJOR';
-                      $pendingCol = $isPending ? 'PENDING UPCC HEARING' : 'N/A (Resolved / Closed)';
-                      $resolvedCol = $isResolved ? (($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : "AUTOMATIC MAJOR (RESOLVED)") : 'N/A (Pending Case)';
+                      $pendingCol = $isPending ? 'PENDING UPCC HEARING' : '';
+                      $resolvedCol = $isResolved ? (($displayRegCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$displayRegCat})" : "AUTOMATIC MAJOR (RESOLVED)") : '';
                       $displayLevel = $isApprovedAppeal ? (($decidedCat > 0) ? "APPROVED APPEAL (CATEGORY {$decidedCat})" : "APPROVED APPEAL (SANCTION VOIDED)") : (($isResolved && $decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "AUTOMATIC MAJOR (RESOLVED)"));
                   }
               } else {
                   if ($isDismissed) {
                       $rowCategory = 'DISMISSED OFFENSE';
-                      $pendingCol = 'N/A (Dismissed)';
+                      $pendingCol = '';
                       $resolvedCol = 'DISMISSED OFFENSE';
                       $displayLevel = 'DISMISSED OFFENSE';
                   } elseif ($offenseLevel === 'MINOR') {
@@ -797,22 +801,22 @@ try {
 
                       $rowCategory = 'MINOR OFFENSE';
                       if ($hasSection4) {
-                          $pendingCol = $isPending ? "ACTIVE MINOR (CYCLE {$cycleNum})" : 'N/A (Resolved)';
-                          $resolvedCol = $isResolved ? "RESOLVED MINOR (CYCLE {$cycleNum})" : 'N/A (Pending)';
+                          $pendingCol = $isPending ? "ACTIVE MINOR (CYCLE {$cycleNum})" : '';
+                          $resolvedCol = $isResolved ? "RESOLVED MINOR (CYCLE {$cycleNum})" : '';
                       } else {
-                          $pendingCol = $isPending ? 'ACTIVE MINOR OFFENSE' : 'N/A (Resolved)';
-                          $resolvedCol = $isResolved ? 'RESOLVED MINOR OFFENSE' : 'N/A (Pending)';
+                          $pendingCol = $isPending ? 'ACTIVE MINOR OFFENSE' : '';
+                          $resolvedCol = $isResolved ? 'RESOLVED MINOR OFFENSE' : '';
                       }
                       $displayLevel = ($minorIdx % 3 === 0) ? "{$ordinal} MINOR WARNING (CYCLE {$cycleNum} - SECTION 4 TRIGGERED)" : "{$ordinal} MINOR WARNING (CYCLE {$cycleNum})";
                   } elseif ($offenseLevel === 'MAJOR') {
                       $rowCategory = 'AUTOMATIC MAJOR';
-                      $pendingCol = $isPending ? 'PENDING UPCC HEARING' : 'N/A (Resolved / Closed)';
-                      $resolvedCol = $isResolved ? (($decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : "AUTOMATIC MAJOR (RESOLVED)") : 'N/A (Pending Case)';
+                      $pendingCol = $isPending ? 'PENDING UPCC HEARING' : '';
+                      $resolvedCol = $isResolved ? (($displayRegCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$displayRegCat})" : "AUTOMATIC MAJOR (RESOLVED)") : '';
                       $displayLevel = $isApprovedAppeal ? (($decidedCat > 0) ? "APPROVED APPEAL (CATEGORY {$decidedCat})" : "APPROVED APPEAL (SANCTION VOIDED)") : (($isResolved && $decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "AUTOMATIC MAJOR (RESOLVED)"));
                   } else {
                       $rowCategory = 'OTHER';
-                      $pendingCol = 'N/A';
-                      $resolvedCol = 'N/A';
+                      $pendingCol = '';
+                      $resolvedCol = '';
                       $displayLevel = $offenseLevel;
                   }
               }
