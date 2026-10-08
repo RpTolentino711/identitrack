@@ -3522,8 +3522,8 @@ function formatCaseActivity(array $act): string {
             const editBtn = card.querySelector('.btn-edit');
             const ackBtn = card.querySelector('.btn-acknowledge-glowing');
 
-            // If coming from appeal approval / rejection redirect or requested edit, open Edit Sanction modal
-            if (urlParams.get('msg') === 'approved' || urlParams.get('appeal_id') || urlParams.get('action') === 'edit') {
+            // Only auto-open Edit Sanction modal if the appeal was APPROVED or action=edit is specified
+            if (urlParams.get('msg') === 'approved' || urlParams.get('action') === 'edit') {
               if (editBtn) {
                 editBtn.click();
               } else if (ackBtn) {

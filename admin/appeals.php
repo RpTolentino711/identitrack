@@ -68,8 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') ==
                 db_exec("UPDATE offense SET status = 'RESOLVED' WHERE offense_id = :oid AND student_id = :sid", [':oid' => $offenseId, ':sid' => $studentId]);
             }
 
-            // Rejected -> also go to sanctions.php so admin can review / edit the sanction
-            redirect('sanctions.php?student_id=' . urlencode($studentId) . '&appeal_id=' . $appealId . '&msg=rejected');
+            // Rejected -> stay on appeals page, panel decision stands and continues for student
+            redirect('appeals.php?msg=rejected');
         }
     }
 
@@ -574,6 +574,16 @@ function initials(string $name): string
             <div class="sub">Appeals upheld</div>
           </div>
         </div>
+
+        <?php if (isset($_GET['msg']) && $_GET['msg'] === 'rejected'): ?>
+          <div style="background:#fef2f2; border:1px solid #fee2e2; border-left:4px solid #dc2626; color:#991b1b; padding:14px 18px; border-radius:12px; margin-bottom:20px; font-weight:600; display:flex; align-items:center; gap:10px;">
+            <span>❌</span> Appeal has been rejected. The panel's original decision stands and continues on the student's app.
+          </div>
+        <?php elseif (isset($_GET['msg']) && $_GET['msg'] === 'error'): ?>
+          <div style="background:#fffbeb; border:1px solid #fef3c7; border-left:4px solid #f59e0b; color:#92400e; padding:14px 18px; border-radius:12px; margin-bottom:20px; font-weight:600; display:flex; align-items:center; gap:10px;">
+            <span>⚠️</span> An error occurred while processing the appeal.
+          </div>
+        <?php endif; ?>
 
         <div class="tabs">
           <a class="tab <?php echo $filter === 'PENDING' ? 'active' : ''; ?>" href="?filter=PENDING">
