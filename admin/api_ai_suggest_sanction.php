@@ -101,40 +101,7 @@ function getCategoryPrecedents(?int $majorCategory, int $offenseTypeId, int $exc
         LIMIT " . (int)$limit . "
     ", [':cat' => $majorCategory, ':otid' => $offenseTypeId, ':ecid' => $excludeCaseId]);
 }
-/**
- * Evaluates progressive discipline escalation dynamically using database offense categories and case attempt count
- */
-function evaluateCaseProgressiveEscalation(?int $dbMajorCategory, int $mlCategoryNum, bool $isSecondOrHigherCase, int $attemptNum = 1): array
-{
-    $baseCategory = ($dbMajorCategory !== null && $dbMajorCategory > 0) ? max($dbMajorCategory, $mlCategoryNum) : $mlCategoryNum;
-    if ($baseCategory <= 0) $baseCategory = 1;
 
-    // For 2nd or repeat major cases: Progressive discipline mandates minimum Category 3
-    $finalCategory = $isSecondOrHigherCase ? max(3, $baseCategory) : $baseCategory;
-
-    $standardSanctions = [
-        1 => 'Category 1 (Probation for 3 academic terms and referral for counseling)',
-        2 => 'Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)',
-        3 => 'Category 3 (Non-Readmission, denial of admission but is allowed to finish current term / 250 Hours Corrective Service)',
-        4 => 'Category 4 (Exclusion, dropping the name of the student immediately from the roll of students for 1+ academic years)',
-        5 => 'Category 5 (Summary Expulsion & Permanent Record Referral)'
-    ];
-
-    $sanctionText = $standardSanctions[$finalCategory] ?? "Category {$finalCategory} Disciplinary Sanction";
-    $hours = ($finalCategory === 2) ? 150.0 : (($finalCategory === 3) ? 250.0 : 0.0);
-
-    $reason = $isSecondOrHigherCase
-        ? "Student is on their {$attemptNum}" . ($attemptNum === 2 ? 'nd' : ($attemptNum === 3 ? 'rd' : 'th')) . " disciplinary case on file. Under the NU Lipa Progressive Disciplinary Matrix, repeat infractions escalate to Category {$finalCategory}."
-        : "Evaluated under the NU Lipa Disciplinary Matrix for 1st major infraction.";
-
-    return [
-        'category_num' => $finalCategory,
-        'category_label' => "Category {$finalCategory}",
-        'sanction' => $sanctionText,
-        'hours' => $hours,
-        'reason' => $reason
-    ];
-}
 
 /**
  * Data Privacy Act (RA 10173) Compliance:
@@ -1042,47 +1009,11 @@ try {
             ];
         }
 
-        // Fetch database major category dynamically from offense_type table
-        $dbMajorCategory = null;
-        if (!empty($allCaseOffenses)) {
-            foreach ($allCaseOffenses as $aco) {
-                if (isset($aco['major_category']) && $aco['major_category'] !== null && (int)$aco['major_category'] > 0) {
-                    $dbMajorCategory = max($dbMajorCategory ?? 0, (int)$aco['major_category']);
-                }
-            }
-        } elseif (isset($majorCategory) && $majorCategory !== null && (int)$majorCategory > 0) {
-            $dbMajorCategory = (int)$majorCategory;
-        }
-
-        $mlCategoryNum = (int)($aiEngineRes['category_num'] ?? 1);
-        $escalation = evaluateCaseProgressiveEscalation($dbMajorCategory, $mlCategoryNum, $isSecondOrHigherOffense, $effectiveAttempt);
-
-        $suggestedCategoryNum = $escalation['category_num'];
-        $suggestedCategoryLabel = $escalation['category_label'];
-        $suggestedSanction = !empty($aiEngineRes['sanction']) && ($suggestedCategoryNum === $mlCategoryNum) 
-            ? (string)$aiEngineRes['sanction'] 
-            : $escalation['sanction'];
-        $suggestedCsHours = ($suggestedCategoryNum === $mlCategoryNum && isset($aiEngineRes['community_service_hours']) && (float)$aiEngineRes['community_service_hours'] > 0)
-            ? (float)$aiEngineRes['community_service_hours']
-            : (float)$escalation['hours'];
-
-        $totalDatasetCountStr = function_exists('get_total_ai_dataset_count') ? number_format(get_total_ai_dataset_count()) : "3,441";
-
-        $recidivismNotice = "";
-        if ($isSecondOrHigherOffense) {
-            $recidivismNotice = "• **Recidivism & Escalation**: ⚠️ **{$finalNumOffenseStr} Detected** (Student has {$totalPrior} prior resolved case(s) on file). Under the NU Lipa Progressive Disciplinary Matrix, repeat major offenses escalate to **{$suggestedCategoryLabel}**.\n";
-        } else {
-            $recidivismNotice = "• **Offense Level**: 1st Major Infraction (Evaluated under standard formative disciplinary matrix).\n";
-        }
-
-        $aiExplanationText = "🤖 **Identati Ai XGBoost & Progressive Disciplinary Recommendation**:\n\n"
-            . "• **Recommended Category**: **{$suggestedCategoryLabel}**\n"
-            . "• **Suggested Punishment**: **{$suggestedSanction}**\n"
-            . ($suggestedCsHours > 0 ? "• **Recommended Service Time**: **{$suggestedCsHours} Hours Community Service**\n" : "")
-            . "• **Offense Evaluated**: **{$pViolation}**" . ($offenseCount > 1 ? " *(and {$offenseCount} aggregated charges in this case)*" : "") . "\n"
-            . "• **Confidence Score**: **{$aiEngineRes['confidence']}%** (Severity: **{$aiEngineRes['severity']}**)\n"
-            . $recidivismNotice . "\n"
-            . "💡 **Why? (Reason)**: {$escalation['reason']}";
+        $suggestedCategoryNum = (int)($aiEngineRes['category_num'] ?? 1);
+        $suggestedCategoryLabel = (string)($aiEngineRes['category_label'] ?? "Category {$suggestedCategoryNum}");
+        $suggestedSanction = (string)($aiEngineRes['sanction'] ?? '');
+        $suggestedCsHours = (float)($aiEngineRes['community_service_hours'] ?? 0);
+        $aiExplanationText = (string)($aiEngineRes['text'] ?? '');
 
         echo json_encode([
             'ok' => true,
