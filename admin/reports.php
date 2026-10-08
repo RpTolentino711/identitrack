@@ -13,20 +13,14 @@ $admin = admin_current();
 $fullName = trim((string)($admin['full_name'] ?? ''));
 if ($fullName === '') $fullName = (string)($admin['username'] ?? 'User');
 
-// Month selector (YYYY-MM or ALL)
+// Month selector (YYYY-MM)
 if (!isset($_GET['month'])) {
   $latestRow = db_one("SELECT DATE_FORMAT(date_committed, '%Y-%m') AS ym FROM offense WHERE date_committed IS NOT NULL ORDER BY date_committed DESC LIMIT 1");
   $selectedMonth = !empty($latestRow['ym']) ? $latestRow['ym'] : date('Y-m');
 } else {
   $selectedMonth = trim((string)($_GET['month'] ?? ''));
 }
-
-// FIX: allow the ALL pseudo-month through (previously the regex rejected it and reset to current month)
-if (strtoupper($selectedMonth) === 'ALL') {
-  $selectedMonth = 'ALL';
-} elseif (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
-  $selectedMonth = date('Y-m');
-}
+if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) $selectedMonth = date('Y-m');
 
 $selectedAudience = strtoupper(trim((string)($_GET['audience'] ?? 'ALL')));
 if (!in_array($selectedAudience, ['ALL', 'COLLEGE', 'SHS'], true)) $selectedAudience = 'ALL';
@@ -403,9 +397,6 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
           </div>
         </section>
 
-        <!-- FIX: this wrapper was missing; the CSS .grid2 rule expects it -->
-        <div class="grid2">
-
           <!-- Offense breakdown -->
           <section class="panel breakdown-panel">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
@@ -439,8 +430,7 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
               <div id="courseList" class="muted" style="margin-top:10px;">—</div>
             </div>
           </section>
-
-        </div><!-- /.grid2 -->
+        </div>
 
         <!-- Trend -->
         <section class="panel trend">
@@ -985,3 +975,4 @@ usort($monthOptions, function($a, $b) { return strcmp($b, $a); });
   </script>
 </body>
 </html>
+
