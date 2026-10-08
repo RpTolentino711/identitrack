@@ -399,28 +399,27 @@ function format_full_sanction_penalty(array $r): string {
     $appealStatus  = strtoupper((string)($r['appeal_status'] ?? ''));
     $isApprovedAppeal = ($appealStatus === 'APPROVED' || $caseStatus === 'CANCELLED' || ($offenseStatus === 'VOID' && $appealStatus === 'APPROVED'));
 
-    if ($isApprovedAppeal) {
-        $adminNote = !empty($r['appeal_admin_response']) ? " — Admin Response: " . trim((string)$r['appeal_admin_response']) : "";
-        if ($decidedCat > 0) {
-            return "Appeal Approved by UPCC/Admin (Sanction Adjusted: Category {$decidedCat}{$adminNote})";
-        }
-        return "Appeal Approved by UPCC/Admin (Sanction Voided / Cancelled{$adminNote})";
-    }
-
     $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
 
     if ($isDismissed) {
         return 'Case / Offense Dismissed (No Sanction Imposed)';
     }
 
-    $isPending = in_array($caseStatus, ['PENDING', 'UNDER_INVESTIGATION', 'OPEN', 'UNDER_APPEAL', 'AWAITING_ADMIN_FINALIZATION'], true)
-                 || ($caseId > 0 && $caseStatus !== 'CLOSED' && $caseStatus !== 'RESOLVED');
+    $isPending = !$isApprovedAppeal && (
+        in_array($caseStatus, ['PENDING', 'UNDER_INVESTIGATION', 'OPEN', 'UNDER_APPEAL', 'AWAITING_ADMIN_FINALIZATION'], true)
+        || ($caseId > 0 && $caseStatus !== 'CLOSED' && $caseStatus !== 'RESOLVED')
+    );
 
-    $isResolved = ($caseStatus === 'CLOSED' || $caseStatus === 'RESOLVED');
+    $isResolved = $isApprovedAppeal || ($caseStatus === 'CLOSED' || $caseStatus === 'RESOLVED');
 
     // If the case is pending UPCC panel decision, explicitly show Pending!
     if ($isPending && ($offenseLevel === 'MAJOR' || $caseId > 0)) {
         return 'Pending (Awaiting UPCC Panel Hearing & Decision)';
+    }
+
+    if ($isApprovedAppeal && $decidedCat === 0 && empty($rawPunishment) && empty($finalDecision)) {
+        $adminNote = !empty($r['appeal_admin_response']) ? " — Admin Note: " . trim((string)$r['appeal_admin_response']) : "";
+        return "Appeal Approved by UPCC/Admin (Sanction Voided / Cancelled{$adminNote})";
     }
 
     $seqCount = 0;
@@ -500,8 +499,9 @@ function format_full_sanction_penalty(array $r): string {
             $fullSanction .= " — Decision: " . $finalDecision;
         }
 
-        if (!empty($decisionReason)) {
-            $fullSanction .= " — Rationale: " . $decisionReason;
+        if ($isApprovedAppeal) {
+            $adminNote = !empty($r['appeal_admin_response']) ? " — Admin Note: " . trim((string)$r['appeal_admin_response']) : "";
+            $fullSanction .= " [Appeal Approved{$adminNote}]";
         }
 
         return $fullSanction;
@@ -765,12 +765,7 @@ try {
 
               if ($isCaseRow) {
                   $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos(strtoupper((string)($r['case_kind'] ?? '')), 'SECTION4') !== false);
-                  if ($isApprovedAppeal) {
-                      $rowCategory = $isSec4Case ? 'SECTION 4 (APPEAL APPROVED)' : 'AUTOMATIC MAJOR (APPEAL APPROVED)';
-                      $pendingCol = 'N/A (Appeal Approved)';
-                      $resolvedCol = ($decidedCat > 0) ? "APPEAL APPROVED (CATEGORY {$decidedCat})" : "APPEAL APPROVED (SANCTION VOIDED)";
-                      $displayLevel = ($decidedCat > 0) ? "APPEAL APPROVED (CATEGORY {$decidedCat})" : "APPEAL APPROVED (SANCTION VOIDED)";
-                  } elseif ($isDismissed) {
+                  if ($isDismissed) {
                       $rowCategory = 'DISMISSED CASE';
                       $pendingCol = 'N/A (Dismissed)';
                       $resolvedCol = 'DISMISSED CASE';
@@ -789,12 +784,7 @@ try {
                       $displayLevel = ($isResolved && $decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "AUTOMATIC MAJOR (RESOLVED)");
                   }
               } else {
-                  if ($isApprovedAppeal) {
-                      $rowCategory = ($offenseLevel === 'MAJOR') ? 'AUTOMATIC MAJOR (APPEAL APPROVED)' : 'MINOR (APPEAL APPROVED)';
-                      $pendingCol = 'N/A (Appeal Approved)';
-                      $resolvedCol = ($decidedCat > 0) ? "APPEAL APPROVED (CATEGORY {$decidedCat})" : "APPEAL APPROVED (SANCTION VOIDED)";
-                      $displayLevel = ($decidedCat > 0) ? "APPEAL APPROVED (CATEGORY {$decidedCat})" : "APPEAL APPROVED (SANCTION VOIDED)";
-                  } elseif ($isDismissed) {
+                  if ($isDismissed) {
                       $rowCategory = 'DISMISSED OFFENSE';
                       $pendingCol = 'N/A (Dismissed)';
                       $resolvedCol = 'DISMISSED OFFENSE';
