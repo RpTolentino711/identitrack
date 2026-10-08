@@ -529,44 +529,38 @@ function format_full_sanction_penalty(array $r): string {
 }
 
 function detect_registered_major_category(array $r): int {
-    $allText = strtoupper(
+    $origText = strtoupper(
         (string)($r['offense_name'] ?? '') . ' ' .
         (string)($r['offense_code'] ?? '') . ' ' .
         (string)($r['description'] ?? '') . ' ' .
-        (string)($r['case_kind'] ?? '') . ' ' .
-        (string)($r['punishment_details'] ?? '') . ' ' .
-        (string)($r['final_decision'] ?? '') . ' ' .
-        (string)($r['decision_reason'] ?? '')
+        (string)($r['case_kind'] ?? '')
     );
 
-    if (strpos($allText, 'CATEGORY 5') !== false || strpos($allText, 'CAT 5') !== false || strpos($allText, 'CAT5') !== false || strpos($allText, 'EXPULSION') !== false || strpos($allText, 'POLICE') !== false) {
+    if (strpos($origText, 'CATEGORY 5') !== false || strpos($origText, 'CAT 5') !== false || strpos($origText, 'CAT5') !== false || strpos($origText, 'EXPULSION') !== false || strpos($origText, 'POLICE') !== false) {
         return 5;
     }
 
     $reg = (int)($r['registered_category'] ?? 0);
-    $dec = (int)($r['decided_category'] ?? 0);
-
-    // If registered category in DB is 4 or 5, treat as Category 5 for expulsion/highest major tier
     if ($reg === 4 || $reg === 5) {
         return 5;
     }
 
-    if (strpos($allText, 'CATEGORY 4') !== false || strpos($allText, 'EXCLUSION') !== false) {
-        return 5;
+    if (strpos($origText, 'CATEGORY 4') !== false || strpos($origText, 'EXCLUSION') !== false) {
+        return 4;
     }
-    if (strpos($allText, 'CATEGORY 3') !== false || strpos($allText, 'SUSPENSION') !== false || strpos($allText, 'NON-READMISSION') !== false) {
+    if (strpos($origText, 'CATEGORY 3') !== false || strpos($origText, 'SUSPENSION') !== false || strpos($origText, 'NON-READMISSION') !== false) {
         return 3;
     }
-    if (strpos($allText, 'CATEGORY 2') !== false || strpos($allText, 'COMMUNITY SERVICE') !== false || strpos($allText, 'FORMATIVE') !== false) {
+    if (strpos($origText, 'CATEGORY 2') !== false || strpos($origText, 'COMMUNITY SERVICE') !== false || strpos($origText, 'FORMATIVE') !== false) {
         return 2;
     }
-    if (strpos($allText, 'CATEGORY 1') !== false || strpos($allText, 'REPRIMAND') !== false) {
+    if (strpos($origText, 'CATEGORY 1') !== false) {
         return 1;
     }
 
     if ($reg > 0) return $reg;
-    if ($dec > 0) return $dec;
 
+    // Automatic major offenses (Expulsion tier) default to Category 5
     return 5;
 }
 
