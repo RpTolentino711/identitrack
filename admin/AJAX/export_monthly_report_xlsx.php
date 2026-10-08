@@ -541,8 +541,8 @@ function detect_registered_major_category(array $r): int {
     }
 
     $reg = (int)($r['registered_category'] ?? 0);
-    if ($reg === 4 || $reg === 5) {
-        return 5;
+    if ($reg > 0) {
+        return $reg;
     }
 
     if (strpos($origText, 'CATEGORY 4') !== false || strpos($origText, 'EXCLUSION') !== false) {
@@ -558,10 +558,8 @@ function detect_registered_major_category(array $r): int {
         return 1;
     }
 
-    if ($reg > 0) return $reg;
-
-    // Automatic major offenses (Expulsion tier) default to Category 5
-    return 5;
+    // Default Automatic Major category in NU Lipa Discipline Handbook is Category 4
+    return 4;
 }
 
 try {
