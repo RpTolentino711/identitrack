@@ -45,21 +45,39 @@ $priorResolvedCases = db_all(
     [':sid' => $case['student_id'], ':cid' => $case_id]
 );
 
+// ── Anti-Bias Helpers ──────────────────────────────────────────────────────────
+function dept_norm(string $v): string { return preg_replace('/[^a-z0-9]+/i', '', strtolower(trim($v))); }
+function is_biased_department(array $case, string $deptName): bool {
+    $d = dept_norm($deptName);
+    if ($d === '') return false;
+    foreach ([dept_norm((string)($case['student_department'] ?? '')), dept_norm((string)($case['department'] ?? '')), dept_norm((string)($case['program'] ?? '')), dept_norm((string)($case['school'] ?? ''))] as $t) {
+        if ($t !== '' && ($d === $t || str_contains($t, $d) || str_contains($d, $t))) return true;
+    }
+    return false;
+}
+
 $departments = db_all("SELECT dept_id, dept_name FROM departments WHERE is_active = 1 ORDER BY dept_name ASC");
+$unbiasedDepartments = [];
+$biasedDepartments = [];
+foreach ($departments as $d) {
+    if (is_biased_department($case, (string)$d['dept_name'])) {
+        $biasedDepartments[] = $d;
+    } else {
+        $unbiasedDepartments[] = $d;
+    }
+}
+
 $defaultDeptId = (int)($case['assigned_department_id'] ?? 0);
-// If the case already has an assigned department, keep it even when that department
-// currently has no active staff. Only pick a default department when none is assigned.
- $deptWithStaff = db_one(
-    "SELECT d.dept_id
-     FROM departments d
-     JOIN upcc_user u ON u.department_id = d.dept_id AND u.is_active = 1
-     WHERE d.is_active = 1
-     GROUP BY d.dept_id
-     ORDER BY d.dept_name ASC
-     LIMIT 1"
-  );
-if ($defaultDeptId === 0) {
-  $defaultDeptId = (int)($deptWithStaff['dept_id'] ?? ($departments[0]['dept_id'] ?? 0));
+if ($defaultDeptId === 0 || is_biased_department($case, (string)($case['assigned_dept_name'] ?? ''))) {
+    $deptWithStaffNonBiased = null;
+    foreach ($unbiasedDepartments as $ud) {
+        $hasStaff = db_one("SELECT 1 FROM upcc_user WHERE department_id = :d AND is_active = 1 LIMIT 1", [':d' => $ud['dept_id']]);
+        if ($hasStaff) {
+            $deptWithStaffNonBiased = (int)$ud['dept_id'];
+            break;
+        }
+    }
+    $defaultDeptId = $deptWithStaffNonBiased ?: (int)($unbiasedDepartments[0]['dept_id'] ?? ($departments[0]['dept_id'] ?? 0));
 }
 $initialDeptId = $defaultDeptId;
 $initialDeptMembers = $initialDeptId > 0
@@ -79,17 +97,6 @@ $allActiveMembers = db_all("
     WHERE u.is_active = 1
     ORDER BY u.full_name
 ");
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-function dept_norm(string $v): string { return preg_replace('/[^a-z0-9]+/i', '', strtolower(trim($v))); }
-function is_biased_department(array $case, string $deptName): bool {
-    $d = dept_norm($deptName);
-    if ($d === '') return false;
-    foreach ([dept_norm((string)($case['student_department'] ?? '')), dept_norm((string)($case['department'] ?? '')), dept_norm((string)($case['program'] ?? '')), dept_norm((string)($case['school'] ?? ''))] as $t) {
-        if ($t !== '' && ($d === $t || str_contains($t, $d) || str_contains($d, $t))) return true;
-    }
-    return false;
-}
 function sync_case_panel_members(int $caseId, array $panelIds): void {
     db_exec("DELETE FROM upcc_case_panel_member WHERE case_id = :id", [':id' => $caseId]);
     $seen = [];
@@ -1462,15 +1469,38 @@ body {
                 <div style="font-weight:700; margin-bottom:12px;">Edit Hearing Configuration</div>
                 <form method="post">
                   <input type="hidden" name="action" value="update_hearing_config">
+                  
+                  <!-- Anti-Bias Student Home Department Notice Banner -->
+                  <div style="margin-bottom:16px; padding:12px 14px; background:#fffbe0; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:10px; font-size:12px; color:#78350f;">
+                      <div style="font-weight:800; color:#92400e; margin-bottom:2px; display:flex; align-items:center; gap:6px;">
+                          <span>🎓 Student Home Department:</span>
+                          <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:900; border:1px solid #fcd34d;"><?= htmlspecialchars($case['department'] ?? $case['student_department'] ?? $case['program'] ?? 'N/A') ?></span>
+                      </div>
+                      <div style="font-size:11px; margin-top:4px; color:#92400e; font-weight:600;">
+                          ⚖️ <strong>Anti-Bias Rule Enforced:</strong> Lead department and panel members matching the student's home department are separated and disabled to prevent conflict of interest.
+                      </div>
+                  </div>
+
                   <div class="form-group">
                     <label class="form-label">Lead Department</label>
                     <select name="assigned_department_id" id="hearing_edit_dept_select" class="form-control" onchange="filterPanelDropdown('hearing_edit')" required>
                       <option value="">Select department…</option>
-                      <?php foreach ($departments as $dept): ?>
-                        <option value="<?= $dept['dept_id'] ?>" <?= (($case['assigned_department_id'] ?? $defaultDeptId) == $dept['dept_id']) ? 'selected' : '' ?>>
-                          <?= htmlspecialchars($dept['dept_name']) ?>
-                        </option>
-                      <?php endforeach; ?>
+                      <optgroup label="Available Departments (Anti-Bias Compliant)">
+                        <?php foreach ($unbiasedDepartments as $dept): ?>
+                          <option value="<?= $dept['dept_id'] ?>" <?= (($case['assigned_department_id'] ?? $defaultDeptId) == $dept['dept_id']) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($dept['dept_name']) ?>
+                          </option>
+                        <?php endforeach; ?>
+                      </optgroup>
+                      <?php if (!empty($biasedDepartments)): ?>
+                        <optgroup label="Student Home Department (Disabled to Avoid Bias)">
+                          <?php foreach ($biasedDepartments as $dept): ?>
+                            <option value="<?= $dept['dept_id'] ?>" disabled style="color:#94a3b8; background:#f1f5f9;">
+                              <?= htmlspecialchars($dept['dept_name']) ?> (Disabled — Anti-Bias Rule)
+                            </option>
+                          <?php endforeach; ?>
+                        </optgroup>
+                      <?php endif; ?>
                     </select>
                   </div>
                   <div class="form-group">
@@ -2665,6 +2695,18 @@ body {
           </div>
           <div class="card-body">
             <div class="alert alert-warning" style="margin-bottom:1rem">⚠️ Saving will reset all existing votes and rounds.</div>
+            
+            <!-- Anti-Bias Student Home Department Notice Banner -->
+            <div style="margin-bottom:16px; padding:12px 14px; background:#fffbe0; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:10px; font-size:12px; color:#78350f;">
+                <div style="font-weight:800; color:#92400e; margin-bottom:2px; display:flex; align-items:center; gap:6px;">
+                    <span>🎓 Student Home Department:</span>
+                    <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:900; border:1px solid #fcd34d;"><?= htmlspecialchars($case['department'] ?? $case['student_department'] ?? $case['program'] ?? 'N/A') ?></span>
+                </div>
+                <div style="font-size:11px; margin-top:4px; color:#92400e; font-weight:600;">
+                    ⚖️ <strong>Anti-Bias Rule Enforced:</strong> Lead department and panel members matching the student's home department are separated and disabled to prevent conflict of interest.
+                </div>
+            </div>
+
             <form method="post" id="editHearingForm" onsubmit="return validateHearingConfigForm()">
               <input type="hidden" name="action" value="update_hearing_config">
               <div class="form-row" style="grid-template-columns:1fr 1fr">
@@ -2684,11 +2726,22 @@ body {
                 <div class="form-group">
                   <label class="form-label">Lead Department</label>
                   <select name="assigned_department_id" id="reconfig_dept_select" class="form-control" onchange="filterPanelDropdown('reconfig')" required>
-                    <?php foreach ($departments as $dept): ?>
-                      <option value="<?= $dept['dept_id'] ?>" <?= ($defaultDeptId === (int)$dept['dept_id']) ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($dept['dept_name']) ?>
-                      </option>
-                    <?php endforeach; ?>
+                    <optgroup label="Available Departments (Anti-Bias Compliant)">
+                      <?php foreach ($unbiasedDepartments as $dept): ?>
+                        <option value="<?= $dept['dept_id'] ?>" <?= ($defaultDeptId === (int)$dept['dept_id']) ? 'selected' : '' ?>>
+                          <?= htmlspecialchars($dept['dept_name']) ?>
+                        </option>
+                      <?php endforeach; ?>
+                    </optgroup>
+                    <?php if (!empty($biasedDepartments)): ?>
+                      <optgroup label="Student Home Department (Disabled to Avoid Bias)">
+                        <?php foreach ($biasedDepartments as $dept): ?>
+                          <option value="<?= $dept['dept_id'] ?>" disabled style="color:#94a3b8; background:#f1f5f9;">
+                            <?= htmlspecialchars($dept['dept_name']) ?> (Disabled — Anti-Bias Rule)
+                          </option>
+                        <?php endforeach; ?>
+                      </optgroup>
+                    <?php endif; ?>
                   </select>
                 </div>
                 <div class="form-group">
@@ -2899,16 +2952,36 @@ function escapeHtml(str) {
   });
 }
 
-// ── DEPARTMENT → MEMBER LOADER (SEARCHABLE MULTISELECT) ─────────────────────────
-let selectedPanelMembersHearing = [];
-let selectedPanelMembersReconfig = [];
+const STUDENT_DEPT = <?= json_encode((string)($case['department'] ?? $case['student_department'] ?? $case['program'] ?? $case['school'] ?? '')) ?>;
+
+function normDeptName(str) {
+    if (!str) return '';
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isBiasedDeptName(deptName) {
+    const s = normDeptName(STUDENT_DEPT);
+    const d = normDeptName(deptName);
+    if (!s || !d) return false;
+    return s === d || s.includes(d) || d.includes(s);
+}
+
+// ── DEPARTMENT → MEMBER LOADER (SEARCHABLE MULTISELECT WITH ANTI-BIAS) ─────────
+const selectedPanelMembersMap = {
+    'hearing': [],
+    'hearing_edit': [],
+    'reconfig': []
+};
+
+function getSelectedPanelList(prefix) {
+    if (!selectedPanelMembersMap[prefix]) {
+        selectedPanelMembersMap[prefix] = [];
+    }
+    return selectedPanelMembersMap[prefix];
+}
 
 function loadMembersForDepartment(prefix, deptId, initialSelected = []) {
-    if (prefix === 'hearing') {
-        selectedPanelMembersHearing = Array.isArray(initialSelected) ? initialSelected.map(String) : [];
-    } else {
-        selectedPanelMembersReconfig = Array.isArray(initialSelected) ? initialSelected.map(String) : [];
-    }
+    selectedPanelMembersMap[prefix] = Array.isArray(initialSelected) ? initialSelected.map(String) : [];
     renderSelectedPanelMembers(prefix);
     filterPanelDropdown(prefix);
 }
@@ -2922,7 +2995,7 @@ function renderSelectedPanelMembers(prefix) {
     let html = '';
     let hiddenHtml = '';
     
-    const selectedList = prefix === 'hearing' ? selectedPanelMembersHearing : selectedPanelMembersReconfig;
+    const selectedList = getSelectedPanelList(prefix);
     
     selectedList.forEach(id => {
         const staff = activeStaff.find(m => String(m.upcc_id) === id);
@@ -2948,15 +3021,20 @@ function filterPanelDropdown(prefix) {
     
     const query = input.value.toLowerCase().trim();
     const selectedDeptId = deptSelect.value;
-    const selectedList = prefix === 'hearing' ? selectedPanelMembersHearing : selectedPanelMembersReconfig;
+    const selectedList = getSelectedPanelList(prefix);
     
     let availableStaff = committeeMembers.filter(m => String(m.is_active) === '1');
     
+    // Filter by selected lead department
     if (selectedDeptId) {
         availableStaff = availableStaff.filter(m => String(m.department_id) === String(selectedDeptId));
     }
     
+    // Exclude already selected
     availableStaff = availableStaff.filter(m => !selectedList.includes(String(m.upcc_id)));
+    
+    // Exclude biased staff matching student's home department
+    availableStaff = availableStaff.filter(m => !isBiasedDeptName(m.dept_name || ''));
     
     const filtered = availableStaff.filter(m => 
         (m.full_name && m.full_name.toLowerCase().includes(query)) ||
@@ -2980,7 +3058,12 @@ function filterPanelDropdown(prefix) {
 
 function addPanelMember(prefix, id) {
     id = String(id);
-    const selectedList = prefix === 'hearing' ? selectedPanelMembersHearing : selectedPanelMembersReconfig;
+    const selectedList = getSelectedPanelList(prefix);
+    const staff = committeeMembers.find(m => String(m.upcc_id) === id);
+    if (staff && isBiasedDeptName(staff.dept_name || '')) {
+        alert('Anti-Bias Violation: Panel member "' + (staff.full_name || '') + '" belongs to the student\'s home department (' + STUDENT_DEPT + ') and cannot be assigned.');
+        return;
+    }
     if (!selectedList.includes(id)) {
         selectedList.push(id);
         renderSelectedPanelMembers(prefix);
@@ -2995,11 +3078,7 @@ function addPanelMember(prefix, id) {
 }
 
 function removePanelMember(prefix, id) {
-    if (prefix === 'hearing') {
-        selectedPanelMembersHearing = selectedPanelMembersHearing.filter(m => m !== String(id));
-    } else {
-        selectedPanelMembersReconfig = selectedPanelMembersReconfig.filter(m => m !== String(id));
-    }
+    selectedPanelMembersMap[prefix] = getSelectedPanelList(prefix).filter(m => m !== String(id));
     renderSelectedPanelMembers(prefix);
     filterPanelDropdown(prefix);
 }
