@@ -265,32 +265,7 @@ function runNativePhpXgbPrediction(array $payload): ?array
 
     $combinedText = trim($clean($scenario) . ' ' . $clean($category) . ' ' . $clean($violation));
     preg_match_all('/\b[a-z0-9_]{2,}\b/', $combinedText, $mMatches);
-    $rawWords = $mMatches[0] ?? [];
-
-    $vocabAliases = [
-        'bomb' => ['improvised', 'explosive', 'device', 'ied'],
-        'bombs' => ['improvised', 'explosive', 'device', 'ied'],
-        'explosive' => ['improvised', 'explosive', 'device', 'ied'],
-        'explosives' => ['improvised', 'explosive', 'device', 'ied'],
-        'gun' => ['deadly', 'weapon', 'firearm'],
-        'guns' => ['deadly', 'weapon', 'firearm'],
-        'knife' => ['deadly', 'weapon', 'blade'],
-        'knives' => ['deadly', 'weapon', 'blade'],
-        'weed' => ['illegal', 'drugs', 'marijuana'],
-        'shabu' => ['illegal', 'drugs', 'methamphetamine'],
-        'vape' => ['smoking', 'e', 'cigarette', 'tobacco']
-    ];
-
-    $expandedWords = [];
-    foreach ($rawWords as $w) {
-        $expandedWords[] = $w;
-        if (isset($vocabAliases[$w])) {
-            foreach ($vocabAliases[$w] as $sw) {
-                $expandedWords[] = $sw;
-            }
-        }
-    }
-    $words = array_values(array_unique($expandedWords));
+    $words = $mMatches[0] ?? [];
 
     $tokens = [];
     $count = count($words);
