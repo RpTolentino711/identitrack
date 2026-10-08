@@ -238,7 +238,11 @@ foreach ($reqs as $r) {
     $activeOrCompletedCount++;
   }
 }
-$isUnderInvestigation = ((string)$policy['mode'] === 'APPEAL_GRACE_PERIOD') && ($activeOrCompletedCount === 0);
+$hasServiceTiedCase = (!empty($c2_case) || count($reqs) > 0);
+$isUnderInvestigation = ((string)$policy['mode'] === 'APPEAL_GRACE_PERIOD') 
+  && ($activeOrCompletedCount === 0)
+  && $hasServiceTiedCase
+  && (strpos((string)$policy['message'], 'Category 1') === false);
 $hasActiveAdmin = ($activeAdmin !== null && $activeAdmin !== false);
 
 echo json_encode([

@@ -1154,7 +1154,8 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                             if (!serviceDone &&
                                 _data!.isUnderInvestigation &&
                                 _data!.sessions.isEmpty &&
-                                _data!.activeSession == null)
+                                _data!.activeSession == null &&
+                                !_data!.investigationMessage.contains('Category 1'))
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                                 child: Container(

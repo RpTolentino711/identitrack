@@ -1502,18 +1502,35 @@ function student_account_mode(string $studentId): array
     ];
   }
 
-  // Check if the student has already had an appeal for this specific case (even if rejected)
+  // Check if the student has already had an appeal for this specific case (or linked offenses)
   $hasHadAppeal = false;
   if ($appealTableExists) {
     $anyAppeal = db_one(
       "SELECT status FROM student_appeal_request
-       WHERE student_id = :sid AND case_id = :cid
+       WHERE student_id = :sid 
+         AND (case_id = :cid OR offense_id IN (SELECT offense_id FROM upcc_case_offense WHERE case_id = :cid2))
        LIMIT 1",
-      [':sid' => $studentId, ':cid' => (int)($row['case_id'] ?? 0)]
+      [':sid' => $studentId, ':cid' => (int)($row['case_id'] ?? 0), ':cid2' => (int)($row['case_id'] ?? 0)]
     );
     if ($anyAppeal) {
         $hasHadAppeal = true;
     }
+  }
+
+  // Check if the student already accepted/acknowledged the decision
+  $hasAcceptedDecision = false;
+  if ($row['status'] === 'RESOLVED') {
+    $hasAcceptedDecision = true;
+  }
+  $ackOffense = db_one(
+    "SELECT 1 FROM upcc_case_offense uco
+     JOIN offense o ON o.offense_id = uco.offense_id
+     WHERE uco.case_id = :cid AND o.acknowledged_at IS NOT NULL
+     LIMIT 1",
+    [':cid' => (int)($row['case_id'] ?? 0)]
+  );
+  if ($ackOffense) {
+    $hasAcceptedDecision = true;
   }
 
   $category = (int)($row['decided_category'] ?? 0);
@@ -1549,7 +1566,7 @@ function student_account_mode(string $studentId): array
   }
 
   // AUTO-RESOLVE IF GRACE PERIOD EXPIRED WITHOUT ACTION
-  if ($row['status'] === 'CLOSED' && !$isInGracePeriod && !$hasHadAppeal && !$hasAcceptedViaService) {
+  if ($row['status'] === 'CLOSED' && !$isInGracePeriod && !$hasHadAppeal && !$hasAcceptedViaService && !$hasAcceptedDecision) {
       $caseId = (int)$row['case_id'];
 
       // 1. Update case status to RESOLVED
@@ -1610,7 +1627,7 @@ function student_account_mode(string $studentId): array
       }
   }
 
-  if ($row['status'] === 'CLOSED' && $isInGracePeriod && !$hasHadAppeal && !$hasAcceptedViaService) {
+  if ($row['status'] === 'CLOSED' && $isInGracePeriod && !$hasHadAppeal && !$hasAcceptedViaService && !$hasAcceptedDecision) {
     $daysLeft = max(0, ceil(($gracePeriodEnds - time()) / 86400));
     return [
       'mode' => 'APPEAL_GRACE_PERIOD',
