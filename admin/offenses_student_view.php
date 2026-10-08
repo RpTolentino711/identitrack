@@ -2154,17 +2154,17 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                             $pStatus = 'ONGOING';
                             if ($is_manually_completed) {
                                 $pStatus = 'COMPLETED';
+                            } else if (in_array($ucStatus, ['VOID', 'CANCELLED'], true)) {
+                                $pStatus = 'COMPLETED';
                             } else if ($catVal === 1) {
                                 $is_probation_active = false;
-                                if (!empty($h['probation_until'])) {
+                                if (!empty($h['probation_until']) && strtotime($h['probation_until']) > 86400) {
                                     $is_probation_active = (strtotime($h['probation_until']) > time());
                                 }
                                 if ($is_probation_active) {
                                     $pStatus = 'ONGOING';
-                                } else if (in_array($ucStatus, ['CLOSED', 'RESOLVED'], true)) {
-                                    $pStatus = 'COMPLETED';
                                 } else {
-                                    $pStatus = 'ONGOING';
+                                    $pStatus = 'COMPLETED';
                                 }
                             } else if ($catVal === 2) {
                                 if (strtoupper($csrVal) === 'COMPLETED') {
@@ -2173,7 +2173,7 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                                     $pStatus = 'ONGOING';
                                 }
                             } else {
-                                if (in_array($ucStatus, ['CLOSED', 'RESOLVED'], true)) {
+                                if (in_array($ucStatus, ['CLOSED', 'RESOLVED', 'VOID', 'CANCELLED'], true)) {
                                     $pStatus = 'COMPLETED';
                                 } else {
                                     $pStatus = 'ONGOING';

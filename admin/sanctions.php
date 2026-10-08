@@ -1515,7 +1515,7 @@ function formatCaseActivity(array $act): string {
                           <div class="detail-item">
                             <div class="detail-label">Probation End Date</div>
                             <div class="detail-value">
-                              <?php echo !empty($c['probation_until']) ? date('M j, Y g:i A', strtotime($c['probation_until'])) : 'No date set'; ?>
+                              <?php echo (!empty($c['probation_until']) && strtotime($c['probation_until']) > 86400) ? date('M j, Y g:i A', strtotime($c['probation_until'])) : 'No date set'; ?>
                             </div>
                           </div>
                           <div class="detail-item">
@@ -1531,7 +1531,7 @@ function formatCaseActivity(array $act): string {
                           'student_id' => $c['student_id'],
                           'student_name' => $student_name,
                           'category' => 1,
-                          'probation_until' => !empty($c['probation_until']) ? date('Y-m-d', strtotime($c['probation_until'])) : '',
+                          'probation_until' => (!empty($c['probation_until']) && strtotime($c['probation_until']) > 86400) ? date('Y-m-d', strtotime($c['probation_until'])) : '',
                           'hours' => 0,
                           'completed' => $is_completed,
                           'auto_check_completed' => $is_completed

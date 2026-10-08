@@ -1486,19 +1486,19 @@ $students = db_all($sql, $params) ?: [];
         let pStatus = 'ONGOING';
         if (isManuallyCompleted) {
             pStatus = 'COMPLETED';
+        } else if (['VOID', 'CANCELLED'].includes(caseStatus)) {
+            pStatus = 'COMPLETED';
         } else if (cat === 0) {
             pStatus = 'ONGOING';
         } else if (cat === 1) {
             let isProbationActive = false;
-            if (o.probation_until) {
+            if (o.probation_until && new Date(o.probation_until).getTime() > 86400000) {
                 isProbationActive = (new Date(o.probation_until).getTime() > Date.now());
             }
             if (isProbationActive) {
                 pStatus = 'ONGOING';
-            } else if (['CLOSED', 'RESOLVED'].includes(caseStatus)) {
-                pStatus = 'COMPLETED';
             } else {
-                pStatus = 'ONGOING';
+                pStatus = 'COMPLETED';
             }
         } else if (cat === 2) {
             if (csrStatus === 'COMPLETED') {
@@ -1507,7 +1507,7 @@ $students = db_all($sql, $params) ?: [];
                 pStatus = 'ONGOING';
             }
         } else {
-            if (['CLOSED', 'RESOLVED'].includes(caseStatus)) {
+            if (['CLOSED', 'RESOLVED', 'VOID', 'CANCELLED'].includes(caseStatus)) {
                 pStatus = 'COMPLETED';
             } else {
                 pStatus = 'ONGOING';
