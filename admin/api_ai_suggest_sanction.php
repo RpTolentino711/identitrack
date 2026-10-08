@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once __DIR__ . '/../database/database.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -98,6 +100,86 @@ function getCategoryPrecedents(?int $majorCategory, int $offenseTypeId, int $exc
         ORDER BY o.date_committed DESC
         LIMIT " . (int)$limit . "
     ", [':cat' => $majorCategory, ':otid' => $offenseTypeId, ':ecid' => $excludeCaseId]);
+}
+/**
+ * Evaluates the offense caliber and progressive discipline escalation rules
+ * Under the NU Lipa Student Handbook:
+ * - 1st Major Offense: Category 1 (Probation/Reprimand) or Category 2 (Formative CS 150–250h) depending on severity. Extreme violations (drugs, firearms, explosives, bomb threats, severe hazing) -> Category 5.
+ * - 2nd Major Offense / 2nd UPCC Case (Repeat Offender): Cannot receive 1st offense Category 1/2 leniency. Must escalate to Category 3, 4, or 5 based on offense caliber:
+ *   - Extreme Caliber (Drugs, Firearms, Explosives, Bomb threats, Hazing, Transcript Syndicate) -> Category 5 (Expulsion)
+ *   - Critical Caliber (Weapons/Blades, Physical Assault/Brawls, Cyber Extortion/Hacking/Data Breach, Major Academic Dishonesty/Leakage, Severe Sexual Harassment, Major Theft/Extortion) -> Category 4 (Exclusion / 1-year Suspension)
+ *   - Standard Major Offenses on 2nd occurrence (Plagiarism, Vandalism, Insubordination, 6+ Minors Cycle 2, Smoking/Vaping repeat) -> Category 3 (Non-Readmission / Corrective Service 250+ Hours)
+ */
+function evaluateOffenseCaliber(string $offenseText, bool $isSecondOrHigherCase, int $attemptNum = 1): array
+{
+    $text = strtolower($offenseText);
+
+    // Extreme Caliber -> Category 5 (Summary Expulsion)
+    $isExtreme = (
+        preg_match('/\b(drug|drugs|marijuana|weed|shabu|methamphetamine|narcotic|narcotics|cocaine|ecstasy|paraphernalia)\b/i', $text) ||
+        preg_match('/\b(gun|guns|firearm|firearms|explosive|explosives|bomb|bombs|ied|grenade|deadly weapon)\b/i', $text) ||
+        preg_match('/\b(hazing|torture|arson)\b/i', $text) ||
+        preg_match('/\b(transcript|diploma|seal|syndicate)\b/i', $text)
+    );
+
+    // Critical Caliber -> Category 4 on 2nd offense (Exclusion) or Category 3 on 1st offense
+    $isCritical = (
+        preg_match('/\b(knife|knives|blade|blades|machete)\b/i', $text) ||
+        preg_match('/\b(assault|battery|brawl|fight|fighting|physical violence|inflicting injury|injuries|struck)\b/i', $text) ||
+        preg_match('/\b(hack|hacking|data breach|cyber extortion|blackmail|extortion|ransom|unauthorized access)\b/i', $text) ||
+        preg_match('/\b(exam leak|leakage|selling exam|hiring impersonator|tampering grade|grade tampering)\b/i', $text) ||
+        preg_match('/\b(sexual harassment|lewd|voyeurism|coercion|stalking|indecent act|lasciviousness)\b/i', $text) ||
+        preg_match('/\b(theft|robbery|swindling|financial fraud|stealing)\b/i', $text) ||
+        preg_match('/\b(gross insubordination|defamation|malicious imputation)\b/i', $text)
+    );
+
+    if ($isExtreme) {
+        return [
+            'caliber' => 'Extreme Gravity (Expulsion Level)',
+            'min_category' => 5,
+            'category_label' => 'Category 5',
+            'recommended_sanction' => 'Category 5 (Summary Expulsion & Permanent Record Referral)',
+            'hours' => 0,
+            'escalation_reason' => 'Offense involves extreme violations (illegal drugs, deadly firearms/explosives, severe hazing, or official transcript tampering) which warrants immediate summary expulsion under University Disciplinary Regulations.'
+        ];
+    }
+
+    if ($isCritical) {
+        $cat = $isSecondOrHigherCase ? 4 : 3;
+        return [
+            'caliber' => 'Critical Severity (Exclusion / Suspension Level)',
+            'min_category' => $cat,
+            'category_label' => "Category {$cat}",
+            'recommended_sanction' => $cat === 4 
+                ? 'Category 4 (Exclusion, dropping student immediately from roll of students for 1+ academic years)' 
+                : 'Category 3 (Non-Readmission, denial of admission for next term / Corrective CS 250+ Hours)',
+            'hours' => $cat === 4 ? 0 : 250,
+            'escalation_reason' => $isSecondOrHigherCase
+                ? 'Student is on their 2nd disciplinary case involving a critical offense caliber (violence, cyber extortion, weapons, or severe dishonesty). Under Progressive Discipline Guidelines, repeat critical violations escalate to Category 4 (Exclusion).'
+                : 'Offense carries high severity under Section 5 major offense disciplinary matrix.'
+        ];
+    }
+
+    // Standard Major Offense
+    if ($isSecondOrHigherCase) {
+        return [
+            'caliber' => 'Standard Major Offense (2nd Case Recidivism)',
+            'min_category' => 3,
+            'category_label' => 'Category 3',
+            'recommended_sanction' => 'Category 3 (Non-Readmission, denial of admission for next term / 250 Hours Corrective Community Service)',
+            'hours' => 250,
+            'escalation_reason' => 'Student has committed a 2nd disciplinary case. Progressive discipline rules mandate escalation from Category 1/2 to Category 3 (Non-Readmission next term / 250+ hours corrective community service).'
+        ];
+    }
+
+    return [
+        'caliber' => 'Standard 1st Major Offense',
+        'min_category' => 1,
+        'category_label' => 'Category 1 / 2',
+        'recommended_sanction' => 'Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program)',
+        'hours' => 150,
+        'escalation_reason' => '1st major offense evaluated under standard formative disciplinary matrix.'
+    ];
 }
 
 /**
@@ -962,6 +1044,15 @@ try {
 
         $finalNumOffenseStr = !empty($pNumOffense) ? $pNumOffense : (($effectiveAttempt >= 2) ? ($effectiveAttempt . ($effectiveAttempt === 2 ? 'nd Offense' : ($effectiveAttempt === 3 ? 'rd Offense' : 'th Offense'))) : "1st Offense");
 
+        // Aggregate all offenses in the case for thorough AI text analysis
+        $allOffensesNamesList = [];
+        if (!empty($allCaseOffenses)) {
+            foreach ($allCaseOffenses as $aco) {
+                $allOffensesNamesList[] = ($aco['offense_name'] ?? '') . ' ' . ($aco['offense_description'] ?? '');
+            }
+        }
+        $combinedTextForCaliber = trim($pViolation . ' ' . $pDescription . ' ' . implode(' ', $allOffensesNamesList));
+
         $predictCaseMeta = array_merge($caseMeta, [
             'offense_name' => $pViolation,
             'category' => $pCategory,
@@ -972,7 +1063,7 @@ try {
             'instance_count' => max($instanceCount, $effectiveAttempt)
         ]);
 
-        $aiEngineRes = queryAiEngine($pDescription ?: $pViolation, $studentName, $targetStudentId, $predictCaseMeta);
+        $aiEngineRes = queryAiEngine($pDescription ?: $combinedTextForCaliber ?: $pViolation, $studentName, $targetStudentId, $predictCaseMeta);
 
         if (empty($aiEngineRes['used_ml_model']) || !empty($aiEngineRes['error'])) {
             echo json_encode([
@@ -997,39 +1088,45 @@ try {
             ];
         }
 
-        $suggestedCategoryNum = $aiEngineRes['category_num'] ?? 1;
-        $suggestedCategoryLabel = $aiEngineRes['category_label'] ?? 'Category 1';
-        $suggestedSanction = $aiEngineRes['sanction'] ?? '';
-        $suggestedCsHours = $aiEngineRes['community_service_hours'] ?? 0;
-        $aiExplanationText = $aiEngineRes['text'];
+        $suggestedCategoryNum = (int)($aiEngineRes['category_num'] ?? 1);
+        $suggestedCategoryLabel = (string)($aiEngineRes['category_label'] ?? 'Category 1');
+        $suggestedSanction = (string)($aiEngineRes['sanction'] ?? '');
+        $suggestedCsHours = (float)($aiEngineRes['community_service_hours'] ?? 0);
 
-        if (!empty($exactList)) {
-            $firstPrecedent = $exactList[0];
-            $precCatNum = (int)($firstPrecedent['decided_category'] ?? $suggestedCategoryNum);
-            if ($precCatNum > 0) {
-                $suggestedCategoryNum = $precCatNum;
-                $suggestedCategoryLabel = "Category {$precCatNum}";
-            }
-            $precDetails = formatPunishmentDetails((string)($firstPrecedent['punishment_details'] ?? ''));
-            if (!empty($precDetails) && $precDetails !== 'n/a') {
-                $suggestedSanction = $precDetails;
-                if (preg_match('/(\d+)\s*Hours/i', $precDetails, $hm)) {
-                    $suggestedCsHours = (float)$hm[1];
-                }
-            }
-            $precedentNotice = "Based on existing resolved cases in our historical database, the standard punishment for this kind of offense (**{$pViolation}**) is **{$suggestedCategoryLabel}**" . ($suggestedCsHours > 0 ? " ({$suggestedCsHours} Hours Community Service)." : ".");
-            $aiExplanationText = "🤖 **Identati Ai Precedent Analysis & Recommendation**:\n\n"
-                . "• **Sanction Category**: **{$suggestedCategoryLabel}**\n"
-                . "• **Suggested Punishment**: **{$suggestedSanction}**\n"
-                . ($suggestedCsHours > 0 ? "• **Recommended Service Time**: **{$suggestedCsHours} Hours Community Service**\n" : "")
-                . "• **Precedent Analysis**: {$precedentNotice}\n\n"
-                . "💡 **Why? (Reason)**: Found " . count($exactList) . " resolved historical case(s) with decided intervention in official campus database records.";
+        // Evaluate offense caliber and progressive discipline escalation
+        $caliberEval = evaluateOffenseCaliber($combinedTextForCaliber, $isSecondOrHigherOffense, $effectiveAttempt);
+
+        // Progressive Escalation: For 2nd (or repeat) major cases, enforce minimum Category 3, 4, or 5 according to offense caliber
+        if ($caliberEval['min_category'] > $suggestedCategoryNum) {
+            $suggestedCategoryNum = (int)$caliberEval['min_category'];
+            $suggestedCategoryLabel = (string)$caliberEval['category_label'];
+            $suggestedSanction = (string)$caliberEval['recommended_sanction'];
+            $suggestedCsHours = (float)$caliberEval['hours'];
         }
+
+        $totalDatasetCountStr = function_exists('get_total_ai_dataset_count') ? number_format(get_total_ai_dataset_count()) : "3,441";
+
+        $recidivismNotice = "";
+        if ($isSecondOrHigherOffense) {
+            $recidivismNotice = "• **Recidivism & Escalation**: ⚠️ **{$finalNumOffenseStr} Detected** (Student has {$totalPrior} prior resolved case(s) on file). Under the NU Lipa Progressive Disciplinary Matrix, repeat major offenses escalate to **{$suggestedCategoryLabel}** based on offense caliber (**{$caliberEval['caliber']}**).\n";
+        } else {
+            $recidivismNotice = "• **Offense Level**: 1st Major Infraction (Evaluated under standard formative disciplinary matrix).\n";
+        }
+
+        $aiExplanationText = "🤖 **Identati Ai XGBoost & Progressive Disciplinary Recommendation**:\n\n"
+            . "• **Recommended Category**: **{$suggestedCategoryLabel}**\n"
+            . "• **Suggested Punishment**: **{$suggestedSanction}**\n"
+            . ($suggestedCsHours > 0 ? "• **Recommended Service Time**: **{$suggestedCsHours} Hours Community Service**\n" : "")
+            . "• **Offense Evaluated**: **{$pViolation}**" . ($offenseCount > 1 ? " *(and {$offenseCount} aggregated charges in this case)*" : "") . "\n"
+            . "• **Offense Caliber**: **{$caliberEval['caliber']}**\n"
+            . "• **Confidence Score**: **{$aiEngineRes['confidence']}%** (Severity: **{$aiEngineRes['severity']}**)\n"
+            . $recidivismNotice . "\n"
+            . "💡 **Why? (Reason)**: {$caliberEval['escalation_reason']}";
 
         echo json_encode([
             'ok' => true,
             'action' => $action,
-            'source' => !empty($exactList) ? 'resolved_db_precedents' : 'comscie_xgboost_ml_model',
+            'source' => 'comscie_xgboost_ml_model',
             'is_new_offense_type' => false,
             'student_id' => $targetStudentId,
             'student_name' => $studentName,
@@ -1048,7 +1145,7 @@ try {
             'ai_explanation' => $aiExplanationText,
             'reply' => $aiExplanationText,
             'ai_available' => true,
-            'engine' => !empty($exactList) ? 'Identati Ai Historical Precedent Alignment Engine' : $aiEngineRes['engine'],
+            'engine' => $aiEngineRes['engine'],
             'privacy' => $aiEngineRes['privacy']
         ]);
         exit;
