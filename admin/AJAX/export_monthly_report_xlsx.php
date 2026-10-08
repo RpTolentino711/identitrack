@@ -528,6 +528,48 @@ function format_full_sanction_penalty(array $r): string {
     return "Under Review";
 }
 
+function detect_registered_major_category(array $r): int {
+    $allText = strtoupper(
+        (string)($r['offense_name'] ?? '') . ' ' .
+        (string)($r['offense_code'] ?? '') . ' ' .
+        (string)($r['description'] ?? '') . ' ' .
+        (string)($r['case_kind'] ?? '') . ' ' .
+        (string)($r['punishment_details'] ?? '') . ' ' .
+        (string)($r['final_decision'] ?? '') . ' ' .
+        (string)($r['decision_reason'] ?? '')
+    );
+
+    if (strpos($allText, 'CATEGORY 5') !== false || strpos($allText, 'CAT 5') !== false || strpos($allText, 'CAT5') !== false || strpos($allText, 'EXPULSION') !== false || strpos($allText, 'POLICE') !== false) {
+        return 5;
+    }
+
+    $reg = (int)($r['registered_category'] ?? 0);
+    $dec = (int)($r['decided_category'] ?? 0);
+
+    // If registered category in DB is 4 or 5, treat as Category 5 for expulsion/highest major tier
+    if ($reg === 4 || $reg === 5) {
+        return 5;
+    }
+
+    if (strpos($allText, 'CATEGORY 4') !== false || strpos($allText, 'EXCLUSION') !== false) {
+        return 5;
+    }
+    if (strpos($allText, 'CATEGORY 3') !== false || strpos($allText, 'SUSPENSION') !== false || strpos($allText, 'NON-READMISSION') !== false) {
+        return 3;
+    }
+    if (strpos($allText, 'CATEGORY 2') !== false || strpos($allText, 'COMMUNITY SERVICE') !== false || strpos($allText, 'FORMATIVE') !== false) {
+        return 2;
+    }
+    if (strpos($allText, 'CATEGORY 1') !== false || strpos($allText, 'REPRIMAND') !== false) {
+        return 1;
+    }
+
+    if ($reg > 0) return $reg;
+    if ($dec > 0) return $dec;
+
+    return 5;
+}
+
 try {
   $spreadsheet = new Spreadsheet();
   $spreadsheet->getCalculationEngine()->disableCalculationCache();
