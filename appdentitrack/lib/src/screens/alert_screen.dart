@@ -374,18 +374,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           break;
                         }
                       }
-                      if (targetOffense == null) {
-                        for (final item in res.items) {
-                          if (item.level.toUpperCase() == 'MAJOR' || item.isBundle) {
-                            targetOffense = item;
-                            break;
-                          }
-                        }
-                      }
-                    }
-
-                    if (targetOffense == null && res.items.isNotEmpty) {
-                      targetOffense = res.items.first;
                     }
 
                     if (targetOffense != null) {
@@ -401,6 +389,59 @@ class _AlertsScreenState extends State<AlertsScreen> {
                         ),
                       );
                       _load();
+                    } else if (isApprovedAppeal) {
+                      final cat = metadata != null && metadata['category'] != null ? metadata['category'].toString() : '';
+                      final adminNotes = metadata != null && metadata['admin_response'] != null ? metadata['admin_response'].toString() : '';
+                      if (!mounted) return;
+                      await showDialog<void>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          title: const Row(
+                            children: [
+                              Icon(Icons.check_circle_rounded, color: Colors.green),
+                              SizedBox(width: 8),
+                              Text('Appeal Approved', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                            ],
+                          ),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                alert.message.isNotEmpty ? alert.message : 'Your appeal has been approved by UPCC/Admin.',
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              ),
+                              if (cat.isNotEmpty && cat != '0') ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.green.shade200),
+                                  ),
+                                  child: Text(
+                                    'Updated Sanction: Category $cat',
+                                    style: TextStyle(color: Colors.green.shade900, fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                              ],
+                              if (adminNotes.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Text('Admin Response: $adminNotes', style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+                              ],
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w800)),
+                            ),
+                          ],
+                        ),
+                      );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Details not found.')),

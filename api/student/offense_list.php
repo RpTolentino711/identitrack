@@ -139,7 +139,10 @@ $rows = db_all(
    LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
    LEFT JOIN upcc_case uc ON uc.case_id = uco.case_id AND uc.status <> 'VOID'
    WHERE o.student_id = :sid
-     AND (o.status <> 'VOID' OR (SELECT status FROM student_appeal_request sar WHERE sar.offense_id = o.offense_id AND sar.appeal_kind = 'OFFENSE' ORDER BY appeal_id DESC LIMIT 1) = 'APPROVED')
+     AND (
+       o.status <> 'VOID' 
+       OR (SELECT status FROM student_appeal_request sar WHERE (sar.offense_id = o.offense_id OR (uco.case_id IS NOT NULL AND sar.case_id = uco.case_id)) ORDER BY appeal_id DESC LIMIT 1) = 'APPROVED'
+     )
    ORDER BY o.date_committed DESC, o.offense_id DESC",
   $query_params
 );
@@ -340,7 +343,9 @@ foreach ($bundledItemsList as $bInfo) {
           }
       }
       
-      if ($catVal > 0) {
+      if ($caseStatus === 'CANCELLED') {
+        $status = $catVal > 0 ? ('CANCELLED (Appeal Approved - Category ' . $catVal . ')') : 'CANCELLED (Appeal Approved)';
+      } else if ($catVal > 0) {
         $status .= ' (Category ' . $catVal . ') - ' . $pStatus;
       } else {
         $status .= ' - ' . $pStatus;
@@ -496,7 +501,9 @@ foreach ($majorList as $r) {
         }
     }
     
-    if ($catVal > 0) {
+    if ($caseStatus === 'CANCELLED') {
+      $status = $catVal > 0 ? ('CANCELLED (Appeal Approved - Category ' . $catVal . ')') : 'CANCELLED (Appeal Approved)';
+    } else if ($catVal > 0) {
       $status .= ' (Category ' . $catVal . ') - ' . $pStatus;
     } else {
       $status .= ' - ' . $pStatus;
@@ -599,7 +606,9 @@ foreach ($unlinkedCases as $uc) {
       }
   }
   
-  if ($catVal > 0) {
+  if ($caseStatus === 'CANCELLED') {
+    $status = $catVal > 0 ? ('CANCELLED (Appeal Approved - Category ' . $catVal . ')') : 'CANCELLED (Appeal Approved)';
+  } else if ($catVal > 0) {
     $status .= ' (Category ' . $catVal . ') - ' . $pStatus;
   } else {
     $status .= ' - ' . $pStatus;
