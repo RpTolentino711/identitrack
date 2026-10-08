@@ -606,8 +606,16 @@ if (function_exists('db_one')) {
       logoutLink.focus();
     }
 
-    logoutLink.addEventListener('click', function (event) {
+    logoutLink.addEventListener('click', async function (event) {
       event.preventDefault();
+
+      if (typeof window.checkAndPromptActiveCsLogout === 'function') {
+        const handled = await window.checkAndPromptActiveCsLogout(logoutLink.getAttribute('href') || 'logout.php');
+        if (handled) {
+          return;
+        }
+      }
+
       openModal();
     });
 
@@ -615,7 +623,14 @@ if (function_exists('db_one')) {
       closeModal();
     });
 
-    confirmBtn.addEventListener('click', function () {
+    confirmBtn.addEventListener('click', async function () {
+      if (typeof window.checkAndPromptActiveCsLogout === 'function') {
+        const handled = await window.checkAndPromptActiveCsLogout(logoutLink.getAttribute('href') || 'logout.php');
+        if (handled) {
+          closeModal();
+          return;
+        }
+      }
       window.location.href = logoutLink.getAttribute('href') || 'logout.php';
     });
 

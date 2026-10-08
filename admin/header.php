@@ -1311,6 +1311,17 @@ if (function_exists('db_one')) {
       }
     }
 
+    window.checkAndPromptActiveCsLogout = async function(redirectUrl) {
+      const activeCount = await checkActiveCsStatus();
+      if (activeCount > 0) {
+        const sidebarModal = document.getElementById('logoutModalOverlay');
+        if (sidebarModal) sidebarModal.classList.remove('show');
+        promptActiveCsLogout(activeCount, redirectUrl || 'logout.php');
+        return true;
+      }
+      return false;
+    };
+
     document.addEventListener('click', async function(e) {
       const logoutConfirmBtn = e.target.closest('#logoutConfirmBtn');
       const directLogoutLink = e.target.closest('a[href*="logout.php"]:not(#sidebarLogoutLink)');
