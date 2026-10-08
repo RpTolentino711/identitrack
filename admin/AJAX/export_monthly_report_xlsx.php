@@ -625,42 +625,7 @@ try {
       $studentGroups[$sid][] = $r;
   }
 
-  function detect_registered_major_category(array $r): int {
-    $allText = strtoupper(
-        (string)($r['offense_name'] ?? '') . ' ' .
-        (string)($r['description'] ?? '') . ' ' .
-        (string)($r['case_kind'] ?? '') . ' ' .
-        (string)($r['punishment_details'] ?? '') . ' ' .
-        (string)($r['final_decision'] ?? '') . ' ' .
-        (string)($r['decision_reason'] ?? '')
-    );
-
-    if (strpos($allText, 'CATEGORY 5') !== false || strpos($allText, 'EXPULSION') !== false || strpos($allText, 'POLICE REFERRAL') !== false) {
-        return 5;
-    }
-    if (strpos($allText, 'CATEGORY 4') !== false || strpos($allText, 'EXCLUSION') !== false) {
-        return 4;
-    }
-    if (strpos($allText, 'CATEGORY 3') !== false || strpos($allText, 'SUSPENSION') !== false || strpos($allText, 'NON-READMISSION') !== false) {
-        return 3;
-    }
-    if (strpos($allText, 'CATEGORY 2') !== false || strpos($allText, 'COMMUNITY SERVICE') !== false || strpos($allText, 'FORMATIVE') !== false) {
-        return 2;
-    }
-    if (strpos($allText, 'CATEGORY 1') !== false || strpos($allText, 'FORMAL REPRIMAND') !== false) {
-        return 1;
-    }
-
-    $reg = (int)($r['registered_category'] ?? 0);
-    if ($reg > 0) return $reg;
-
-    $dec = (int)($r['decided_category'] ?? 0);
-    if ($dec > 0) return $dec;
-
-    return 0;
-}
-
-function populate_sheet_data_rows($sheet, array $studentGroups, int $startRow, bool $showNames, array $styleTableBody) {
+  function populate_sheet_data_rows($sheet, array $studentGroups, int $startRow, bool $showNames, array $styleTableBody) {
       $currRow = $startRow;
 
       foreach ($studentGroups as $sid => $sRows) {
