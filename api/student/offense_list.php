@@ -105,12 +105,6 @@ $total += (int)($unlinkedMajorCount['c'] ?? 0);
 $minor = $minorCount;
 $major = $majorCount;
 
-// Mark as acknowledged
-db_exec(
-  "UPDATE offense SET acknowledged_at = NOW() WHERE student_id = :sid AND acknowledged_at IS NULL",
-  [':sid' => $studentId]
-);
-
 // List of offenses
 $decrypted_offense = db_decrypt_cols(['description']);
 $decrypted_explanation = db_decrypt_cols(['student_explanation_text']);
@@ -357,6 +351,13 @@ foreach ($bundledItemsList as $bInfo) {
     }
   }
 
+  if (empty($appealStatus) && !empty($caseId)) {
+    $cAppeal = db_one("SELECT status FROM student_appeal_request WHERE case_id = :cid AND appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1", [':cid' => (int)$caseId]);
+    if ($cAppeal) {
+      $appealStatus = (string)($cAppeal['status'] ?? '');
+    }
+  }
+
   if ($reason === 'SAME_TYPE_3') {
     $typeName = trim((string)$bundledItems[0]['offense_name']);
     $desc = "Triggered by the accumulation of 3 Minor Offenses of the SAME type (" . $typeName . "):\n\n";
@@ -502,6 +503,13 @@ foreach ($majorList as $r) {
     
     $appealStatus = (string)($rc['appeal_status'] ?? '');
     $desc .= "\n\n--- UPCC FINAL DECISION ---\nCategory " . $rc['decided_category'] . "\n" . $rc['final_decision'] . "\nResolved on: " . date('M d, Y', strtotime($rc['resolution_date']));
+  }
+
+  if (empty($appealStatus) && !empty($caseId)) {
+    $cAppeal = db_one("SELECT status FROM student_appeal_request WHERE case_id = :cid AND appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1", [':cid' => (int)$caseId]);
+    if ($cAppeal) {
+      $appealStatus = (string)($cAppeal['status'] ?? '');
+    }
   }
 
   $items[] = [

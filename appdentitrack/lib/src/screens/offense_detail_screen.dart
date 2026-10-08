@@ -92,8 +92,10 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
   bool _canAppeal() {
     final level = widget.offense.level.toUpperCase();
     final status = widget.offense.status.toUpperCase();
+    final appealStatus = widget.offense.appealStatus.toUpperCase();
     if (status == 'UNDER_APPEAL') return false;
     if (status == 'VOID') return false;
+    if (appealStatus == 'REJECTED' || appealStatus == 'APPROVED' || appealStatus == 'PENDING' || appealStatus == 'REVIEWING') return false;
     if (widget.offense.acknowledgedAt != null) return false;
     return level == 'MAJOR';
   }
@@ -1080,14 +1082,99 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
                     ),
                   ),
                 ],
-              ] else if (widget.offense.level.toUpperCase() != 'MINOR') ...[
-                Text(
-                  'This record is already under appeal or cannot be appealed.',
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontWeight: FontWeight.w600,
+              ] else if (widget.offense.appealStatus.toUpperCase() == 'REJECTED') ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.red.shade200, width: 1.2),
                   ),
-                  textAlign: TextAlign.center,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.cancel_rounded, color: Colors.red.shade700, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Appeal Rejected',
+                              style: TextStyle(
+                                color: Colors.red.shade900,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Your appeal request was reviewed and rejected. The decision is final.',
+                              style: TextStyle(
+                                color: Colors.red.shade700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (widget.offense.appealStatus.toUpperCase() == 'APPROVED') ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.green.shade200, width: 1.2),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.check_circle_rounded, color: Colors.green.shade700, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Appeal Approved',
+                              style: TextStyle(
+                                color: Colors.green.shade900,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Your appeal request was reviewed and approved.',
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
