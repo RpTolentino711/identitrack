@@ -1178,11 +1178,14 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Your appeal request was reviewed and approved.',
+                              widget.offense.status.isNotEmpty
+                                  ? 'Your appeal request was approved by UPCC/Admin.\nUpdated Status: ${widget.offense.status}'
+                                  : 'Your appeal request was reviewed and approved.',
                               style: TextStyle(
-                                color: Colors.green.shade700,
+                                color: Colors.green.shade800,
                                 fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w600,
+                                height: 1.35,
                               ),
                             ),
                           ],

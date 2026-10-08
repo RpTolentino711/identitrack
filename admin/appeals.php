@@ -658,16 +658,13 @@ function initials(string $name): string
                 <?php echo nl2br(e((string)($appeal['reason'] ?? ''))); ?>
               </div>
 
-              <div class="attach-row">
-                <?php if (!empty($appeal['attachment_path'])): ?>
+              <?php if (!empty($appeal['attachment_path'])): ?>
+                <div class="attach-row">
                   <a href="../<?php echo e((string)$appeal['attachment_path']); ?>" target="_blank" class="btn btn-neutral">
                     📄 <?php echo e((string)$appeal['attachment_name']); ?>
                   </a>
-                <?php endif; ?>
-                <a href="print_appeal.php?id=<?php echo (int)$appeal['appeal_id']; ?>" target="_blank" class="btn btn-neutral">
-                  🖨️ Print Appeal
-                </a>
-              </div>
+                </div>
+              <?php endif; ?>
 
               <?php if (!empty($appeal['admin_response'])): ?>
                 <div class="response">

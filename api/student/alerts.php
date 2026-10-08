@@ -251,10 +251,22 @@ try {
                 ],
             ];
         } elseif (in_array($status, ['APPROVED', 'REJECTED'], true)) {
+            $isApproved = ($status === 'APPROVED');
+            $title = $isApproved ? 'Your appeal has been approved' : ($titlePrefix . ': ' . ucfirst(strtolower($status)));
+            $message = $isApproved ? 'Your appeal has been approved by UPCC/Admin.' : ('Your appeal has been ' . strtolower($status) . ' by UPCC/Admin.');
+            
+            $decidedCat = null;
+            if ($caseId > 0) {
+                $caseRow = db_one("SELECT decided_category FROM upcc_case WHERE case_id = :cid", [':cid' => $caseId]);
+                if ($caseRow && $caseRow['decided_category'] !== null) {
+                    $decidedCat = (int)$caseRow['decided_category'];
+                }
+            }
+
             $alerts[] = [
                 'alert_type' => 'APPEAL_RESPONSE',
-                'title' => $titlePrefix . ': ' . ucfirst(strtolower($status)),
-                'message' => 'Your appeal has been ' . strtolower($status) . ' by UPCC/Admin.',
+                'title' => $title,
+                'message' => $message,
                 'created_at' => (string)($latestAppeal['decided_at'] ?? $baseCreatedAt),
                 'metadata' => [
                     'appeal_id' => (int)$latestAppeal['appeal_id'],
@@ -263,6 +275,8 @@ try {
                     'status' => $status,
                     'appeal_kind' => $kind,
                     'admin_response' => (string)($latestAppeal['admin_response'] ?? ''),
+                    'is_approved_appeal' => $isApproved,
+                    'category' => $decidedCat,
                 ],
             ];
         }

@@ -100,6 +100,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
     final String pdfUrl = metadata != null ? (metadata['pdf_url'] ?? '').toString() : '';
 
+    final bool isApprovedAppeal = (alert.alertType == 'APPEAL_RESPONSE' && metadata != null && (metadata['status'] == 'APPROVED' || metadata['is_approved_appeal'] == true)) ||
+        alert.title.toLowerCase().contains('appeal has been approved') ||
+        alert.title.toLowerCase().contains('appeal: approved');
+
     final cardContent = Padding(
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -237,6 +241,27 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 ),
               ],
             ),
+          ] else if (isApprovedAppeal) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  'See changes',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: alert.badgeColor,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 14,
+                  color: alert.badgeColor,
+                ),
+              ],
+            ),
           ] else if (offenseId != null) ...[
             const SizedBox(height: 10),
             Row(
@@ -264,7 +289,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Text(
-                  'Tap to view details and submit explanation',
+                  (alert.alertType == 'HEARING_SCHEDULE' || alert.alertType == 'HEARING_REMINDER' || alert.title.toLowerCase().contains('notice to explain') || alert.title.toLowerCase().contains('hearing'))
+                      ? 'Tap to view details and submit explanation'
+                      : 'Tap to view case details',
                   style: TextStyle(
                     fontSize: 11,
                     color: alert.badgeColor,
@@ -302,7 +329,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ),
         ],
       ),
-      child: (offenseId != null || caseId != null || (pdfUrl.isNotEmpty && alert.alertType != 'OFFENSE_LETTER')) && alert.alertType != 'OFFENSE_LETTER'
+      child: (offenseId != null || caseId != null || isApprovedAppeal || (pdfUrl.isNotEmpty && alert.alertType != 'OFFENSE_LETTER')) && alert.alertType != 'OFFENSE_LETTER'
           ? Material(
               color: Colors.transparent,
               child: InkWell(
