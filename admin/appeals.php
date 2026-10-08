@@ -76,14 +76,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') ==
     redirect('appeals.php?msg=error');
 }
 
-// Only Pending and Approved filters remain
+// Pending, Approved, and Rejected filters
 $filter = strtoupper(trim((string)($_GET['filter'] ?? 'PENDING')));
-if (!in_array($filter, ['PENDING', 'APPROVED'], true)) {
+if (!in_array($filter, ['PENDING', 'APPROVED', 'REJECTED'], true)) {
     $filter = 'PENDING';
 }
 
 $pendingCount  = (int)(db_one("SELECT COUNT(*) AS c FROM student_appeal_request WHERE status IN ('PENDING','REVIEWING')")['c'] ?? 0);
 $approvedCount = (int)(db_one("SELECT COUNT(*) AS c FROM student_appeal_request WHERE status = 'APPROVED'")['c'] ?? 0);
+$rejectedCount = (int)(db_one("SELECT COUNT(*) AS c FROM student_appeal_request WHERE status = 'REJECTED'")['c'] ?? 0);
 
 $where = '';
 $params = [];
@@ -292,11 +293,13 @@ function initials(string $name): string
     }
     .stat.pending .icon { background: var(--warn-bg); color: var(--warn); }
     .stat.approved .icon { background: var(--ok-bg); color: var(--ok); }
+    .stat.rejected .icon { background: var(--danger-bg); color: var(--danger); }
     .stat::before {
       content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
     }
     .stat.pending::before  { background: linear-gradient(180deg, #f59e0b, #d97706); }
     .stat.approved::before { background: linear-gradient(180deg, #10b981, #059669); }
+    .stat.rejected::before { background: linear-gradient(180deg, #ef4444, #dc2626); }
 
     /* ---------- Tabs ---------- */
     .tabs {
@@ -573,6 +576,14 @@ function initials(string $name): string
             <div class="value"><?php echo $approvedCount; ?></div>
             <div class="sub">Appeals upheld</div>
           </div>
+          <div class="stat rejected">
+            <div class="stat-top">
+              <div class="label">Rejected</div>
+              <div class="icon">✕</div>
+            </div>
+            <div class="value"><?php echo $rejectedCount; ?></div>
+            <div class="sub">Appeals denied</div>
+          </div>
         </div>
 
         <?php if (isset($_GET['msg']) && $_GET['msg'] === 'rejected'): ?>
@@ -590,7 +601,10 @@ function initials(string $name): string
             Pending <?php if ($pendingCount > 0): ?><span class="badge"><?php echo $pendingCount; ?></span><?php endif; ?>
           </a>
           <a class="tab <?php echo $filter === 'APPROVED' ? 'active' : ''; ?>" href="?filter=APPROVED">
-            Approved
+            Approved <?php if ($approvedCount > 0): ?><span class="badge" style="background:#059669;"><?php echo $approvedCount; ?></span><?php endif; ?>
+          </a>
+          <a class="tab <?php echo $filter === 'REJECTED' ? 'active' : ''; ?>" href="?filter=REJECTED">
+            Rejected <?php if ($rejectedCount > 0): ?><span class="badge" style="background:#dc2626;"><?php echo $rejectedCount; ?></span><?php endif; ?>
           </a>
         </div>
 
