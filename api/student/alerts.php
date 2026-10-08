@@ -440,9 +440,9 @@ try {
     $csCompletedParams = [':sid' => $studentId];
     db_add_encryption_key($csCompletedParams);
     $completedCsList = db_all(
-        "SELECT requirement_id, status, completed_at, hours_required, " . db_decrypt_col('task_name') . "
+        "SELECT requirement_id, status, completed_at, updated_at, hours_required, " . db_decrypt_col('task_name') . "
          FROM community_service_requirement
-         WHERE student_id = :sid AND status = 'COMPLETED'
+         WHERE student_id = :sid AND status = 'COMPLETED' AND completed_at IS NOT NULL
          ORDER BY completed_at DESC",
         $csCompletedParams
     );
@@ -452,11 +452,12 @@ try {
         if ($task === '') {
             $task = 'Community Service';
         }
+        $compDate = !empty($csr['completed_at']) ? (string)$csr['completed_at'] : (string)($csr['updated_at'] ?? '2026-01-01 00:00:00');
         $alerts[] = [
             'alert_type' => 'SERVICE_COMPLETED',
             'title' => 'Service Completed!',
             'message' => 'Congratulations! You have completed the required ' . (float)$csr['hours_required'] . ' hours for ' . $task . '.',
-            'created_at' => (string)($csr['completed_at'] ?? date('Y-m-d H:i:s')),
+            'created_at' => $compDate,
             'metadata' => [
                 'requirement_id' => (int)$csr['requirement_id'],
                 'hours_required' => (float)$csr['hours_required'],

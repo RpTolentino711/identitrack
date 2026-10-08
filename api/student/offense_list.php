@@ -303,6 +303,7 @@ foreach ($bundledItemsList as $bInfo) {
     if (isset($resolvedCasesMap[$oid])) {
       $rc = $resolvedCasesMap[$oid];
       $status = (string)$rc['status'];
+      $caseId = (int)$rc['case_id'];
       
       $pStatus = 'ONGOING';
       $catVal = (int)$rc['decided_category'];

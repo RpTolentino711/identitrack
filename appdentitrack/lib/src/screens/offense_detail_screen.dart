@@ -93,14 +93,14 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
     final level = widget.offense.level.toUpperCase();
     final status = widget.offense.status.toUpperCase();
     final appealStatus = widget.offense.appealStatus.toUpperCase();
-    if (status == 'UNDER_APPEAL') return false;
+    if (status == 'UNDER_APPEAL' || status.contains('UNDER_APPEAL')) return false;
     if (status == 'VOID') return false;
+    if (widget.offense.acknowledgedAt != null) return false;
     if (appealStatus == 'REJECTED' || appealStatus == 'APPROVED' || appealStatus == 'PENDING' || appealStatus == 'REVIEWING') return false;
     if (widget.offense.isBundle || (widget.offense.upccCaseId != null && widget.offense.upccCaseId! > 0)) {
-      if (status.contains('RESOLVED') || status.contains('COMPLETED')) return false;
+      if (status.contains('RESOLVED') || status.contains('COMPLETED') || status.contains('ONGOING') || status.contains('DISMISSED') || status.contains('CANCELLED')) return false;
       return true;
     }
-    if (widget.offense.acknowledgedAt != null) return false;
     return level == 'MAJOR';
   }
 

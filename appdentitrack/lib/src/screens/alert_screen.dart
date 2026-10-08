@@ -171,7 +171,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   ],
                 ),
               ),
-              if (alert.alertType != 'HEARING_SCHEDULE' && alert.alertType != 'HEARING_REMINDER')
+              if (alert.alertType != 'HEARING_SCHEDULE' &&
+                  alert.alertType != 'HEARING_REMINDER' &&
+                  !(alert.alertType == 'UPCC_CASE_DECISION' &&
+                      (alert.title.contains('Pending Decision') ||
+                          (alert.metadata != null && alert.metadata!['status'] == 'CLOSED'))))
                 InkWell(
                   onTap: () async {
                     final id = '${alert.alertType}_${alert.createdAt}';

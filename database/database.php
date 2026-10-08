@@ -1885,10 +1885,10 @@ function activate_or_merge_community_service_requirement(string $studentId, int 
             [':new_hrs' => $newTotalHours, ':aid' => $activeId]
         );
 
-        // Mark the newly assigned requirement as COMPLETED (merged) so it doesn't create duplicate active tasks
+        // Mark the newly assigned requirement as CANCELLED (merged) so it doesn't create duplicate active tasks or trigger false completion alerts
         db_exec(
             "UPDATE community_service_requirement 
-             SET status = 'COMPLETED', completed_at = NOW(), updated_at = NOW() 
+             SET status = 'CANCELLED', completed_at = NULL, updated_at = NOW() 
              WHERE requirement_id = :pid",
             [':pid' => $pendingId]
         );
