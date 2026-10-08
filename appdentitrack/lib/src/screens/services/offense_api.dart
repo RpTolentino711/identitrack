@@ -143,6 +143,7 @@ class OffenseApi {
   Future<void> submitAppeal({
     required String studentId,
     required int offenseId,
+    int? caseId,
     required String reason,
     String? filePath,
     List<int>? fileBytes,
@@ -154,6 +155,9 @@ class OffenseApi {
 
     req.fields['student_id'] = studentId;
     req.fields['offense_id'] = offenseId.toString();
+    if (caseId != null && caseId > 0) {
+      req.fields['case_id'] = caseId.toString();
+    }
     req.fields['reason'] = reason;
 
     if (fileBytes != null && fileName != null) {

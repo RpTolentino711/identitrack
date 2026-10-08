@@ -389,7 +389,7 @@ foreach ($bundledItemsList as $bInfo) {
     'level' => 'MAJOR',
     'status' => $status,
     'date_committed' => $latestDate,
-    'acknowledged_at' => $bundledItems[count($bundledItems) - 1]['acknowledged_at'] ?? null,
+    'acknowledged_at' => (str_contains(strtoupper((string)$status), 'RESOLVED') || str_contains(strtoupper((string)$status), 'COMPLETED')) ? ($bundledItems[count($bundledItems) - 1]['acknowledged_at'] ?? date('Y-m-d H:i:s')) : null,
     'is_deleted_by_student' => $isAllHidden,
     'title' => 'Section 4 Major Offense (Derived)',
     'description' => $desc,

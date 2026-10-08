@@ -96,6 +96,10 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
     if (status == 'UNDER_APPEAL') return false;
     if (status == 'VOID') return false;
     if (appealStatus == 'REJECTED' || appealStatus == 'APPROVED' || appealStatus == 'PENDING' || appealStatus == 'REVIEWING') return false;
+    if (widget.offense.isBundle || (widget.offense.upccCaseId != null && widget.offense.upccCaseId! > 0)) {
+      if (status.contains('RESOLVED') || status.contains('COMPLETED')) return false;
+      return true;
+    }
     if (widget.offense.acknowledgedAt != null) return false;
     return level == 'MAJOR';
   }
@@ -146,13 +150,20 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
 
     if (confirmed == true) {
       try {
-        await OffenseApi().acceptOffense(
-          studentId: widget.studentId,
-          offenseId: widget.offense.offenseId,
-        );
+        if (widget.offense.upccCaseId != null && widget.offense.upccCaseId! > 0) {
+          await OffenseApi().acceptUpccCase(
+            studentId: widget.studentId,
+            caseId: widget.offense.upccCaseId!,
+          );
+        } else {
+          await OffenseApi().acceptOffense(
+            studentId: widget.studentId,
+            offenseId: widget.offense.offenseId,
+          );
+        }
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Offense acknowledged.')),
+            const SnackBar(content: Text('Decision accepted.')),
           );
           Navigator.of(context).pop(true);
         }
@@ -289,7 +300,8 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
                         try {
                           await OffenseApi().submitAppeal(
                             studentId: widget.studentId,
-                            offenseId: widget.offense.offenseId,
+                            offenseId: widget.offense.offenseId > 0 ? widget.offense.offenseId : 0,
+                            caseId: widget.offense.upccCaseId,
                             reason: reason,
                             filePath: selectedFile?.path,
                             fileBytes: selectedFile?.bytes,
@@ -1025,63 +1037,50 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
               _explanationSection(),
 
               if (_canAppeal()) ...[
-                if (_isExpanded) ...[
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _acceptOffense(context),
-                          icon: const Icon(Icons.check_rounded),
-                          label: const Text('Accept'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade700,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            textStyle: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                            ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _acceptOffense(context),
+                        icon: const Icon(Icons.check_rounded),
+                        label: const Text('Accept'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _submitAppeal(context),
-                          icon: const Icon(Icons.gavel_rounded),
-                          label: const Text('Appeal'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: blueDark,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            textStyle: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                            ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _submitAppeal(context),
+                        icon: const Icon(Icons.gavel_rounded),
+                        label: const Text('Appeal'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: blueDark,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'You may accept this decision or submit an appeal for UPCC/Admin review.',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontWeight: FontWeight.w600,
                     ),
-                    textAlign: TextAlign.center,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'You may accept this decision or submit an appeal for UPCC/Admin review.',
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
                   ),
-                ] else ...[
-                  Center(
-                    child: Text(
-                      'Tap Offense Information to view actions',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
+                  textAlign: TextAlign.center,
+                ),
               ] else if (widget.offense.appealStatus.toUpperCase() == 'REJECTED') ...[
                 Container(
                   width: double.infinity,

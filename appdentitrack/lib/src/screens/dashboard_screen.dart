@@ -841,20 +841,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setString(
-                        'dismissed_punishment_card',
-                        punishment.caseId.toString());
-                    setState(() {
-                      _dismissedPunishmentId =
-                          punishment.caseId.toString();
-                    });
-                  },
-                  icon: Icon(Icons.close_rounded,
-                      color: Colors.grey.shade400),
-                ),
+                if (!effectiveCanAppeal)
+                  IconButton(
+                    onPressed: () async {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString(
+                          'dismissed_punishment_card',
+                          punishment.caseId.toString());
+                      setState(() {
+                        _dismissedPunishmentId =
+                            punishment.caseId.toString();
+                      });
+                    },
+                    icon: Icon(Icons.close_rounded,
+                        color: Colors.grey.shade400),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -918,54 +919,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              if (_isPunishmentExpanded) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _acceptUPCCDecision,
-                        icon: const Icon(Icons.check_rounded),
-                        label: const Text('Accept'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade700,
-                          foregroundColor: Colors.white,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
-                          textStyle: const TextStyle(
-                              fontWeight: FontWeight.w900),
-                        ),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _acceptUPCCDecision,
+                      icon: const Icon(Icons.check_rounded),
+                      label: const Text('Accept'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        foregroundColor: Colors.white,
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                        textStyle: const TextStyle(
+                            fontWeight: FontWeight.w900),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _submitLatestAppeal,
-                        icon: const Icon(Icons.gavel_rounded),
-                        label: const Text('Appeal'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accent,
-                          foregroundColor: Colors.white,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
-                          textStyle: const TextStyle(
-                              fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                Center(
-                  child: Text(
-                    'Tap to view actions',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _submitLatestAppeal,
+                      icon: const Icon(Icons.gavel_rounded),
+                      label: const Text('Appeal'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accent,
+                        foregroundColor: Colors.white,
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                        textStyle: const TextStyle(
+                            fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
             if (_unseenAppeals.isNotEmpty) ...[
               ..._unseenAppeals.map((ua) {
@@ -2279,29 +2267,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ),
                                       ),
                                     ),
-                                    InkWell(
-                                      onTap: () async {
-                                        final prefs = await SharedPreferences
-                                            .getInstance();
-                                        await prefs.setString(
-                                            'dismissed_account_message',
-                                            _accountMessage);
-                                        setState(() {
-                                          _dismissedMessageText =
-                                              _accountMessage;
-                                        });
-                                      },
-                                      borderRadius:
-                                          BorderRadius.circular(20),
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(8.0),
-                                        child: Icon(
-                                          Icons.close_rounded,
-                                          size: 18,
-                                          color: blueDark,
+                                    if (_accountMode != 'APPEAL_GRACE_PERIOD')
+                                      InkWell(
+                                        onTap: () async {
+                                          final prefs = await SharedPreferences
+                                              .getInstance();
+                                          await prefs.setString(
+                                              'dismissed_account_message',
+                                              _accountMessage);
+                                          setState(() {
+                                            _dismissedMessageText =
+                                                _accountMessage;
+                                          });
+                                        },
+                                        borderRadius:
+                                            BorderRadius.circular(20),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Icon(
+                                            Icons.close_rounded,
+                                            size: 18,
+                                            color: blueDark,
+                                          ),
                                         ),
                                       ),
-                                    ),
                                   ],
                                 ),
                               ),
