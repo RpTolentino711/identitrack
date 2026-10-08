@@ -138,7 +138,9 @@ $offenseRows = db_all(
       " . db_decrypt_col('final_decision', 'uc') . " AS final_decision,
       " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
       COALESCE(" . db_decrypt_col('decision_reason', 'uc') . ", '') AS decision_reason,
-      uc.status AS case_status
+      uc.status AS case_status,
+      (SELECT status FROM student_appeal_request sar WHERE (sar.offense_id = o.offense_id OR (uco.case_id IS NOT NULL AND sar.case_id = uco.case_id)) ORDER BY appeal_id DESC LIMIT 1) AS appeal_status,
+      (SELECT " . db_decrypt_col('admin_response', 'sar') . " FROM student_appeal_request sar WHERE (sar.offense_id = o.offense_id OR (uco.case_id IS NOT NULL AND sar.case_id = uco.case_id)) ORDER BY appeal_id DESC LIMIT 1) AS appeal_admin_response
    FROM offense o
    JOIN student s ON s.student_id = o.student_id
    JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -181,11 +183,13 @@ if ($category !== 'MINOR') {
         " . db_decrypt_col('final_decision', 'uc') . " AS final_decision,
         " . db_decrypt_col('punishment_details', 'uc') . " AS punishment_details,
         COALESCE(" . db_decrypt_col('decision_reason', 'uc') . ", '') AS decision_reason,
-        uc.status AS case_status
+        uc.status AS case_status,
+        (SELECT status FROM student_appeal_request sar WHERE sar.case_id = uc.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) AS appeal_status,
+        (SELECT " . db_decrypt_col('admin_response', 'sar') . " FROM student_appeal_request sar WHERE sar.case_id = uc.case_id AND sar.appeal_kind = 'UPCC_CASE' ORDER BY appeal_id DESC LIMIT 1) AS appeal_admin_response
      FROM upcc_case uc
      JOIN student s ON s.student_id = uc.student_id
      WHERE uc.created_at BETWEEN :start AND :end
-       AND UPPER(COALESCE(uc.case_kind,'')) = 'SECTION4_MINOR_ESCALATION'
+       AND (UPPER(COALESCE(uc.case_kind,'')) = 'SECTION4_MINOR_ESCALATION' OR uc.case_id NOT IN (SELECT DISTINCT case_id FROM upcc_case_offense WHERE case_id IS NOT NULL))
      $caseFilter
      ORDER BY uc.created_at DESC",
     $params
@@ -391,6 +395,17 @@ function format_full_sanction_penalty(array $r): string {
     $rawPunishment = trim((string)($r['punishment_details'] ?? ''));
     $caseId        = !empty($r['case_id']) ? (int)$r['case_id'] : 0;
     $studentId     = (string)($r['student_id'] ?? '');
+
+    $appealStatus  = strtoupper((string)($r['appeal_status'] ?? ''));
+    $isApprovedAppeal = ($appealStatus === 'APPROVED' || $caseStatus === 'CANCELLED' || ($offenseStatus === 'VOID' && $appealStatus === 'APPROVED'));
+
+    if ($isApprovedAppeal) {
+        $adminNote = !empty($r['appeal_admin_response']) ? " — Admin Response: " . trim((string)$r['appeal_admin_response']) : "";
+        if ($decidedCat > 0) {
+            return "Appeal Approved by UPCC/Admin (Sanction Adjusted: Category {$decidedCat}{$adminNote})";
+        }
+        return "Appeal Approved by UPCC/Admin (Sanction Voided / Cancelled{$adminNote})";
+    }
 
     $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
 
@@ -730,12 +745,17 @@ try {
               $offenseLevel = strtoupper((string)($r['offense_level'] ?? ''));
               $caseStatus = strtoupper((string)($r['case_status'] ?? ''));
               $offenseStatus = strtoupper((string)($r['status'] ?? ''));
+              $appealStatus = strtoupper((string)($r['appeal_status'] ?? ''));
               $decidedCat = (int)($r['decided_category'] ?? 0);
               $offenseNameUpper = strtoupper((string)($r['offense_name'] ?? ''));
 
+              $isApprovedAppeal = ($appealStatus === 'APPROVED' || $caseStatus === 'CANCELLED' || ($offenseStatus === 'VOID' && $appealStatus === 'APPROVED'));
               $isDismissed = ($caseStatus === 'DISMISSED' || $offenseStatus === 'DISMISSED');
 
-              if ($isCaseRow || $offenseLevel === 'MAJOR') {
+              if ($isApprovedAppeal) {
+                  $isResolved = true;
+                  $isPending  = false;
+              } elseif ($isCaseRow || $offenseLevel === 'MAJOR') {
                   $isResolved = !$isDismissed && ($caseStatus === 'CLOSED' || $caseStatus === 'RESOLVED' || $offenseStatus === 'CLOSED' || $offenseStatus === 'RESOLVED');
                   $isPending  = !$isDismissed && !$isResolved;
               } else {
@@ -745,7 +765,12 @@ try {
 
               if ($isCaseRow) {
                   $isSec4Case = (strpos($offenseNameUpper, 'SECTION 4') !== false || strpos($offenseNameUpper, 'SECTION4') !== false || strpos(strtoupper((string)($r['case_kind'] ?? '')), 'SECTION4') !== false);
-                  if ($isDismissed) {
+                  if ($isApprovedAppeal) {
+                      $rowCategory = $isSec4Case ? 'SECTION 4 (APPEAL APPROVED)' : 'AUTOMATIC MAJOR (APPEAL APPROVED)';
+                      $pendingCol = 'N/A (Appeal Approved)';
+                      $resolvedCol = ($decidedCat > 0) ? "APPEAL APPROVED (CATEGORY {$decidedCat})" : "APPEAL APPROVED (SANCTION VOIDED)";
+                      $displayLevel = ($decidedCat > 0) ? "APPEAL APPROVED (CATEGORY {$decidedCat})" : "APPEAL APPROVED (SANCTION VOIDED)";
+                  } elseif ($isDismissed) {
                       $rowCategory = 'DISMISSED CASE';
                       $pendingCol = 'N/A (Dismissed)';
                       $resolvedCol = 'DISMISSED CASE';
@@ -764,7 +789,12 @@ try {
                       $displayLevel = ($isResolved && $decidedCat > 0) ? "AUTOMATIC MAJOR (CATEGORY {$decidedCat})" : ($isPending ? "AUTOMATIC MAJOR (CATEGORY 1 TO 5 PENDING UPCC)" : "AUTOMATIC MAJOR (RESOLVED)");
                   }
               } else {
-                  if ($isDismissed) {
+                  if ($isApprovedAppeal) {
+                      $rowCategory = ($offenseLevel === 'MAJOR') ? 'AUTOMATIC MAJOR (APPEAL APPROVED)' : 'MINOR (APPEAL APPROVED)';
+                      $pendingCol = 'N/A (Appeal Approved)';
+                      $resolvedCol = ($decidedCat > 0) ? "APPEAL APPROVED (CATEGORY {$decidedCat})" : "APPEAL APPROVED (SANCTION VOIDED)";
+                      $displayLevel = ($decidedCat > 0) ? "APPEAL APPROVED (CATEGORY {$decidedCat})" : "APPEAL APPROVED (SANCTION VOIDED)";
+                  } elseif ($isDismissed) {
                       $rowCategory = 'DISMISSED OFFENSE';
                       $pendingCol = 'N/A (Dismissed)';
                       $resolvedCol = 'DISMISSED OFFENSE';
