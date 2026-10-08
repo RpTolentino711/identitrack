@@ -86,25 +86,25 @@ if ($postExistingTypeId <= 0) {
 
 if ($level === 'MINOR') {
   $offenseTypes = db_all(
-    "SELECT offense_type_id, code, name FROM offense_type
+    "SELECT offense_type_id, code, name, level, major_category FROM offense_type
      WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
     []
   ) ?: [];
 } else if ($level === 'DISMISSED') {
   $offenseTypes = db_all(
-    "SELECT offense_type_id, code, name FROM offense_type
+    "SELECT offense_type_id, code, name, level, major_category FROM offense_type
      WHERE is_active = 1 AND level = 'DISMISSED' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
     []
   ) ?: [];
 } else if ($level === 'MAJOR' && $category >= 1 && $category <= 5) {
   $offenseTypes = db_all(
-    "SELECT offense_type_id, code, name FROM offense_type
+    "SELECT offense_type_id, code, name, level, major_category FROM offense_type
      WHERE is_active = 1 AND level = 'MAJOR' AND major_category = :cat AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
     [':cat' => $category]
   ) ?: [];
 } else if ($level === 'MAJOR') {
   $offenseTypes = db_all(
-    "SELECT offense_type_id, code, name FROM offense_type
+    "SELECT offense_type_id, code, name, level, major_category FROM offense_type
      WHERE is_active = 1 AND level = 'MAJOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
     []
   ) ?: [];
@@ -407,18 +407,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
     exit;
   }
 
-  if ($action === 'delete_offense_type') {
-    $tid = (int)($_POST['offense_type_id'] ?? 0);
-    if ($tid > 0 && !in_array($tid, [22, 23, 24], true)) {
-        // Soft delete
-        db_exec("UPDATE offense_type SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE offense_type_id = :id", [':id' => $tid]);
-        echo json_encode(['ok' => true]);
-    } else {
-        echo json_encode(['ok' => false, 'error' => 'Invalid offense type.']);
-    }
-    exit;
-  }
-
   if ($action === 'get_cycle_info') {
     $sid = trim($_POST['student_id'] ?? '');
     $selectedTypeId = isset($_POST['selected_type_id']) ? (int)$_POST['selected_type_id'] : null;
@@ -432,17 +420,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
     $cat = isset($_POST['major_category']) ? (int)$_POST['major_category'] : 0;
     if ($lvl === 'MAJOR') {
       if ($cat >= 1 && $cat <= 5) {
-        $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR' AND major_category = :cat AND code NOT LIKE '%OTHER%' ORDER BY code ASC", [':cat' => $cat]) ?: [];
+        $rows = db_all("SELECT offense_type_id, code, name, level, major_category FROM offense_type WHERE is_active = 1 AND level = 'MAJOR' AND major_category = :cat AND code NOT LIKE '%OTHER%' ORDER BY code ASC", [':cat' => $cat]) ?: [];
       } else {
-        $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
+        $rows = db_all("SELECT offense_type_id, code, name, level, major_category FROM offense_type WHERE is_active = 1 AND level = 'MAJOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
       }
-      $rows[] = ['offense_type_id' => 23, 'code' => 'OTHER', 'name' => 'Other / Custom Major Offense'];
+      $rows[] = ['offense_type_id' => 23, 'code' => 'OTHER', 'name' => 'Other / Custom Major Offense', 'level' => 'MAJOR', 'major_category' => $cat ?: 1];
     } else if ($lvl === 'DISMISSED') {
-      $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'DISMISSED' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
-      $rows[] = ['offense_type_id' => 24, 'code' => 'OTHER', 'name' => 'Other / Custom Dismissed Offense'];
+      $rows = db_all("SELECT offense_type_id, code, name, level, major_category FROM offense_type WHERE is_active = 1 AND level = 'DISMISSED' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
+      $rows[] = ['offense_type_id' => 24, 'code' => 'OTHER', 'name' => 'Other / Custom Dismissed Offense', 'level' => 'DISMISSED', 'major_category' => null];
     } else {
-      $rows = db_all("SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
-      $rows[] = ['offense_type_id' => 22, 'code' => 'OTHER', 'name' => 'Other / Custom Minor Offense'];
+      $rows = db_all("SELECT offense_type_id, code, name, level, major_category FROM offense_type WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC") ?: [];
+      $rows[] = ['offense_type_id' => 22, 'code' => 'OTHER', 'name' => 'Other / Custom Minor Offense', 'level' => 'MINOR', 'major_category' => null];
     }
     echo json_encode(['ok' => true, 'types' => $rows]);
     exit;
@@ -544,20 +532,20 @@ if ($pendingGuardReport) {
   // Reload offenseTypes to match the level and category
   if ($level === 'MINOR') {
     $offenseTypes = db_all(
-      "SELECT offense_type_id, code, name FROM offense_type
+      "SELECT offense_type_id, code, name, level, major_category FROM offense_type
        WHERE is_active = 1 AND level = 'MINOR' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
       []
     ) ?: [];
-    $offenseTypes[] = ['offense_type_id' => 22, 'code' => 'OTHER', 'name' => 'Other / Custom Minor Offense'];
+    $offenseTypes[] = ['offense_type_id' => 22, 'code' => 'OTHER', 'name' => 'Other / Custom Minor Offense', 'level' => 'MINOR', 'major_category' => null];
   } else if ($level === 'DISMISSED') {
     $offenseTypes = db_all(
-      "SELECT offense_type_id, code, name FROM offense_type
+      "SELECT offense_type_id, code, name, level, major_category FROM offense_type
        WHERE is_active = 1 AND level = 'DISMISSED' AND code NOT LIKE '%OTHER%' ORDER BY code ASC",
       []
     ) ?: [];
-    $offenseTypes[] = ['offense_type_id' => 24, 'code' => 'OTHER', 'name' => 'Other / Custom Dismissed Offense'];
+    $offenseTypes[] = ['offense_type_id' => 24, 'code' => 'OTHER', 'name' => 'Other / Custom Dismissed Offense', 'level' => 'DISMISSED', 'major_category' => null];
   } else if ($level === 'MAJOR') {
-    $sql = "SELECT offense_type_id, code, name FROM offense_type WHERE is_active = 1 AND level = 'MAJOR'";
+    $sql = "SELECT offense_type_id, code, name, level, major_category FROM offense_type WHERE is_active = 1 AND level = 'MAJOR'";
     $params = [];
     if ($category >= 1 && $category <= 5) {
       $sql .= " AND major_category = :cat";
@@ -565,7 +553,7 @@ if ($pendingGuardReport) {
     }
     $sql .= " AND code NOT LIKE '%OTHER%' ORDER BY code ASC";
     $offenseTypes = db_all($sql, $params) ?: [];
-    $offenseTypes[] = ['offense_type_id' => 23, 'code' => 'OTHER', 'name' => 'Other / Custom Major Offense'];
+    $offenseTypes[] = ['offense_type_id' => 23, 'code' => 'OTHER', 'name' => 'Other / Custom Major Offense', 'level' => 'MAJOR', 'major_category' => $category ?: 1];
   }
 }
 
@@ -3393,23 +3381,14 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                 <div class="form-row full">
                   <div class="form-group">
                     <label for="offense_type_id">Offense Type *</label>
-                    <select id="offense_type_id" name="offense_type_id" onchange="
-                      if(this.value == '22' || this.value == '23' || this.value == '24') { openAddModal(); this.value=''; }
-                      const btnE = document.getElementById('btnEditType');
-                      const btnD = document.getElementById('btnDeleteType');
-                      const lbl = document.getElementById('typeActionLabel');
-                      if(this.value && this.value != '22' && this.value != '23' && this.value != '24') {
-                          btnE.style.display = 'inline-flex';
-                          btnD.style.display = 'inline-flex';
-                          lbl.innerText = 'Manage selected offense type';
-                      } else {
-                          btnE.style.display = 'none';
-                          btnD.style.display = 'none';
-                          updateDescRequirement();
-                    ">
+                    <select id="offense_type_id" name="offense_type_id" onchange="handleOffenseTypeChange(this)">
                       <option value="">— Select Offense Type —</option>
                       <?php foreach ($offenseTypes as $t): ?>
                         <option value="<?php echo (int)$t['offense_type_id']; ?>"
+                          data-code="<?php echo htmlspecialchars((string)($t['code'] ?? '')); ?>"
+                          data-name="<?php echo htmlspecialchars((string)($t['name'] ?? '')); ?>"
+                          data-level="<?php echo htmlspecialchars((string)($t['level'] ?? $level)); ?>"
+                          data-major-category="<?php echo htmlspecialchars((string)($t['major_category'] ?? '')); ?>"
                           <?php echo $postExistingTypeId === (int)$t['offense_type_id'] ? 'selected' : ''; ?>>
                           <?php echo htmlspecialchars((string)$t['code'] . ' — ' . (string)$t['name']); ?>
                         </option>
@@ -3423,19 +3402,18 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
                   </div>
                 </div>
 
-                <div class="form-row full" style="margin-top: -8px; margin-bottom: 16px;">
+                <div class="form-row full" style="margin-top: -6px; margin-bottom: 16px;">
                   <div class="form-group">
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                      <button type="button" class="btn btn-circle" onclick="openAddModal()" title="Add new offense type">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                      <button type="button" class="btn" onclick="openAddModal()" title="Add new offense type" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 13px; font-weight: 600; border-radius: 8px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; cursor: pointer; transition: all 0.2s;">
+                        <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width: 15px; height: 15px;"><path d="M12 5v14M5 12h14"/></svg>
+                        <span>Add new offense type</span>
                       </button>
-                      <button type="button" class="btn btn-circle" id="btnEditType" onclick="editSelectedType()" title="Edit selected offense type" style="display:none; color: var(--primary);">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+
+                      <button type="button" class="btn" id="btnEditType" onclick="editSelectedType()" title="Edit or update selected offense type" style="display: <?php echo ($postExistingTypeId > 0 && !in_array($postExistingTypeId, [22, 23, 24], true)) ? 'inline-flex' : 'none'; ?>; align-items: center; gap: 6px; padding: 6px 14px; font-size: 13px; font-weight: 600; border-radius: 8px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; cursor: pointer; transition: all 0.2s;">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 15px; height: 15px; color: #15803d;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        <span id="btnEditTypeLabel">Edit Offense Type</span>
                       </button>
-                      <button type="button" class="btn btn-circle" id="btnDeleteType" onclick="deleteSelectedType()" title="Delete selected offense type" style="display:none; color: var(--red);">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                      </button>
-                      <span style="font-size: 12px; color: var(--text-3);" id="typeActionLabel">Add new offense type</span>
                     </div>
                   </div>
                 </div>
@@ -3682,26 +3660,6 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       <div class="modal-footer">
         <button class="btn" onclick="closeModal()">Cancel</button>
         <button class="btn btn-primary" onclick="saveOffenseType()">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: Confirm Delete Type -->
-  <div id="confirmDeleteTypeModal" class="modal">
-    <div class="modal-content" style="max-width: 400px; text-align: center; border-radius: 12px; padding: 20px;">
-      <div class="modal-body" style="padding: 20px 10px;">
-        <div style="color: var(--red); margin-bottom: 16px;">
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 48px; height: 48px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        </div>
-        <h3 style="margin-top: 0; margin-bottom: 12px; color: #1e293b; font-size: 20px;">Delete Offense Type?</h3>
-        <p style="color: var(--text-2); font-size: 14px; line-height: 1.5; margin-bottom: 24px;">
-          Are you sure you want to delete this offense type?<br><br>
-          <span style="font-size: 12px; opacity: 0.8;">Note: If this offense type is already in use by students, it will be safely kept for historical records but hidden from future selections.</span>
-        </p>
-        <div style="display: flex; gap: 10px; justify-content: center;">
-          <button class="btn" onclick="document.getElementById('confirmDeleteTypeModal').classList.remove('active')" style="flex: 1;">Cancel</button>
-          <button class="btn btn-primary" style="flex: 1; background-color: var(--red); border-color: var(--red);" onclick="executeDeleteType()">Yes, Delete</button>
-        </div>
       </div>
     </div>
   </div>
@@ -4455,23 +4413,55 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         const opt       = document.createElement('option');
         opt.value       = t.offense_type_id;
         opt.textContent = t.code + ' — ' + t.name;
+        opt.dataset.code = t.code || '';
+        opt.dataset.name = t.name || '';
+        opt.dataset.level = t.level || level;
+        opt.dataset.majorCategory = t.major_category || '';
         if (currentVal == t.offense_type_id) opt.selected = true;
         select.appendChild(opt);
       });
-      updateDescriptionRequirement();
+      handleOffenseTypeChange(select);
     }
   }
 
+  function handleOffenseTypeChange(selectEl) {
+    if (!selectEl) return;
+    const val = selectEl.value;
+    const btnE = document.getElementById('btnEditType');
+    const btnD = document.getElementById('btnDeleteType');
+    
+    if (val == '22' || val == '23' || val == '24') {
+      openAddModal();
+      selectEl.value = '';
+      if (btnE) btnE.style.display = 'none';
+      if (btnD) btnD.style.display = 'none';
+      updateDescriptionRequirement();
+      return;
+    }
+    
+    if (val) {
+      if (btnE) btnE.style.display = 'inline-flex';
+      if (btnD) btnD.style.display = (val != '22' && val != '23' && val != '24') ? 'inline-flex' : 'none';
+    } else {
+      if (btnE) btnE.style.display = 'none';
+      if (btnD) btnD.style.display = 'none';
+    }
+    updateDescriptionRequirement();
+    updateCycleTrackerLive();
+  }
+
   function updateDescriptionRequirement() {
-    const typeId = parseInt(offenseTypeSelect.value) || 0;
+    const typeId = parseInt(offenseTypeSelect ? offenseTypeSelect.value : 0) || 0;
     const optionalLabel = document.getElementById('descOptional');
     const descTextarea = document.getElementById('description');
     
     if (typeId === 22 || typeId === 23) {
       // It's "Other", make it required
       if (optionalLabel) optionalLabel.style.display = 'none';
-      descTextarea.required = true;
-      descTextarea.placeholder = "Please provide a detailed description of this custom offense (REQUIRED)...";
+      if (descTextarea) {
+        descTextarea.required = true;
+        descTextarea.placeholder = "Please provide a detailed description of this custom offense (REQUIRED)...";
+      }
       // Add visual asterisk if not already there
       if (!document.getElementById('descReqStar')) {
         const star = document.createElement('span');
@@ -4479,12 +4469,15 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         star.style.color = 'var(--red)';
         star.style.marginLeft = '4px';
         star.textContent = '*';
-        document.getElementById('descLabel').appendChild(star);
+        const lbl = document.getElementById('descLabel');
+        if (lbl) lbl.appendChild(star);
       }
     } else {
       if (optionalLabel) optionalLabel.style.display = 'inline';
-      descTextarea.required = false;
-      descTextarea.placeholder = "Describe the incident in detail...";
+      if (descTextarea) {
+        descTextarea.required = false;
+        descTextarea.placeholder = "Describe the incident in detail...";
+      }
       const star = document.getElementById('descReqStar');
       if (star) star.remove();
     }
@@ -4515,8 +4508,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   if (offenseTypeSelect) {
     offenseTypeSelect.addEventListener('change', function() {
-      updateDescriptionRequirement();
-      updateCycleTrackerLive();
+      handleOffenseTypeChange(this);
     });
   }
   document.addEventListener('DOMContentLoaded', updateDescriptionRequirement);
@@ -4565,7 +4557,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     document.getElementById('type_code').value  = '';
     document.getElementById('type_name').value  = '';
     document.getElementById('type_level').value = currentLevel;
-    document.getElementById('type_major_category').value = document.getElementById('major_category')?.value || '';
+    document.getElementById('type_major_category').value = document.getElementById('major_category')?.value || '1';
     toggleModalCategory();
     modal.classList.add('active');
   }
@@ -4577,16 +4569,37 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
 
   function editSelectedType() {
       const sel = document.getElementById('offense_type_id');
-      if (!sel.value || sel.value == '22' || sel.value == '23' || sel.value == '24') return;
+      if (!sel || !sel.value) {
+          alert('Please select an offense type from the dropdown first to edit it.');
+          return;
+      }
+      if (sel.value == '22' || sel.value == '23' || sel.value == '24') {
+          openAddModal();
+          return;
+      }
       const opt = sel.options[sel.selectedIndex];
-      const parts = opt.textContent.trim().split(' — ');
-      if (parts.length >= 2) {
+      const dataCode = opt.dataset.code || '';
+      const dataName = opt.dataset.name || '';
+      const dataLevel = opt.dataset.level || currentLevel;
+      const dataCat = opt.dataset.majorCategory || (document.getElementById('major_category')?.value || '1');
+
+      if (dataCode) {
+          document.getElementById('type_code').value = dataCode;
+      } else {
+          const parts = opt.textContent.trim().split(' — ');
           document.getElementById('type_code').value = parts[0].trim();
+      }
+
+      if (dataName) {
+          document.getElementById('type_name').value = dataName;
+      } else {
+          const parts = opt.textContent.trim().split(' — ');
           document.getElementById('type_name').value = parts.slice(1).join(' — ').trim();
       }
-      document.getElementById('type_level').value = currentLevel;
-      if (currentLevel === 'MAJOR') {
-          document.getElementById('type_major_category').value = document.getElementById('major_category')?.value || '';
+
+      document.getElementById('type_level').value = dataLevel;
+      if (dataLevel === 'MAJOR') {
+          document.getElementById('type_major_category').value = dataCat || '1';
       }
       toggleModalCategory();
       
@@ -4595,42 +4608,11 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       modal.classList.add('active');
   }
 
-  let pendingDeleteTypeId = null;
-
-  function deleteSelectedType() {
-      const sel = document.getElementById('offense_type_id');
-      if (!sel.value || sel.value == '22' || sel.value == '23') return;
-      pendingDeleteTypeId = sel.value;
-      document.getElementById('confirmDeleteTypeModal').classList.add('active');
-  }
-
-  async function executeDeleteType() {
-      if (!pendingDeleteTypeId) return;
-      document.getElementById('confirmDeleteTypeModal').classList.remove('active');
-      
-      const formData = new FormData();
-      formData.append('action', 'delete_offense_type');
-      formData.append('offense_type_id', pendingDeleteTypeId);
-      
-      const res = await fetch(window.location.href, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-      const data = await res.json();
-      if (data.ok) {
-          showTypeSuccessModal('Deleted Successfully', 'The offense type has been securely removed from the selection list.');
-          await refreshOffenseTypes();
-          const sel = document.getElementById('offense_type_id');
-          if (sel) sel.dispatchEvent(new Event('change'));
-      } else {
-          alert(data.error || 'Failed to delete.');
-      }
-      pendingDeleteTypeId = null;
-  }
-
   function showTypeSuccessModal(title, msg) {
       document.getElementById('typeActionSuccessTitle').innerText = title;
       document.getElementById('typeActionSuccessMsg').innerText = msg;
       document.getElementById('typeActionSuccessModal').classList.add('active');
   }
-
 
   async function saveOffenseType() {
     const code  = document.getElementById('type_code').value.trim();
@@ -4658,8 +4640,16 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     const data = await res.json();
     if (data.ok) { 
         closeModal(); 
+        if (level === 'MAJOR' && majorCategory && document.getElementById('major_category')) {
+          document.getElementById('major_category').value = majorCategory;
+          if (typeof updateCategoryDesc === 'function') updateCategoryDesc(majorCategory);
+        }
+        if (levelSelect && levelSelect.value !== level) {
+          levelSelect.value = level;
+          onLevelChange(level);
+        }
         await refreshOffenseTypes(data.new_id); 
-        showTypeSuccessModal(editId ? 'Offense Type Updated' : 'Offense Type Created', 'The custom offense type has been successfully saved to the database.');
+        showTypeSuccessModal(editId ? 'Offense Type Updated' : 'Offense Type Created', 'The offense type has been successfully saved to the database.');
     }
     else { document.getElementById('modalError').innerText = data.error || 'Error saving offense type.'; }
   }
