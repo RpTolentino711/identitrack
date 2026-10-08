@@ -97,11 +97,27 @@ class _OffenseDetailScreenState extends State<OffenseDetailScreen> {
     if (status == 'VOID') return false;
     if (widget.offense.acknowledgedAt != null) return false;
     if (appealStatus == 'REJECTED' || appealStatus == 'APPROVED' || appealStatus == 'PENDING' || appealStatus == 'REVIEWING') return false;
-    if (widget.offense.isBundle || (widget.offense.upccCaseId != null && widget.offense.upccCaseId! > 0)) {
-      if (status.contains('RESOLVED') || status.contains('COMPLETED') || status.contains('ONGOING') || status.contains('DISMISSED') || status.contains('CANCELLED')) return false;
-      return true;
+
+    // A decision can ONLY be accepted or appealed AFTER UPCC panel / Admin renders a decision (status contains CLOSED).
+    // If the hearing/case is still PENDING, ACTIVE, SCHEDULED, or already ONGOING/RESOLVED/COMPLETED/DISMISSED/CANCELLED, do not show buttons.
+    if (status.contains('PENDING') ||
+        status.contains('HEARING') ||
+        status.contains('SCHEDULED') ||
+        status.contains('ACTIVE') ||
+        status.contains('INVESTIGATION') ||
+        status.contains('RESOLVED') ||
+        status.contains('COMPLETED') ||
+        status.contains('ONGOING') ||
+        status.contains('DISMISSED') ||
+        status.contains('CANCELLED')) {
+      return false;
     }
-    return level == 'MAJOR';
+
+    if (widget.offense.isBundle || (widget.offense.upccCaseId != null && widget.offense.upccCaseId! > 0)) {
+      return status.contains('CLOSED');
+    }
+
+    return level == 'MAJOR' && status.contains('CLOSED');
   }
 
   bool _canDelete() {
