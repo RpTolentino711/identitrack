@@ -32,79 +32,131 @@ if ($fullName === '') $fullName = (string)($admin['username'] ?? 'User');
 // 1. Password Verification gate for entering the page (Disabled per client request)
 $is_verified = true;
 
-// Get current tab (default category 1)
-$tab = isset($_GET['tab']) ? $_GET['tab'] : 'cat1';
+// Get current tab — auto-detect from appeals redirect, else default cat1
+$tab = isset($_GET['tab']) ? $_GET['tab'] : null;
 
-// Fetch cases
-$cases = [];
-$activities = [];
-$params = [];
-    $params = [];
-    db_add_encryption_key($params);
+// ─── Handle redirect from appeals.php (approved / rejected) ────────────────
+$appealId           = isset($_GET['appeal_id']) ? (int)$_GET['appeal_id'] : 0;
+$requestedStudentId = isset($_GET['student_id']) ? trim((string)$_GET['student_id']) : '';
+$appealNotice       = null;
 
-    $query = "
-      SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details, uc.status AS case_status,
-             " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ",
-             s.program, s.section, s.year_level, s.is_active AS student_active,
-             csr.requirement_id, csr.status AS req_status, csr.hours_required, csr.task_name, csr.completed_at AS req_completed_at,
-             (
-               SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
-               FROM community_service_session sess
-               WHERE sess.requirement_id = csr.requirement_id AND sess.time_out IS NOT NULL
-             ) AS hours_completed,
-             (
-               SELECT css.session_id FROM community_service_session css
-               WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
-               ORDER BY css.time_in DESC LIMIT 1
-             ) AS active_session_id,
-             (
-               SELECT css.status FROM community_service_session css
-               WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
-               ORDER BY css.time_in DESC LIMIT 1
-             ) AS active_session_status,
-             (
-               SELECT css.pause_reason FROM community_service_session css
-               WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
-               ORDER BY css.time_in DESC LIMIT 1
-             ) AS active_session_pause_reason
-      FROM upcc_case uc
-      JOIN student s ON s.student_id = uc.student_id
-      LEFT JOIN community_service_requirement csr ON csr.related_case_id = uc.case_id
-      WHERE uc.decided_category IS NOT NULL AND uc.decided_category BETWEEN 1 AND 5
-      ORDER BY uc.created_at DESC
-    ";
-    $cases = db_all($query, $params);
+if (isset($_GET['msg'])) {
+    $m = strtolower((string)$_GET['msg']);
+    if ($m === 'approved') {
+        $appealNotice = [
+            'type'  => 'success',
+            'title' => 'Appeal Approved',
+            'text'  => 'The appeal was approved and the related sanction was cancelled/voided. You can still review or adjust the student\'s sanction below.',
+        ];
+    } elseif ($m === 'rejected') {
+        $appealNotice = [
+            'type'  => 'warn',
+            'title' => 'Appeal Rejected',
+            'text'  => 'The appeal was rejected — the sanction stands. You can review or edit the student\'s sanction below.',
+        ];
+    }
+}
 
-    // Fetch activities for all these cases in a single query
-    $caseIds = array_column($cases, 'case_id');
-    $case_student_map = [];
-    $student_activities = [];
-    if (!empty($caseIds)) {
-        foreach ($cases as $c) {
-            $case_student_map[(int)$c['case_id']] = $c['student_id'];
+// If we came from an appeal, look up its case so we can jump to the right tab
+if ($appealId > 0) {
+    $appealRow = db_one(
+        "SELECT student_id, case_id FROM student_appeal_request WHERE appeal_id = :id LIMIT 1",
+        [':id' => $appealId]
+    );
+    if ($appealRow) {
+        if ($requestedStudentId === '') {
+            $requestedStudentId = (string)$appealRow['student_id'];
         }
-        $inClause = implode(',', array_map('intval', $caseIds));
-        $activitiesQuery = "
-          SELECT activity_id, case_id, actor_type, actor_id, action, payload_json, created_at
-          FROM upcc_case_activity
-          WHERE case_id IN ($inClause)
-          ORDER BY created_at DESC, activity_id DESC
-        ";
-        $rawActivities = db_all($activitiesQuery);
-        foreach ($rawActivities as $act) {
-            $cid = (int)$act['case_id'];
-            $activities[$cid][] = $act;
-            $sid = $case_student_map[$cid] ?? null;
-            if ($sid) {
-                $student_activities[$sid][] = $act;
+        $caseId = (int)$appealRow['case_id'];
+        if ($tab === null && $caseId > 0) {
+            $caseRow = db_one(
+                "SELECT decided_category FROM upcc_case WHERE case_id = :cid LIMIT 1",
+                [':cid' => $caseId]
+            );
+            if ($caseRow && $caseRow['decided_category'] !== null) {
+                $cat = (int)$caseRow['decided_category'];
+                if ($cat === 1)                    $tab = 'cat1';
+                elseif ($cat === 2)                $tab = 'cat2';
+                elseif ($cat === 3)                $tab = 'cat3';
+                elseif ($cat === 4 || $cat === 5)  $tab = 'cat4_5';
             }
         }
     }
+}
+
+// Fallbacks
+if ($tab === null)                                        $tab = 'cat1';
+if (!in_array($tab, ['cat1','cat2','cat3','cat4_5'], true)) $tab = 'cat1';
+
+// ─── Fetch cases ────────────────────────────────────────────────────────────
+$cases = [];
+$activities = [];
+$params = [];
+db_add_encryption_key($params);
+
+$query = "
+  SELECT uc.case_id, uc.student_id, uc.decided_category, uc.probation_until, uc.punishment_details, uc.status AS case_status,
+         " . db_decrypt_cols(['student_fn', 'student_ln'], 's') . ",
+         s.program, s.section, s.year_level, s.is_active AS student_active,
+         csr.requirement_id, csr.status AS req_status, csr.hours_required, csr.task_name, csr.completed_at AS req_completed_at,
+         (
+           SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
+           FROM community_service_session sess
+           WHERE sess.requirement_id = csr.requirement_id AND sess.time_out IS NOT NULL
+         ) AS hours_completed,
+         (
+           SELECT css.session_id FROM community_service_session css
+           WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
+           ORDER BY css.time_in DESC LIMIT 1
+         ) AS active_session_id,
+         (
+           SELECT css.status FROM community_service_session css
+           WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
+           ORDER BY css.time_in DESC LIMIT 1
+         ) AS active_session_status,
+         (
+           SELECT css.pause_reason FROM community_service_session css
+           WHERE css.requirement_id = csr.requirement_id AND css.time_out IS NULL
+           ORDER BY css.time_in DESC LIMIT 1
+         ) AS active_session_pause_reason
+  FROM upcc_case uc
+  JOIN student s ON s.student_id = uc.student_id
+  LEFT JOIN community_service_requirement csr ON csr.related_case_id = uc.case_id
+  WHERE uc.decided_category IS NOT NULL AND uc.decided_category BETWEEN 1 AND 5
+  ORDER BY uc.created_at DESC
+";
+$cases = db_all($query, $params);
+
+// Fetch activities for all these cases in a single query
+$caseIds = array_column($cases, 'case_id');
+$case_student_map = [];
+$student_activities = [];
+if (!empty($caseIds)) {
+    foreach ($cases as $c) {
+        $case_student_map[(int)$c['case_id']] = $c['student_id'];
+    }
+    $inClause = implode(',', array_map('intval', $caseIds));
+    $activitiesQuery = "
+      SELECT activity_id, case_id, actor_type, actor_id, action, payload_json, created_at
+      FROM upcc_case_activity
+      WHERE case_id IN ($inClause)
+      ORDER BY created_at DESC, activity_id DESC
+    ";
+    $rawActivities = db_all($activitiesQuery);
+    foreach ($rawActivities as $act) {
+        $cid = (int)$act['case_id'];
+        $activities[$cid][] = $act;
+        $sid = $case_student_map[$cid] ?? null;
+        if ($sid) {
+            $student_activities[$sid][] = $act;
+        }
+    }
+}
 
 // Group cases by category tab for display
-$cat1_cases = [];
-$cat2_cases = [];
-$cat3_cases = [];
+$cat1_cases   = [];
+$cat2_cases   = [];
+$cat3_cases   = [];
 $cat4_5_cases = [];
 
 foreach ($cases as $c) {
@@ -120,12 +172,11 @@ foreach ($cases as $c) {
     }
 }
 
-// Group Category 2 by student_id to ensure ONE single combined card per student ("make it one")
+// Group Category 2 by student_id to ensure ONE single combined card per student
 $cat2_students = [];
 foreach ($cat2_cases as $c) {
     $sid = $c['student_id'];
     if (!isset($cat2_students[$sid])) {
-        // Find the student's primary ACTIVE community service requirement if any
         $activeCsr = db_one("
             SELECT requirement_id, status AS req_status, hours_required, task_name, completed_at AS req_completed_at,
                    (
@@ -139,12 +190,12 @@ foreach ($cat2_cases as $c) {
         ", [':sid' => $sid]);
 
         if ($activeCsr) {
-            $c['requirement_id'] = $activeCsr['requirement_id'];
-            $c['req_status'] = $activeCsr['req_status'];
-            $c['hours_required'] = $activeCsr['hours_required'];
-            $c['task_name'] = $activeCsr['task_name'];
-            $c['req_completed_at'] = $activeCsr['req_completed_at'];
-            $c['hours_completed'] = $activeCsr['hours_completed'];
+            $c['requirement_id']    = $activeCsr['requirement_id'];
+            $c['req_status']        = $activeCsr['req_status'];
+            $c['hours_required']    = $activeCsr['hours_required'];
+            $c['task_name']         = $activeCsr['task_name'];
+            $c['req_completed_at']  = $activeCsr['req_completed_at'];
+            $c['hours_completed']   = $activeCsr['hours_completed'];
         }
         $cat2_students[$sid] = $c;
     }
@@ -155,7 +206,7 @@ function formatCaseActivity(array $act): string {
     $action = $act['action'];
     $payload = json_decode($act['payload_json'] ?? '', true) ?: [];
     $dateStr = date('M d, Y g:i A', strtotime($act['created_at']));
-    
+
     $formatHours = function(float $decimalHours): string {
         $totalMins = (int)round($decimalHours * 60);
         $h = (int)floor($totalMins / 60);
@@ -168,12 +219,12 @@ function formatCaseActivity(array $act): string {
         case 'SANCTION_CATEGORY_UPDATED':
             $cat = (int)($payload['category'] ?? 0);
             $by = htmlspecialchars((string)($payload['by'] ?? 'Admin'));
-            
+
             $completed = !empty($payload['completed']) || (isset($payload['completed']) && $payload['completed'] == 1);
             if ($completed) {
                 return "<strong>[$dateStr]</strong> Sanction marked as completed by <strong>$by</strong>.";
             }
-            
+
             $catNames = [
                 1 => 'Category 1 (Formal Reprimand / Probation)',
                 2 => 'Category 2 (Formative CS 150–250 Hours)',
@@ -189,7 +240,7 @@ function formatCaseActivity(array $act): string {
             } elseif ($cat === 2 && isset($payload['hours'])) {
                 $newHours = (float)$payload['hours'];
                 $oldReq   = isset($payload['old_hours_required']) ? (float)$payload['old_hours_required'] : null;
-                
+
                 $newStr = $formatHours($newHours);
                 if ($oldReq !== null && $oldReq > 0) {
                     $oldStr = $formatHours($oldReq);
@@ -203,8 +254,7 @@ function formatCaseActivity(array $act): string {
                 }
                 $detailStr = " (Required: $newStr)";
             }
-            
-            // Check if this was a category switch
+
             $oldCat = isset($payload['old_category']) ? (int)$payload['old_category'] : null;
             if ($oldCat !== null && $oldCat !== $cat) {
                 $oldCatNames = [
@@ -215,7 +265,7 @@ function formatCaseActivity(array $act): string {
                     5 => 'Category 5 (Summary Expulsion & Police Referral)'
                 ];
                 $oldCatName = $oldCatNames[$oldCat] ?? "Category $oldCat";
-                
+
                 if ($oldCat === 2 && isset($payload['old_hours_required'])) {
                     $oldComp = (float)($payload['old_hours_completed'] ?? 0.0);
                     $oldReq = (float)$payload['old_hours_required'];
@@ -224,25 +274,25 @@ function formatCaseActivity(array $act): string {
                     $statusText = ($oldComp < ($oldReq - 0.0001)) ? "incomplete at $compStr / $reqStr" : "completed";
                     return "<strong>[$dateStr]</strong> Switched from <strong>$oldCatName</strong> ($statusText) to <strong>$catName</strong>$detailStr by <strong>$by</strong>.";
                 }
-                
+
                 return "<strong>[$dateStr]</strong> Switched from <strong>$oldCatName</strong> to <strong>$catName</strong>$detailStr by <strong>$by</strong>.";
             }
 
             return "<strong>[$dateStr]</strong> Category updated to <strong>$catName</strong>$detailStr by <strong>$by</strong>.";
-            
+
         case 'SANCTION_HOURS_ACCUMULATED':
             $added = (float)($payload['added_hours'] ?? 0.0);
             $prev  = (float)($payload['previous_hours'] ?? 0.0);
             $total = (float)($payload['new_total_hours'] ?? 0.0);
             $source = htmlspecialchars((string)($payload['source'] ?? 'Admin'));
-            
+
             $isDecrease = ($added < 0 || ($total < $prev && $added == 0));
             $diffAbs = abs($added != 0 ? $added : ($prev - $total));
-            
+
             $diffStr = $formatHours($diffAbs);
             $prevStr  = $formatHours($prev);
             $totalStr = $formatHours($total);
-            
+
             if ($isDecrease) {
                 return "<strong>[$dateStr]</strong> ➖ <strong>$source</strong> decreased service time by <strong>-$diffStr</strong>. <span style='color:#64748b;font-size:0.88em;'>(Previous ongoing: <strong>$prevStr</strong> - Decreased: <strong>$diffStr</strong> = New Total: <strong>$totalStr</strong>)</span>";
             } else {
@@ -254,12 +304,12 @@ function formatCaseActivity(array $act): string {
             $pDetails = $payload['punishment_details'] ?? [];
             $serviceHrs = isset($pDetails['service_hours']) ? (float)$pDetails['service_hours'] : 0.0;
             $caseNum = isset($act['case_id']) ? (int)$act['case_id'] : 0;
-            
+
             if ($cat === 2 && $serviceHrs > 0) {
                 $hrsStr = $formatHours($serviceHrs);
                 return "<strong>[$dateStr]</strong> 🏛️ <strong>UPCC Panel Decision (Case #$caseNum)</strong>: Category 2 assigned <strong>+$hrsStr</strong> service time.";
             }
-            
+
             $catNames = [
                 1 => 'Category 1 (Formal Reprimand / Probation)',
                 2 => 'Category 2 (Formative Intervention / Service)',
@@ -272,15 +322,15 @@ function formatCaseActivity(array $act): string {
 
         case 'AUTO_RESOLVED_WINDOW_EXPIRED':
             return "<strong>[$dateStr]</strong> Auto-resolved by system (grace period expired).";
-            
+
         case 'CASE_STATUS_UPDATED':
             $status = htmlspecialchars((string)($payload['status'] ?? ''));
             return "<strong>[$dateStr]</strong> Case status updated to <strong>$status</strong>.";
-            
+
         case 'DECISION_FINALIZED':
             $cat = (int)($payload['category'] ?? 0);
             return "<strong>[$dateStr]</strong> UPCC Decision Finalized: Category <strong>$cat</strong>.";
-            
+
         default:
             $prettyAction = ucwords(strtolower(str_replace('_', ' ', $action)));
             return "<strong>[$dateStr]</strong> $prettyAction.";
@@ -293,16 +343,14 @@ function formatCaseActivity(array $act): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sanction Tracker & Management | SDO Web Portal</title>
-  
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -319,10 +367,7 @@ function formatCaseActivity(array $act): string {
       background: #f4f6fa;
     }
 
-    .wrap {
-      min-height: 100%;
-      padding: 0;
-    }
+    .wrap { min-height: 100%; padding: 0; }
 
     /* Page Header Card */
     .page-header {
@@ -370,6 +415,52 @@ function formatCaseActivity(array $act): string {
       margin: 0 auto;
     }
 
+    /* ── Appeal redirect notice banner ───────────────────────────────── */
+    .appeal-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px 18px;
+      border-radius: 14px;
+      margin-bottom: 22px;
+      border: 1px solid transparent;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, .04);
+      animation: noticeIn .35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .appeal-notice--success {
+      background: linear-gradient(180deg, #ecfdf5, #d1fae5);
+      border-color: #a7f3d0;
+      color: #065f46;
+    }
+    .appeal-notice--warn {
+      background: linear-gradient(180deg, #fffbeb, #fef3c7);
+      border-color: #fcd34d;
+      color: #92400e;
+    }
+    .appeal-notice-icon {
+      flex: 0 0 auto;
+      width: 38px; height: 38px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 10px;
+      background: rgba(255,255,255,.75);
+      box-shadow: 0 2px 6px rgba(0,0,0,.05);
+    }
+    .appeal-notice-icon svg { width: 20px; height: 20px; }
+    .appeal-notice-body { flex: 1; min-width: 0; }
+    .appeal-notice-title { font-weight: 800; font-size: 14.5px; margin-bottom: 2px; }
+    .appeal-notice-text { font-size: 13.5px; line-height: 1.5; opacity: .92; }
+    .appeal-notice-close {
+      background: none; border: none;
+      color: currentColor; opacity: .55;
+      font-size: 22px; line-height: 1; cursor: pointer;
+      padding: 0 4px; margin-top: -2px;
+    }
+    .appeal-notice-close:hover { opacity: 1; }
+    @keyframes noticeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
     /* Tabs: Pill container */
     .tabs-container {
       background: #ffffff;
@@ -411,9 +502,7 @@ function formatCaseActivity(array $act): string {
       background: #f8fafc;
     }
 
-    .tab-pill:hover svg {
-      transform: translateY(-1px);
-    }
+    .tab-pill:hover svg { transform: translateY(-1px); }
 
     .tab-pill.active {
       background: #3b4aa6;
@@ -471,7 +560,6 @@ function formatCaseActivity(array $act): string {
       height: 100%;
     }
 
-    /* Colors by Tab/Category */
     .sanction-card.cat-1::before { background: #f59e0b; }
     .sanction-card.cat-2::before { background: #10b981; }
     .sanction-card.cat-3::before { background: #ef4444; }
@@ -640,10 +728,7 @@ function formatCaseActivity(array $act): string {
       box-shadow: 0 4px 12px rgba(59, 74, 166, 0.08);
     }
 
-    .btn-edit svg {
-      width: 14px;
-      height: 14px;
-    }
+    .btn-edit svg { width: 14px; height: 14px; }
 
     /* History Log Section in Sanction Card */
     details.sanction-card-history-section,
@@ -767,9 +852,7 @@ function formatCaseActivity(array $act): string {
       transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
-    .lock-logo:hover {
-      transform: scale(1.08);
-    }
+    .lock-logo:hover { transform: scale(1.08); }
 
     .lock-screen-header h2 {
       margin: 0;
@@ -786,13 +869,9 @@ function formatCaseActivity(array $act): string {
       line-height: 1.5;
     }
 
-    .lock-screen-body {
-      padding: 36px 32px;
-    }
+    .lock-screen-body { padding: 36px 32px; }
 
-    .form-group {
-      margin-bottom: 20px;
-    }
+    .form-group { margin-bottom: 20px; }
 
     .form-group label {
       display: block;
@@ -857,9 +936,7 @@ function formatCaseActivity(array $act): string {
       vertical-align: middle;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .error-banner {
       background: #fef2f2;
@@ -939,13 +1016,9 @@ function formatCaseActivity(array $act): string {
       justify-content: center;
     }
 
-    .modal-close:hover {
-      color: #475569;
-    }
+    .modal-close:hover { color: #475569; }
 
-    .modal-body {
-      padding: 28px;
-    }
+    .modal-body { padding: 28px; }
 
     .btn-secondary {
       padding: 10px 18px;
@@ -964,13 +1037,8 @@ function formatCaseActivity(array $act): string {
       color: #1e293b;
     }
 
-    .step-content {
-      display: none;
-    }
-
-    .step-content.active {
-      display: block;
-    }
+    .step-content { display: none; }
+    .step-content.active { display: block; }
 
     .otp-cooldown-text {
       font-size: 12px;
@@ -1003,12 +1071,8 @@ function formatCaseActivity(array $act): string {
       background: #eff6ff;
       color: #1d4ed8;
     }
-    .btn-toggle-history svg {
-      transition: transform 0.2s ease;
-    }
-    .btn-toggle-history.active svg {
-      transform: rotate(90deg);
-    }
+    .btn-toggle-history svg { transition: transform 0.2s ease; }
+    .btn-toggle-history.active svg { transform: rotate(90deg); }
     .card-history-content {
       margin-top: 12px;
       padding: 16px;
@@ -1050,9 +1114,7 @@ function formatCaseActivity(array $act): string {
       height: calc(100% + 8px);
       background: #e2e8f0;
     }
-    .history-item:last-child::after {
-      display: none;
-    }
+    .history-item:last-child::after { display: none; }
 
     /* Animations */
     @keyframes fadeIn {
@@ -1067,28 +1129,17 @@ function formatCaseActivity(array $act): string {
     }
 
     @media (max-width: 900px) {
-      .admin-shell {
-        grid-template-columns: 1fr;
-      }
-      .content-area {
-        padding: 20px 16px;
-      }
-      .page-header {
-        padding: 28px 20px;
-      }
-      .sanction-card {
-        grid-template-columns: 1fr;
-        gap: 20px;
-      }
+      .admin-shell { grid-template-columns: 1fr; }
+      .content-area { padding: 20px 16px; }
+      .page-header { padding: 28px 20px; }
+      .sanction-card { grid-template-columns: 1fr; gap: 20px; }
       .tabs-container {
         width: 100%;
         overflow-x: auto;
         white-space: nowrap;
         display: flex;
       }
-      .tab-pill {
-        padding: 10px 16px;
-      }
+      .tab-pill { padding: 10px 16px; }
     }
 
     /* RFID Search / Finder Box Styling */
@@ -1156,10 +1207,7 @@ function formatCaseActivity(array $act): string {
       justify-content: center;
     }
 
-    .scanner-icon-indicator svg {
-      width: 20px;
-      height: 20px;
-    }
+    .scanner-icon-indicator svg { width: 20px; height: 20px; }
 
     .btn-search {
       height: 48px;
@@ -1241,10 +1289,7 @@ function formatCaseActivity(array $act): string {
       justify-content: center;
     }
 
-    .rfid-student-profile-left .avatar svg {
-      width: 22px;
-      height: 22px;
-    }
+    .rfid-student-profile-left .avatar svg { width: 22px; height: 22px; }
 
     .rfid-student-details h3 {
       margin: 0;
@@ -1340,6 +1385,32 @@ function formatCaseActivity(array $act): string {
       <!-- Content Area -->
       <div class="content-area">
 
+          <!-- Appeal redirect notice banner -->
+          <?php if ($appealNotice): ?>
+            <div class="appeal-notice appeal-notice--<?php echo e($appealNotice['type']); ?>" id="appealNotice">
+              <div class="appeal-notice-icon">
+                <?php if ($appealNotice['type'] === 'success'): ?>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                <?php else: ?>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                <?php endif; ?>
+              </div>
+              <div class="appeal-notice-body">
+                <div class="appeal-notice-title"><?php echo e($appealNotice['title']); ?></div>
+                <div class="appeal-notice-text"><?php echo e($appealNotice['text']); ?></div>
+              </div>
+              <button type="button" class="appeal-notice-close"
+                      onclick="document.getElementById('appealNotice').remove();">&times;</button>
+            </div>
+          <?php endif; ?>
+
           <!-- RFID & ID Scan Finder -->
           <div class="scanner-search-box">
             <div class="scanner-search-title">
@@ -1406,15 +1477,15 @@ function formatCaseActivity(array $act): string {
               <?php else: ?>
                 <div class="sanctions-list">
                   <?php foreach ($cat1_cases as $c): ?>
-                    <?php 
+                    <?php
                       $student_name = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
                       if ($student_name === '') $student_name = $c['student_id'];
-                      
+
                       $p_details = json_decode($c['punishment_details'] ?? '', true) ?: [];
                       $is_completed = !empty($p_details['completed']);
                       $is_ongoing = !$is_completed && (empty($c['probation_until']) || (strtotime($c['probation_until']) > time()));
                     ?>
-                    <div class="sanction-card cat-1">
+                    <div class="sanction-card cat-1" id="student-card-<?php echo htmlspecialchars($c['student_id']); ?>">
                       <div class="sanction-card-left">
                         <div class="sanction-avatar-wrap">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1431,7 +1502,7 @@ function formatCaseActivity(array $act): string {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div class="sanction-card-middle">
                         <div class="status-badge-container">
                           <?php if ($is_ongoing): ?>
@@ -1472,9 +1543,7 @@ function formatCaseActivity(array $act): string {
                           Edit Sanction
                         </button>
                       </div>
-                      <?php 
-                        $case_acts = $activities[(int)$c['case_id']] ?? [];
-                      ?>
+                      <?php $case_acts = $activities[(int)$c['case_id']] ?? []; ?>
                       <details class="sanction-card-history-section">
                         <summary class="btn-toggle-history">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
@@ -1489,9 +1558,7 @@ function formatCaseActivity(array $act): string {
                           <?php else: ?>
                             <ul class="history-timeline">
                               <?php foreach ($case_acts as $act): ?>
-                                <li class="history-item">
-                                  <?php echo formatCaseActivity($act); ?>
-                                </li>
+                                <li class="history-item"><?php echo formatCaseActivity($act); ?></li>
                               <?php endforeach; ?>
                             </ul>
                           <?php endif; ?>
@@ -1517,16 +1584,16 @@ function formatCaseActivity(array $act): string {
               <?php else: ?>
                 <div class="sanctions-list">
                   <?php foreach ($cat2_cases as $c): ?>
-                    <?php 
+                    <?php
                       $student_name = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
                       if ($student_name === '') $student_name = $c['student_id'];
-                      
+
                       $p_details = json_decode($c['punishment_details'] ?? '', true) ?: [];
                       $is_completed = !empty($p_details['completed']);
                       $is_ongoing = !$is_completed;
                       $hours_comp = (float)$c['hours_completed'];
-                      $hours_req = (float)$c['hours_required'];
-                      $hours_rem = max(0.0, $hours_req - $hours_comp);
+                      $hours_req  = (float)$c['hours_required'];
+                      $hours_rem  = max(0.0, $hours_req - $hours_comp);
                       $has_finished_hours = ($hours_comp >= ($hours_req - 0.0001));
                     ?>
                     <div class="sanction-card cat-2" id="student-card-<?php echo htmlspecialchars($c['student_id']); ?>">
@@ -1626,9 +1693,7 @@ function formatCaseActivity(array $act): string {
                           </button>
                         <?php endif; ?>
                       </div>
-                      <?php 
-                        $case_acts = $student_activities[$c['student_id']] ?? ($activities[(int)$c['case_id']] ?? []);
-                      ?>
+                      <?php $case_acts = $student_activities[$c['student_id']] ?? ($activities[(int)$c['case_id']] ?? []); ?>
                       <details class="sanction-card-history-section">
                         <summary class="btn-toggle-history">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
@@ -1643,9 +1708,7 @@ function formatCaseActivity(array $act): string {
                           <?php else: ?>
                             <ul class="history-timeline">
                               <?php foreach ($case_acts as $act): ?>
-                                <li class="history-item">
-                                  <?php echo formatCaseActivity($act); ?>
-                                </li>
+                                <li class="history-item"><?php echo formatCaseActivity($act); ?></li>
                               <?php endforeach; ?>
                             </ul>
                           <?php endif; ?>
@@ -1671,14 +1734,14 @@ function formatCaseActivity(array $act): string {
               <?php else: ?>
                 <div class="sanctions-list">
                   <?php foreach ($cat3_cases as $c): ?>
-                    <?php 
+                    <?php
                       $student_name = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
                       if ($student_name === '') $student_name = $c['student_id'];
-                      
+
                       $p_details = json_decode($c['punishment_details'] ?? '', true) ?: [];
                       $is_completed = !empty($p_details['completed']);
                     ?>
-                    <div class="sanction-card cat-3">
+                    <div class="sanction-card cat-3" id="student-card-<?php echo htmlspecialchars($c['student_id']); ?>">
                       <div class="sanction-card-left">
                         <div class="sanction-avatar-wrap">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1730,9 +1793,7 @@ function formatCaseActivity(array $act): string {
                           Edit Sanction
                         </button>
                       </div>
-                      <?php 
-                        $case_acts = $activities[(int)$c['case_id']] ?? [];
-                      ?>
+                      <?php $case_acts = $activities[(int)$c['case_id']] ?? []; ?>
                       <div class="sanction-card-history-section">
                         <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'history-<?php echo $c['case_id']; ?>')">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
@@ -1747,9 +1808,7 @@ function formatCaseActivity(array $act): string {
                           <?php else: ?>
                             <ul class="history-timeline">
                               <?php foreach ($case_acts as $act): ?>
-                                <li class="history-item">
-                                  <?php echo formatCaseActivity($act); ?>
-                                </li>
+                                <li class="history-item"><?php echo formatCaseActivity($act); ?></li>
                               <?php endforeach; ?>
                             </ul>
                           <?php endif; ?>
@@ -1775,16 +1834,16 @@ function formatCaseActivity(array $act): string {
               <?php else: ?>
                 <div class="sanctions-list">
                   <?php foreach ($cat4_5_cases as $c): ?>
-                    <?php 
+                    <?php
                       $student_name = trim(($c['student_fn'] ?? '') . ' ' . ($c['student_ln'] ?? ''));
                       if ($student_name === '') $student_name = $c['student_id'];
                       $is_expulsion = ((int)$c['decided_category'] === 5);
                       $is_active = (bool)$c['student_active'];
-                      
+
                       $p_details = json_decode($c['punishment_details'] ?? '', true) ?: [];
                       $is_completed = !empty($p_details['completed']);
                     ?>
-                    <div class="sanction-card cat-4">
+                    <div class="sanction-card cat-4" id="student-card-<?php echo htmlspecialchars($c['student_id']); ?>">
                       <div class="sanction-card-left">
                         <div class="sanction-avatar-wrap">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1813,7 +1872,7 @@ function formatCaseActivity(array $act): string {
                               <span class="status-badge frozen">Exclusion (Category 4)</span>
                             <?php endif; ?>
                           <?php endif; ?>
-                          
+
                           <?php if (!$is_active): ?>
                             <span class="status-badge frozen" style="margin-left: 8px;">Account Frozen</span>
                           <?php else: ?>
@@ -1848,9 +1907,7 @@ function formatCaseActivity(array $act): string {
                           Edit Sanction
                         </button>
                       </div>
-                      <?php 
-                        $case_acts = $activities[(int)$c['case_id']] ?? [];
-                      ?>
+                      <?php $case_acts = $activities[(int)$c['case_id']] ?? []; ?>
                       <div class="sanction-card-history-section">
                         <button class="btn-toggle-history" onclick="toggleCardHistory(this, 'history-<?php echo $c['case_id']; ?>')">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; display:inline-block; vertical-align:middle; margin-right:4px;">
@@ -1865,9 +1922,7 @@ function formatCaseActivity(array $act): string {
                           <?php else: ?>
                             <ul class="history-timeline">
                               <?php foreach ($case_acts as $act): ?>
-                                <li class="history-item">
-                                  <?php echo formatCaseActivity($act); ?>
-                                </li>
+                                <li class="history-item"><?php echo formatCaseActivity($act); ?></li>
                               <?php endforeach; ?>
                             </ul>
                           <?php endif; ?>
@@ -2115,13 +2170,11 @@ function formatCaseActivity(array $act): string {
         <button class="modal-close" onclick="closeAdjustTimeModal()">&times;</button>
       </div>
       <div class="modal-body" style="padding: 24px;">
-        <!-- Current Total Required Time info -->
         <div style="background: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 13px; color: #475569; font-weight: 500;">Current Total Required Time:</span>
           <span id="adjustCurrentDisplay" style="font-size: 14px; color: #0f172a; font-weight: 700;">0 minutes</span>
         </div>
 
-        <!-- Time Served So Far info -->
         <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 13px; color: #166534; font-weight: 600; display: flex; align-items: center; gap: 6px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;">
@@ -2133,7 +2186,6 @@ function formatCaseActivity(array $act): string {
           <span id="adjustServedDisplay" style="font-size: 14px; color: #15803d; font-weight: 800;">0 minutes</span>
         </div>
 
-        <!-- Action Toggle: Add / Subtract -->
         <div style="margin-bottom: 20px;">
           <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px;">Action</label>
           <div style="display: flex; gap: 8px;">
@@ -2146,7 +2198,6 @@ function formatCaseActivity(array $act): string {
           </div>
         </div>
 
-        <!-- Adjustment Duration Inputs -->
         <div style="display: flex; gap: 16px; margin-bottom: 24px;">
           <div style="flex: 1;">
             <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px;">Hours to Adjust</label>
@@ -2158,7 +2209,6 @@ function formatCaseActivity(array $act): string {
           </div>
         </div>
 
-        <!-- Live Preview -->
         <div style="border-top: 1px dashed #e2e8f0; padding-top: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 13px; color: #475569; font-weight: 500;">New Total Service Time:</span>
           <span id="adjustPreviewDisplay" style="font-size: 15px; color: #16a34a; font-weight: 800;">0 minutes</span>
@@ -2211,7 +2261,7 @@ function formatCaseActivity(array $act): string {
     window.toggleCardHistory = function(btn, contentId) {
       const content = document.getElementById(contentId);
       if (!content) return;
-      
+
       const isHidden = (content.style.display === 'none' || window.getComputedStyle(content).display === 'none');
       if (isHidden) {
         content.style.setProperty('display', 'block', 'important');
@@ -2239,7 +2289,6 @@ function formatCaseActivity(array $act): string {
         const errBanner = document.getElementById('pagePasswordError');
         errBanner.style.display = 'none';
 
-        // Set loading state
         pwdInput.disabled = true;
         submitBtn.disabled = true;
         const origText = submitBtn.innerHTML;
@@ -2256,7 +2305,6 @@ function formatCaseActivity(array $act): string {
             submitBtn.innerHTML = '<span class="spinner"></span>Please wait, redirecting...';
             location.reload();
           } else {
-            // Restore form state
             pwdInput.disabled = false;
             submitBtn.disabled = false;
             submitBtn.innerHTML = origText;
@@ -2265,7 +2313,6 @@ function formatCaseActivity(array $act): string {
           }
         })
         .catch(err => {
-          // Restore form state
           pwdInput.disabled = false;
           submitBtn.disabled = false;
           submitBtn.innerHTML = origText;
@@ -2291,7 +2338,7 @@ function formatCaseActivity(array $act): string {
       const totalMinutes = Math.round(val * 60);
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
-      
+
       let parts = [];
       if (hours > 0) {
         parts.push(hours + ' hr' + (hours > 1 ? 's' : ''));
@@ -2341,7 +2388,7 @@ function formatCaseActivity(array $act): string {
       editCategoryEl.dataset.originalCategory = data.category;
       editCategoryEl.dataset.initialCategoryLoaded = data.category;
       document.getElementById('editProbationUntil').value = data.probation_until;
-      
+
       const totalHours = parseFloat(data.hours) || 0;
       const hrs = Math.floor(totalHours);
       const mins = Math.round((totalHours - hrs) * 60);
@@ -2353,7 +2400,6 @@ function formatCaseActivity(array $act): string {
       const isComp = (typeof data.auto_check_completed !== 'undefined') ? !!data.auto_check_completed : !!data.completed;
       document.getElementById('editComplete').checked = isComp;
 
-      // Store initial completed status and hours completed
       modalOverlay.dataset.initialCompleted = data.completed ? 'true' : 'false';
       modalOverlay.dataset.hoursCompleted = data.hours_completed || 0;
 
@@ -2368,7 +2414,6 @@ function formatCaseActivity(array $act): string {
       toggleCategoryFields();
       checkEditSanctionFormDirty();
 
-      // Reset steps
       stepForm.classList.add('active');
       stepVerify.classList.remove('active');
       document.getElementById('verifyError').style.display = 'none';
@@ -2390,13 +2435,9 @@ function formatCaseActivity(array $act): string {
 
     function closeEditModal() {
       modalOverlay.classList.remove('active');
-      if (otpCooldownInterval) {
-        clearInterval(otpCooldownInterval);
-      }
+      if (otpCooldownInterval) clearInterval(otpCooldownInterval);
       otpCooldownSeconds = 0;
-      if (lockoutInterval) {
-        clearInterval(lockoutInterval);
-      }
+      if (lockoutInterval) clearInterval(lockoutInterval);
     }
 
     function toggleCompleteChecked() {
@@ -2405,7 +2446,7 @@ function formatCaseActivity(array $act): string {
       const editHours = document.getElementById('editHours');
       const editMinutes = document.getElementById('editMinutes');
       const initialCompleted = modalOverlay.dataset.initialCompleted === 'true';
-      
+
       if (isChecked) {
         editProbationUntil.disabled = true;
         editProbationUntil.style.opacity = '0.5';
@@ -2415,12 +2456,9 @@ function formatCaseActivity(array $act): string {
         editMinutes.style.opacity = '0.5';
       } else {
         if (initialCompleted) {
-          // If they unchecked it and the student was initially completed, show the "Are you sure you want to reactivate?" modal
           document.getElementById('undoCompleteModalOverlay').classList.add('active');
-          // Visually keep it checked for now
           document.getElementById('editComplete').checked = true;
         } else {
-          // If they were not completed initially, just allow unchecking and re-enable fields
           editProbationUntil.disabled = false;
           editProbationUntil.style.opacity = '1';
           editHours.disabled = false;
@@ -2437,33 +2475,29 @@ function formatCaseActivity(array $act): string {
 
     function confirmUndoComplete() {
       document.getElementById('undoCompleteModalOverlay').classList.remove('active');
-      
-      // Uncheck the completed checkbox and enable fields immediately upon confirmation
+
       const checkbox = document.getElementById('editComplete');
       checkbox.checked = false;
-      
+
       const editProbationUntil = document.getElementById('editProbationUntil');
       const editHours = document.getElementById('editHours');
       const editMinutes = document.getElementById('editMinutes');
-      
+
       editProbationUntil.disabled = false;
       editProbationUntil.style.opacity = '1';
       editHours.disabled = false;
       editHours.style.opacity = '1';
       editMinutes.disabled = false;
       editMinutes.style.opacity = '1';
-      
+
       const currentCat = parseInt(document.getElementById('editCategory').value);
       if (currentCat === 2) {
-        // Get current hours/minutes from the form
         const curHrs = document.getElementById('editHours').value;
         const curMins = document.getElementById('editMinutes').value;
-        
-        // Pre-fill the input fields in the reactivate modal
+
         document.getElementById('reactivateHoursInput').value = curHrs;
         document.getElementById('reactivateMinutesInput').value = curMins;
-        
-        // Show the reactivate hours modal
+
         document.getElementById('reactivateHoursModalOverlay').classList.add('active');
       }
     }
@@ -2475,32 +2509,28 @@ function formatCaseActivity(array $act): string {
     function saveReactivateHours() {
       const hrsInput = document.getElementById('reactivateHoursInput').value;
       const minsInput = document.getElementById('reactivateMinutesInput').value;
-      
-      // Set the values to the main form
+
       document.getElementById('editHours').value = hrsInput;
       document.getElementById('editMinutes').value = minsInput;
-      
-      // Uncheck the completed checkbox
+
       const checkbox = document.getElementById('editComplete');
       checkbox.checked = false;
-      
-      // Enable and restore opacity of the input fields
+
       const editProbationUntil = document.getElementById('editProbationUntil');
       const editHours = document.getElementById('editHours');
       const editMinutes = document.getElementById('editMinutes');
-      
+
       editProbationUntil.disabled = false;
       editProbationUntil.style.opacity = '1';
       editHours.disabled = false;
       editHours.style.opacity = '1';
       editMinutes.disabled = false;
       editMinutes.style.opacity = '1';
-      
-      // Close the modal
+
       document.getElementById('reactivateHoursModalOverlay').classList.remove('active');
     }
 
-    let adjustAction = 'add'; // 'add' or 'subtract'
+    let adjustAction = 'add';
 
     function openAdjustTimeModal() {
       const curHrs = parseInt(document.getElementById('editHours').value) || 0;
@@ -2574,7 +2604,7 @@ function formatCaseActivity(array $act): string {
 
       const previewEl = document.getElementById('adjustPreviewDisplay');
       previewEl.textContent = formatMinutesToText(newTotal);
-      
+
       if (newTotal > currentTotal) {
         previewEl.style.color = '#16a34a';
       } else if (newTotal < currentTotal) {
@@ -2602,7 +2632,7 @@ function formatCaseActivity(array $act): string {
 
       const newHrs = Math.floor(newTotal / 60);
       const newMins = newTotal % 60;
-      
+
       document.getElementById('editHours').value = newHrs || '';
       document.getElementById('editMinutes').value = newMins || '';
 
@@ -2637,8 +2667,7 @@ function formatCaseActivity(array $act): string {
         const editCategoryEl = document.getElementById('editCategory');
         editCategoryEl.dataset.originalCategory = pendingCategoryChange;
         document.getElementById('confirmCategoryModalOverlay').classList.remove('active');
-        
-        // If changing category, uncheck the mark completed checkbox automatically
+
         if (parseInt(pendingCategoryChange) !== parseInt(editCategoryEl.dataset.initialCategoryLoaded)) {
           document.getElementById('editComplete').checked = false;
         } else {
@@ -2710,7 +2739,6 @@ function formatCaseActivity(array $act): string {
             return;
           }
 
-          // Check if hours/minutes changed and show confirmation prompt
           const origHrs = parseInt(modalOverlay.dataset.originalHours) || 0;
           const origMins = parseInt(modalOverlay.dataset.originalMinutes) || 0;
           const origTotal = origHrs * 60 + origMins;
@@ -2736,7 +2764,6 @@ function formatCaseActivity(array $act): string {
         }
       }
 
-      // Check if student was already completed, but details are being modified
       const wasCompleted = (modalOverlay.dataset.initialCompleted === 'true');
       if (wasCompleted) {
         openModifyCompletedWarningModal();
@@ -2760,7 +2787,7 @@ function formatCaseActivity(array $act): string {
 
       const isCompleted = document.getElementById('editComplete').checked;
       const wasCompleted = (modalOverlay.dataset.initialCompleted === 'true');
-      
+
       if (wasCompleted) {
         openModifyCompletedWarningModal();
         return;
@@ -2788,11 +2815,11 @@ function formatCaseActivity(array $act): string {
         Modify Completed Sanction?
       `;
       warningMsg.textContent = "This student has already completed their sanction. Modifying the category, required hours, or status will overwrite their completed status. Are you sure you want to do this?";
-      
+
       if (warningBtn) {
         warningBtn.textContent = "Yes, Modify Sanction";
       }
-      
+
       document.getElementById('warningModalOverlay').classList.add('active');
     }
     function openWarningModal(isAutoCheck = false, hoursDetails = '') {
@@ -2801,7 +2828,7 @@ function formatCaseActivity(array $act): string {
       const warningTitle = document.getElementById('warningModalTitle');
       const warningMsg = document.getElementById('warningModalMessage');
       const warningBtn = document.getElementById('warningConfirmBtn');
-      
+
       warningTitle.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
           <circle cx="12" cy="12" r="10"></circle>
@@ -2838,7 +2865,6 @@ function formatCaseActivity(array $act): string {
       if (warningBtn) {
         warningBtn.textContent = isAutoCheck ? "Yes, Acknowledge & Complete" : "Yes, Complete Sanction";
       }
-      
 
       document.getElementById('warningModalOverlay').classList.add('active');
     }
@@ -2853,14 +2879,11 @@ function formatCaseActivity(array $act): string {
     }
 
     function proceedToVerification() {
-      // Switch views
       stepForm.classList.remove('active');
       stepVerify.classList.add('active');
 
-      // Ensure the main edit modal overlay is visible now
       modalOverlay.classList.add('active');
 
-      // Trigger automatic OTP request (force fresh OTP)
       requestOTP(true);
     }
 
@@ -2934,7 +2957,6 @@ function formatCaseActivity(array $act): string {
 
       if (lockoutInterval) clearInterval(lockoutInterval);
 
-      // Disable inputs and buttons
       submitBtn.disabled = true;
       resendBtn.disabled = true;
       passwordInput.disabled = true;
@@ -2944,7 +2966,7 @@ function formatCaseActivity(array $act): string {
         const minutes = Math.floor(lockoutSecondsLeft / 60);
         const secs = lockoutSecondsLeft % 60;
         const timeStr = `${minutes}m ${secs}s`;
-        
+
         errBanner.textContent = `Too many failed attempts. Please wait ${timeStr}.`;
         errBanner.style.display = 'block';
         submitBtn.textContent = `Confirm and Apply Changes (Disabled: ${timeStr})`;
@@ -2978,13 +3000,13 @@ function formatCaseActivity(array $act): string {
       const studentId = document.getElementById('editStudentId').value;
       const category = document.getElementById('editCategory').value;
       const probation_until = document.getElementById('editProbationUntil').value;
-      
+
       const hoursVal = parseFloat(document.getElementById('editHours').value) || 0;
       const minutesVal = parseFloat(document.getElementById('editMinutes').value) || 0;
       const combinedHours = hoursVal + (minutesVal / 60.0);
-      
+
       const completedVal = document.getElementById('editComplete').checked ? 1 : 0;
-      
+
       const password = document.getElementById('verifyPassword').value;
       const otp = document.getElementById('verifyOTP').value;
 
@@ -3030,7 +3052,6 @@ function formatCaseActivity(array $act): string {
       let scanTimer = null;
 
       document.addEventListener('keydown', function(ev) {
-        // If not verified or if typing in another input field, skip capturing
         const rfidInput = document.getElementById('rfidSearchInput');
         if (!rfidInput) return;
 
@@ -3042,8 +3063,6 @@ function formatCaseActivity(array $act): string {
           tgt.isContentEditable
         );
 
-        // If the user is typing in another input field, do not capture keys.
-        // But if they are typing/focusing in the rfidSearchInput itself, let them type normally.
         if (isTypingTarget && tgt !== rfidInput) return;
 
         if (ev.key === 'Enter') {
@@ -3060,7 +3079,6 @@ function formatCaseActivity(array $act): string {
           return;
         }
 
-        // Buffer standard character keys
         if (ev.key.length === 1 && !ev.ctrlKey && !ev.altKey && !ev.metaKey) {
           if (tgt !== rfidInput) {
             scanBuffer += ev.key;
@@ -3083,7 +3101,6 @@ function formatCaseActivity(array $act): string {
         return;
       }
 
-      // Show searching state
       resultContainer.style.display = 'block';
       resultContainer.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:32px;color:#64748b;">
@@ -3109,14 +3126,12 @@ function formatCaseActivity(array $act): string {
             return;
           }
 
-          // Build student profile section
           const student = data.student;
-          
-          // Show student ID in input field instead of raw/scanned RFID value
+
           document.getElementById('rfidSearchInput').value = student.student_id;
 
-          const statusBadge = student.is_active 
-            ? '<span class="status-badge completed">Account Active</span>' 
+          const statusBadge = student.is_active
+            ? '<span class="status-badge completed">Account Active</span>'
             : '<span class="status-badge frozen">Account Frozen</span>';
 
           let html = `
@@ -3157,8 +3172,8 @@ function formatCaseActivity(array $act): string {
               if (s.category === 1) {
                 categoryLabel = 'Category 1 (Suspension / Probation)';
                 categoryClass = 'cat-1';
-                badgeHTML = s.completed 
-                  ? '<span class="status-badge completed">Completed</span>' 
+                badgeHTML = s.completed
+                  ? '<span class="status-badge completed">Completed</span>'
                   : (s.is_ongoing ? '<span class="status-badge ongoing">Active Probation</span>' : '<span class="status-badge completed">Expired</span>');
                 detailsHTML = `
                   <div class="detail-item" style="grid-column: span 2;">
@@ -3169,10 +3184,10 @@ function formatCaseActivity(array $act): string {
               } else if (s.category === 2) {
                 categoryLabel = 'Category 2 (Community Service)';
                 categoryClass = 'cat-2';
-                badgeHTML = s.completed 
-                  ? '<span class="status-badge completed">Completed</span>' 
+                badgeHTML = s.completed
+                  ? '<span class="status-badge completed">Completed</span>'
                   : '<span class="status-badge ongoing">Active Service</span>';
-                
+
                 const hrsRem = Math.max(0, s.hours_required - s.hours_completed);
                 detailsHTML = `
                   <div class="detail-item">
@@ -3187,8 +3202,8 @@ function formatCaseActivity(array $act): string {
               } else if (s.category === 3) {
                 categoryLabel = 'Category 3 (Readmission Warning)';
                 categoryClass = 'cat-3';
-                badgeHTML = s.completed 
-                  ? '<span class="status-badge completed">Resolved Warning</span>' 
+                badgeHTML = s.completed
+                  ? '<span class="status-badge completed">Resolved Warning</span>'
                   : '<span class="status-badge frozen">Active Warning</span>';
                 detailsHTML = `
                   <div class="detail-item" style="grid-column: span 2;">
@@ -3200,8 +3215,8 @@ function formatCaseActivity(array $act): string {
                 const labelText = s.category === 5 ? 'Category 5 (Expulsion)' : 'Category 4 (Exclusion)';
                 categoryLabel = labelText;
                 categoryClass = 'cat-4';
-                badgeHTML = s.completed 
-                  ? '<span class="status-badge completed">Resolved / Reactivated</span>' 
+                badgeHTML = s.completed
+                  ? '<span class="status-badge completed">Resolved / Reactivated</span>'
                   : '<span class="status-badge frozen">Active Lockout</span>';
                 detailsHTML = `
                   <div class="detail-item" style="grid-column: span 2;">
@@ -3211,7 +3226,6 @@ function formatCaseActivity(array $act): string {
                 `;
               }
 
-              // Prep the JSON data payload for openEditModal
               const modalData = {
                 case_id: s.case_id,
                 student_id: student.student_id,
@@ -3248,7 +3262,6 @@ function formatCaseActivity(array $act): string {
                 `;
               }
 
-              // Render history log
               let historyHTML = '';
               const caseActs = s.activities || [];
               if (caseActs.length > 0) {
@@ -3341,15 +3354,13 @@ function formatCaseActivity(array $act): string {
       document.getElementById('btnResetRFIDSearch').style.display = 'none';
     }
 
-
-
     function formatCaseActivityJS(act) {
       const action = act.action;
       let payload = {};
       try {
         payload = JSON.parse(act.payload_json) || {};
       } catch(e) {}
-      
+
       const date = new Date(act.created_at);
       const options = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
       const dateStr = date.toLocaleDateString('en-US', options);
@@ -3359,11 +3370,11 @@ function formatCaseActivity(array $act): string {
           const cat = parseInt(payload.category) || 0;
           const by = escapeHTML(payload.by || 'Admin');
           const completed = !!payload.completed;
-          
+
           if (completed) {
             return `<strong>[${dateStr}]</strong> Sanction marked as completed by <strong>${by}</strong>.`;
           }
-          
+
           const catNames = {
             1: 'Category 1 (Formal Reprimand / Probation)',
             2: 'Category 2 (Formative CS 150–250 Hours)',
@@ -3372,7 +3383,7 @@ function formatCaseActivity(array $act): string {
             5: 'Category 5 (Summary Expulsion & Police Referral)'
           };
           const catName = catNames[cat] || `Category ${cat}`;
-          
+
           const formatHoursJS = (decimalHours) => {
             const totalMins = Math.round(decimalHours * 60);
             const h = Math.floor(totalMins / 60);
@@ -3402,7 +3413,6 @@ function formatCaseActivity(array $act): string {
             detailStr = ` (Required: ${newStr})`;
           }
 
-          // Check if this was a category switch
           const oldCat = typeof payload.old_category !== 'undefined' ? parseInt(payload.old_category) : null;
           if (oldCat !== null && oldCat !== cat) {
             const oldCatName = catNames[oldCat] || `Category ${oldCat}`;
@@ -3424,14 +3434,14 @@ function formatCaseActivity(array $act): string {
           const prev  = parseFloat(payload.previous_hours || 0);
           const total = parseFloat(payload.new_total_hours || 0);
           const source = escapeHTML(payload.source || 'Admin');
-          
+
           const isDecrease = (added < 0 || (total < prev && added === 0));
           const diffAbs = Math.abs(added !== 0 ? added : (prev - total));
-          
+
           const diffStr = formatHoursJS(diffAbs);
           const prevStr  = formatHoursJS(prev);
           const totalStr = formatHoursJS(total);
-          
+
           if (isDecrease) {
             return `<strong>[${dateStr}]</strong> ➖ <strong>${source}</strong> decreased service time by <strong>-${diffStr}</strong>. <span style="color:#64748b;font-size:0.88em;">(Previous ongoing: <strong>${prevStr}</strong> - Decreased: <strong>${diffStr}</strong> = New Total: <strong>${totalStr}</strong>)</span>`;
           } else {
@@ -3443,7 +3453,7 @@ function formatCaseActivity(array $act): string {
           const pDetails = payload.punishment_details || {};
           const serviceHrs = parseFloat(pDetails.service_hours || 0);
           const caseNum = parseInt(act.case_id) || 0;
-          
+
           if (fCat === 2 && serviceHrs > 0) {
             const hrsStr = formatHoursJS(serviceHrs);
             if (typeof payload.previous_ongoing_hours !== 'undefined' && payload.previous_ongoing_hours !== null) {
@@ -3454,7 +3464,7 @@ function formatCaseActivity(array $act): string {
             }
             return `<strong>[${dateStr}]</strong> 🏛️ <strong>UPCC Panel Decision (Case #${caseNum})</strong>: Category 2 assigned <strong>+${hrsStr}</strong> service time.`;
           }
-          
+
           const catNamesMap = {
             1: 'Category 1 (Formal Reprimand / Probation)',
             2: 'Category 2 (Formative Intervention / Service)',
@@ -3464,18 +3474,18 @@ function formatCaseActivity(array $act): string {
           };
           const cName = catNamesMap[fCat] || `Category ${fCat}`;
           return `<strong>[${dateStr}]</strong> 🏛️ <strong>UPCC Panel Decision (Case #${caseNum})</strong> finalized: <strong>${cName}</strong> by Admin.`;
-          
+
         case 'AUTO_RESOLVED_WINDOW_EXPIRED':
           return `<strong>[${dateStr}]</strong> Auto-resolved by system (grace period expired).`;
-          
+
         case 'CASE_STATUS_UPDATED':
           const status = escapeHTML(payload.status || '');
           return `<strong>[${dateStr}]</strong> Case status updated to <strong>${status}</strong>.`;
-          
+
         case 'DECISION_FINALIZED':
           const finalCat = parseInt(payload.category) || 0;
           return `<strong>[${dateStr}]</strong> UPCC Decision Finalized: Category <strong>${finalCat}</strong>.`;
-          
+
         default:
           const prettyAction = action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
           return `<strong>[${dateStr}]</strong> ${prettyAction}.`;
@@ -3492,42 +3502,37 @@ function formatCaseActivity(array $act): string {
         .replace(/'/g, '&#039;');
     }
   </script>
-  
+
   <script>
-    // Highlight and scroll to target student card if specified in URL params
+    // Highlight, scroll, and auto-open edit sanction modal for student if specified in URL params
     window.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const highlightId = urlParams.get('highlight_student_id');
+      const highlightId = urlParams.get('highlight_student_id') || urlParams.get('student_id');
       if (highlightId) {
-        // Wait a small moment to let tabs load if active tab needs to switch to Category 2
-        const tab = urlParams.get('tab');
-        if (tab === 'cat2') {
-          // If there is tab switching logic, trigger the tab selection:
-          const tabBtn = document.querySelector('[data-tab="cat2"]') || document.querySelector('.tab-btn[onclick*="cat2"]');
-          if (tabBtn) {
-            tabBtn.click();
-          }
-        }
-        
         setTimeout(() => {
           const card = document.getElementById('student-card-' + highlightId);
           if (card) {
-            // Apply a premium red highlighted border and background
             card.style.border = '2px dashed #dc2626';
             card.style.background = '#fef2f2';
             card.style.transition = 'all 0.5s ease';
             card.style.boxShadow = '0 12px 30px rgba(220, 38, 38, 0.2)';
-            
-            // Scroll into view smoothly
+
             card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            
-            // Automatically open the Acknowledge modal only if the green Acknowledge button is present
+
+            const editBtn = card.querySelector('.btn-edit');
             const ackBtn = card.querySelector('.btn-acknowledge-glowing');
-            if (ackBtn) {
+
+            // If coming from appeal approval / rejection redirect or requested edit, open Edit Sanction modal
+            if (urlParams.get('msg') === 'approved' || urlParams.get('appeal_id') || urlParams.get('action') === 'edit') {
+              if (editBtn) {
+                editBtn.click();
+              } else if (ackBtn) {
+                ackBtn.click();
+              }
+            } else if (ackBtn) {
               ackBtn.click();
             }
-            
-            // Add a subtle bounce animation
+
             card.animate([
               { transform: 'scale(1)' },
               { transform: 'scale(1.02)' },

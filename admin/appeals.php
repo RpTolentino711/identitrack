@@ -51,7 +51,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') ==
             } else if ($appeal['appeal_kind'] === 'OFFENSE' && $offenseId > 0) {
                 db_exec("UPDATE offense SET status = 'VOID' WHERE offense_id = :oid AND student_id = :sid", [':oid' => $offenseId, ':sid' => $studentId]);
             }
-            redirect('sanction.php?student_id=' . urlencode($studentId) . '&appeal_id=' . $appealId . '&msg=approved');
+
+            // Approved -> send admin to sanctions.php so they can adjust the student's category / sanction
+            redirect('sanctions.php?student_id=' . urlencode($studentId) . '&appeal_id=' . $appealId . '&msg=approved');
         }
 
         if ($decision === 'REJECTED') {
@@ -65,13 +67,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') ==
             } else if ($appeal['appeal_kind'] === 'OFFENSE' && $offenseId > 0) {
                 db_exec("UPDATE offense SET status = 'RESOLVED' WHERE offense_id = :oid AND student_id = :sid", [':oid' => $offenseId, ':sid' => $studentId]);
             }
-            redirect('sanction.php?student_id=' . urlencode($studentId) . '&appeal_id=' . $appealId . '&msg=rejected');
+
+            // Rejected -> also go to sanctions.php so admin can review / edit the sanction
+            redirect('sanctions.php?student_id=' . urlencode($studentId) . '&appeal_id=' . $appealId . '&msg=rejected');
         }
     }
 
     redirect('appeals.php?msg=error');
 }
 
+// Only Pending and Approved filters remain
 $filter = strtoupper(trim((string)($_GET['filter'] ?? 'PENDING')));
 if (!in_array($filter, ['PENDING', 'APPROVED'], true)) {
     $filter = 'PENDING';
