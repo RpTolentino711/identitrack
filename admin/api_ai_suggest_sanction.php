@@ -447,9 +447,18 @@ function runNativePhpXgbPrediction(array $payload): ?array
         return "Low";
     };
 
+    $catMatchNum = 0;
+    if (preg_match('/Category\s*(\d)/i', $predictedSanction, $cm)) {
+        $catMatchNum = (int)$cm[1];
+    } elseif (stripos($predictedSanction, 'Violation slip') !== false) {
+        $catMatchNum = 1;
+    }
+
     return [
         'category' => $category ?: 'Uncategorized',
         'sanction' => $predictedSanction,
+        'category_num' => $catMatchNum,
+        'category_label' => $catMatchNum > 0 ? "Category {$catMatchNum}" : ($category ?: 'Uncategorized'),
         'sanction_confidence' => $likelihoodPercentage,
         'severity' => $determineSeverity($likelihoodPercentage),
         'likelihood_percentage' => $likelihoodPercentage,
@@ -473,28 +482,12 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
         $offenseLevel = 'MAJOR';
     }
 
-    $numOffense = 1;
-    if (isset($caseMeta['number_of_offense'])) {
-        $nStr = (string)$caseMeta['number_of_offense'];
-        if (stripos($nStr, '2nd') !== false || stripos($nStr, '2') !== false || stripos($nStr, 'second') !== false) {
-            $numOffense = max($numOffense, 2);
-        }
-        if (stripos($nStr, '3rd') !== false || stripos($nStr, '3') !== false || stripos($nStr, 'third') !== false) {
-            $numOffense = max($numOffense, 3);
-        }
-        if (stripos($nStr, '4th') !== false || stripos($nStr, '4') !== false || stripos($nStr, 'fourth') !== false) {
-            $numOffense = max($numOffense, 4);
-        }
-        if (preg_match('/(\d+)/', $nStr, $nm)) {
-            $numOffense = max($numOffense, (int)$nm[1]);
-        }
-    }
     $totalPrior = (int)($caseMeta['total_prior'] ?? 0);
-    $instanceCount = (int)($caseMeta['instance_count'] ?? 1);
-    $totalMajorCount = (int)($caseMeta['total_major_count'] ?? 0);
-    $numOffense = max($numOffense, $totalPrior + 1, $instanceCount, ($totalMajorCount > 0 ? $totalMajorCount + 1 : 1));
-    if ($totalPrior >= 1 || $instanceCount >= 2 || $totalMajorCount >= 1) {
-        $numOffense = max(2, $numOffense);
+    $priorCasesCount = (int)($caseMeta['prior_cases_count'] ?? $totalPrior);
+    if ($totalPrior >= 1 || $priorCasesCount >= 1) {
+        $numOffense = max(2, $totalPrior + 1);
+    } else {
+        $numOffense = 1;
     }
     $numOffenseStr = ($numOffense >= 2) ? ($numOffense . ($numOffense === 2 ? 'nd Offense' : ($numOffense === 3 ? 'rd Offense' : 'th Offense'))) : ($caseMeta['number_of_offense'] ?? '1st Offense');
 
@@ -558,10 +551,27 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
             $confidence = round((float)($resData['sanction_confidence'] ?? $resData['confidence_score'] ?? $resData['likelihood_percentage'] ?? 0.0), 1);
             $severity = (string)($resData['severity'] ?? 'Medium');
             $catNum = (int)($resData['category_num'] ?? 0);
-            if ($catNum <= 0 && preg_match('/CATEGORY\s*(\d)/i', $sanction, $cm)) {
+
+            // If the prediction is Section VI.E.19 Major Escalation or a raw violation slip inside a UPCC hearing:
+            $isUpccDocket = !empty($caseMeta['case_id']);
+            $isEscalatedSection19 = (stripos($sanction, 'Section VI.E.19') !== false || stripos($sanction, 'charged with a Major Offense') !== false);
+            $isRawViolationSlip = (stripos($sanction, 'Violation slip') !== false);
+
+            if ($isEscalatedSection19 || ($isUpccDocket && $isRawViolationSlip)) {
+                if ($numOffense >= 2 || $totalPrior >= 1) {
+                    $catNum = 3;
+                    $sanction = "Category 3 (Non-Readmission, denial of admission but is allowed to finish current term)";
+                    $csHours = 0;
+                } else {
+                    $catNum = 2;
+                    $sanction = "Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)";
+                    $csHours = 200;
+                }
+            } elseif ($catNum <= 0 && preg_match('/CATEGORY\s*(\d)/i', $sanction, $cm)) {
                 $catNum = (int)$cm[1];
             }
-            if ($catNum <= 0) $catNum = 1;
+
+            if ($catNum <= 0) $catNum = 2;
             $usedMlModel = true;
         }
     }
