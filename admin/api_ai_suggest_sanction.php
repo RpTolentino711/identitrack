@@ -551,27 +551,12 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
             $confidence = round((float)($resData['sanction_confidence'] ?? $resData['confidence_score'] ?? $resData['likelihood_percentage'] ?? 0.0), 1);
             $severity = (string)($resData['severity'] ?? 'Medium');
             $catNum = (int)($resData['category_num'] ?? 0);
-
-            // If the prediction is Section VI.E.19 Major Escalation or a raw violation slip inside a UPCC hearing:
-            $isUpccDocket = !empty($caseMeta['case_id']);
-            $isEscalatedSection19 = (stripos($sanction, 'Section VI.E.19') !== false || stripos($sanction, 'charged with a Major Offense') !== false);
-            $isRawViolationSlip = (stripos($sanction, 'Violation slip') !== false);
-
-            if ($isEscalatedSection19 || ($isUpccDocket && $isRawViolationSlip)) {
-                if ($numOffense >= 2 || $totalPrior >= 1) {
-                    $catNum = 3;
-                    $sanction = "Category 3 (Non-Readmission, denial of admission but is allowed to finish current term)";
-                    $csHours = 0;
-                } else {
-                    $catNum = 2;
-                    $sanction = "Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)";
-                    $csHours = 200;
-                }
-            } elseif ($catNum <= 0 && preg_match('/CATEGORY\s*(\d)/i', $sanction, $cm)) {
+            if ($catNum <= 0 && preg_match('/CATEGORY\s*(\d)/i', $sanction, $cm)) {
                 $catNum = (int)$cm[1];
             }
-
-            if ($catNum <= 0) $catNum = 2;
+            if ($catNum <= 0) {
+                $catNum = (stripos($sanction, 'Violation slip') !== false) ? 1 : 2;
+            }
             $usedMlModel = true;
         }
     }
