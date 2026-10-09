@@ -588,8 +588,29 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
         $csHours = (float)$hm[1];
     }
 
-    $totalDatasetCountStr = function_exists('get_total_ai_dataset_count') ? number_format(get_total_ai_dataset_count()) : "3,441";
-    $whyReason = "Evaluated by softeng_2-master ML Model against {$totalDatasetCountStr} training records. Offense: '{$offenseName}', Category: '{$category}', Attempt: '{$numOffenseStr}'.";
+    $totalDatasetCountStr = function_exists('get_total_ai_dataset_count') ? number_format(get_total_ai_dataset_count()) : "3,453";
+    
+    $isRepeatOrSecond = ($totalPrior >= 1 || $numOffense >= 2 || stripos($numOffenseStr, '2nd') !== false || stripos($numOffenseStr, '3rd') !== false || stripos($numOffenseStr, '6th') !== false || stripos($numOffenseStr, 'Cycle 2') !== false || stripos($numOffenseStr, 'Cycle 3') !== false);
+    $isSec4Escalation = (stripos($category, 'Section 4') !== false || stripos($category, 'Minor') !== false);
+
+    $cleanSanctionText = preg_replace('/^Category\s*\d+\s*\(?\s*/i', '', rtrim($sanction, ')'));
+    $sanctionDesc = ($cleanSanctionText !== $sanction && !empty($cleanSanctionText)) ? "{$catLabel} ({$cleanSanctionText})" : ($sanction ?: $catLabel);
+
+    if ($isRepeatOrSecond) {
+        if ($isSec4Escalation) {
+            $whyReason = "The student has accumulated multiple minor violations ({$numOffenseStr} / Cycle 2+). Under the NU Lipa Student Handbook Section 4 Escalation Matrix, repeat minor accumulations move beyond formative rehabilitation to {$sanctionDesc}. Evaluated against {$totalDatasetCountStr} precedent records.";
+        } else {
+            $whyReason = "The student has a prior resolved case or repeat major violation on file ({$numOffenseStr}). Under the Student Handbook Progressive Discipline Policy, 2nd-time major cases strictly escalate to {$sanctionDesc}. Evaluated against {$totalDatasetCountStr} precedent records.";
+        }
+    } else {
+        if ($catNum === 2) {
+            $whyReason = "This is the student's 1st major offense escalation on record. In accordance with the NU Lipa Student Handbook, 1st-time escalations are assigned {$sanctionDesc} for formative rehabilitation, counseling, and community service. Evaluated against {$totalDatasetCountStr} precedent records.";
+        } elseif ($catNum >= 3) {
+            $whyReason = "The charged offense ('{$offenseName}') is classified under {$category} as an Automatic Major Offense with high inherent gravity, warranting {$sanctionDesc} under handbook disciplinary rules. Evaluated against {$totalDatasetCountStr} precedent records.";
+        } else {
+            $whyReason = "Evaluated by softeng_2-master ML Model against {$totalDatasetCountStr} training records. Offense: '{$offenseName}', Category: '{$category}', Attempt: '{$numOffenseStr}'.";
+        }
+    }
 
     $aiText = "🤖 **Identati Ai XGBoost ML Model Recommendation**:\n\n"
             . "• **Sanction Category**: **{$catLabel}**\n"
