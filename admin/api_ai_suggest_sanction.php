@@ -122,6 +122,108 @@ function anonymizeAiPromptText(string $text, string $realName = '', string $stud
 }
 
 /**
+ * Loads dataset records from Student-Discipline-Office-Violations-Dataset.csv
+ */
+function get_historical_dataset_records(): array
+{
+    static $records = null;
+    if ($records !== null) return $records;
+    $records = [];
+    $csvPaths = [
+        __DIR__ . '/AI/softeng_2-master/server/modle/Student-Discipline-Office-Violations-Dataset.csv',
+        __DIR__ . '/AI/softeng_2-master/server/model/Student-Discipline-Office-Violations-Dataset.csv'
+    ];
+    $csvPath = null;
+    foreach ($csvPaths as $p) {
+        if (file_exists($p)) { $csvPath = $p; break; }
+    }
+    if ($csvPath && ($handle = @fopen($csvPath, 'r')) !== false) {
+        $header = fgetcsv($handle);
+        while (($row = fgetcsv($handle)) !== false) {
+            if (!empty($row[0]) || !empty($row[2])) {
+                $records[] = [
+                    'scenario'          => $row[0] ?? '',
+                    'category'          => $row[1] ?? '',
+                    'violation'         => $row[2] ?? '',
+                    'offense'           => $row[2] ?? '',
+                    'number_of_offense' => $row[3] ?? '1st Offense',
+                    'sanction'          => $row[4] ?? ''
+                ];
+            }
+        }
+        fclose($handle);
+    }
+    return $records;
+}
+
+/**
+ * Checks semantic equality / strong similarity between two offense descriptions
+ */
+function areOffensesSemanticallyEqual(string $a, string $b): bool
+{
+    $clean = function(string $s): string {
+        $s = strtolower(trim($s));
+        $s = preg_replace('/[^a-z0-9\s]/', ' ', $s);
+        return trim((string)preg_replace('/\s+/', ' ', $s));
+    };
+    $cleanA = $clean($a);
+    $cleanB = $clean($b);
+    if ($cleanA === '' || $cleanB === '') return false;
+    if ($cleanA === $cleanB) return true;
+    if (strpos($cleanA, $cleanB) !== false || strpos($cleanB, $cleanA) !== false) return true;
+    
+    $wordsA = array_values(array_filter(explode(' ', $cleanA), fn($w) => strlen($w) > 3));
+    $wordsB = array_values(array_filter(explode(' ', $cleanB), fn($w) => strlen($w) > 3));
+    if (empty($wordsA) || empty($wordsB)) return false;
+    $intersect = count(array_intersect($wordsA, $wordsB));
+    $union = count(array_unique(array_merge($wordsA, $wordsB)));
+    return ($union > 0 && ($intersect / $union) >= 0.4);
+}
+
+/**
+ * Map offense to the standard AI dataset category name
+ */
+function mapOffenseToAiCategory(string $offenseName, string $offenseLevel, ?int $majorCategoryNum = null): string
+{
+    if (strtoupper($offenseLevel) === 'MINOR') {
+        return 'Minor Offenses';
+    }
+    if ($majorCategoryNum !== null) {
+        switch ($majorCategoryNum) {
+            case 1: return 'Minor Offenses';
+            case 2: return 'Campus and Public Disturbances';
+            case 3: return 'Malicious Mischief';
+            case 4: return 'Academic Dishonesty or Fraudulent Acts';
+            case 5: return 'Violations of Information Technology Policies';
+            case 6: return 'Violation of Rules and Regulations of the University, CHED, other Regulatory Agencies and Philippine Laws';
+            case 7: return 'Immoral and Indecent Acts';
+            case 8: return 'Criminal offense and a critical emergency security incident';
+        }
+    }
+    
+    $cleanName = strtolower($offenseName);
+    if (preg_match('/cheat|plagiar|academic|fraud|tamper|dishonest|unauthorized.*exam|alteration/i', $cleanName)) {
+        return 'Academic Dishonesty or Fraudulent Acts';
+    }
+    if (preg_match('/assault|fight|brawl|disturbance|weapon|threat|scandal|disrupt|riot/i', $cleanName)) {
+        return 'Campus and Public Disturbances';
+    }
+    if (preg_match('/vandal|destruct|damage|deface|mischief|property/i', $cleanName)) {
+        return 'Malicious Mischief';
+    }
+    if (preg_match('/tech|comput|hack|cyber|system|internet|software|data|network|wifi/i', $cleanName)) {
+        return 'Violations of Information Technology Policies';
+    }
+    if (preg_match('/indecent|immoral|harass|lewd|obscen|sexual/i', $cleanName)) {
+        return 'Immoral and Indecent Acts';
+    }
+    if (preg_match('/drug|alcohol|liquor|smoke|vape|gamble|law|ched|illegal/i', $cleanName)) {
+        return 'Violation of Rules and Regulations of the University, CHED, other Regulatory Agencies and Philippine Laws';
+    }
+    return 'Campus and Public Disturbances';
+}
+
+/**
  * Direct Python CLI ML Inference Fallback Engine
  * Used when port 5000 Flask microservice is unreachable (e.g. Linux shared hosting on Hostinger)
  */
@@ -177,40 +279,17 @@ function runCliPythonPrediction(array $payload): ?string
 
     $stdout = null;
 
-    // Method 1: proc_open
-    if (function_exists('proc_open')) {
-        $descriptorspec = [
-            0 => ["pipe", "r"],
-            1 => ["pipe", "w"],
-            2 => ["pipe", "w"]
-        ];
-        $cmd = escapeshellarg($pythonExec) . ' ' . escapeshellarg($cliScript);
-        $process = @proc_open($cmd, $descriptorspec, $pipes, $serverDir);
-
-        if (is_resource($process)) {
-            fwrite($pipes[0], $jsonPayload);
-            fclose($pipes[0]);
-            $stdout = stream_get_contents($pipes[1]);
-            fclose($pipes[1]);
-            fclose($pipes[2]);
-            proc_close($process);
-        }
+    // Direct invocation with temporary JSON file path as argument (fast and avoids deadlock)
+    $cmd = escapeshellarg($pythonExec) . ' ' . escapeshellarg($cliScript) . ' ' . escapeshellarg($tmpInputFile);
+    if (function_exists('shell_exec')) {
+        $stdout = @shell_exec($cmd);
     }
-
-    // Method 2: exec with temp input file
-    if (empty($stdout) && function_exists('exec') && file_exists($tmpInputFile)) {
-        $cmd = escapeshellarg($pythonExec) . ' ' . escapeshellarg($cliScript) . ' < ' . escapeshellarg($tmpInputFile) . ' 2>&1';
+    if (empty($stdout) && function_exists('exec')) {
         $outputLines = [];
-        @exec($cmd, $outputLines);
+        @exec($cmd . ' 2>&1', $outputLines);
         if (!empty($outputLines)) {
             $stdout = implode("\n", $outputLines);
         }
-    }
-
-    // Method 3: shell_exec with temp input file
-    if (empty($stdout) && function_exists('shell_exec') && file_exists($tmpInputFile)) {
-        $cmd = escapeshellarg($pythonExec) . ' ' . escapeshellarg($cliScript) . ' < ' . escapeshellarg($tmpInputFile);
-        $stdout = @shell_exec($cmd);
     }
 
     @unlink($tmpInputFile);
@@ -223,7 +302,7 @@ function runCliPythonPrediction(array $payload): ?string
         }
         return $stdout;
     }
-
+    return null;
 }
 
 /**
@@ -432,15 +511,15 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => json_encode($payload),
         CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-        CURLOPT_TIMEOUT        => 10,
-        CURLOPT_CONNECTTIMEOUT => 3,
+        CURLOPT_TIMEOUT_MS     => 1500,
+        CURLOPT_CONNECTTIMEOUT_MS => 300,
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false
     ]);
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    $response = @curl_exec($ch);
+    $httpCode = (int)@curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    @curl_close($ch);
 
     // Tier 2: If microservice HTTP request fails or is offline (e.g. Hostinger production server), fallback to direct Python CLI execution
     if ($httpCode !== 200 || empty($response)) {
@@ -490,7 +569,7 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
     if (!$usedMlModel) {
         return [
             'used_ml_model' => false,
-            'error' => 'AI Prediction Server (softeng_2-master) is unreachable. Please ensure local Python server.py is running on port 5000.',
+            'error' => 'AI Prediction Server (softeng_2-master) is unreachable. Please ensure local Python server.py or venv is installed.',
             'sanction' => 'ML Model Offline',
             'category_num' => 1,
             'category_label' => 'Category 1',
@@ -552,12 +631,12 @@ try {
         exit;
     }
 
-    // ── Hearing Status Locking ──
+    // ── Hearing Status Locking (Only locks active live chat if hearing is ended) ──
     $case = null;
     $allCaseOffenses = [];
     if ($rawCaseId !== '') {
         $cStatusRow = db_one("SELECT status FROM upcc_case WHERE case_id = :cid OR CAST(case_id AS CHAR) = :cid", [':cid' => $rawCaseId]);
-        if ($cStatusRow) {
+        if ($cStatusRow && $action === 'chat') {
             $st = strtoupper((string)($cStatusRow['status'] ?? ''));
             if (in_array($st, ['CLOSED', 'RESOLVED', 'FINALIZED'], true)) {
                 echo json_encode(['ok' => false, 'error' => '🔒 Hearing Concluded: Case is closed. AI Assistant is disabled.']);
@@ -918,8 +997,12 @@ try {
 
     // ── ACTION: suggest / predict — AI Sanction Recommendation via COMSICE ML Model ──
     if ($action === 'suggest' || $action === 'predict') {
-        $pCategory = trim((string)($_POST['category'] ?? $_GET['category'] ?? $category));
         $pViolation = trim((string)($_POST['violation'] ?? $_GET['violation'] ?? $offenseName));
+        $mappedCategory = mapOffenseToAiCategory($pViolation, $offenseLevel, $majorCategory);
+        $pCategory = trim((string)($_POST['category'] ?? $_GET['category'] ?? $mappedCategory));
+        if (empty($pCategory)) {
+            $pCategory = $mappedCategory;
+        }
 
         $pNumOffense = trim((string)($_POST['number_of_offense'] ?? $_GET['number_of_offense'] ?? ''));
         $pDescription = trim((string)($_POST['description'] ?? $_GET['description'] ?? ''));
@@ -964,7 +1047,7 @@ try {
         if (empty($aiEngineRes['used_ml_model']) || !empty($aiEngineRes['error'])) {
             echo json_encode([
                 'ok' => false,
-                'error' => $aiEngineRes['error'] ?? 'AI Microservice is currently offline. Please ensure local Python server.py is running on port 5000.'
+                'error' => $aiEngineRes['error'] ?? 'AI Prediction Server (softeng_2-master) is currently unavailable.'
             ]);
             exit;
         }
@@ -980,8 +1063,38 @@ try {
                 'severity' => $aiEngineRes['severity'] ?? 'Medium',
                 'decided_category' => 'Category ' . ($ep['decided_category'] ?? 1),
                 'similarity_score' => $aiEngineRes['confidence'] ?? 0.0,
-                'punishment_details' => $punStr
+                'punishment_details' => $punStr,
+                'source' => 'Tribunal Hearing Precedent'
             ];
+        }
+
+        // Also check dataset CSV records for matching precedents
+        $allDatasetRecords = get_historical_dataset_records();
+        $matchingDatasetCount = 0;
+        if (!empty($allDatasetRecords)) {
+            foreach ($allDatasetRecords as $idx => $dr) {
+                if (areOffensesSemanticallyEqual($dr['violation'], $pViolation) || areOffensesSemanticallyEqual($dr['offense'], $pViolation)) {
+                    $matchingDatasetCount++;
+                    if (count($similarCasesList) < 10) {
+                        $catMatchNum = 1;
+                        if (preg_match('/Category\s*(\d)/i', $dr['sanction'], $cm)) {
+                            $catMatchNum = (int)$cm[1];
+                        } elseif (stripos($dr['sanction'], 'Major Offense') !== false) {
+                            $catMatchNum = 3;
+                        }
+                        $similarCasesList[] = [
+                            'case_uuid' => 'Dataset #' . ($idx + 1),
+                            'offense_name' => $dr['violation'] ?: $pViolation,
+                            'offense_level' => (stripos($dr['category'], 'Minor') !== false) ? 'MINOR' : 'MAJOR',
+                            'severity' => $aiEngineRes['severity'] ?? 'Medium',
+                            'decided_category' => "Category {$catMatchNum}",
+                            'similarity_score' => $aiEngineRes['confidence'] ?? 0.0,
+                            'punishment_details' => $dr['sanction'],
+                            'source' => 'SDO Historical Dataset'
+                        ];
+                    }
+                }
+            }
         }
 
         $suggestedCategoryNum = (int)($aiEngineRes['category_num'] ?? 1);
@@ -989,6 +1102,8 @@ try {
         $suggestedSanction = (string)($aiEngineRes['sanction'] ?? '');
         $suggestedCsHours = (float)($aiEngineRes['community_service_hours'] ?? 0);
         $aiExplanationText = (string)($aiEngineRes['text'] ?? '');
+
+        $totalSimilarCount = max(count($similarCasesList), count($exactList) + $matchingDatasetCount);
 
         echo json_encode([
             'ok' => true,
@@ -1005,7 +1120,7 @@ try {
             'community_service_hours' => $suggestedCsHours,
             'confidence' => $aiEngineRes['confidence'] ?? 0.0,
             'severity' => $aiEngineRes['severity'] ?? 'Medium',
-            'similar_cases' => count($exactList),
+            'similar_cases' => $totalSimilarCount,
             'similar_cases_list' => $similarCasesList,
             'most_common_historical' => $suggestedCategoryLabel,
             'historical_distribution' => !empty($exactList) ? [ $suggestedCategoryLabel => count($exactList) ] : [ $suggestedCategoryLabel => 1 ],

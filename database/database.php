@@ -67,12 +67,127 @@ function get_env_var(string $key, mixed $default = ''): mixed {
 }
 
 /**
- * Automatically records a finalized case decision into the database.
- * Cases are stored directly in upcc_case SQL table and counted dynamically.
+ * Automatically records a finalized case decision into the official AI Dataset CSV.
+ * Appends the finalized record to Student-Discipline-Office-Violations-Dataset.csv
+ * for real-time model retraining and historical precedent matching.
  */
 function record_finalized_case_to_historical_dataset(int $caseId): bool
 {
-    return $caseId > 0;
+    if ($caseId <= 0) return false;
+    try {
+        $case = db_one("SELECT c.case_id, c.student_id, " . db_decrypt_col('case_summary', 'c') . " AS case_summary,
+                               c.case_kind, c.decided_category, c.punishment_details, c.final_decision
+                        FROM upcc_case c WHERE c.case_id = :cid LIMIT 1", [':cid' => $caseId]);
+        if (!$case) return false;
+
+        $studentId = (string)($case['student_id'] ?? '');
+        $decidedCat = (int)($case['decided_category'] ?? 1);
+
+        // Fetch associated offenses
+        $offenses = db_all("SELECT o.offense_id, o.description AS offense_desc,
+                                  ot.name AS offense_name, ot.level AS offense_level, ot.major_category
+                           FROM upcc_case_offense uco
+                           JOIN offense o ON o.offense_id = uco.offense_id
+                           JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+                           WHERE uco.case_id = :cid
+                           ORDER BY ot.level DESC, ot.name ASC", [':cid' => $caseId]);
+
+        $violation = !empty($offenses[0]['offense_name']) ? trim($offenses[0]['offense_name']) : 'Student Handbook Violation';
+        $level = !empty($offenses[0]['offense_level']) ? strtoupper(trim($offenses[0]['offense_level'])) : ((stripos($case['case_kind'] ?? '', 'MAJOR') !== false) ? 'MAJOR' : 'MINOR');
+
+        // Prior cases count to determine offense iteration
+        $priorCountRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE student_id = :sid AND case_id < :cid",
+                                [':sid' => $studentId, ':cid' => $caseId]);
+        $priorCount = (int)($priorCountRow['cnt'] ?? 0);
+        $offenseIteration = $priorCount + 1;
+        $numOffenseStr = ($offenseIteration === 1) ? '1st Offense' : (($offenseIteration === 2) ? '2nd Offense' : (($offenseIteration === 3) ? '3rd Offense' : "{$offenseIteration}th Offense"));
+
+        // Scenario text
+        $scenario = !empty($case['case_summary']) ? trim($case['case_summary']) : (!empty($offenses[0]['offense_desc']) ? trim($offenses[0]['offense_desc']) : "A student was reported for {$violation}.");
+        $scenario = str_replace(["\r", "\n"], ' ', $scenario);
+        $scenario = preg_replace('/\s+/', ' ', $scenario);
+
+        // Category mapping
+        $majorCatNum = isset($offenses[0]['major_category']) ? (int)$offenses[0]['major_category'] : null;
+        $categoryName = ($level === 'MINOR') ? 'Minor Offenses' : 'Campus and Public Disturbances';
+        if ($majorCatNum === 1) $categoryName = 'Minor Offenses';
+        elseif ($majorCatNum === 2) $categoryName = 'Campus and Public Disturbances';
+        elseif ($majorCatNum === 3) $categoryName = 'Malicious Mischief';
+        elseif ($majorCatNum === 4) $categoryName = 'Academic Dishonesty or Fraudulent Acts';
+        elseif ($majorCatNum === 5) $categoryName = 'Violations of Information Technology Policies';
+        elseif ($majorCatNum === 6) $categoryName = 'Violation of Rules and Regulations of the University, CHED, other Regulatory Agencies and Philippine Laws';
+        elseif ($majorCatNum === 7) $categoryName = 'Immoral and Indecent Acts';
+        elseif ($majorCatNum === 8) $categoryName = 'Criminal offense and a critical emergency security incident';
+        else {
+            $cleanV = strtolower($violation);
+            if (preg_match('/cheat|plagiar|academic|fraud|tamper|dishonest/i', $cleanV)) {
+                $categoryName = 'Academic Dishonesty or Fraudulent Acts';
+            } elseif (preg_match('/assault|fight|brawl|disturbance|weapon|threat|scandal|disrupt/i', $cleanV)) {
+                $categoryName = 'Campus and Public Disturbances';
+            } elseif (preg_match('/vandal|destruct|damage|deface|mischief|property/i', $cleanV)) {
+                $categoryName = 'Malicious Mischief';
+            } elseif (preg_match('/tech|comput|hack|cyber|system|internet|software|data/i', $cleanV)) {
+                $categoryName = 'Violations of Information Technology Policies';
+            } elseif (preg_match('/indecent|immoral|harass|lewd|obscen/i', $cleanV)) {
+                $categoryName = 'Immoral and Indecent Acts';
+            } elseif (preg_match('/drug|alcohol|liquor|smoke|vape|gamble|law|ched/i', $cleanV)) {
+                $categoryName = 'Violation of Rules and Regulations of the University, CHED, other Regulatory Agencies and Philippine Laws';
+            }
+        }
+
+        // Sanction text mapping
+        $sanctionText = "Category {$decidedCat}";
+        if ($level === 'MINOR') {
+            if ($offenseIteration === 1) {
+                $sanctionText = "Violation slip issued by the SDO";
+            } elseif ($offenseIteration === 2) {
+                $sanctionText = "Violation slip and a written warning issued by the SDO";
+            } else {
+                $sanctionText = "The student is charged with a Major Offense under Section VI.E.19.";
+            }
+        } else {
+            if ($decidedCat === 1) {
+                $sanctionText = "Category 1 (Probation for 3 academic terms and referral for counseling)";
+            } elseif ($decidedCat === 2) {
+                $sanctionText = "Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)";
+            } elseif ($decidedCat === 3) {
+                $sanctionText = "Category 3 (Non-Readmission, denial of admission but is allowed to finish current term)";
+            } elseif ($decidedCat === 4) {
+                $sanctionText = "Category 4 (Exclusion, dropping the name of the student immediately from the roll of students)";
+            } elseif ($decidedCat >= 5) {
+                $sanctionText = "Category 5 (Expulsion and police referral)";
+            }
+        }
+
+        // CSV Path
+        $csvPaths = [
+            __DIR__ . '/../admin/AI/softeng_2-master/server/modle/Student-Discipline-Office-Violations-Dataset.csv',
+            __DIR__ . '/../admin/AI/softeng_2-master/server/model/Student-Discipline-Office-Violations-Dataset.csv'
+        ];
+
+        foreach ($csvPaths as $csvPath) {
+            $dir = dirname($csvPath);
+            if (is_dir($dir)) {
+                $content = @file_get_contents($csvPath);
+                $needsNl = ($content !== false && strlen($content) > 0 && substr($content, -1) !== "\n");
+                $fp = @fopen($csvPath, 'a');
+                if ($fp) {
+                    if (flock($fp, LOCK_EX)) {
+                        if ($needsNl) {
+                            fwrite($fp, "\n");
+                        }
+                        fputcsv($fp, [$scenario, $categoryName, $violation, $numOffenseStr, $sanctionText]);
+                        flock($fp, LOCK_UN);
+                    }
+                    fclose($fp);
+                }
+            }
+        }
+        return true;
+    } catch (\Throwable $e) {
+        error_log("Failed to record finalized case to dataset: " . $e->getMessage());
+        return false;
+    }
 }
 
 
@@ -2330,7 +2445,7 @@ if (!function_exists('getStudentActiveMinorCycle')) {
 function get_total_ai_dataset_count(): int {
     $baseDatasetCount = 3441;
     try {
-        $finalizedCases = db_one("SELECT COUNT(*) as cnt FROM upcc_case WHERE case_status IN ('RESOLVED', 'CLOSED', 'DECIDED', 'FINALIZED')");
+        $finalizedCases = db_one("SELECT COUNT(*) as cnt FROM upcc_case WHERE status IN ('RESOLVED', 'CLOSED', 'DECIDED', 'FINALIZED')");
         $additionalCases = (int)($finalizedCases['cnt'] ?? 0);
         return $baseDatasetCount + $additionalCases;
     } catch (\Throwable $e) {

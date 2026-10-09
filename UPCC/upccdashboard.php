@@ -194,24 +194,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_cases') {
             <?php else: ?>
               <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> MINOR</span>
             <?php endif; ?>
-            
-            <div class="offense-tooltip">
-              <div class="offense-tooltip-title">
-                <?php echo $hasMajor ? 'SECTION '.($maxLevel).' OFFENSES' : 'MINOR OFFENSES'; ?>
-              </div>
-              <?php foreach ($offenseDetails as $off): ?>
-                <div class="offense-item">
-                  <span class="offense-level-badge offense-level-<?php echo $off['level']; ?>">
-                    <?php if ($off['level'] >= 4): ?>
-                      S<?php echo $off['level']; ?>
-                    <?php else: ?>
-                      L<?php echo $off['level']; ?>
-                    <?php endif; ?>
-                  </span>
-                  <span class="offense-name"><?php echo htmlspecialchars($off['name']); ?></span>
-                </div>
-              <?php endforeach; ?>
-            </div>
           </div>
         <?php endif; ?>
       </td>
@@ -1039,7 +1021,7 @@ body{
     display:inline-flex;align-items:center;gap:6px;
     padding:5px 10px;border-radius:3px;
     font-weight:700;font-size:10px;letter-spacing:1.2px;
-    position:relative;cursor:help;transition:all .2s;white-space:nowrap;
+    position:relative;white-space:nowrap;
     text-transform:uppercase;
 }
 .offense-badge.major{
@@ -1048,42 +1030,6 @@ body{
 .offense-badge.minor{
     background:rgba(124,143,201,.12);border:1px solid rgba(124,143,201,.35);color:#a5b6e0;
 }
-.offense-badge:hover{transform:translateY(-1px)}
-
-.offense-tooltip{
-    position:absolute;top:100%;left:50%;
-    transform:translateX(-50%) translateY(8px);
-    background:var(--panel-hi);
-    border-radius:4px;padding:14px;min-width:280px;
-    border:1px solid var(--line-hi);
-    box-shadow:var(--shadow-lg);
-    opacity:0;visibility:hidden;z-index:99;
-    transition:all .2s ease;pointer-events:none;
-    text-transform:none;letter-spacing:0;
-}
-.offense-badge:hover .offense-tooltip{
-    opacity:1;visibility:visible;pointer-events:auto;
-    transform:translateX(-50%) translateY(4px);
-}
-.offense-tooltip-title{
-    font-size:10px;color:var(--gold);text-transform:uppercase;
-    letter-spacing:1.5px;font-weight:700;margin-bottom:10px;
-    border-bottom:1px solid var(--line);padding-bottom:8px;
-}
-.offense-item{
-    display:flex;align-items:center;gap:8px;
-    padding:6px 0;font-size:12px;
-}
-.offense-level-badge{
-    padding:2px 6px;border-radius:3px;font-weight:700;font-size:9.5px;
-    min-width:26px;text-align:center;letter-spacing:.5px;
-    font-family:var(--f-mono);
-}
-.offense-level-4{background:var(--rose-soft);color:#e0a0a0}
-.offense-level-3{background:rgba(201,152,91,.2);color:#dfb87c}
-.offense-level-2{background:rgba(124,143,201,.2);color:#a5b6e0}
-.offense-level-1{background:var(--sage-soft);color:#9dc5a8}
-.offense-name{color:var(--text);flex:1}
 
 /* ── Profile ─────────────────────────────────────────────────────────── */
 .profile-wrap{padding:24px;text-align:center}
@@ -1483,24 +1429,6 @@ body{
                         <?php else: ?>
                           <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> MINOR</span>
                         <?php endif; ?>
-
-                        <div class="offense-tooltip">
-                          <div class="offense-tooltip-title">
-                            <?php echo $hasMajor ? 'SECTION '.($maxLevel).' OFFENSES' : 'MINOR OFFENSES'; ?>
-                          </div>
-                          <?php foreach ($offenseDetails as $off): ?>
-                            <div class="offense-item">
-                              <span class="offense-level-badge offense-level-<?php echo $off['level']; ?>">
-                                <?php if ($off['level'] >= 4): ?>
-                                  S<?php echo $off['level']; ?>
-                                <?php else: ?>
-                                  L<?php echo $off['level']; ?>
-                                <?php endif; ?>
-                              </span>
-                              <span class="offense-name"><?php echo htmlspecialchars($off['name']); ?></span>
-                            </div>
-                          <?php endforeach; ?>
-                        </div>
                       </div>
                     <?php endif; ?>
                   </td>

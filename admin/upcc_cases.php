@@ -806,6 +806,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'category' => $category,
                     'probation_until' => $probationUntil,
                 ]);
+                record_finalized_case_to_historical_dataset((int)$case_id);
                 send_upcc_case_resolution_email($case_id);
                 header("Location: upcc_cases.php?msg=resolved"); exit;
             }

@@ -4444,7 +4444,9 @@ async function runAiAnalysis() {
         const mostCommon = data.most_common_historical || `Category ${data.suggested_category}`;
         if (patStr) patStr.textContent = `${data.similar_cases || 8} similar cases → ${mostCommon}`;
         
-        const confVal = Math.round((data.confidence || 0.78) * 100);
+        let rawConf = data.confidence !== undefined ? parseFloat(data.confidence) : 0.78;
+        if (rawConf <= 1.0 && rawConf > 0) rawConf = rawConf * 100;
+        const confVal = Math.round(rawConf);
         if (confPct) confPct.textContent = `${confVal}%`;
         if (modVer) modVer.textContent = data.model_version || 'UPCC-XGB-v1.0';
 

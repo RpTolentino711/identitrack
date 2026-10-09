@@ -35,14 +35,17 @@ def main():
     try:
         if len(sys.argv) > 1:
             raw_input = sys.argv[1]
+            if os.path.isfile(raw_input):
+                with open(raw_input, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            else:
+                data = json.loads(raw_input)
         else:
             raw_input = sys.stdin.read()
-
-        if not raw_input or not raw_input.strip():
-            print(json.dumps({"error": "No input payload provided"}))
-            sys.exit(1)
-
-        data = json.loads(raw_input)
+            if not raw_input or not raw_input.strip():
+                print(json.dumps({"error": "No input payload provided"}))
+                sys.exit(1)
+            data = json.loads(raw_input)
         scenario = data.get("description") or ""
         category = data.get("category") or ""
         violation = data.get("violation") or ""
@@ -104,9 +107,14 @@ def main():
         likelihood_percentage = round(confidence * 100, 2)
         severity = determine_severity_from_likelihood(likelihood_percentage)
 
+        cat_match = re.search(r'Category\s*(\d)', str(predicted_sanction), re.IGNORECASE)
+        category_num = int(cat_match.group(1)) if cat_match else (1 if 'violation slip' in str(predicted_sanction).lower() else 2)
+
         res = {
             "category": category if category else "Uncategorized",
             "sanction": predicted_sanction,
+            "category_num": category_num,
+            "category_label": f"Category {category_num}",
             "sanction_confidence": likelihood_percentage,
             "severity": severity,
             "likelihood_percentage": likelihood_percentage,

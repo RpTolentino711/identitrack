@@ -114,9 +114,14 @@ def predict():
         likelihood_percentage = round(confidence * 100, 2)
         severity = determine_severity_from_likelihood(likelihood_percentage)
 
+        cat_match = re.search(r'Category\s*(\d)', str(predicted_sanction), re.IGNORECASE)
+        category_num = int(cat_match.group(1)) if cat_match else (1 if 'violation slip' in str(predicted_sanction).lower() else 2)
+
         return jsonify({
             "category": category if category else "Uncategorized",
             "sanction": predicted_sanction,
+            "category_num": category_num,
+            "category_label": f"Category {category_num}",
             "sanction_confidence": likelihood_percentage,
             "severity": severity,
             "likelihood_percentage": likelihood_percentage,

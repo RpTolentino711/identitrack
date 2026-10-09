@@ -62,6 +62,7 @@ if ($case['status'] !== 'CLOSED') {
 
 // Accept the decision by marking the case as RESOLVED
 db_exec("UPDATE upcc_case SET status = 'RESOLVED' WHERE case_id = :cid", [':cid' => $caseId]);
+record_finalized_case_to_historical_dataset((int)$caseId);
 
 // Mark linked offenses as acknowledged
 db_exec("UPDATE offense SET acknowledged_at = NOW() WHERE offense_id IN (SELECT offense_id FROM upcc_case_offense WHERE case_id = :cid)", [':cid' => $caseId]);
