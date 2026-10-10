@@ -29,3 +29,25 @@ Options -Indexes
     Deny from all
 </FilesMatch>
 
+# HTTP Security Headers to achieve Grade A / A+
+<IfModule mod_headers.c>
+    # 1. Enforce HTTPS (HSTS)
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # 2. Clickjacking Protection
+    Header always set X-Frame-Options "SAMEORIGIN"
+
+    # 3. MIME Sniffing Protection
+    Header always set X-Content-Type-Options "nosniff"
+
+    # 4. Referrer Policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # 5. Permissions Policy (Camera allowed for self for ID/QR capture, others disabled)
+    Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=()"
+
+    # Remove sensitive server header disclosures
+    Header unset X-Powered-By
+</IfModule>
+
+
