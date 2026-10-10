@@ -382,7 +382,17 @@ function runNativePhpXgbPrediction(array $payload): ?array
     }
 
     $numOffense = 1.0;
-    if (preg_match('/(\d+)/', $numOffenseStr, $m)) {
+    if (stripos($numOffenseStr, 'Cycle 1') !== false || stripos($numOffenseStr, '1st') !== false || stripos($numOffenseStr, 'First') !== false) {
+        $numOffense = 1.0;
+    } elseif (stripos($numOffenseStr, 'Cycle 2') !== false || stripos($numOffenseStr, '2nd') !== false || stripos($numOffenseStr, 'Second') !== false) {
+        $numOffense = 2.0;
+    } elseif (stripos($numOffenseStr, 'Cycle 3') !== false || stripos($numOffenseStr, '3rd') !== false || stripos($numOffenseStr, 'Third') !== false) {
+        $numOffense = 3.0;
+    } elseif (preg_match('/(\d+)\s*(?:st|nd|rd|th)?\s*Offense/i', $numOffenseStr, $m)) {
+        $numOffense = (float)$m[1];
+    } elseif (preg_match('/Cycle\s*(\d+)/i', $numOffenseStr, $m)) {
+        $numOffense = (float)$m[1];
+    } elseif (preg_match('/(\d+)/', $numOffenseStr, $m)) {
         $numOffense = (float)$m[1];
     }
     $features[500] = $numOffense;
@@ -484,12 +494,28 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
 
     $totalPrior = (int)($caseMeta['total_prior'] ?? 0);
     $priorCasesCount = (int)($caseMeta['prior_cases_count'] ?? $totalPrior);
-    if ($totalPrior >= 1 || $priorCasesCount >= 1) {
+    $rawNumOffense = (string)($caseMeta['number_of_offense'] ?? '');
+
+    $isCycle1 = (stripos($rawNumOffense, 'Cycle 1') !== false || stripos($rawNumOffense, '3 Minor') !== false);
+    $isCycle2 = (stripos($rawNumOffense, 'Cycle 2') !== false || stripos($rawNumOffense, '6 Minor') !== false);
+    $isCycle3 = (stripos($rawNumOffense, 'Cycle 3') !== false || stripos($rawNumOffense, '9 Minor') !== false);
+
+    if ($isCycle1) {
+        $numOffense = 1;
+        $numOffenseStr = '1st Offense';
+    } elseif ($isCycle2) {
+        $numOffense = 2;
+        $numOffenseStr = '2nd Offense';
+    } elseif ($isCycle3) {
+        $numOffense = 3;
+        $numOffenseStr = '3rd Offense';
+    } elseif ($totalPrior >= 1 || $priorCasesCount >= 1) {
         $numOffense = max(2, $totalPrior + 1);
+        $numOffenseStr = ($numOffense === 2 ? '2nd Offense' : ($numOffense === 3 ? 'rd Offense' : "{$numOffense}th Offense"));
     } else {
         $numOffense = 1;
+        $numOffenseStr = '1st Offense';
     }
-    $numOffenseStr = ($numOffense >= 2) ? ($numOffense . ($numOffense === 2 ? 'nd Offense' : ($numOffense === 3 ? 'rd Offense' : 'th Offense'))) : ($caseMeta['number_of_offense'] ?? '1st Offense');
 
     $ch = curl_init(rtrim($apiUrl, '/') . '/predict');
     $payload = [
@@ -551,11 +577,31 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
             $confidence = round((float)($resData['sanction_confidence'] ?? $resData['confidence_score'] ?? $resData['likelihood_percentage'] ?? 0.0), 1);
             $severity = (string)($resData['severity'] ?? 'Medium');
             $catNum = (int)($resData['category_num'] ?? 0);
-            if ($catNum <= 0 && preg_match('/CATEGORY\s*(\d)/i', $sanction, $cm)) {
+
+            // Progressive discipline enforcement:
+            // 1st case of student / Cycle 1 escalation MUST be Category 2 (Formative Intervention)
+            // 2nd case / Cycle 2 escalation escalates to Category 3 (Non-Readmission)
+            $isUpccDocket = !empty($caseMeta['case_id']);
+            $isSec4Escalation = (stripos($category, 'Section 4') !== false || stripos($category, 'Minor') !== false || stripos($sanction, 'Section VI.E.19') !== false || stripos($sanction, 'charged with a Major Offense') !== false);
+            $isRawViolationSlip = (stripos($sanction, 'Violation slip') !== false);
+
+            if ($isSec4Escalation || ($isUpccDocket && $isRawViolationSlip) || ($numOffense === 1 && $totalPrior === 0 && $catNum >= 3 && stripos($category, 'Automatic Major') === false)) {
+                if ($numOffense >= 2 || $totalPrior >= 1 || $isCycle2 || $isCycle3) {
+                    $catNum = 3;
+                    $sanction = "Category 3 (Non-Readmission, denial of admission but is allowed to finish current term)";
+                    $csHours = 0;
+                    $severity = "Critical";
+                } else {
+                    $catNum = 2;
+                    $sanction = "Category 2 (Formative Intervention: University Service, Counseling, Discipline Education Program, & Evaluation)";
+                    $csHours = 200;
+                    $severity = "Medium";
+                }
+            } elseif ($catNum <= 0 && preg_match('/CATEGORY\s*(\d)/i', $sanction, $cm)) {
                 $catNum = (int)$cm[1];
             }
             if ($catNum <= 0) {
-                $catNum = (stripos($sanction, 'Violation slip') !== false) ? 1 : 2;
+                $catNum = 2;
             }
             $usedMlModel = true;
         }
@@ -604,7 +650,7 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
         }
     } else {
         if ($catNum === 2) {
-            $whyReason = "This is the student's 1st major offense escalation on record. In accordance with the NU Lipa Student Handbook, 1st-time escalations are assigned {$sanctionDesc} for formative rehabilitation, counseling, and community service. Evaluated against {$totalDatasetCountStr} precedent records.";
+            $whyReason = "This is the student's 1st major offense escalation on record (Cycle 1). In accordance with the NU Lipa Student Handbook Section 4 Escalation Matrix, 1st-time escalations are assigned Category 2 for formative rehabilitation, counseling, and 200 hours of university service. Evaluated against {$totalDatasetCountStr} precedent records.";
         } elseif ($catNum >= 3) {
             $whyReason = "The charged offense ('{$offenseName}') is classified under {$category} as an Automatic Major Offense with high inherent gravity, warranting {$sanctionDesc} under handbook disciplinary rules. Evaluated against {$totalDatasetCountStr} precedent records.";
         } else {
@@ -764,8 +810,9 @@ try {
     ) : ['cnt' => 0];
     $totalCasesForStudent = (int)($totalCasesForStudentRow['cnt'] ?? 0);
 
-    $isSecondOrHigherOffense = ($totalPrior >= 1 || $instanceCount >= 2 || $totalMajorCount >= 1 || $priorCasesAllCount >= 1 || ($totalCasesForStudent >= 2 && $caseId > 0));
-    $calculatedAttempt = $isSecondOrHigherOffense ? max(2, $priorCasesAllCount + 1, $totalPrior + 1, $instanceCount, $totalMajorCount + 1) : 1;
+    $isMajorOffense = ($offenseLevel === 'MAJOR' || stripos($offenseName, 'MAJOR') !== false);
+    $isSecondOrHigherOffense = ($totalPrior >= 1 || $totalMajorCount >= 1 || $priorCasesAllCount >= 1 || ($totalCasesForStudent >= 2 && $caseId > 0) || ($isMajorOffense && $instanceCount >= 2));
+    $calculatedAttempt = $isSecondOrHigherOffense ? max(2, $priorCasesAllCount + 1, $totalPrior + 1, $totalMajorCount + 1) : 1;
 
     $totalMinorRow = $targetStudentId !== '' ? db_one("SELECT COUNT(*) as cnt FROM offense o
         JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
@@ -1024,20 +1071,33 @@ try {
         $pDescription = trim((string)($_POST['description'] ?? $_GET['description'] ?? ''));
 
         $numVal = 1;
-        if (stripos($pNumOffense, 'Cycle 2') !== false || stripos($pNumOffense, '6 Minor') !== false) {
-            $numVal = 6;
-        } elseif (stripos($pNumOffense, 'Cycle 1') !== false || stripos($pNumOffense, '3 Minor') !== false) {
+        if (stripos($pNumOffense, 'Cycle 3') !== false || stripos($pNumOffense, '9 Minor') !== false) {
             $numVal = 3;
-        } elseif (preg_match('/(\d+)/', $pNumOffense, $nm)) {
+        } elseif (stripos($pNumOffense, 'Cycle 2') !== false || stripos($pNumOffense, '6 Minor') !== false) {
+            $numVal = 2;
+        } elseif (stripos($pNumOffense, 'Cycle 1') !== false || stripos($pNumOffense, '3 Minor') !== false) {
+            $numVal = 1;
+        } elseif (preg_match('/(\d+)\s*(?:st|nd|rd|th)?\s*Offense/i', $pNumOffense, $nm)) {
             $numVal = (int)$nm[1];
         }
 
-        $effectiveAttempt = max($calculatedAttempt, $numVal);
-        if ($isSecondOrHigherOffense) {
-            $effectiveAttempt = max(2, $effectiveAttempt);
+        // If it's explicitly Cycle 1, it is 1st escalation (Attempt 1)
+        if (stripos($pNumOffense, 'Cycle 1') !== false || (stripos($pCategory, 'Section 4') !== false && $totalPrior === 0 && $priorCasesAllCount === 0)) {
+            $effectiveAttempt = 1;
+            $finalNumOffenseStr = '1st Offense';
+        } elseif (stripos($pNumOffense, 'Cycle 2') !== false) {
+            $effectiveAttempt = 2;
+            $finalNumOffenseStr = '2nd Offense';
+        } elseif (stripos($pNumOffense, 'Cycle 3') !== false) {
+            $effectiveAttempt = 3;
+            $finalNumOffenseStr = '3rd Offense';
+        } else {
+            $effectiveAttempt = max($calculatedAttempt, $numVal);
+            if ($isSecondOrHigherOffense) {
+                $effectiveAttempt = max(2, $effectiveAttempt);
+            }
+            $finalNumOffenseStr = !empty($pNumOffense) ? $pNumOffense : (($effectiveAttempt >= 2) ? ($effectiveAttempt . ($effectiveAttempt === 2 ? 'nd Offense' : ($effectiveAttempt === 3 ? 'rd Offense' : 'th Offense'))) : "1st Offense");
         }
-
-        $finalNumOffenseStr = !empty($pNumOffense) ? $pNumOffense : (($effectiveAttempt >= 2) ? ($effectiveAttempt . ($effectiveAttempt === 2 ? 'nd Offense' : ($effectiveAttempt === 3 ? 'rd Offense' : 'th Offense'))) : "1st Offense");
 
         // Aggregate all offenses in the case for thorough AI text analysis
         $allOffensesNamesList = [];
@@ -1053,9 +1113,9 @@ try {
             'category' => $pCategory,
             'number_of_offense' => $finalNumOffenseStr,
             'offense_level' => (strpos(strtoupper($pCategory), 'MAJOR') !== false) ? 'MAJOR' : 'MINOR',
-            'total_prior' => max($totalPrior, $effectiveAttempt - 1),
-            'total_major_count' => max($totalMajorCount, $effectiveAttempt - 1),
-            'instance_count' => max($instanceCount, $effectiveAttempt)
+            'total_prior' => ($effectiveAttempt > 1) ? max($totalPrior, $effectiveAttempt - 1) : $totalPrior,
+            'total_major_count' => ($effectiveAttempt > 1) ? max($totalMajorCount, $effectiveAttempt - 1) : $totalMajorCount,
+            'instance_count' => ($effectiveAttempt > 1) ? max($instanceCount, $effectiveAttempt) : 1
         ]);
 
         $aiEngineRes = queryAiEngine($pDescription ?: $combinedTextForCaliber ?: $pViolation, $studentName, $targetStudentId, $predictCaseMeta);

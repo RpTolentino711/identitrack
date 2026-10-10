@@ -73,14 +73,23 @@ def main():
         tfidf_vectorizer = joblib.load(tfidf_file)
 
         # Parse number of offense
-        try:
-            num_extracted = re.search(r'\d+', str(num_offense_str))
-            if num_extracted:
-                num_offense = float(num_extracted.group())
-            else:
-                num_offense = float(num_offense_str)
-        except ValueError:
+        s_lower = str(num_offense_str).lower()
+        if "cycle 1" in s_lower or "1st" in s_lower or "first" in s_lower:
             num_offense = 1.0
+        elif "cycle 2" in s_lower or "2nd" in s_lower or "second" in s_lower:
+            num_offense = 2.0
+        elif "cycle 3" in s_lower or "3rd" in s_lower or "third" in s_lower:
+            num_offense = 3.0
+        else:
+            try:
+                num_extracted = re.search(r'(\d+)\s*(?:st|nd|rd|th)?\s*offense', s_lower)
+                if not num_extracted:
+                    num_extracted = re.search(r'cycle\s*(\d+)', s_lower)
+                if not num_extracted:
+                    num_extracted = re.search(r'\b(\d+)\b', s_lower)
+                num_offense = float(num_extracted.group(1)) if num_extracted else 1.0
+            except Exception:
+                num_offense = 1.0
 
         scenario_clean = clean_text(scenario)
         category_clean = clean_text(category)
