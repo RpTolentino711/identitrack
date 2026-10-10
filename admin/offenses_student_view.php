@@ -1239,6 +1239,13 @@ $majorCount = $rawMajorCount + count($escalationGroups);
     }
     .filter-chip.active-major:hover { background: var(--red-h); border-color: var(--red-h); }
     .filter-chip.active-minor:hover { background: var(--amber-h); border-color: var(--amber-h); }
+    .filter-chip.active-dismissed {
+      border-color: #d97706;
+      background: #d97706;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(217,119,6,.3);
+    }
+    .filter-chip.active-dismissed:hover { background: #b45309; border-color: #b45309; }
 
     /* ─── ESCALATION CARD (Major) ─── */
     .escalation-card {
@@ -1601,18 +1608,6 @@ $majorCount = $rawMajorCount + count($escalationGroups);
             if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
         }
     };
-
-    document.addEventListener('click', function(e) {
-        const btn = e.target.closest('.btn-trigger-nte-upload');
-        if (btn) {
-            e.preventDefault();
-            e.stopPropagation();
-            const cid = btn.getAttribute('data-case-id') || 0;
-            const oid = btn.getAttribute('data-offense-id') || 0;
-            const sid = btn.getAttribute('data-student-id') || '';
-            window.openDirectNteUploadModal(btn, e, cid, sid, oid);
-        }
-    }, true);
   </script>
 
   <!-- MODAL: Direct Upload & Send Form F-005 -->
@@ -1624,6 +1619,7 @@ $majorCount = $rawMajorCount + count($escalationGroups);
       </div>
       <form id="directNteUploadForm" onsubmit="submitDirectNteUpload(event)">
         <input type="hidden" name="case_id" id="directNteCaseId" value="0">
+        <input type="hidden" name="offense_id" id="directNteOffenseId" value="0">
         <input type="hidden" name="student_id" id="directNteStudentId" value="<?= htmlspecialchars($studentId) ?>">
         
         <div style="margin-bottom:16px;">
@@ -1771,16 +1767,16 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                 </div>
               </div>
               <div class="filter-bar">
-                <button class="filter-chip active" id="filterAll" onclick="filterOffenses('all')">
+                <button type="button" class="filter-chip active" id="filterAll" onclick="window.filterOffenses('all')">
                   All <span class="count-pill" style="margin-left:4px;"><?php echo ($totalOffenses + $dismissedCount); ?></span>
                 </button>
-                <button class="filter-chip" id="filterMajor" onclick="filterOffenses('major')">
+                <button type="button" class="filter-chip" id="filterMajor" onclick="window.filterOffenses('major')">
                   Major <span class="count-pill" style="margin-left:4px;"><?php echo $majorCount; ?></span>
                 </button>
-                <button class="filter-chip" id="filterMinor" onclick="filterOffenses('minor')">
+                <button type="button" class="filter-chip" id="filterMinor" onclick="window.filterOffenses('minor')">
                   Minor <span class="count-pill" style="margin-left:4px;"><?php echo $minorCount; ?></span>
                 </button>
-                <button class="filter-chip" id="filterDismissed" onclick="filterOffenses('dismissed')">
+                <button type="button" class="filter-chip" id="filterDismissed" onclick="window.filterOffenses('dismissed')">
                   Dismissed <span class="count-pill" style="margin-left:4px;"><?php echo $dismissedCount; ?></span>
                 </button>
               </div>
@@ -2144,12 +2140,20 @@ $majorCount = $rawMajorCount + count($escalationGroups);
                         $statusLabel = match($ucStatus) { 'RESOLVED' => 'Finalized', 'CLOSED' => 'Finalized', 'VOID' => 'Voided', 'CANCELLED' => 'Voided', 'UNDER_APPEAL' => 'Under Appeal', default => 'Open' };
                         $catLabel = !empty($h['uc_category']) ? 'Category ' . (int)$h['uc_category'] : '';
                         
+                        // ↓↓↓ FIX: initialize these in scope for the "Decision Details" block below ↓↓↓
+                        $catNum       = (int)($h['uc_category'] ?? 0);
+                        $catTitle     = $catNum > 0 ? "Category {$catNum}" : "";
+                        $decisionText = !empty($h['final_decision'])
+                                        ? $h['final_decision']
+                                        : ($catTitle ? "Panel consensus adopted for {$catTitle}." : 'Panel decision finalized.');
+                        $punish       = json_decode($h['punishment_details'] ?? '{}', true) ?: [];
+                        // ↑↑↑ END FIX ↑↑↑
+                        
                         $punishStatus = '';
                         if (!empty($h['uc_category'])) {
                             $catVal = (int)$h['uc_category'];
                             $csrVal = isset($h['csr_status']) ? (string)$h['csr_status'] : '';
-                            $p_details = json_decode($h['punishment_details'] ?? '{}', true);
-                            $is_manually_completed = !empty($p_details['completed']);
+                            $is_manually_completed = !empty($punish['completed']);
 
                             $pStatus = 'ONGOING';
                             if ($is_manually_completed) {
@@ -2508,210 +2512,144 @@ $majorCount = $rawMajorCount + count($escalationGroups);
     </div>
   </div>
 
+  <!-- ██████ FILTER + PHOTO FOLD + PHOTO MODAL SCRIPT (FIXED) ██████ -->
   <script>
   (function () {
-    const filterMap = { all: 'filterAll', major: 'filterMajor', minor: 'filterMinor', dismissed: 'filterDismissed' };
+    // ---- Filter chips ----
+    window.filterOffenses = function (type) {
+      var list      = document.getElementById('offenseList');
+      var emptyWrap = document.getElementById('filterEmpty');
+      var emptyTitle= document.getElementById('filterEmptyTitle');
+      var emptyText = document.getElementById('filterEmptyText');
+      var shown = 0;
 
-    function filterOffenses(type) {
-      const list        = document.getElementById('offenseList');
-      const emptyWrap   = document.getElementById('filterEmpty');
-      const emptyTitle  = document.getElementById('filterEmptyTitle');
-      const emptyText   = document.getElementById('filterEmptyText');
-
-      let shown = 0;
       if (list) {
-        list.querySelectorAll('.off-card').forEach(card => {
-          const visible = type === 'all' || card.dataset.level === type;
+        var cards = list.querySelectorAll('.off-card');
+        for (var i = 0; i < cards.length; i++) {
+          var card = cards[i];
+          var lvl  = (card.getAttribute('data-level') || '').toLowerCase();
+          var visible = (type === 'all') || (lvl === type);
           card.style.display = visible ? '' : 'none';
           if (visible) shown++;
-        });
+        }
       }
 
-      // Update chip styles
-      document.querySelectorAll('.filter-chip').forEach(b => {
-        b.classList.remove('active', 'active-major', 'active-minor', 'active-dismissed');
-      });
-      const activeBtn = document.getElementById(filterMap[type]);
-      if (activeBtn) {
-        activeBtn.classList.add('active');
-        if (type === 'major') activeBtn.classList.add('active-major');
-        if (type === 'minor') activeBtn.classList.add('active-minor');
-        if (type === 'dismissed') activeBtn.classList.add('active-dismissed');
+      // reset chips
+      var chips = document.querySelectorAll('.filter-chip');
+      for (var j = 0; j < chips.length; j++) {
+        chips[j].classList.remove('active', 'active-major', 'active-minor', 'active-dismissed');
+      }
+      var map = { all: 'filterAll', major: 'filterMajor', minor: 'filterMinor', dismissed: 'filterDismissed' };
+      var btn = document.getElementById(map[type]);
+      if (btn) {
+        btn.classList.add('active');
+        if (type === 'major')     btn.classList.add('active-major');
+        if (type === 'minor')     btn.classList.add('active-minor');
+        if (type === 'dismissed') btn.classList.add('active-dismissed');
       }
 
-      // Empty state
       if (emptyWrap) {
         if (shown === 0) {
           emptyWrap.style.display = '';
-          if (type === 'minor') {
-            emptyTitle.textContent = 'No Minor Offenses';
-            emptyText.textContent = 'This student has no minor offense records.';
-          } else if (type === 'major') {
-            emptyTitle.textContent = 'No Major Offenses';
-            emptyText.textContent = 'This student has no major offense records.';
-          } else if (type === 'dismissed') {
-            emptyTitle.textContent = 'No Dismissed Records';
-            emptyText.textContent = 'This student has no dismissed offense records.';
-          } else {
-            emptyTitle.textContent = 'No Records Found';
-            emptyText.textContent = 'No offense records available.';
-          }
+          if (type === 'minor')          { emptyTitle.textContent = 'No Minor Offenses';    emptyText.textContent = 'This student has no minor offense records.'; }
+          else if (type === 'major')     { emptyTitle.textContent = 'No Major Offenses';    emptyText.textContent = 'This student has no major offense records.'; }
+          else if (type === 'dismissed') { emptyTitle.textContent = 'No Dismissed Records'; emptyText.textContent = 'This student has no dismissed offense records.'; }
+          else                           { emptyTitle.textContent = 'No Records Found';     emptyText.textContent = 'No offense records available.'; }
         } else {
           emptyWrap.style.display = 'none';
         }
       }
-    }
+    };
 
-    window.filterOffenses = filterOffenses;
+    // ---- Photo fold / upload modal (global) ----
+    window.togglePhotoFold = function (id) {
+      var el = document.getElementById(id);
+      var arrow = document.getElementById('arrow_' + id);
+      if (!el) return;
+      if (el.style.display === 'none' || el.style.display === '') {
+        el.style.display = 'block';
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+      } else {
+        el.style.display = 'none';
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
+      }
+    };
 
-    const rejectForm = document.getElementById('guardRejectForm');
-    const rejectBtn = document.getElementById('guardRejectBtn');
-    const rejectConfirm = document.getElementById('guardRejectConfirm');
-    const rejectCancel = document.getElementById('guardRejectCancel');
-    const rejectConfirmBtn = document.getElementById('guardRejectConfirmBtn');
-    const approveForm = document.getElementById('guardApproveForm');
-    const approveBtn = document.getElementById('guardApproveBtn');
-    const approveConfirm = document.getElementById('guardApproveConfirm');
-    const approveCancel = document.getElementById('guardApproveCancel');
-    const approveConfirmBtn = document.getElementById('guardApproveConfirmBtn');
+    window.openOffensePhotoUploadModal = function (offenseId) {
+      var el = document.getElementById('modal_upload_offense_id');
+      if (el) el.value = offenseId;
+      var m = document.getElementById('uploadOffensePhotoModal');
+      if (m) m.style.display = 'flex';
+    };
 
-    function openRejectConfirm() {
-      if (!rejectConfirm) return;
-      rejectConfirm.classList.add('show');
-      rejectConfirm.setAttribute('aria-hidden', 'false');
-      if (rejectConfirmBtn) rejectConfirmBtn.focus();
-    }
+    window.closeOffensePhotoUploadModal = function () {
+      var m = document.getElementById('uploadOffensePhotoModal');
+      if (m) m.style.display = 'none';
+    };
 
-    function closeRejectConfirm() {
-      if (!rejectConfirm) return;
-      rejectConfirm.classList.remove('show');
-      rejectConfirm.setAttribute('aria-hidden', 'true');
-      if (rejectBtn) rejectBtn.focus();
-    }
+    // ---- Guard reject/approve confirms ----
+    var rejectForm = document.getElementById('guardRejectForm');
+    var rejectBtn = document.getElementById('guardRejectBtn');
+    var rejectConfirm = document.getElementById('guardRejectConfirm');
+    var rejectCancel = document.getElementById('guardRejectCancel');
+    var rejectConfirmBtn = document.getElementById('guardRejectConfirmBtn');
+    var approveForm = document.getElementById('guardApproveForm');
+    var approveBtn = document.getElementById('guardApproveBtn');
+    var approveConfirm = document.getElementById('guardApproveConfirm');
+    var approveCancel = document.getElementById('guardApproveCancel');
+    var approveConfirmBtn = document.getElementById('guardApproveConfirmBtn');
 
-    function openApproveConfirm() {
-      if (!approveConfirm) return;
-      approveConfirm.classList.add('show');
-      approveConfirm.setAttribute('aria-hidden', 'false');
-      if (approveConfirmBtn) approveConfirmBtn.focus();
-    }
+    function openRejectConfirm() { if (!rejectConfirm) return; rejectConfirm.classList.add('show'); rejectConfirm.setAttribute('aria-hidden', 'false'); if (rejectConfirmBtn) rejectConfirmBtn.focus(); }
+    function closeRejectConfirm() { if (!rejectConfirm) return; rejectConfirm.classList.remove('show'); rejectConfirm.setAttribute('aria-hidden', 'true'); if (rejectBtn) rejectBtn.focus(); }
+    function openApproveConfirm() { if (!approveConfirm) return; approveConfirm.classList.add('show'); approveConfirm.setAttribute('aria-hidden', 'false'); if (approveConfirmBtn) approveConfirmBtn.focus(); }
+    function closeApproveConfirm() { if (!approveConfirm) return; approveConfirm.classList.remove('show'); approveConfirm.setAttribute('aria-hidden', 'true'); if (approveBtn) approveBtn.focus(); }
 
-    function closeApproveConfirm() {
-      if (!approveConfirm) return;
-      approveConfirm.classList.remove('show');
-      approveConfirm.setAttribute('aria-hidden', 'true');
-      if (approveBtn) approveBtn.focus();
-    }
-
-    if (approveBtn && approveForm) {
-      approveBtn.addEventListener('click', openApproveConfirm);
-    }
-    if (approveCancel) {
-      approveCancel.addEventListener('click', closeApproveConfirm);
-    }
-    if (approveConfirmBtn && approveForm) {
-      approveConfirmBtn.addEventListener('click', function () {
-        approveForm.submit();
-      });
-    }
-    if (approveConfirm) {
-      approveConfirm.addEventListener('click', function (ev) {
-        if (ev.target === approveConfirm) closeApproveConfirm();
-      });
-    }
-
-    if (rejectBtn && rejectForm) {
-      rejectBtn.addEventListener('click', openRejectConfirm);
-    }
-    if (rejectCancel) {
-      rejectCancel.addEventListener('click', closeRejectConfirm);
-    }
-    if (rejectConfirmBtn && rejectForm) {
-      rejectConfirmBtn.addEventListener('click', function () {
-        rejectForm.submit();
-      });
-    }
-    if (rejectConfirm) {
-      rejectConfirm.addEventListener('click', function (ev) {
-        if (ev.target === rejectConfirm) closeRejectConfirm();
-      });
-    }
+    if (approveBtn && approveForm) approveBtn.addEventListener('click', openApproveConfirm);
+    if (approveCancel) approveCancel.addEventListener('click', closeApproveConfirm);
+    if (approveConfirmBtn && approveForm) approveConfirmBtn.addEventListener('click', function () { approveForm.submit(); });
+    if (approveConfirm) approveConfirm.addEventListener('click', function (ev) { if (ev.target === approveConfirm) closeApproveConfirm(); });
+    if (rejectBtn && rejectForm) rejectBtn.addEventListener('click', openRejectConfirm);
+    if (rejectCancel) rejectCancel.addEventListener('click', closeRejectConfirm);
+    if (rejectConfirmBtn && rejectForm) rejectConfirmBtn.addEventListener('click', function () { rejectForm.submit(); });
+    if (rejectConfirm) rejectConfirm.addEventListener('click', function (ev) { if (ev.target === rejectConfirm) closeRejectConfirm(); });
 
     document.addEventListener('keydown', function (ev) {
       if (approveConfirm && approveConfirm.classList.contains('show')) {
-        if (ev.key === 'Escape') {
-          ev.preventDefault();
-          closeApproveConfirm();
-          return;
-        }
-        if (ev.key === 'Enter' && !ev.ctrlKey && !ev.altKey && !ev.metaKey && !ev.shiftKey) {
-          ev.preventDefault();
-          if (approveConfirmBtn) approveConfirmBtn.click();
-          return;
-        }
+        if (ev.key === 'Escape') { ev.preventDefault(); closeApproveConfirm(); return; }
+        if (ev.key === 'Enter' && !ev.ctrlKey && !ev.altKey && !ev.metaKey && !ev.shiftKey) { ev.preventDefault(); if (approveConfirmBtn) approveConfirmBtn.click(); return; }
       }
-
       if (!rejectConfirm || !rejectConfirm.classList.contains('show')) return;
-      if (ev.key === 'Escape') {
-        ev.preventDefault();
-        closeRejectConfirm();
-        return;
-      }
-      if (ev.key === 'Enter' && !ev.ctrlKey && !ev.altKey && !ev.metaKey && !ev.shiftKey) {
-        ev.preventDefault();
-        if (rejectConfirmBtn) rejectConfirmBtn.click();
-      }
+      if (ev.key === 'Escape') { ev.preventDefault(); closeRejectConfirm(); return; }
+      if (ev.key === 'Enter' && !ev.ctrlKey && !ev.altKey && !ev.metaKey && !ev.shiftKey) { ev.preventDefault(); if (rejectConfirmBtn) rejectConfirmBtn.click(); }
     });
   })();
   </script>
-<!-- UPLOAD OFFENSE PHOTO EVIDENCE MODAL -->
-<div id="uploadOffensePhotoModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; justify-content:center; align-items:center;">
-  <div style="background:#ffffff; border-radius:16px; width:min(90vw, 440px); padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
-      <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
-        <span>📷</span> Upload Incident Photo Evidence
-      </h3>
-      <button type="button" onclick="closeOffensePhotoUploadModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#64748b;">✕</button>
+
+  <!-- UPLOAD OFFENSE PHOTO EVIDENCE MODAL -->
+  <div id="uploadOffensePhotoModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#ffffff; border-radius:16px; width:min(90vw, 440px); padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+          <span>📷</span> Upload Incident Photo Evidence
+        </h3>
+        <button type="button" onclick="closeOffensePhotoUploadModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#64748b;">✕</button>
+      </div>
+      <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="action" value="update_offense_photo">
+        <input type="hidden" name="offense_id" id="modal_upload_offense_id" value="">
+        
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Select Incident Photo Image</label>
+          <input type="file" name="evidence_photo" accept="image/*" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;">
+          <div style="font-size:11px; color:#64748b; margin-top:4px;">Supported formats: JPG, PNG, WEBP.</div>
+        </div>
+        
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" onclick="closeOffensePhotoUploadModal()" style="padding:8px 16px; background:#f1f5f9; color:#475569; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Cancel</button>
+          <button type="submit" style="padding:8px 20px; background:#2563eb; color:#ffffff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Upload & Save</button>
+        </div>
+      </form>
     </div>
-    <form method="post" enctype="multipart/form-data">
-      <input type="hidden" name="action" value="update_offense_photo">
-      <input type="hidden" name="offense_id" id="modal_upload_offense_id" value="">
-      
-      <div style="margin-bottom:16px;">
-        <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">Select Incident Photo Image</label>
-        <input type="file" name="evidence_photo" accept="image/*" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;">
-        <div style="font-size:11px; color:#64748b; margin-top:4px;">Supported formats: JPG, PNG, WEBP.</div>
-      </div>
-      
-      <div style="display:flex; justify-content:flex-end; gap:10px;">
-        <button type="button" onclick="closeOffensePhotoUploadModal()" style="padding:8px 16px; background:#f1f5f9; color:#475569; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Cancel</button>
-        <button type="submit" style="padding:8px 20px; background:#2563eb; color:#ffffff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Upload & Save</button>
-      </div>
-    </form>
   </div>
-</div>
-<script>
-function togglePhotoFold(id) {
-  const el = document.getElementById(id);
-  const arrow = document.getElementById('arrow_' + id);
-  if (el) {
-    if (el.style.display === 'none' || el.style.display === '') {
-      el.style.display = 'block';
-      if (arrow) arrow.style.transform = 'rotate(180deg)';
-    } else {
-      el.style.display = 'none';
-      if (arrow) arrow.style.transform = 'rotate(0deg)';
-    }
-  }
-}
-function openOffensePhotoUploadModal(offenseId) {
-  document.getElementById('modal_upload_offense_id').value = offenseId;
-  document.getElementById('uploadOffensePhotoModal').style.display = 'flex';
-}
-function closeOffensePhotoUploadModal() {
-  document.getElementById('uploadOffensePhotoModal').style.display = 'none';
-}
-</script>
 </body>
 </html>
-
