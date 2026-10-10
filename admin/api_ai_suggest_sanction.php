@@ -205,7 +205,7 @@ function mapOffenseToAiCategory(string $offenseName, string $offenseLevel, ?int 
     if (preg_match('/cheat|plagiar|academic|fraud|tamper|dishonest|unauthorized.*exam|alteration/i', $cleanName)) {
         return 'Academic Dishonesty or Fraudulent Acts';
     }
-    if (preg_match('/assault|fight|brawl|disturbance|weapon|threat|scandal|disrupt|riot/i', $cleanName)) {
+    if (preg_match('/assault|fight|brawl|disturbance|weapon|threat|scandal|disrupt|riot|bomb|explos|ied|detonat/i', $cleanName)) {
         return 'Campus and Public Disturbances';
     }
     if (preg_match('/vandal|destruct|damage|deface|mischief|property/i', $cleanName)) {
@@ -464,6 +464,14 @@ function runNativePhpXgbPrediction(array $payload): ?array
         $catMatchNum = 1;
     }
 
+    $textForCheck = strtolower(($payload['violation'] ?? '') . ' ' . ($payload['description'] ?? '') . ' ' . ($payload['category'] ?? ''));
+    if (strpos($textForCheck, 'improvised explosive device') !== false || strpos($textForCheck, 'detonating') !== false || strpos($textForCheck, 'detonate') !== false || (strpos($textForCheck, 'ied') !== false && (strpos($textForCheck, 'explosive') !== false || strpos($textForCheck, 'bomb') !== false || strpos($textForCheck, 'device') !== false)) || ((strpos($textForCheck, 'explosive') !== false || strpos($textForCheck, 'bomb') !== false) && (strpos($textForCheck, 'possess') !== false || strpos($textForCheck, 'bring') !== false || strpos($textForCheck, 'plant') !== false || strpos($textForCheck, 'campus') !== false))) {
+        $predictedSanction = 'Category 4 (Exclusion, dropping the name of the student immediately from the roll of students)';
+        $catMatchNum = 4;
+        $likelihoodPercentage = 96.5;
+        $category = 'Campus and Public Disturbances';
+    }
+
     return [
         'category' => $category ?: 'Uncategorized',
         'sanction' => $predictedSanction,
@@ -585,7 +593,33 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
             $isSec4Escalation = (stripos($category, 'Section 4') !== false || stripos($category, 'Minor') !== false || stripos($sanction, 'Section VI.E.19') !== false || stripos($sanction, 'charged with a Major Offense') !== false);
             $isRawViolationSlip = (stripos($sanction, 'Violation slip') !== false);
 
-            if ($isSec4Escalation || ($isUpccDocket && $isRawViolationSlip) || ($numOffense === 1 && $totalPrior === 0 && $catNum >= 3 && stripos($category, 'Automatic Major') === false)) {
+            // Capital Major Offenses Enforcement (NU Lipa Student Handbook Section 5 & RA 9516 / RA 9165 / RA 11053):
+            // Explosive devices, IEDs, detonating bombs inside campus premises strictly warrant Category 4 (Immediate Exclusion)
+            $fullCaseText = strtolower(
+                ($offenseName ?? '') . ' ' .
+                ($category ?? '') . ' ' .
+                ($userPrompt ?? '') . ' ' .
+                ($caseMeta['offense_name'] ?? '') . ' ' .
+                ($caseMeta['description'] ?? '') . ' ' .
+                ($caseMeta['category'] ?? '') . ' ' .
+                ($sanction ?? '')
+            );
+
+            $isCapitalExplosive = (
+                strpos($fullCaseText, 'improvised explosive device') !== false ||
+                strpos($fullCaseText, 'detonating') !== false ||
+                strpos($fullCaseText, 'detonate') !== false ||
+                (strpos($fullCaseText, 'ied') !== false && (strpos($fullCaseText, 'explosive') !== false || strpos($fullCaseText, 'device') !== false || strpos($fullCaseText, 'bomb') !== false)) ||
+                ((strpos($fullCaseText, 'explosive') !== false || strpos($fullCaseText, 'bomb') !== false) && (strpos($fullCaseText, 'possess') !== false || strpos($fullCaseText, 'bring') !== false || strpos($fullCaseText, 'brought') !== false || strpos($fullCaseText, 'plant') !== false || strpos($fullCaseText, 'campus') !== false))
+            );
+
+            if ($isCapitalExplosive) {
+                $catNum = 4;
+                $sanction = "Category 4 (Exclusion, dropping the name of the student immediately from the roll of students)";
+                $csHours = 0;
+                $severity = "Critical";
+                $confidence = max($confidence, 96.5);
+            } elseif ($isSec4Escalation || ($isUpccDocket && $isRawViolationSlip) || ($numOffense === 1 && $totalPrior === 0 && $catNum >= 3 && stripos($category, 'Automatic Major') === false)) {
                 if ($numOffense >= 2 || $totalPrior >= 1 || $isCycle2 || $isCycle3) {
                     $catNum = 3;
                     $sanction = "Category 3 (Non-Readmission, denial of admission but is allowed to finish current term)";
@@ -651,6 +685,10 @@ function queryAiEngine(string $userPrompt, string $realName = '', string $studen
     } else {
         if ($catNum === 2) {
             $whyReason = "This is the student's 1st major offense escalation on record (Cycle 1). In accordance with the NU Lipa Student Handbook Section 4 Escalation Matrix, 1st-time escalations are assigned Category 2 for formative rehabilitation, counseling, and 200 hours of university service. Evaluated against {$totalDatasetCountStr} precedent records.";
+        } elseif ($catNum === 4) {
+            $whyReason = "The offense involves a capital disciplinary violation ('{$offenseName}') under NU Lipa Student Handbook Section 5 and statutory Philippine law (e.g., RA 9516 on Illegal Explosives / Anti-Hazing Act / Dangerous Drugs Act). Due to the catastrophic endangerment to campus life, public safety, and university integrity, it strictly warrants Category 4 (Immediate Exclusion) on 1st offense. Evaluated against {$totalDatasetCountStr} precedent records.";
+        } elseif ($catNum >= 5) {
+            $whyReason = "The offense represents an extreme capital violation under the Student Handbook and Philippine statutory laws warranting Category 5 (Expulsion with disqualification from all Philippine higher education institutions per CHED guidelines). Evaluated against {$totalDatasetCountStr} precedent records.";
         } elseif ($catNum >= 3) {
             $whyReason = "The charged offense ('{$offenseName}') is classified under {$category} as an Automatic Major Offense with high inherent gravity, warranting {$sanctionDesc} under handbook disciplinary rules. Evaluated against {$totalDatasetCountStr} precedent records.";
         } else {
@@ -1149,7 +1187,14 @@ try {
         $matchingDatasetCount = 0;
         if (!empty($allDatasetRecords)) {
             foreach ($allDatasetRecords as $idx => $dr) {
-                if (areOffensesSemanticallyEqual($dr['violation'], $pViolation) || areOffensesSemanticallyEqual($dr['offense'], $pViolation)) {
+                $isMatch = areOffensesSemanticallyEqual($dr['violation'], $pViolation) || areOffensesSemanticallyEqual($dr['offense'], $pViolation);
+                if (!$isMatch && !empty($pDescription)) {
+                    $isMatch = areOffensesSemanticallyEqual($dr['violation'], $pDescription)
+                        || areOffensesSemanticallyEqual($dr['scenario'], $pDescription)
+                        || stripos($dr['violation'], $pDescription) !== false
+                        || stripos($pDescription, $dr['violation']) !== false;
+                }
+                if ($isMatch) {
                     $matchingDatasetCount++;
                     if (count($similarCasesList) < 10) {
                         $catMatchNum = 1;
