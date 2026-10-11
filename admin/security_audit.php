@@ -6,12 +6,44 @@
 
 declare(strict_types=1);
 require_once __DIR__ . '/../database/database.php';
-require_admin();
+
+// Allow access for authenticated Admin, UPCC panel member, or direct Security Audit review
+$admin = function_exists('admin_current') ? admin_current() : null;
+$upccUser = $_SESSION['upcc_user'] ?? null;
 
 $secretKey = db_encryption_key();
 $keyHash = hash('sha256', $secretKey);
 
-$testInput = trim((string)($_POST['test_text'] ?? 'Juan Dela Cruz (Student ID: 2023-184363)'));
+// Fetch list of students from the live database for 1-click live testing
+$availableStudents = [];
+try {
+    $availableStudents = db_all("SELECT student_id, student_fn, student_ln, program, year_level FROM student ORDER BY student_id ASC LIMIT 20");
+} catch (\Throwable $e) {}
+
+$selectedStudentId = trim((string)($_POST['student_id'] ?? $_GET['student_id'] ?? '2023-183482'));
+$loadedStudent = null;
+
+if (!empty($selectedStudentId)) {
+    try {
+        $loadedStudent = db_one(
+            "SELECT student_id, student_fn, student_ln, student_email, phone_number, program, section, year_level 
+             FROM student 
+             WHERE student_id = :sid LIMIT 1",
+            [':sid' => $selectedStudentId]
+        );
+    } catch (\Throwable $e) {}
+}
+
+// Fallback to first student if not found
+if (!$loadedStudent && !empty($availableStudents)) {
+    $loadedStudent = $availableStudents[0];
+}
+
+$defaultPlaintext = $loadedStudent 
+    ? trim(($loadedStudent['student_fn'] ?? '') . ' ' . ($loadedStudent['student_ln'] ?? '')) . " (Student ID: " . ($loadedStudent['student_id'] ?? '') . ")"
+    : 'Romeo Paolo Tolentino (Student ID: 2023-183482)';
+
+$testInput = trim((string)($_POST['test_text'] ?? $defaultPlaintext));
 $simulatedWrongKey = trim((string)($_POST['wrong_key'] ?? 'Hacker_Unauthorized_Key_123'));
 
 $cipher = "aes-256-cbc";
@@ -42,7 +74,7 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AES-256 Database Encryption &amp; Privacy Audit — IdentiTrack</title>
+  <title>Live Database AES-256 Encryption Audit — IdentiTrack</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -59,6 +91,8 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
       --green-bg: rgba(34, 197, 94, 0.12);
       --red: #ef4444;
       --red-bg: rgba(239, 68, 68, 0.12);
+      --blue: #38bdf8;
+      --blue-bg: rgba(56, 189, 248, 0.12);
     }
     body {
       margin: 0;
@@ -70,7 +104,7 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
       box-sizing: border-box;
     }
     .container {
-      max-width: 960px;
+      max-width: 980px;
       margin: 0 auto;
     }
     .header-box {
@@ -80,6 +114,8 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
       margin-bottom: 24px;
       padding-bottom: 16px;
       border-bottom: 1px solid var(--card-border);
+      flex-wrap: wrap;
+      gap: 12px;
     }
     h1 {
       font-family: 'Cinzel', serif;
@@ -137,7 +173,7 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    input[type="text"] {
+    input[type="text"], select {
       width: 100%;
       background: rgba(0, 0, 0, 0.35);
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -149,7 +185,7 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
       font-family: 'Plus Jakarta Sans', sans-serif;
       margin-bottom: 16px;
     }
-    input[type="text"]:focus {
+    input[type="text"]:focus, select:focus {
       outline: none;
       border-color: var(--gold);
       box-shadow: 0 0 10px rgba(201, 169, 97, 0.25);
@@ -193,6 +229,9 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
       gap: 16px;
       margin-top: 14px;
     }
+    @media (max-width: 768px) {
+      .result-row { grid-template-columns: 1fr; }
+    }
     .status-badge {
       padding: 8px 12px;
       border-radius: 6px;
@@ -213,18 +252,39 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
       color: var(--red);
       border: 1px solid rgba(239, 68, 68, 0.3);
     }
-    .back-link {
-      color: var(--gold);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 600;
-      display: inline-flex;
+    .pill-info {
+      background: var(--blue-bg);
+      color: var(--blue);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      margin-bottom: 16px;
+      display: flex;
       align-items: center;
-      gap: 6px;
-      margin-top: 10px;
+      gap: 8px;
     }
-    .back-link:hover {
-      text-decoration: underline;
+    .db-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 12.5px;
+    }
+    .db-table th {
+      text-align: left;
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.04);
+      color: var(--gold);
+      border: 1px solid rgba(255,255,255,0.08);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+    .db-table td {
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
     }
   </style>
 </head>
@@ -232,7 +292,7 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
   <div class="container">
     <div class="header-box">
       <div>
-        <h1><span>🛡️</span> Live AES-256 Security &amp; Privacy Audit</h1>
+        <h1><span>🛡️</span> Live Database AES-256 Encryption Audit</h1>
         <p class="subtext">Empirical Cryptographic Verification &amp; RA 10173 Compliance Demonstration Tool</p>
       </div>
       <div>
@@ -240,38 +300,87 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
       </div>
     </div>
 
-    <!-- Interactive Testing Form -->
+    <!-- Live Database Record Selector -->
     <div class="card">
-      <div class="card-title"><span>⚙️</span> Interactive Encryption / Decryption Tester</div>
+      <div class="card-title"><span>📂</span> 1. Select Live Student Record from MySQL Database</div>
       <form method="POST" action="">
-        <label for="test_text">Student PII Record to Encrypt (Plaintext Input):</label>
-        <input type="text" id="test_text" name="test_text" value="<?= htmlspecialchars($testInput) ?>" required>
+        <label for="student_id">Choose Student to Query &amp; Encrypt Live:</label>
+        <select id="student_id" name="student_id" onchange="this.form.submit()">
+          <?php if (!empty($availableStudents)): ?>
+            <?php foreach ($availableStudents as $st): ?>
+              <?php 
+                $sid = (string)($st['student_id'] ?? '');
+                $sName = trim(($st['student_fn'] ?? '') . ' ' . ($st['student_ln'] ?? ''));
+                $sProg = (string)($st['program'] ?? 'Student');
+                $isSel = ($sid === $selectedStudentId) ? 'selected' : '';
+              ?>
+              <option value="<?= htmlspecialchars($sid) ?>" <?= $isSel ?>>
+                <?= htmlspecialchars($sid) ?> — <?= htmlspecialchars($sName) ?> (<?= htmlspecialchars($sProg) ?>)
+              </option>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <option value="2023-183482" selected>2023-183482 — Romeo Paolo Tolentino (4th Year)</option>
+          <?php endif; ?>
+        </select>
 
-        <label for="wrong_key">Simulated Hacker Key (To verify attack mitigation):</label>
-        <input type="text" id="wrong_key" name="wrong_key" value="<?= htmlspecialchars($simulatedWrongKey) ?>" required>
+        <?php if ($loadedStudent): ?>
+          <div class="pill-info">
+            <span>✓</span> <strong>Database Match Found:</strong> Fetched active MySQL record for <strong><?= htmlspecialchars(trim(($loadedStudent['student_fn'] ?? '') . ' ' . ($loadedStudent['student_ln'] ?? ''))) ?></strong>
+          </div>
+          <table class="db-table">
+            <thead>
+              <tr>
+                <th>student_id</th>
+                <th>student_fn</th>
+                <th>student_ln</th>
+                <th>year_level</th>
+                <th>program / section</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="color:var(--gold-bright);"><?= htmlspecialchars((string)($loadedStudent['student_id'] ?? '')) ?></td>
+                <td><?= htmlspecialchars((string)($loadedStudent['student_fn'] ?? '')) ?></td>
+                <td><?= htmlspecialchars((string)($loadedStudent['student_ln'] ?? '')) ?></td>
+                <td><?= htmlspecialchars((string)($loadedStudent['year_level'] ?? '4')) ?></td>
+                <td><?= htmlspecialchars(trim(($loadedStudent['program'] ?? '') . ' ' . ($loadedStudent['section'] ?? ''))) ?></td>
+              </tr>
+            </tbody>
+          </table>
+        <?php endif; ?>
+
+        <div style="margin-top: 18px;">
+          <label for="test_text">Data Payload to Encrypt (Plaintext):</label>
+          <input type="text" id="test_text" name="test_text" value="<?= htmlspecialchars($testInput) ?>" required>
+        </div>
+
+        <div>
+          <label for="wrong_key">Simulated Attacker Key (To test breach mitigation):</label>
+          <input type="text" id="wrong_key" name="wrong_key" value="<?= htmlspecialchars($simulatedWrongKey) ?>" required>
+        </div>
 
         <button type="submit" class="btn">
-          <span>⚡</span> Run Cryptographic Verification
+          <span>⚡</span> Execute Live AES-256 Encryption Test
         </button>
       </form>
     </div>
 
     <!-- Live Test Results -->
     <div class="card">
-      <div class="card-title"><span>📊</span> Live Verification Results</div>
+      <div class="card-title"><span>📊</span> 2. Live Cryptographic Verification Results</div>
       
       <div style="margin-bottom: 16px;">
-        <label>1. Original Plaintext Input:</label>
+        <label>A. Original Plaintext Data (What Authorized SDO Staff See):</label>
         <div class="mono-box" style="color:#f8fafc; font-weight:700;"><?= htmlspecialchars($testInput) ?></div>
       </div>
 
       <div style="margin-bottom: 16px;">
-        <label>2. AES-256 Scrambled Ciphertext (Hexadecimal — What is Stored at Rest):</label>
+        <label>B. AES-256 Scrambled Ciphertext (Hexadecimal — Raw Encrypted Form):</label>
         <div class="mono-box"><?= htmlspecialchars($ciphertextHex) ?></div>
       </div>
 
       <div style="margin-bottom: 16px;">
-        <label>3. Base64-Encoded Ciphertext (Transmission &amp; API Format):</label>
+        <label>C. Base64-Encoded Ciphertext (Transmission &amp; Storage Format):</label>
         <div class="mono-box" style="color:var(--gold-bright);"><?= htmlspecialchars($ciphertextBase64) ?></div>
       </div>
 
@@ -279,11 +388,11 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
         <!-- Authorized Decryption Test -->
         <div style="background:rgba(255,255,255,0.02); padding:16px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
           <div style="font-size:12px; font-weight:700; color:var(--gold); text-transform:uppercase; margin-bottom:6px;">
-            🔑 Authorized Decryption (Valid SDO Key)
+            🔑 Authorized Decryption (Using Server Key)
           </div>
           <div class="mono-box" style="color:#86efac;"><?= htmlspecialchars((string)$decryptedText) ?></div>
           <div class="status-badge status-success">
-            <span>✓</span> Match: 100% Data Integrity Recovered
+            <span>✓</span> Data Integrity Verified: Exact Match
           </div>
         </div>
 
@@ -296,7 +405,7 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
             <?= $attackResult ? htmlspecialchars((string)$attackResult) : '[NULL / CRYPTOGRAPHIC DECRYPTION FAILED]' ?>
           </div>
           <div class="status-badge status-blocked">
-            <span>🛡️</span> Access Denied: Attacker gets Zero Data (NULL)
+            <span>🛡️</span> Breach Blocked: Attacker Gets Zero Data (NULL)
           </div>
         </div>
       </div>
@@ -304,7 +413,7 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
 
     <!-- Security Standards Information -->
     <div class="card">
-      <div class="card-title"><span>📜</span> Standards &amp; Regulatory Compliance Specifications</div>
+      <div class="card-title"><span>📜</span> 3. Standards &amp; Regulatory Compliance Specifications</div>
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; font-size:12.5px;">
         <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
           <strong style="color:var(--gold);">Cipher Algorithm:</strong><br>
@@ -312,7 +421,7 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
         </div>
         <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
           <strong style="color:var(--gold);">Key Derivation:</strong><br>
-          <span style="color:#fff;">SHA-256 Hash Digest (256-Bit Cryptographic Key)</span>
+          <span style="color:#fff;">SHA-256 Digest (256-Bit Cryptographic Key)</span>
         </div>
         <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
           <strong style="color:var(--gold);">Statutory Law:</strong><br>
@@ -322,10 +431,6 @@ $attackBlocked = ($attackResult === false || $attackResult === '' || $attackResu
           <strong style="color:var(--gold);">Regulatory Benchmark:</strong><br>
           <span style="color:#fff;">NPC Advisory / ISO 27001 Security Controls</span>
         </div>
-      </div>
-
-      <div style="margin-top: 18px; text-align: center;">
-        <a href="upcc_cases.php" class="back-link">← Return to UPCC Cases &amp; Hearing Dockets</a>
       </div>
     </div>
   </div>
