@@ -1822,32 +1822,6 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
         <?php endif; ?>
     <?php endif; ?>
 
-                                            <?php if (!empty(trim((string)($offense['intervention_first'] ?? '')))): ?>
-                                            <div class="offense-row">
-                                                <div class="label">1st Intervention</div>
-                                                <div class="value">
-                                                    <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$offense['intervention_first']))), ')-—')) ?: 'Formative Intervention: University Service, Counseling, & Evaluation') ?>
-                                                    <?php if (!empty($priorResolvedCases)): ?>
-                                                        <span style="background:rgba(110,158,126,.2); color:#9dc5a8; padding:3px 9px; border-radius:3px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px; letter-spacing:.8px;">✓ Completed</span>
-                                                    <?php else: ?>
-                                                        <span style="background:rgba(201,152,91,.2); color:#dfb87c; padding:3px 9px; border-radius:3px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px; letter-spacing:.8px;">⏳ Ongoing</span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-                                            <?php endif; ?>
-                                            <?php if (!empty(trim((string)($offense['intervention_second'] ?? '')))): ?>
-                                            <div class="offense-row">
-                                                <div class="label">2nd Intervention</div>
-                                                <div class="value">
-                                                    <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$offense['intervention_second']))), ')-—')) ?: '1 Semester Non-Readmission / Suspension') ?>
-                                                    <?php if (!empty($priorResolvedCases)): ?>
-                                                        <span style="background:rgba(201,152,91,.2); color:#dfb87c; padding:3px 9px; border-radius:3px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px; letter-spacing:.8px;">⏳ Ongoing</span>
-                                                    <?php else: ?>
-                                                        <span style="background:rgba(255,255,255,.06); color:var(--text-mute); padding:3px 9px; border-radius:3px; font-size:10px; font-weight:600; text-transform:uppercase; margin-left:8px; display:inline-flex; align-items:center; gap:3px; letter-spacing:.8px;">Pending</span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-                                            <?php endif; ?>
                                         </div>
                                     </details>
                                 <?php endforeach; endif; ?>

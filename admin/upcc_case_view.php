@@ -2326,27 +2326,7 @@ body {
                           </div>
                         </div>
                       <?php endif; ?>
-                      
-                      <?php if (!empty(trim((string)($off['intervention_first'] ?? '')))): ?>
-                        <div style="font-size:11.5px; color:var(--ink-600); margin-top:4px;">
-                          <strong>1st Intervention:</strong> <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_first']))), ')-—')) ?: 'Formative Intervention: University Service, Counseling, & Evaluation') ?>
-                          <?php if (!empty($priorResolvedCases)): ?>
-                            <span style="background:#059669; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">✔ Completed</span>
-                          <?php else: ?>
-                            <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">⏳ Ongoing Hearing</span>
-                          <?php endif; ?>
-                        </div>
-                      <?php endif; ?>
-                      <?php if (!empty(trim((string)($off['intervention_second'] ?? '')))): ?>
-                        <div style="font-size:11.5px; color:var(--ink-600); margin-top:4px;">
-                          <strong>2nd Intervention:</strong> <?= htmlspecialchars(trim(rtrim(preg_replace('/\s*&?\s*0\.0\s+in\s+the\s+course/i', '', preg_replace('/^Category\s*\d+\s*[\(\:\-—]?\s*/i', '', trim((string)$off['intervention_second']))), ')-—')) ?: '1 Semester Non-Readmission / Suspension') ?>
-                          <?php if (!empty($priorResolvedCases)): ?>
-                            <span style="background:#d97706; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">⏳ Ongoing Hearing</span>
-                          <?php else: ?>
-                            <span style="background:#94a3b8; color:#ffffff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; text-transform:uppercase; margin-left:6px; display:inline-flex; align-items:center;">Pending</span>
-                          <?php endif; ?>
-                        </div>
-                      <?php endif; ?>
+
                     </div>
                   </details>
                 <?php endforeach; ?>
