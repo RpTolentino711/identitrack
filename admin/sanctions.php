@@ -188,16 +188,6 @@ foreach ($cat2_cases as $c) {
             ORDER BY (status = 'ACTIVE') DESC, requirement_id DESC LIMIT 1
         ", [':sid' => $sid]);
 
-        // Auto-align Romeo's record if 2 minutes was added to old required (making 4 mins / 0.0667 hr)
-        // while Romeo had already served 6 minutes (0.100 hr): set new required to 8 minutes (0.133333 hr, 2 mins remaining)
-        if ($sid === '2023-183482' && $activeCsr && (float)$activeCsr['hours_completed'] >= 0.09 && (float)$activeCsr['hours_required'] <= 0.075) {
-            db_exec("UPDATE community_service_requirement SET hours_required = 0.133333, status = 'ACTIVE', completed_at = NULL WHERE requirement_id = :rid", [':rid' => $activeCsr['requirement_id']]);
-            db_exec("UPDATE upcc_case SET punishment_details = JSON_SET(COALESCE(NULLIF(punishment_details, ''), '{}'), '$.service_hours', 0.133333, '$.completed', false) WHERE student_id = '2023-183482' AND decided_category = 2");
-            $activeCsr['hours_required'] = 0.133333;
-            $activeCsr['req_status'] = 'ACTIVE';
-            $activeCsr['req_completed_at'] = null;
-        }
-
         if ($activeCsr) {
             $c['requirement_id']    = $activeCsr['requirement_id'];
             $c['req_status']        = $activeCsr['req_status'];
