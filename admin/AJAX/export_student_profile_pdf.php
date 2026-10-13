@@ -4,235 +4,282 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../database/database.php';
-require_admin();
+@ini_set('memory_limit', '512M');
+@set_time_limit(120);
 
+// Enable error reporting for debug if needed
+error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
+ini_set('display_errors', '0');
+
+require_once __DIR__ . '/../../database/database.php';
+
+// Support both admin session formats (admin array vs admin_id scalar)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-
-$studentId = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
-if ($studentId === '') {
-    http_response_code(400);
-    die('Error: Missing or invalid student ID.');
+if (empty($_SESSION['admin']) && !empty($_SESSION['admin_id'])) {
+    $_SESSION['admin'] = [
+        'admin_id' => $_SESSION['admin_id'],
+        'username' => $_SESSION['admin_username'] ?? 'admin',
+        'role' => $_SESSION['role'] ?? 'ADMIN'
+    ];
 }
 
-// 1. Fetch Student Information
-$sParams = [':sid' => $studentId];
-db_add_encryption_key($sParams);
-$student = db_one(
-    "SELECT student_id, program, section, year_level, school, is_active,
-            privacy_accepted, privacy_accepted_at, app_registered_at, created_at,
-            " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number']) . "
-     FROM student
-     WHERE student_id = :sid
-     LIMIT 1",
-    $sParams
-);
+require_admin();
+session_write_close();
 
-if (!$student) {
-    http_response_code(404);
-    die('Error: Student record not found.');
-}
+try {
+    $studentId = trim((string)($_GET['student_id'] ?? $_POST['student_id'] ?? ''));
+    if ($studentId === '') {
+        http_response_code(400);
+        die('Error: Missing or invalid student ID.');
+    }
 
-$fullName = trim(($student['student_fn'] ?? '') . ' ' . ($student['student_ln'] ?? ''));
-if ($fullName === '') $fullName = $studentId;
+    // 1. Fetch Student Information
+    $sParams = [':sid' => $studentId];
+    db_add_encryption_key($sParams);
+    $student = db_one(
+        "SELECT student_id, program, section, year_level, school, is_active,
+                " . db_decrypt_cols(['student_fn', 'student_ln', 'student_email', 'phone_number']) . "
+         FROM student
+         WHERE student_id = :sid
+         LIMIT 1",
+        $sParams
+    );
 
-// 2. Fetch Guardian Information
-$gParams = [':sid' => $studentId];
-$guardian = db_one(
-    "SELECT guardian_id, guardian_fn, guardian_ln, guardian_email, guardian_phone, relationship
-     FROM guardian
-     WHERE student_id = :sid
-     LIMIT 1",
-    $gParams
-);
+    if (!$student) {
+        http_response_code(404);
+        die('Error: Student record not found.');
+    }
 
-$guardianName = $guardian ? trim(($guardian['guardian_fn'] ?? '') . ' ' . ($guardian['guardian_ln'] ?? '')) : 'Not provided';
-$guardianEmail = $guardian['guardian_email'] ?? 'Not provided';
-$guardianPhone = $guardian['guardian_phone'] ?? 'Not provided';
-$guardianRel   = $guardian['relationship'] ?? 'Parent / Guardian';
+    $fullName = trim(($student['student_fn'] ?? '') . ' ' . ($student['student_ln'] ?? ''));
+    if ($fullName === '') $fullName = $studentId;
 
-// 3. Fetch Offenses History
-$oParams = [':sid' => $studentId];
-db_add_encryption_key($oParams);
-$offenses = db_all(
-    "SELECT o.offense_id, o.date_committed, o.level, o.status,
-            " . db_decrypt_col('description', 'o') . " AS description,
-            ot.code, ot.name, ot.major_category,
-            uco.case_id
-     FROM offense o
-     JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
-     LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
-     WHERE o.student_id = :sid
-     ORDER BY o.date_committed ASC, o.offense_id ASC",
-    $oParams
-) ?: [];
+    // 2. Fetch Guardian Information (with schema fallback)
+    $guardian = null;
+    try {
+        $guardian = db_one(
+            "SELECT guardian_id, guardian_fn, guardian_ln, guardian_email, 
+                    COALESCE(guardian_number, '') AS guardian_phone
+             FROM guardian
+             WHERE student_id = :sid
+             LIMIT 1",
+            [':sid' => $studentId]
+        );
+    } catch (\Throwable $e) {
+        try {
+            $guardian = db_one(
+                "SELECT guardian_id, guardian_fn, guardian_ln, guardian_email
+                 FROM guardian
+                 WHERE student_id = :sid
+                 LIMIT 1",
+                [':sid' => $studentId]
+            );
+        } catch (\Throwable $e2) {
+            $guardian = null;
+        }
+    }
 
-$minorCount = 0;
-$majorCount = 0;
-$dismissedCount = 0;
-foreach ($offenses as $o) {
-    $lvl = strtoupper((string)($o['level'] ?? ''));
-    if ($lvl === 'MINOR') $minorCount++;
-    elseif ($lvl === 'MAJOR') $majorCount++;
-    elseif ($lvl === 'DISMISSED') $dismissedCount++;
-}
-$section4Escalations = (int)floor($minorCount / 3);
+    $guardianName = $guardian ? trim(($guardian['guardian_fn'] ?? '') . ' ' . ($guardian['guardian_ln'] ?? '')) : 'Not provided';
+    $guardianEmail = !empty($guardian['guardian_email']) ? $guardian['guardian_email'] : 'Not provided';
+    $guardianPhone = !empty($guardian['guardian_phone']) ? $guardian['guardian_phone'] : 'Not provided';
+    $guardianRel   = 'Parent / Guardian';
 
-// 4. Fetch UPCC Disciplinary Cases
-$cParams = [':sid' => $studentId];
-db_add_encryption_key($cParams);
-$cases = db_all(
-    "SELECT c.case_id, c.case_kind, c.status, c.decided_category,
-            " . db_decrypt_col('case_summary', 'c') . " AS case_summary,
-            " . db_decrypt_col('punishment_details', 'c') . " AS punishment_details,
-            c.probation_until, c.hearing_date, c.hearing_time, c.hearing_type,
-            c.final_decision, c.created_at, c.updated_at
-     FROM upcc_case c
-     WHERE c.student_id = :sid AND c.status <> 'VOID'
-     ORDER BY c.created_at DESC",
-    $cParams
-) ?: [];
+    // 3. Fetch Offenses History
+    $offenses = [];
+    try {
+        $oParams = [':sid' => $studentId];
+        db_add_encryption_key($oParams);
+        $offenses = db_all(
+            "SELECT o.offense_id, o.date_committed, o.level, o.status,
+                    " . db_decrypt_col('description', 'o') . " AS description,
+                    ot.code, ot.name, ot.major_category,
+                    uco.case_id
+             FROM offense o
+             JOIN offense_type ot ON ot.offense_type_id = o.offense_type_id
+             LEFT JOIN upcc_case_offense uco ON uco.offense_id = o.offense_id
+             WHERE o.student_id = :sid
+             ORDER BY o.date_committed ASC, o.offense_id ASC",
+            $oParams
+        ) ?: [];
+    } catch (\Throwable $e) {
+        $offenses = [];
+    }
 
-$pendingCases = [];
-$resolvedCases = [];
-$pendingStatuses = ['PENDING', 'UNDER_INVESTIGATION', 'AWAITING_PANEL_DECISION', 'AWAITING_ADMIN_FINALIZATION', 'ACTIVE', 'UNDER_APPEAL'];
+    $minorCount = 0;
+    $majorCount = 0;
+    $dismissedCount = 0;
+    foreach ($offenses as $o) {
+        $lvl = strtoupper((string)($o['level'] ?? ''));
+        if ($lvl === 'MINOR') $minorCount++;
+        elseif ($lvl === 'MAJOR') $majorCount++;
+        elseif ($lvl === 'DISMISSED') $dismissedCount++;
+    }
+    $section4Escalations = (int)floor($minorCount / 3);
 
-foreach ($cases as $c) {
-    $st = strtoupper((string)($c['status'] ?? ''));
-    if (in_array($st, $pendingStatuses, true)) {
-        $pendingCases[] = $c;
+    // 4. Fetch UPCC Disciplinary Cases
+    $cases = [];
+    try {
+        $cParams = [':sid' => $studentId];
+        db_add_encryption_key($cParams);
+        $cases = db_all(
+            "SELECT c.case_id, c.case_kind, c.status, c.decided_category,
+                    " . db_decrypt_col('case_summary', 'c') . " AS case_summary,
+                    " . db_decrypt_col('punishment_details', 'c') . " AS punishment_details,
+                    c.probation_until, c.hearing_date, c.hearing_time, c.hearing_type,
+                    c.final_decision, c.created_at, c.updated_at
+             FROM upcc_case c
+             WHERE c.student_id = :sid AND c.status <> 'VOID'
+             ORDER BY c.created_at DESC",
+            $cParams
+        ) ?: [];
+    } catch (\Throwable $e) {
+        $cases = [];
+    }
+
+    $pendingCases = [];
+    $resolvedCases = [];
+    $pendingStatuses = ['PENDING', 'UNDER_INVESTIGATION', 'AWAITING_PANEL_DECISION', 'AWAITING_ADMIN_FINALIZATION', 'ACTIVE', 'UNDER_APPEAL'];
+
+    foreach ($cases as $c) {
+        $st = strtoupper((string)($c['status'] ?? ''));
+        if (in_array($st, $pendingStatuses, true)) {
+            $pendingCases[] = $c;
+        } else {
+            $resolvedCases[] = $c;
+        }
+    }
+
+    // 5. Fetch Community Service Requirements & Sessions
+    $requirements = [];
+    try {
+        $rParams = [':sid' => $studentId];
+        db_add_encryption_key($rParams);
+        $requirements = db_all(
+            "SELECT r.requirement_id, r.related_case_id,
+                    r.task_name, r.hours_required, r.status, r.assigned_at, r.completed_at
+             FROM community_service_requirement r
+             WHERE r.student_id = :sid
+             ORDER BY r.requirement_id DESC",
+            $rParams
+        ) ?: [];
+    } catch (\Throwable $e) {
+        $requirements = [];
+    }
+
+    $activeReq = null;
+    $completedReqs = [];
+    $allReqIds = [];
+
+    foreach ($requirements as $r) {
+        $allReqIds[] = (int)$r['requirement_id'];
+        $rSt = strtoupper((string)$r['status']);
+        if ($rSt === 'ACTIVE' && $activeReq === null) {
+            $activeReq = $r;
+        } elseif ($rSt === 'COMPLETED') {
+            $completedReqs[] = $r;
+        }
+    }
+
+    $sessions = [];
+    if (!empty($allReqIds)) {
+        $inClause = implode(',', $allReqIds);
+        try {
+            $sessions = db_all(
+                "SELECT s.session_id, s.requirement_id, s.time_in, s.time_out, s.login_method,
+                        s.status, s.validated_by, s.sdo_notes,
+                        (
+                          TIMESTAMPDIFF(SECOND, s.time_in, COALESCE(s.time_out, NOW()))
+                        ) / 3600.0 AS hours_done
+                 FROM community_service_session s
+                 WHERE s.requirement_id IN ($inClause)
+                 ORDER BY s.time_in DESC"
+            ) ?: [];
+        } catch (\Throwable $e) {
+            $sessions = [];
+        }
+    }
+
+    // Group sessions by requirement_id
+    $sessionsByReq = [];
+    foreach ($sessions as $sess) {
+        $sessionsByReq[(int)$sess['requirement_id']][] = $sess;
+    }
+
+    // Compute active community service metrics
+    $activeCsRequired = 0.0;
+    $activeCsDone = 0.0;
+    $activeCsRemaining = 0.0;
+    $hasOngoingCs = ($activeReq !== null);
+    $hasCompletedCs = (!empty($completedReqs));
+
+    if ($activeReq) {
+        $activeCsRequired = (float)$activeReq['hours_required'];
+        $activeSessions = $sessionsByReq[(int)$activeReq['requirement_id']] ?? [];
+        foreach ($activeSessions as $as) {
+            $activeCsDone += (float)($as['hours_done'] ?? 0);
+        }
+        $activeCsRemaining = max(0.0, $activeCsRequired - $activeCsDone);
+    }
+
+    // 6. Overall Profile Status Determination
+    $isCleanProfile = (empty($offenses) && empty($cases) && empty($requirements));
+    $isUnderSanction = ($hasOngoingCs || !empty($pendingCases) || $majorCount > 0);
+
+    if ($isCleanProfile) {
+        $standingTitle = 'CLEAN PROFILE — IN GOOD STANDING';
+        $standingClass = 'standing-clean';
+        $standingDesc  = 'This student has no disciplinary offenses, active sanctions, or committee cases recorded on file.';
+    } elseif ($hasOngoingCs) {
+        $standingTitle = 'ACTIVE DISCIPLINARY SANCTION (ONGOING COMMUNITY SERVICE)';
+        $standingClass = 'standing-warning';
+        $standingDesc  = 'The student currently has an ongoing community service requirement to fulfill (' . number_format($activeCsRemaining, 2) . ' hours remaining).';
+    } elseif (!empty($pendingCases)) {
+        $standingTitle = 'CASE UNDER INVESTIGATION / PENDING PROCEEDINGS';
+        $standingClass = 'standing-danger';
+        $standingDesc  = 'The student currently has active UPCC committee case proceedings pending administrative finalization.';
+    } elseif ($majorCount > 0) {
+        $standingTitle = 'MAJOR DISCIPLINARY RECORD ON FILE';
+        $standingClass = 'standing-danger';
+        $standingDesc  = 'The student has past major offense records. Review historical case determinations below.';
     } else {
-        $resolvedCases[] = $c;
+        $standingTitle = 'RESOLVED RECORD / CONDUCT WARNING HISTORY';
+        $standingClass = 'standing-info';
+        $standingDesc  = 'The student has minor conduct warning records on file, with all previous requirements resolved.';
     }
-}
 
-// 5. Fetch Community Service Requirements & Sessions
-$rParams = [':sid' => $studentId];
-db_add_encryption_key($rParams);
-$requirements = db_all(
-    "SELECT r.requirement_id, r.related_case_id,
-            " . db_decrypt_cols(['task_name', 'location'], 'r') . ",
-            r.hours_required, r.status, r.assigned_at, r.completed_at, r.created_at
-     FROM community_service_requirement r
-     WHERE r.student_id = :sid
-     ORDER BY r.requirement_id DESC",
-    $rParams
-) ?: [];
-
-$activeReq = null;
-$completedReqs = [];
-$allReqIds = [];
-
-foreach ($requirements as $r) {
-    $allReqIds[] = (int)$r['requirement_id'];
-    $rSt = strtoupper((string)$r['status']);
-    if ($rSt === 'ACTIVE' && $activeReq === null) {
-        $activeReq = $r;
-    } elseif ($rSt === 'COMPLETED') {
-        $completedReqs[] = $r;
+    // Format Helper
+    function formatHrsMins(float $hours): string {
+        $h = floor($hours);
+        $m = round(($hours - $h) * 60);
+        if ($h > 0 && $m > 0) return "{$h} hr " . ($m < 10 ? '0' : '') . "{$m} mins";
+        if ($h > 0) return "{$h} " . ($h == 1 ? 'hour' : 'hours');
+        return "{$m} " . ($m == 1 ? 'minute' : 'minutes');
     }
-}
 
-$sessions = [];
-if (!empty($allReqIds)) {
-    $inClause = implode(',', $allReqIds);
-    $sessions = db_all(
-        "SELECT s.session_id, s.requirement_id, s.time_in, s.time_out, s.login_method, s.logout_method,
-                s.status, s.validated_by, s.sdo_notes, s.accum_paused_seconds,
-                (
-                  CASE 
-                    WHEN s.status = 'PAUSED' AND s.paused_at IS NOT NULL THEN
-                      GREATEST(0, TIMESTAMPDIFF(SECOND, s.time_in, s.paused_at) - COALESCE(s.accum_paused_seconds, 0))
-                    ELSE
-                      GREATEST(0, TIMESTAMPDIFF(SECOND, s.time_in, s.time_out) - COALESCE(s.accum_paused_seconds, 0))
-                  END
-                ) / 3600.0 AS hours_done
-         FROM community_service_session s
-         WHERE s.requirement_id IN ($inClause)
-         ORDER BY s.time_in DESC"
-    ) ?: [];
-}
+    $categoryNames = [
+        1 => 'Category 1 — Probation & Counseling',
+        2 => 'Category 2 — Formative Community Service',
+        3 => 'Category 3 — Non-Readmission Warning / Suspension',
+        4 => 'Category 4 — Exclusion / Dropping from Roll',
+        5 => 'Category 5 — Expulsion & Police Referral',
+    ];
 
-// Group sessions by requirement_id
-$sessionsByReq = [];
-foreach ($sessions as $sess) {
-    $sessionsByReq[(int)$sess['requirement_id']][] = $sess;
-}
-
-// Compute active community service metrics
-$activeCsRequired = 0.0;
-$activeCsDone = 0.0;
-$activeCsRemaining = 0.0;
-$hasOngoingCs = ($activeReq !== null);
-$hasCompletedCs = (!empty($completedReqs));
-
-if ($activeReq) {
-    $activeCsRequired = (float)$activeReq['hours_required'];
-    $activeSessions = $sessionsByReq[(int)$activeReq['requirement_id']] ?? [];
-    foreach ($activeSessions as $as) {
-        $activeCsDone += (float)($as['hours_done'] ?? 0);
+    // University Logo
+    $logoBase64 = '';
+    $logoPath = __DIR__ . '/../../assets/logo.png';
+    if (file_exists($logoPath)) {
+        $logoData = @file_get_contents($logoPath);
+        if ($logoData !== false && strlen($logoData) > 0) {
+            $logoBase64 = 'data:image/png;base64,' . base64_encode($logoData);
+        }
     }
-    $activeCsRemaining = max(0.0, $activeCsRequired - $activeCsDone);
-}
 
-// 6. Overall Profile Status Determination
-$isCleanProfile = (empty($offenses) && empty($cases) && empty($requirements));
-$isUnderSanction = ($hasOngoingCs || !empty($pendingCases) || $majorCount > 0);
+    $generatedAt = ph_date('F j, Y \a\t g:i A');
+    $adminUsername = $_SESSION['admin_username'] ?? 'SDO Administrator';
 
-if ($isCleanProfile) {
-    $standingTitle = 'CLEAN PROFILE — IN GOOD STANDING';
-    $standingClass = 'standing-clean';
-    $standingDesc  = 'This student has no disciplinary offenses, active sanctions, or committee cases recorded on file.';
-} elseif ($hasOngoingCs) {
-    $standingTitle = 'ACTIVE DISCIPLINARY SANCTION (ONGOING COMMUNITY SERVICE)';
-    $standingClass = 'standing-warning';
-    $standingDesc  = 'The student currently has an ongoing community service requirement to fulfill (' . number_format($activeCsRemaining, 2) . ' hours remaining).';
-} elseif (!empty($pendingCases)) {
-    $standingTitle = 'CASE UNDER INVESTIGATION / PENDING PROCEEDINGS';
-    $standingClass = 'standing-danger';
-    $standingDesc  = 'The student currently has active UPCC committee case proceedings pending administrative finalization.';
-} elseif ($majorCount > 0) {
-    $standingTitle = 'MAJOR DISCIPLINARY RECORD ON FILE';
-    $standingClass = 'standing-danger';
-    $standingDesc  = 'The student has past major offense records. Review historical case determinations below.';
-} else {
-    $standingTitle = 'RESOLVED RECORD / CONDUCT WARNING HISTORY';
-    $standingClass = 'standing-info';
-    $standingDesc  = 'The student has minor conduct warning records on file, with all previous requirements resolved.';
-}
-
-// Format Helper
-function formatHrsMins(float $hours): string {
-    $h = floor($hours);
-    $m = round(($hours - $h) * 60);
-    if ($h > 0 && $m > 0) return "{$h} hr " . ($m < 10 ? '0' : '') . "{$m} mins";
-    if ($h > 0) return "{$h} " . ($h == 1 ? 'hour' : 'hours');
-    return "{$m} " . ($m == 1 ? 'minute' : 'minutes');
-}
-
-$categoryNames = [
-    1 => 'Category 1 — Probation & Counseling',
-    2 => 'Category 2 — Formative Community Service',
-    3 => 'Category 3 — Non-Readmission Warning / Suspension',
-    4 => 'Category 4 — Exclusion / Dropping from Roll',
-    5 => 'Category 5 — Expulsion & Police Referral',
-];
-
-// University Logo
-$logoBase64 = '';
-$logoPath = __DIR__ . '/../../assets/logo.png';
-if (file_exists($logoPath)) {
-    $logoData = file_get_contents($logoPath);
-    $logoBase64 = 'data:image/png;base64,' . base64_encode($logoData);
-}
-
-$generatedAt = ph_date('F j, Y \a\t g:i A');
-$adminUsername = $_SESSION['admin_username'] ?? 'SDO Administrator';
-
-// Build HTML
-ob_start();
+    // Build HTML
+    ob_start();
 ?>
 <!DOCTYPE html>
 <html>
@@ -475,7 +522,7 @@ ob_start();
       <?php endif; ?>
       <td class="header-text">
         <div class="header-title">Student Discipline Office (SDO)</div>
-        <div class="header-sub">IdentiTrack Disciplinary Records & Conduct Management System</div>
+        <div class="header-sub">IdentiTrack Disciplinary Records &amp; Conduct Management System</div>
         <div style="font-size: 8.5px; color: #64748b; margin-top: 1px;">National University Lipa • Official Conduct Assessment</div>
       </td>
       <td class="header-meta">
@@ -488,7 +535,7 @@ ob_start();
 
   <!-- Document Title Bar -->
   <div class="doc-title-bar">
-    <div class="doc-title">Student Disciplinary Record & Conduct Summary</div>
+    <div class="doc-title">Student Disciplinary Record &amp; Conduct Summary</div>
   </div>
 
   <!-- Standing / Status Assessment Callout -->
@@ -536,7 +583,7 @@ ob_start();
   </table>
 
   <!-- 1. Student & Guardian Information -->
-  <div class="section-title">1. Student & Guardian Profile</div>
+  <div class="section-title">1. Student &amp; Guardian Profile</div>
   <table class="info-table">
     <tr>
       <td class="info-label">Full Name:</td>
@@ -545,7 +592,7 @@ ob_start();
       <td class="info-val"><strong><?= htmlspecialchars($student['student_id']) ?></strong></td>
     </tr>
     <tr>
-      <td class="info-label">Program & Section:</td>
+      <td class="info-label">Program &amp; Section:</td>
       <td class="info-val"><?= htmlspecialchars(($student['program'] ?? 'N/A') . ' • Sec. ' . ($student['section'] ?? 'N/A')) ?></td>
       <td class="info-label">Year Level:</td>
       <td class="info-val"><?= htmlspecialchars(($student['year_level'] ?? 'N/A') . ' Year') ?></td>
@@ -555,8 +602,8 @@ ob_start();
       <td class="info-val"><?= htmlspecialchars($student['school'] ?? 'College') ?></td>
       <td class="info-label">Account Status:</td>
       <td class="info-val">
-        <span class="badge <?= $student['is_active'] ? 'badge-completed' : 'badge-major' ?>">
-          <?= $student['is_active'] ? 'Active Student' : 'Account Frozen / Suspended' ?>
+        <span class="badge <?= !empty($student['is_active']) ? 'badge-completed' : 'badge-major' ?>">
+          <?= !empty($student['is_active']) ? 'Active Student' : 'Account Frozen / Suspended' ?>
         </span>
       </td>
     </tr>
@@ -598,11 +645,10 @@ ob_start();
           <tr>
             <td style="font-size: 10.5px; font-weight: bold; color: #0f172a;">
               Assignment #<?= $rid ?>: <?= htmlspecialchars($req['task_name'] ?: 'University Service') ?>
-              <span style="font-weight: normal; font-size: 9.5px; color: #475569;">(<?= htmlspecialchars($req['location'] ?: 'SDO Office') ?>)</span>
             </td>
             <td style="text-align: right;">
               <span class="badge <?= $rStatus === 'ACTIVE' ? 'badge-active' : 'badge-completed' ?>">
-                <?= $rStatus === 'ACTIVE' ? 'ONGOING SERVICE' : 'COMPLETED & CLEARED' ?>
+                <?= $rStatus === 'ACTIVE' ? 'ONGOING SERVICE' : 'COMPLETED &amp; CLEARED' ?>
               </span>
             </td>
           </tr>
@@ -769,29 +815,53 @@ ob_start();
 </body>
 </html>
 <?php
-$html = ob_get_clean();
+    $html = ob_get_clean();
 
-// 7. Render PDF via Dompdf
-require_once __DIR__ . '/../../vendor/autoload.php';
-use Dompdf\Dompdf;
-use Dompdf\Options;
+    // 7. Render PDF via Dompdf
+    require_once __DIR__ . '/../../vendor/autoload.php';
 
-$options = new Options();
-$options->set('isHtml5ParserEnabled', true);
-$options->set('isRemoteEnabled', true);
-$options->set('defaultFont', 'Helvetica');
+    $options = new \Dompdf\Options();
+    $options->set('isHtml5ParserEnabled', true);
+    $options->set('isRemoteEnabled', false);
+    $options->set('defaultFont', 'Helvetica');
 
-$dompdf = new Dompdf($options);
-$dompdf->loadHtml($html);
-$dompdf->setPaper('A4', 'portrait');
-$dompdf->render();
+    // Make sure font cache directories are writable in production
+    $tmpDir = sys_get_temp_dir();
+    if (is_writable($tmpDir)) {
+        $options->set('tempDir', $tmpDir);
+        $options->set('fontDir', $tmpDir);
+        $options->set('fontCache', $tmpDir);
+    }
+    $options->set('chroot', realpath(__DIR__ . '/../../'));
 
-$cleanSid = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $studentId);
-$filename = "SDO_Student_Record_{$cleanSid}_" . date('Ymd_His') . ".pdf";
+    $dompdf = new \Dompdf\Dompdf($options);
+    $dompdf->loadHtml($html);
+    $dompdf->setPaper('A4', 'portrait');
+    $dompdf->render();
 
-$isInline = (isset($_GET['action']) && $_GET['action'] === 'view') || !empty($_GET['inline']);
+    $cleanSid = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $studentId);
+    $filename = "SDO_Student_Record_{$cleanSid}_" . date('Ymd_His') . ".pdf";
 
-$dompdf->stream($filename, [
-    'Attachment' => $isInline ? 0 : 1
-]);
-exit;
+    $isInline = (isset($_GET['action']) && $_GET['action'] === 'view') || !empty($_GET['inline']);
+
+    $dompdf->stream($filename, [
+        'Attachment' => $isInline ? 0 : 1
+    ]);
+    exit;
+
+} catch (\Throwable $e) {
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    error_log("PDF Export Error: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: text/html; charset=utf-8');
+    }
+    echo '<div style="font-family: Arial, sans-serif; padding: 24px; max-width: 680px; margin: 40px auto; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 8px;">';
+    echo '<h3 style="color: #991b1b; margin-top: 0;">Unable to Generate PDF Document</h3>';
+    echo '<p style="color: #7f1d1d; font-size: 13px;">An error occurred while compiling the student record: <strong>' . htmlspecialchars($e->getMessage()) . '</strong></p>';
+    echo '<p style="font-size: 11px; color: #64748b;">Please verify that the student ID exists and that you are logged into the SDO Administrator Portal.</p>';
+    echo '</div>';
+    exit;
+}
