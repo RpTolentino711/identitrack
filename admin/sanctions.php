@@ -188,6 +188,16 @@ foreach ($cat2_cases as $c) {
             ORDER BY (status = 'ACTIVE') DESC, requirement_id DESC LIMIT 1
         ", [':sid' => $sid]);
 
+        // Auto-align Romeo's record if 2 minutes was added to old required (making 4 mins / 0.0667 hr)
+        // while Romeo had already served 6 minutes (0.100 hr): set new required to 8 minutes (0.133333 hr, 2 mins remaining)
+        if ($sid === '2023-183482' && $activeCsr && (float)$activeCsr['hours_completed'] >= 0.09 && (float)$activeCsr['hours_required'] <= 0.075) {
+            db_exec("UPDATE community_service_requirement SET hours_required = 0.133333, status = 'ACTIVE', completed_at = NULL WHERE requirement_id = :rid", [':rid' => $activeCsr['requirement_id']]);
+            db_exec("UPDATE upcc_case SET punishment_details = JSON_SET(COALESCE(NULLIF(punishment_details, ''), '{}'), '$.service_hours', 0.133333, '$.completed', false) WHERE student_id = '2023-183482' AND decided_category = 2");
+            $activeCsr['hours_required'] = 0.133333;
+            $activeCsr['req_status'] = 'ACTIVE';
+            $activeCsr['req_completed_at'] = null;
+        }
+
         if ($activeCsr) {
             $c['requirement_id']    = $activeCsr['requirement_id'];
             $c['req_status']        = $activeCsr['req_status'];
@@ -1989,11 +1999,20 @@ function formatCaseActivity(array $act): string {
               <div style="display: flex; gap: 12px;">
                 <div style="flex: 1;">
                   <label for="editHours" style="font-size: 11px; color: #64748b; margin-bottom: 4px; display: block;">Hours</label>
-                  <input type="number" min="0" id="editHours" placeholder="e.g. 40" style="width: 100%;" oninput="checkEditSanctionFormDirty();" onchange="checkEditSanctionFormDirty();" />
+                  <input type="number" min="0" id="editHours" placeholder="e.g. 40" style="width: 100%;" oninput="updateModalHoursStatusSummary(); checkEditSanctionFormDirty();" onchange="updateModalHoursStatusSummary(); checkEditSanctionFormDirty();" />
                 </div>
                 <div style="flex: 1;">
                   <label for="editMinutes" style="font-size: 11px; color: #64748b; margin-bottom: 4px; display: block;">Minutes</label>
-                  <input type="number" min="0" max="59" id="editMinutes" placeholder="e.g. 0" style="width: 100%;" oninput="checkEditSanctionFormDirty();" onchange="checkEditSanctionFormDirty();" />
+                  <input type="number" min="0" max="59" id="editMinutes" placeholder="e.g. 0" style="width: 100%;" oninput="updateModalHoursStatusSummary(); checkEditSanctionFormDirty();" onchange="updateModalHoursStatusSummary(); checkEditSanctionFormDirty();" />
+                </div>
+              </div>
+              <div id="serviceHoursStatusSummary" style="margin-top: 10px; padding: 10px 14px; border-radius: 8px; font-size: 12px; line-height: 1.4; display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0;">
+                <div>
+                  <span style="color: #64748b; font-weight: 500;">Time Served: </span>
+                  <strong id="modalServedHoursDisplay" style="color: #0f172a;">0 mins</strong>
+                </div>
+                <div id="modalRemainingStatusBadge" style="font-weight: 700;">
+                  <!-- Live remaining badge -->
                 </div>
               </div>
             </div>
@@ -2246,6 +2265,38 @@ function formatCaseActivity(array $act): string {
     </div>
   </div>
 
+  <!-- Confirm Served Conflict Modal -->
+  <div class="modal-overlay" id="confirmServedConflictModalOverlay" style="z-index: 1550;">
+    <div class="modal-container" style="max-width: 480px;">
+      <div class="modal-header" style="background: #fffbeb; border-bottom: 1px solid #fef3c7;">
+        <h3 style="color: #b45309; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          Clarify Service Time Addition
+        </h3>
+        <button class="modal-close" onclick="cancelServedConflictModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <p id="servedConflictMessage" style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 20px;"></p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button type="button" id="btnServedConflictAddOn" class="btn-submit" onclick="applyServedConflictAddOn()" style="background: #2563eb; padding: 12px 16px; border-radius: 8px; font-weight: 700; text-align: left; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border: none; color: #fff;">
+            <span id="btnServedConflictAddOnText">Add on top of served time</span>
+            <span style="font-size: 11px; opacity: 0.9; font-weight: normal; margin-left: 8px;">(Student has service remaining)</span>
+          </button>
+          <button type="button" class="btn-edit" onclick="applyServedConflictKeep()" style="padding: 10px 16px; border-radius: 8px; color: #64748b; text-align: left; cursor: pointer;">
+            <span id="btnServedConflictKeepText">Set exact total (Mark as Fulfilled)</span>
+          </button>
+          <button type="button" class="btn-edit" onclick="cancelServedConflictModal()" style="padding: 8px 16px; border-radius: 8px; text-align: center; border: none; background: transparent; color: #94a3b8; cursor: pointer;">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     function escapeHTML(str) {
       if (!str) return '';
@@ -2348,6 +2399,30 @@ function formatCaseActivity(array $act): string {
       return parts.join(' ');
     }
 
+    function updateModalHoursStatusSummary() {
+      const hrs = parseInt(document.getElementById('editHours').value) || 0;
+      const mins = parseInt(document.getElementById('editMinutes').value) || 0;
+      const totalReqMins = hrs * 60 + mins;
+
+      const completedHours = parseFloat(modalOverlay.dataset.hoursCompleted) || 0;
+      const completedTotalMins = Math.round(completedHours * 60);
+
+      const servedEl = document.getElementById('modalServedHoursDisplay');
+      if (servedEl) servedEl.textContent = formatMinutesToText(completedTotalMins);
+
+      const badgeEl = document.getElementById('modalRemainingStatusBadge');
+      if (!badgeEl) return;
+
+      const remMins = Math.max(0, totalReqMins - completedTotalMins);
+      if (totalReqMins > completedTotalMins) {
+        badgeEl.innerHTML = `<span style="color: #1d4ed8; background: #eff6ff; padding: 3px 8px; border-radius: 6px; border: 1px solid #bfdbfe; font-size: 11px; font-weight: 700;">Ongoing: ${formatMinutesToText(remMins)} remaining</span>`;
+      } else if (completedTotalMins > 0) {
+        badgeEl.innerHTML = `<span style="color: #dc2626; background: #fef2f2; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; font-size: 11px; font-weight: 700;">Requirement Met (${formatMinutesToText(completedTotalMins)} served)</span>`;
+      } else {
+        badgeEl.innerHTML = `<span style="color: #64748b; font-size: 11px;">0 mins</span>`;
+      }
+    }
+
     let editSanctionInitialState = {
       category: 0,
       probation: '',
@@ -2412,6 +2487,7 @@ function formatCaseActivity(array $act): string {
       };
 
       toggleCategoryFields();
+      updateModalHoursStatusSummary();
       checkEditSanctionFormDirty();
 
       stepForm.classList.add('active');
@@ -2587,6 +2663,9 @@ function formatCaseActivity(array $act): string {
       const curMins = parseInt(document.getElementById('editMinutes').value) || 0;
       const currentTotal = curHrs * 60 + curMins;
 
+      const completedHours = parseFloat(modalOverlay.dataset.hoursCompleted) || 0;
+      const completedTotalMins = Math.round(completedHours * 60);
+
       const rawHrs = parseInt(document.getElementById('adjustHoursInput').value);
       const rawMins = parseInt(document.getElementById('adjustMinutesInput').value);
 
@@ -2608,13 +2687,21 @@ function formatCaseActivity(array $act): string {
 
       let newTotal = currentTotal;
       if (adjustAction === 'add') {
-        newTotal = currentTotal + adjTotal;
+        const baseMins = Math.max(currentTotal, completedTotalMins);
+        newTotal = baseMins + adjTotal;
       } else {
         newTotal = Math.max(0, currentTotal - adjTotal);
       }
 
       const previewEl = document.getElementById('adjustPreviewDisplay');
-      previewEl.textContent = formatMinutesToText(newTotal);
+      const remAfter = Math.max(0, newTotal - completedTotalMins);
+      let previewText = formatMinutesToText(newTotal);
+      if (newTotal > completedTotalMins) {
+        previewText += ` (${formatMinutesToText(remAfter)} remaining to serve)`;
+      } else if (completedTotalMins > 0) {
+        previewText += ` (All served — ready for review)`;
+      }
+      previewEl.textContent = previewText;
 
       if (newTotal > currentTotal) {
         previewEl.style.color = '#16a34a';
@@ -2630,6 +2717,9 @@ function formatCaseActivity(array $act): string {
       const curMins = parseInt(document.getElementById('editMinutes').value) || 0;
       const currentTotal = curHrs * 60 + curMins;
 
+      const completedHours = parseFloat(modalOverlay.dataset.hoursCompleted) || 0;
+      const completedTotalMins = Math.round(completedHours * 60);
+
       const rawHrs = parseInt(document.getElementById('adjustHoursInput').value);
       const rawMins = parseInt(document.getElementById('adjustMinutesInput').value);
       if ((!isNaN(rawHrs) && rawHrs < 0) || (!isNaN(rawMins) && rawMins < 0)) {
@@ -2642,7 +2732,8 @@ function formatCaseActivity(array $act): string {
 
       let newTotal = currentTotal;
       if (adjustAction === 'add') {
-        newTotal = currentTotal + adjTotal;
+        const baseMins = Math.max(currentTotal, completedTotalMins);
+        newTotal = baseMins + adjTotal;
       } else {
         newTotal = Math.max(0, currentTotal - adjTotal);
       }
@@ -2653,6 +2744,15 @@ function formatCaseActivity(array $act): string {
       document.getElementById('editHours').value = newHrs;
       document.getElementById('editMinutes').value = newMins;
 
+      if (newTotal > completedTotalMins) {
+        const compCheckbox = document.getElementById('editComplete');
+        if (compCheckbox && compCheckbox.checked) {
+          compCheckbox.checked = false;
+          toggleCompleteChecked();
+        }
+      }
+
+      updateModalHoursStatusSummary();
       checkEditSanctionFormDirty();
       closeAdjustTimeModal();
     }
@@ -2764,11 +2864,20 @@ function formatCaseActivity(array $act): string {
           const newMins = Math.round(minutes);
           const newTotal = newHrs * 60 + newMins;
 
+          const completedHours = parseFloat(modalOverlay.dataset.hoursCompleted) || 0;
+          const completedTotalMins = Math.round(completedHours * 60);
+
+          if (!isCompleted && completedTotalMins > 0 && newTotal <= completedTotalMins && newTotal !== origTotal) {
+            showServedConflictModal(completedTotalMins, newTotal, origTotal);
+            return;
+          }
+
           if (newTotal !== origTotal) {
             let confirmMsg = '';
+            const remMins = Math.max(0, newTotal - completedTotalMins);
             if (newTotal > origTotal) {
               const addedTime = newTotal - origTotal;
-              confirmMsg = `You will add ${formatMinutesToText(addedTime)} to this student's time and it will become ${formatMinutesToText(newTotal)} total service time. Are you sure?`;
+              confirmMsg = `You will add ${formatMinutesToText(addedTime)} to this student's time and it will become ${formatMinutesToText(newTotal)} total service time (${formatMinutesToText(remMins)} remaining to serve). Are you sure?`;
             } else {
               const decreasedTime = origTotal - newTotal;
               confirmMsg = `You will decrease this student's time by ${formatMinutesToText(decreasedTime)} and the total time of the student will be ${formatMinutesToText(newTotal)}. Are you sure?`;
@@ -2797,6 +2906,62 @@ function formatCaseActivity(array $act): string {
 
     function cancelTimeChangeConfirm() {
       document.getElementById('confirmTimeChangeModalOverlay').classList.remove('active');
+    }
+
+    let pendingServedConflict = null;
+
+    function showServedConflictModal(completedTotalMins, newTotal, origTotal) {
+      const addedMins = (newTotal > origTotal) ? (newTotal - origTotal) : newTotal;
+      const suggestedTotal = completedTotalMins + addedMins;
+
+      pendingServedConflict = {
+        suggestedTotal: suggestedTotal,
+        newTotal: newTotal
+      };
+
+      const msg = `This student has already served <strong>${formatMinutesToText(completedTotalMins)}</strong>.<br><br>` +
+        `Setting the total service time to <strong>${formatMinutesToText(newTotal)}</strong> means the student has already fulfilled this requirement (leaving 0 minutes remaining to serve), so the sanction will be marked as Completed (Ready for Review).<br><br>` +
+        `Did you intend to <strong>ADD</strong> ${formatMinutesToText(addedMins)} of service on top of what was already served (making the total <strong>${formatMinutesToText(suggestedTotal)}</strong>, with <strong>${formatMinutesToText(addedMins)}</strong> remaining to serve)?`;
+
+      document.getElementById('servedConflictMessage').innerHTML = msg;
+      document.getElementById('btnServedConflictAddOnText').textContent = `Add ${formatMinutesToText(addedMins)} (Total: ${formatMinutesToText(suggestedTotal)}, ${formatMinutesToText(addedMins)} remaining)`;
+      document.getElementById('btnServedConflictKeepText').textContent = `Keep ${formatMinutesToText(newTotal)} total (Mark as Fulfilled)`;
+
+      document.getElementById('confirmServedConflictModalOverlay').classList.add('active');
+    }
+
+    function cancelServedConflictModal() {
+      document.getElementById('confirmServedConflictModalOverlay').classList.remove('active');
+      pendingServedConflict = null;
+    }
+
+    function applyServedConflictAddOn() {
+      if (!pendingServedConflict) return;
+      const tot = pendingServedConflict.suggestedTotal;
+      const hrs = Math.floor(tot / 60);
+      const mins = tot % 60;
+
+      document.getElementById('editHours').value = hrs;
+      document.getElementById('editMinutes').value = mins;
+
+      const compCheckbox = document.getElementById('editComplete');
+      if (compCheckbox && compCheckbox.checked) {
+        compCheckbox.checked = false;
+        toggleCompleteChecked();
+      }
+
+      updateModalHoursStatusSummary();
+      checkEditSanctionFormDirty();
+      document.getElementById('confirmServedConflictModalOverlay').classList.remove('active');
+      pendingServedConflict = null;
+
+      proceedToVerification();
+    }
+
+    function applyServedConflictKeep() {
+      document.getElementById('confirmServedConflictModalOverlay').classList.remove('active');
+      pendingServedConflict = null;
+      proceedToVerification();
     }
 
     function proceedAfterTimeChangeConfirm() {
@@ -3259,7 +3424,7 @@ function formatCaseActivity(array $act): string {
                 completed: s.completed
               };
 
-              const isPendingReview = (s.category === 2 && !s.completed && s.hours_completed >= (s.hours_required - 0.0001));
+              const isPendingReview = (s.category === 2 && !s.completed && s.hours_required > 0 && s.hours_completed >= (s.hours_required - 0.0001));
               let actionBtnHTML = '';
               if (isPendingReview) {
                 modalData.auto_check_completed = true;
