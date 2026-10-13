@@ -177,8 +177,7 @@ $cat2_students = [];
 foreach ($cat2_cases as $c) {
     $sid = $c['student_id'];
     if (!isset($cat2_students[$sid])) {
-        $activeCsr = db_one("
-            SELECT requirement_id, status AS req_status, hours_required, task_name, completed_at AS req_completed_at,
+        $activeCsr = db_one("  SELECT requirement_id, status AS req_status, hours_required, task_name, completed_at AS req_completed_at,
                    (
                        SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
                        FROM community_service_session sess
