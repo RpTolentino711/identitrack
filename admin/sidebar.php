@@ -23,6 +23,30 @@ if (function_exists('db_one')) {
     $upccRow = db_one("SELECT COUNT(*) AS cnt FROM upcc_case WHERE status = 'PENDING'");
     $pendingUPCCCases = (int)($upccRow['cnt'] ?? 0);
   }
+
+  $pendingSanctionsCount = 0;
+  if (db_one("SHOW TABLES LIKE 'community_service_requirement'")) {
+    $sanctRow = db_one("
+      SELECT COUNT(DISTINCT csr.student_id) AS cnt
+      FROM community_service_requirement csr
+      LEFT JOIN upcc_case uc ON (uc.case_id = csr.related_case_id OR uc.student_id = csr.student_id)
+      WHERE csr.status NOT IN ('COMPLETED', 'CANCELLED')
+        AND csr.hours_required > 0
+        AND (
+          SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
+          FROM community_service_session sess
+          WHERE sess.requirement_id = csr.requirement_id AND sess.time_out IS NOT NULL
+        ) >= (csr.hours_required - 0.0001)
+        AND (
+          uc.punishment_details IS NULL
+          OR (
+            uc.punishment_details NOT LIKE '%\"completed\":true%'
+            AND uc.punishment_details NOT LIKE '%\"completed\":1%'
+          )
+        )
+    ");
+    $pendingSanctionsCount = (int)($sanctRow['cnt'] ?? 0);
+  }
 }
 ?>
 <style>
@@ -471,13 +495,16 @@ if (function_exists('db_one')) {
     </li>
 
     <li>
-      <a class="admin-sidebar-link <?php echo $activeSidebar === 'sanctions' ? 'active' : ''; ?>" href="sanctions.php">
+      <a class="admin-sidebar-link <?php echo $activeSidebar === 'sanctions' ? 'active' : ''; ?>" href="sanctions.php?tab=cat2">
         <span class="admin-sidebar-icon">
           <svg viewBox="0 0 24 24">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
           </svg>
         </span>
         <span>Sanctions</span>
+        <span class="admin-sidebar-count" style="background:#dc2626; animation: pulse 2s infinite; display: <?php echo $pendingSanctionsCount > 0 ? 'inline-flex' : 'none'; ?>;">
+          <?php echo (int)$pendingSanctionsCount; ?>
+        </span>
       </a>
     </li>
 
@@ -1157,7 +1184,7 @@ if (!$isSanctionsPage && function_exists('db_all') && db_one("SHOW TABLES LIKE '
         </div>
     </div>
     <div class="gst-actions">
-        <a href="sanctions.php?tab=cat2&highlight_student_id=<?= urlencode($sStudentId) ?>" class="gst-btn gst-btn-view">Review Sanction</a>
+        <a href="sanctions.php?tab=cat2&highlight_student_id=<?= urlencode($sStudentId) ?>&action=acknowledge" class="gst-btn gst-btn-view">Review Sanction</a>
         <button class="gst-btn gst-btn-ok" onclick="dismissServiceToast()">Later</button>
     </div>
 </div>

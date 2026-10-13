@@ -278,6 +278,14 @@ try {
            WHERE student_id = :sid AND status = 'ACTIVE'",
           [':sid' => $studentId]
         );
+
+        db_exec(
+          "UPDATE upcc_case 
+           SET punishment_details = JSON_SET(COALESCE(NULLIF(punishment_details, ''), '{}'), '$.completed', true),
+               updated_at = NOW() 
+           WHERE student_id = :sid AND decided_category = 2",
+          [':sid' => $studentId]
+        );
       }
 
       upcc_log_case_activity($caseId, 'ADMIN', $adminId, 'SANCTION_HOURS_UPDATED', [

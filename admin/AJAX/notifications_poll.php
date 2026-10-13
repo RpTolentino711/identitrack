@@ -85,10 +85,35 @@ $completedServices = db_all(
   $pollParams
 );
 
+$pendingSanctionsCount = 0;
+try {
+  $sanctRow = db_one("
+    SELECT COUNT(DISTINCT csr.student_id) AS cnt
+    FROM community_service_requirement csr
+    LEFT JOIN upcc_case uc ON (uc.case_id = csr.related_case_id OR uc.student_id = csr.student_id)
+    WHERE csr.status NOT IN ('COMPLETED', 'CANCELLED')
+      AND csr.hours_required > 0
+      AND (
+        SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, sess.time_in, sess.time_out)/3600.0), 0.0)
+        FROM community_service_session sess
+        WHERE sess.requirement_id = csr.requirement_id AND sess.time_out IS NOT NULL
+      ) >= (csr.hours_required - 0.0001)
+      AND (
+        uc.punishment_details IS NULL
+        OR (
+          uc.punishment_details NOT LIKE '%\"completed\":true%'
+          AND uc.punishment_details NOT LIKE '%\"completed\":1%'
+        )
+      )
+  ");
+  $pendingSanctionsCount = (int)($sanctRow['cnt'] ?? 0);
+} catch (\Throwable $e) {}
+
 echo json_encode([
   'ok' => true,
   'unread' => $totalUnread,
   'pending_guard_count' => $pendingGuardCount,
+  'pending_sanctions_count' => $pendingSanctionsCount,
   'new_notifications' => $newNotifications,
   'completed_services' => $completedServices,
 ]);

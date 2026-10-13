@@ -185,8 +185,8 @@ foreach ($cat2_cases as $c) {
                        WHERE sess.requirement_id = community_service_requirement.requirement_id AND sess.time_out IS NOT NULL
                    ) AS hours_completed
             FROM community_service_requirement
-            WHERE student_id = :sid AND status = 'ACTIVE'
-            ORDER BY requirement_id DESC LIMIT 1
+            WHERE student_id = :sid
+            ORDER BY (status = 'ACTIVE') DESC, requirement_id DESC LIMIT 1
         ", [':sid' => $sid]);
 
         if ($activeCsr) {
@@ -1589,12 +1589,12 @@ function formatCaseActivity(array $act): string {
                       if ($student_name === '') $student_name = $c['student_id'];
 
                       $p_details = json_decode($c['punishment_details'] ?? '', true) ?: [];
-                      $is_completed = !empty($p_details['completed']);
+                      $is_completed = !empty($p_details['completed']) || (strtoupper((string)($c['req_status'] ?? '')) === 'COMPLETED');
                       $is_ongoing = !$is_completed;
                       $hours_comp = (float)$c['hours_completed'];
                       $hours_req  = (float)$c['hours_required'];
                       $hours_rem  = max(0.0, $hours_req - $hours_comp);
-                      $has_finished_hours = ($hours_comp >= ($hours_req - 0.0001));
+                      $has_finished_hours = ($hours_req > 0 && $hours_comp >= ($hours_req - 0.0001));
                     ?>
                     <div class="sanction-card cat-2" id="student-card-<?php echo htmlspecialchars($c['student_id']); ?>">
                       <div class="sanction-card-left">
@@ -2397,10 +2397,11 @@ function formatCaseActivity(array $act): string {
       modalOverlay.dataset.originalHours = hrs;
       modalOverlay.dataset.originalMinutes = mins;
 
-      const isComp = (typeof data.auto_check_completed !== 'undefined') ? !!data.auto_check_completed : !!data.completed;
+      const initialComp = !!data.completed;
+      const isComp = (typeof data.auto_check_completed !== 'undefined') ? !!data.auto_check_completed : initialComp;
       document.getElementById('editComplete').checked = isComp;
 
-      modalOverlay.dataset.initialCompleted = data.completed ? 'true' : 'false';
+      modalOverlay.dataset.initialCompleted = initialComp ? 'true' : 'false';
       modalOverlay.dataset.hoursCompleted = data.hours_completed || 0;
 
       editSanctionInitialState = {
@@ -2408,7 +2409,7 @@ function formatCaseActivity(array $act): string {
         probation: (data.probation_until || '').toString(),
         hours: hrs,
         minutes: mins,
-        completed: isComp
+        completed: initialComp
       };
 
       toggleCategoryFields();
@@ -2420,17 +2421,13 @@ function formatCaseActivity(array $act): string {
       document.getElementById('verifyPassword').value = '';
       document.getElementById('verifyOTP').value = '';
 
-      if (data.category === 2 && data.auto_check_completed && (data.completed === false || data.completed === 0 || data.completed === '0' || modalOverlay.dataset.initialCompleted === 'false')) {
+      if (data.auto_check_completed) {
         modalOverlay.dataset.isAcknowledgeFlow = 'true';
-        const compStr = formatHoursMinutesJS(data.hours_completed || 0);
-        const reqStr = formatHoursMinutesJS(data.hours || 0);
-        setTimeout(() => {
-          openWarningModal(true, `${compStr} / ${reqStr}`);
-        }, 180);
       } else {
         modalOverlay.dataset.isAcknowledgeFlow = 'false';
-        modalOverlay.classList.add('active');
       }
+
+      modalOverlay.classList.add('active');
     }
 
     function closeEditModal() {
@@ -3049,9 +3046,14 @@ function formatCaseActivity(array $act): string {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          alert('Sanction updated successfully.');
+          alert('Sanction acknowledged and updated successfully.');
           closeEditModal();
-          location.reload();
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('highlight_student_id');
+          cleanUrl.searchParams.delete('student_id');
+          cleanUrl.searchParams.delete('action');
+          cleanUrl.searchParams.delete('msg');
+          window.location.href = cleanUrl.toString();
         } else {
           if (data.lockout) {
             startLockoutCountdown(data.seconds_left);
@@ -3543,15 +3545,13 @@ function formatCaseActivity(array $act): string {
             const editBtn = card.querySelector('.btn-edit');
             const ackBtn = card.querySelector('.btn-acknowledge-glowing');
 
-            // Only auto-open Edit Sanction modal if the appeal was APPROVED or action=edit is specified
-            if (urlParams.get('msg') === 'approved' || urlParams.get('action') === 'edit') {
-              if (editBtn) {
-                editBtn.click();
-              } else if (ackBtn) {
+            // Only auto-open Edit Sanction modal if explicitly requested via action=edit, action=acknowledge, or msg=approved
+            if (urlParams.get('msg') === 'approved' || urlParams.get('action') === 'edit' || urlParams.get('action') === 'acknowledge') {
+              if (ackBtn) {
                 ackBtn.click();
+              } else if (editBtn) {
+                editBtn.click();
               }
-            } else if (ackBtn) {
-              ackBtn.click();
             }
 
             card.animate([

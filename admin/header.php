@@ -1127,6 +1127,24 @@ if (function_exists('db_one')) {
         const newNotifs = json.new_notifications || [];
         const pendingGuards = Number(json.pending_guard_count || 0);
 
+        if (typeof json.pending_sanctions_count !== 'undefined') {
+          const sCount = Number(json.pending_sanctions_count || 0);
+          const sLink = document.querySelector('.admin-sidebar-link[href*="sanctions.php"]');
+          if (sLink) {
+            let sBadge = sLink.querySelector('.admin-sidebar-count');
+            if (!sBadge && sCount > 0) {
+              sBadge = document.createElement('span');
+              sBadge.className = 'admin-sidebar-count';
+              sBadge.style.cssText = 'background:#dc2626; animation: pulse 2s infinite; display: inline-flex;';
+              sLink.appendChild(sBadge);
+            }
+            if (sBadge) {
+              sBadge.textContent = sCount > 0 ? sCount : '';
+              sBadge.style.display = sCount > 0 ? 'inline-flex' : 'none';
+            }
+          }
+        }
+
         const cPath = window.location.pathname.toLowerCase();
         const isCurrentlyDashboard = cPath.includes('dashboard.php') || cPath.endsWith('/admin/') || cPath.endsWith('/admin') || cPath.endsWith('/admin/index.php');
 
