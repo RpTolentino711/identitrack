@@ -25,6 +25,10 @@ if (empty($_SESSION['admin']) && !empty($_SESSION['admin_id'])) {
     ];
 }
 
+if (!admin_current()) {
+    redirect('../login.php');
+}
+
 require_admin();
 session_write_close();
 
