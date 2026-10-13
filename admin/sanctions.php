@@ -2392,8 +2392,8 @@ function formatCaseActivity(array $act): string {
       const totalHours = parseFloat(data.hours) || 0;
       const hrs = Math.floor(totalHours);
       const mins = Math.round((totalHours - hrs) * 60);
-      document.getElementById('editHours').value = hrs || '';
-      document.getElementById('editMinutes').value = mins || '';
+      document.getElementById('editHours').value = hrs;
+      document.getElementById('editMinutes').value = mins;
       modalOverlay.dataset.originalHours = hrs;
       modalOverlay.dataset.originalMinutes = mins;
 
@@ -2572,9 +2572,9 @@ function formatCaseActivity(array $act): string {
         btnSub.style.color = '#475569';
         btnSub.style.fontWeight = '600';
       } else {
-        btnSub.style.border = '2px solid #2563eb';
-        btnSub.style.background = '#eff6ff';
-        btnSub.style.color = '#1e40af';
+        btnSub.style.border = '2px solid #dc2626';
+        btnSub.style.background = '#fef2f2';
+        btnSub.style.color = '#b91c1c';
         btnSub.style.fontWeight = '700';
 
         btnAdd.style.border = '1px solid #cbd5e1';
@@ -2591,8 +2591,23 @@ function formatCaseActivity(array $act): string {
       const curMins = parseInt(document.getElementById('editMinutes').value) || 0;
       const currentTotal = curHrs * 60 + curMins;
 
-      const adjHrs = parseInt(document.getElementById('adjustHoursInput').value) || 0;
-      const adjMins = parseInt(document.getElementById('adjustMinutesInput').value) || 0;
+      const rawHrs = parseInt(document.getElementById('adjustHoursInput').value);
+      const rawMins = parseInt(document.getElementById('adjustMinutesInput').value);
+
+      if ((!isNaN(rawHrs) && rawHrs < 0) || (!isNaN(rawMins) && rawMins < 0)) {
+        if (adjustAction !== 'subtract') {
+          setAdjustAction('subtract');
+        }
+        if (!isNaN(rawHrs) && rawHrs < 0) {
+          document.getElementById('adjustHoursInput').value = Math.abs(rawHrs);
+        }
+        if (!isNaN(rawMins) && rawMins < 0) {
+          document.getElementById('adjustMinutesInput').value = Math.abs(rawMins);
+        }
+      }
+
+      const adjHrs = Math.abs(parseInt(document.getElementById('adjustHoursInput').value) || 0);
+      const adjMins = Math.abs(parseInt(document.getElementById('adjustMinutesInput').value) || 0);
       const adjTotal = adjHrs * 60 + adjMins;
 
       let newTotal = currentTotal;
@@ -2619,8 +2634,14 @@ function formatCaseActivity(array $act): string {
       const curMins = parseInt(document.getElementById('editMinutes').value) || 0;
       const currentTotal = curHrs * 60 + curMins;
 
-      const adjHrs = parseInt(document.getElementById('adjustHoursInput').value) || 0;
-      const adjMins = parseInt(document.getElementById('adjustMinutesInput').value) || 0;
+      const rawHrs = parseInt(document.getElementById('adjustHoursInput').value);
+      const rawMins = parseInt(document.getElementById('adjustMinutesInput').value);
+      if ((!isNaN(rawHrs) && rawHrs < 0) || (!isNaN(rawMins) && rawMins < 0)) {
+        adjustAction = 'subtract';
+      }
+
+      const adjHrs = Math.abs(parseInt(document.getElementById('adjustHoursInput').value) || 0);
+      const adjMins = Math.abs(parseInt(document.getElementById('adjustMinutesInput').value) || 0);
       const adjTotal = adjHrs * 60 + adjMins;
 
       let newTotal = currentTotal;
@@ -2633,8 +2654,8 @@ function formatCaseActivity(array $act): string {
       const newHrs = Math.floor(newTotal / 60);
       const newMins = newTotal % 60;
 
-      document.getElementById('editHours').value = newHrs || '';
-      document.getElementById('editMinutes').value = newMins || '';
+      document.getElementById('editHours').value = newHrs;
+      document.getElementById('editMinutes').value = newMins;
 
       checkEditSanctionFormDirty();
       closeAdjustTimeModal();

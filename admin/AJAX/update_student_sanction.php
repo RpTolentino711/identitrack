@@ -203,121 +203,108 @@ try {
 
   // Manage Community Service Requirement
   if ($category === 2) {
-    $csr = db_one("SELECT requirement_id, hours_required, status FROM community_service_requirement WHERE related_case_id = :cid", [':cid' => $caseId]);
+    // 1. Locate the requirement for this case or student
+    $csr = db_one(
+      "SELECT requirement_id, hours_required, status 
+       FROM community_service_requirement 
+       WHERE related_case_id = :cid 
+       ORDER BY requirement_id DESC 
+       LIMIT 1",
+      [':cid' => $caseId]
+    );
+
     if (!$csr) {
-      // Look for an existing unlinked requirement for this student
-      $unlinkedCsr = db_one(
-        "SELECT requirement_id, hours_required, status FROM community_service_requirement 
-         WHERE student_id = :sid AND (related_case_id IS NULL OR related_case_id = '') 
+      // Check for an active requirement for this student
+      $csr = db_one(
+        "SELECT requirement_id, hours_required, status 
+         FROM community_service_requirement 
+         WHERE student_id = :sid AND status = 'ACTIVE' 
+         ORDER BY requirement_id DESC 
          LIMIT 1",
         [':sid' => $studentId]
       );
-      if ($unlinkedCsr) {
-        db_exec(
-          "UPDATE community_service_requirement SET related_case_id = :cid WHERE requirement_id = :rid",
-          [':cid' => $caseId, ':rid' => $unlinkedCsr['requirement_id']]
-        );
-        $csr = $unlinkedCsr;
-      }
     }
 
-    // Determine target hours (additional hours logic when reactivating completed/fully-served requirement)
-    $completedHours = 0.0;
-    $oldHoursRequired = 0.0;
-    $oldStatus = 'ACTIVE';
-    if ($csr) {
-      $oldHoursRequired = (float)$csr['hours_required'];
-      $oldStatus = $csr['status'];
-      $completedHours = (float)db_one(
-        "SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, time_in, time_out)/3600.0), 0.0) AS completed
-         FROM community_service_session 
-         WHERE requirement_id = :rid AND time_out IS NOT NULL",
-        [':rid' => $csr['requirement_id']]
-      )['completed'];
+    if (!$csr) {
+      // Fallback: Check for any existing requirement for this student
+      $csr = db_one(
+        "SELECT requirement_id, hours_required, status 
+         FROM community_service_requirement 
+         WHERE student_id = :sid 
+         ORDER BY requirement_id DESC 
+         LIMIT 1",
+        [':sid' => $studentId]
+      );
     }
 
     $newStatus = ($completed === 1) ? 'COMPLETED' : 'ACTIVE';
-    $isPreviouslyServed = ($oldStatus === 'COMPLETED' || $completedHours >= ($oldHoursRequired - 0.0001));
-
-    if ($newStatus === 'ACTIVE' && $isPreviouslyServed && $csr) {
-      // If reactivating a completed or fully-served requirement, we start fresh with a NEW requirement record.
-      // 1. Mark the old requirement as COMPLETED and unlink it from the case to preserve history.
-      db_exec(
-        "UPDATE community_service_requirement 
-         SET status = 'COMPLETED', 
-             related_case_id = NULL,
-             completed_at = COALESCE(completed_at, NOW()),
-             updated_at = NOW() 
-         WHERE requirement_id = :rid",
-        [':rid' => $csr['requirement_id']]
-      );
-      // 2. Set $csr to null so the code below inserts a brand new requirement record starting from 0 hours.
-      $csr = null;
-    }
 
     if ($csr) {
+      $rid = (int)$csr['requirement_id'];
+      // Update the requirement with exact adjusted hours and link to the case
       db_exec(
         "UPDATE community_service_requirement 
          SET hours_required = :hours, 
+             related_case_id = :cid,
              status = :status, 
              completed_at = :completed_at,
              updated_at = NOW() 
-         WHERE related_case_id = :cid",
+         WHERE requirement_id = :rid",
         [
           ':hours' => $hours,
+          ':cid' => $caseId,
           ':status' => $newStatus,
           ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null,
-          ':cid' => $caseId
+          ':rid' => $rid
         ]
       );
-    } else {
-      // Check if student already has an ONGOING ('ACTIVE') requirement for another case
-      $ongoingActive = db_one(
-        "SELECT requirement_id, hours_required FROM community_service_requirement 
-         WHERE student_id = :sid AND status = 'ACTIVE' LIMIT 1",
-        [':sid' => $studentId]
-      );
 
-      if ($ongoingActive && $newStatus === 'ACTIVE') {
-        // Ongoing ACTIVE service exists — add new hours to the ongoing requirement!
-        $oldTotal = (float)$ongoingActive['hours_required'];
-        $newTotal = $oldTotal + $hours;
+      // Clean up any stray/duplicate active records for this student so they don't double-count in mobile dashboard/overview
+      if ($newStatus === 'ACTIVE') {
         db_exec(
-          "UPDATE community_service_requirement SET hours_required = :hrs, updated_at = NOW() WHERE requirement_id = :rid",
-          [':hrs' => $newTotal, ':rid' => $ongoingActive['requirement_id']]
-        );
-
-        upcc_log_case_activity($caseId, 'ADMIN', $adminId, 'SANCTION_HOURS_ACCUMULATED', [
-            'added_hours' => $hours,
-            'previous_hours' => $oldTotal,
-            'new_total_hours' => $newTotal,
-            'source' => 'Admin Direct Sanction',
-        ]);
-
-        db_exec(
-          "INSERT INTO community_service_requirement (student_id, assigned_by, related_case_id, task_name, location, hours_required, status, assigned_at, completed_at, created_at)
-           VALUES (:sid, :admin_id, :cid, 'University Service', 'SDO Office', :hours, 'COMPLETED', NOW(), NOW(), NOW())",
-          [
-            ':sid' => $studentId,
-            ':admin_id' => $adminId,
-            ':cid' => $caseId,
-            ':hours' => $hours
-          ]
+          "UPDATE community_service_requirement 
+           SET status = 'COMPLETED', 
+               completed_at = COALESCE(completed_at, NOW()), 
+               updated_at = NOW() 
+           WHERE student_id = :sid AND status = 'ACTIVE' AND requirement_id != :rid",
+          [':sid' => $studentId, ':rid' => $rid]
         );
       } else {
         db_exec(
-          "INSERT INTO community_service_requirement (student_id, assigned_by, related_case_id, task_name, location, hours_required, status, assigned_at, completed_at, created_at)
-           VALUES (:sid, :admin_id, :cid, 'University Service', 'SDO Office', :hours, :status, NOW(), :completed_at, NOW())",
-          [
-            ':sid' => $studentId,
-            ':admin_id' => $adminId,
-            ':cid' => $caseId,
-            ':hours' => $hours,
-            ':status' => $newStatus,
-            ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null
-          ]
+          "UPDATE community_service_requirement 
+           SET status = 'COMPLETED', 
+               completed_at = COALESCE(completed_at, NOW()), 
+               updated_at = NOW() 
+           WHERE student_id = :sid AND status = 'ACTIVE'",
+          [':sid' => $studentId]
         );
       }
+
+      upcc_log_case_activity($caseId, 'ADMIN', $adminId, 'SANCTION_HOURS_UPDATED', [
+          'hours_required' => $hours,
+          'status' => $newStatus,
+          'source' => 'Admin Direct Sanction Adjustment',
+      ]);
+    } else {
+      // No requirement existed at all; create a brand new one
+      db_exec(
+        "INSERT INTO community_service_requirement (student_id, assigned_by, related_case_id, task_name, location, hours_required, status, assigned_at, completed_at, created_at)
+         VALUES (:sid, :admin_id, :cid, 'University Service', 'SDO Office', :hours, :status, NOW(), :completed_at, NOW())",
+        [
+          ':sid' => $studentId,
+          ':admin_id' => $adminId,
+          ':cid' => $caseId,
+          ':hours' => $hours,
+          ':status' => $newStatus,
+          ':completed_at' => ($completed === 1) ? date('Y-m-d H:i:s') : null
+        ]
+      );
+
+      upcc_log_case_activity($caseId, 'ADMIN', $adminId, 'SANCTION_HOURS_ASSIGNED', [
+          'hours_required' => $hours,
+          'status' => $newStatus,
+          'source' => 'Admin Direct Sanction Creation',
+      ]);
     }
   } else {
     // If no longer Category 2, cancel requirement
