@@ -3508,6 +3508,13 @@ function cancelExitHearing() {
 function showReasonForLeavingModal() {
     document.getElementById('confirmExitHearingModal').style.display = 'none';
     document.getElementById('reasonForLeavingModal').style.display = 'flex';
+
+    // Reset form state
+    const radioButtons = document.querySelectorAll('input[name="leaveReason"]');
+    radioButtons.forEach(radio => radio.checked = false);
+    document.getElementById('otherReasonInputContainer').style.display = 'none';
+    document.getElementById('otherReasonInput').value = '';
+    document.getElementById('confirmReasonBtn').disabled = true;
 }
 
 function cancelReasonForLeaving() {
@@ -3562,8 +3569,17 @@ function confirmReasonForLeaving() {
     const selectedReason = document.querySelector('input[name="leaveReason"]:checked');
     const otherInput = document.getElementById('otherReasonInput');
 
+    if (!selectedReason) {
+        alert('Please select a reason for leaving.');
+        return;
+    }
+
     let reason = selectedReason.value;
     if (reason === 'Other reason') {
+        if (!otherInput.value.trim()) {
+            alert('Please specify the reason.');
+            return;
+        }
         reason = otherInput.value.trim();
     }
 
