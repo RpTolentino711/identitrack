@@ -514,13 +514,25 @@ if ($action === 'request_rejoin' && $_SERVER['REQUEST_METHOD'] === 'POST' && $is
 // EXIT HEARING ACTION (UPCC only)
 // ─────────────────────────────────────────────────────────────────────────
 if ($action === 'exit_hearing' && $_SERVER['REQUEST_METHOD'] === 'POST' && $isUpcc) {
+    $leaveReason = trim((string)($_POST['leave_reason'] ?? ''));
+
     db_exec(
         "INSERT INTO upcc_hearing_presence (case_id, user_type, user_id, status, last_ping)
          VALUES (:c, 'UPCC', :u, 'EXITED', NOW())
          ON DUPLICATE KEY UPDATE status = 'EXITED', last_ping = NOW()",
         [':c' => $caseId, ':u' => $actorId]
     );
-    upcc_log_case_activity($caseId, 'UPCC', $actorId, 'EXITED_HEARING');
+
+    // Post leave reason to chat
+    if ($leaveReason !== '') {
+        $leaveMessage = "📤 UPCC member left the hearing. Reason: " . $leaveReason;
+        db_exec("INSERT INTO upcc_case_discussion (case_id, upcc_id, admin_id, reply_to_message_id, message, created_at, updated_at)
+                 VALUES (:c, :u, :a, :r, :m, NOW(), NOW())", [
+            ':c' => $caseId, ':u' => $actorId, ':a' => null, ':r' => null, ':m' => $leaveMessage
+        ]);
+    }
+
+    upcc_log_case_activity($caseId, 'UPCC', $actorId, 'EXITED_HEARING', ['reason' => $leaveReason]);
     echo json_encode(['ok' => true, 'message' => 'You have exited the hearing and are now waiting for admin approval to rejoin']);
     exit;
 }

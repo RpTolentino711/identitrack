@@ -2529,7 +2529,40 @@ function closePauseModal() {
         </div>
         <div style="display:flex;gap:12px;justify-content:center">
             <button type="button" class="btn btn-outline" onclick="cancelExitHearing()">Cancel</button>
-            <button type="button" class="btn btn-danger" onclick="proceedExitHearing()" id="confirmExitHearingBtn">Yes, Leave</button>
+            <button type="button" class="btn btn-danger" onclick="showReasonForLeavingModal()" id="confirmExitHearingBtn">Yes, Leave</button>
+        </div>
+    </div>
+</div>
+
+<!-- Reason for Leaving Modal -->
+<div id="reasonForLeavingModal" class="modal-shell" style="display:none;z-index:9310">
+    <div class="modal-card" style="max-width:450px">
+        <div style="font-family:var(--f-serif);font-size:18px;font-weight:700;color:var(--text-hi);margin-bottom:16px">Reason for leaving *</div>
+        <div style="margin-bottom:20px">
+            <label style="display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer">
+                <input type="radio" name="leaveReason" value="Attending a face-to-face hearing" onchange="toggleOtherReasonInput()" style="width:18px;height:18px;cursor:pointer">
+                <span style="font-size:13px;color:var(--text)">Attending a face-to-face hearing</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer">
+                <input type="radio" name="leaveReason" value="Another official matter" onchange="toggleOtherReasonInput()" style="width:18px;height:18px;cursor:pointer">
+                <span style="font-size:13px;color:var(--text)">Another official matter</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer">
+                <input type="radio" name="leaveReason" value="Technical issue" onchange="toggleOtherReasonInput()" style="width:18px;height:18px;cursor:pointer">
+                <span style="font-size:13px;color:var(--text)">Technical issue</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                <input type="radio" name="leaveReason" value="Other reason" onchange="toggleOtherReasonInput()" style="width:18px;height:18px;cursor:pointer">
+                <span style="font-size:13px;color:var(--text)">Other reason</span>
+            </label>
+        </div>
+        <div id="otherReasonInputContainer" style="display:none;margin-bottom:20px">
+            <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px">Please specify *</label>
+            <textarea id="otherReasonInput" rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);background:var(--surface);resize:none" placeholder="Enter details..."></textarea>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:center">
+            <button type="button" class="btn btn-outline" onclick="cancelReasonForLeaving()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="confirmReasonForLeaving()" id="confirmReasonBtn">Confirm</button>
         </div>
     </div>
 </div>
@@ -3472,13 +3505,62 @@ function cancelExitHearing() {
     }
 }
 
-function proceedExitHearing() {
-    const btn = document.getElementById('confirmExitHearingBtn');
+function showReasonForLeavingModal() {
+    document.getElementById('confirmExitHearingModal').style.display = 'none';
+    document.getElementById('reasonForLeavingModal').style.display = 'flex';
+}
+
+function cancelReasonForLeaving() {
+    document.getElementById('reasonForLeavingModal').style.display = 'none';
+    document.getElementById('confirmExitHearingModal').style.display = 'flex';
+    document.getElementById('confirmExitHearingBtn').innerHTML = 'Yes, Leave';
+    document.getElementById('confirmExitHearingBtn').disabled = false;
+}
+
+function toggleOtherReasonInput() {
+    const selectedReason = document.querySelector('input[name="leaveReason"]:checked');
+    const otherContainer = document.getElementById('otherReasonInputContainer');
+    const otherInput = document.getElementById('otherReasonInput');
+
+    if (selectedReason && selectedReason.value === 'Other reason') {
+        otherContainer.style.display = 'block';
+        otherInput.required = true;
+    } else {
+        otherContainer.style.display = 'none';
+        otherInput.required = false;
+        otherInput.value = '';
+    }
+}
+
+function confirmReasonForLeaving() {
+    const selectedReason = document.querySelector('input[name="leaveReason"]:checked');
+    const otherInput = document.getElementById('otherReasonInput');
+
+    if (!selectedReason) {
+        alert('Please select a reason for leaving.');
+        return;
+    }
+
+    let reason = selectedReason.value;
+    if (reason === 'Other reason') {
+        if (!otherInput.value.trim()) {
+            alert('Please specify the reason.');
+            return;
+        }
+        reason = otherInput.value.trim();
+    }
+
+    proceedExitHearing(reason);
+}
+
+function proceedExitHearing(reason) {
+    const btn = document.getElementById('confirmReasonBtn');
     if (btn) { btn.innerHTML = 'Leaving...'; btn.disabled = true; }
 
     const fd = new FormData();
     fd.append('action', 'exit_hearing'); fd.append('case_id', CASE_ID);
     fd.append('actor', 'upcc');
+    fd.append('leave_reason', reason);
     fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(res => { if (res.ok) location.href = 'upccdashboard.php'; })
