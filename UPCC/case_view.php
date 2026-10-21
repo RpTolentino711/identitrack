@@ -2562,7 +2562,7 @@ function closePauseModal() {
         </div>
         <div style="display:flex;gap:12px;justify-content:center">
             <button type="button" class="btn btn-outline" onclick="cancelReasonForLeaving()">Cancel</button>
-            <button type="button" class="btn btn-primary" onclick="confirmReasonForLeaving()" id="confirmReasonBtn" disabled>Confirm</button>
+            <button type="button" class="btn btn-primary" onclick="confirmReasonForLeaving()" id="confirmReasonBtn" disabled style="opacity:0.5;cursor:not-allowed;">Confirm</button>
         </div>
     </div>
 </div>
@@ -3514,7 +3514,12 @@ function showReasonForLeavingModal() {
     radioButtons.forEach(radio => radio.checked = false);
     document.getElementById('otherReasonInputContainer').style.display = 'none';
     document.getElementById('otherReasonInput').value = '';
-    document.getElementById('confirmReasonBtn').disabled = true;
+
+    // Disable confirm button
+    const confirmBtn = document.getElementById('confirmReasonBtn');
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.5';
+    confirmBtn.style.cursor = 'not-allowed';
 }
 
 function cancelReasonForLeaving() {
@@ -3555,13 +3560,20 @@ function checkConfirmButtonState() {
 
     if (!selectedReason) {
         confirmBtn.disabled = true;
+        confirmBtn.style.opacity = '0.5';
+        confirmBtn.style.cursor = 'not-allowed';
         return;
     }
 
     if (selectedReason.value === 'Other reason') {
-        confirmBtn.disabled = !otherInput.value.trim();
+        const isDisabled = !otherInput.value.trim();
+        confirmBtn.disabled = isDisabled;
+        confirmBtn.style.opacity = isDisabled ? '0.5' : '1';
+        confirmBtn.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
     } else {
         confirmBtn.disabled = false;
+        confirmBtn.style.opacity = '1';
+        confirmBtn.style.cursor = 'pointer';
     }
 }
 
