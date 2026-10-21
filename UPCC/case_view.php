@@ -2558,11 +2558,11 @@ function closePauseModal() {
         </div>
         <div id="otherReasonInputContainer" style="display:none;margin-bottom:20px">
             <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px">Please specify *</label>
-            <textarea id="otherReasonInput" rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);background:var(--surface);resize:none" placeholder="Enter details..."></textarea>
+            <textarea id="otherReasonInput" rows="3" oninput="checkConfirmButtonState()" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);background:var(--surface);resize:none" placeholder="Enter details..."></textarea>
         </div>
         <div style="display:flex;gap:12px;justify-content:center">
             <button type="button" class="btn btn-outline" onclick="cancelReasonForLeaving()">Cancel</button>
-            <button type="button" class="btn btn-primary" onclick="confirmReasonForLeaving()" id="confirmReasonBtn">Confirm</button>
+            <button type="button" class="btn btn-primary" onclick="confirmReasonForLeaving()" id="confirmReasonBtn" disabled>Confirm</button>
         </div>
     </div>
 </div>
@@ -3515,6 +3515,13 @@ function cancelReasonForLeaving() {
     document.getElementById('confirmExitHearingModal').style.display = 'flex';
     document.getElementById('confirmExitHearingBtn').innerHTML = 'Yes, Leave';
     document.getElementById('confirmExitHearingBtn').disabled = false;
+
+    // Reset radio buttons and input
+    const radioButtons = document.querySelectorAll('input[name="leaveReason"]');
+    radioButtons.forEach(radio => radio.checked = false);
+    document.getElementById('otherReasonInputContainer').style.display = 'none';
+    document.getElementById('otherReasonInput').value = '';
+    document.getElementById('confirmReasonBtn').disabled = true;
 }
 
 function toggleOtherReasonInput() {
@@ -3530,23 +3537,33 @@ function toggleOtherReasonInput() {
         otherInput.required = false;
         otherInput.value = '';
     }
+
+    checkConfirmButtonState();
+}
+
+function checkConfirmButtonState() {
+    const selectedReason = document.querySelector('input[name="leaveReason"]:checked');
+    const otherInput = document.getElementById('otherReasonInput');
+    const confirmBtn = document.getElementById('confirmReasonBtn');
+
+    if (!selectedReason) {
+        confirmBtn.disabled = true;
+        return;
+    }
+
+    if (selectedReason.value === 'Other reason') {
+        confirmBtn.disabled = !otherInput.value.trim();
+    } else {
+        confirmBtn.disabled = false;
+    }
 }
 
 function confirmReasonForLeaving() {
     const selectedReason = document.querySelector('input[name="leaveReason"]:checked');
     const otherInput = document.getElementById('otherReasonInput');
 
-    if (!selectedReason) {
-        alert('Please select a reason for leaving.');
-        return;
-    }
-
     let reason = selectedReason.value;
     if (reason === 'Other reason') {
-        if (!otherInput.value.trim()) {
-            alert('Please specify the reason.');
-            return;
-        }
         reason = otherInput.value.trim();
     }
 
