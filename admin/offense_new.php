@@ -1660,6 +1660,10 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
         <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M15 9h6m-6 3h6m-6 3h6M3 9h6m-6 3h6m-6 3h6M9 3v18M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg>
       </div>
       <div class="sic-title">Student Information</div>
+      <a href="AJAX/export_student_profile_pdf.php?student_id=' . urlencode($student['student_id']) . '" target="_blank" title="Export Student Information (PDF)" style="margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 700; border-radius: 6px; text-decoration: none; border: 1px solid #bfdbfe; transition: all 0.2s;" onmouseover="this.style.background=\'#dbeafe\';" onmouseout="this.style.background=\'#eff6ff\';">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        PDF
+      </a>
     </div>
     <div class="sic-body">
       <div class="sic-row"><span class="sic-label">Full Name:</span><span class="sic-value">' . $fullName . $starBadge . '</span></div>
@@ -1687,15 +1691,6 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
             ' . $historyHtml . '
           </div>
         </details>
-      </div>
-
-      <div style="margin-top: 12px;">
-        <a href="AJAX/export_student_profile_pdf.php?student_id=' . urlencode($student['student_id']) . '" target="_blank" class="btn-export-student-info" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 14px; background: linear-gradient(135deg, #1b2b6b 0%, #2563eb 100%); color: #ffffff; font-weight: 700; font-size: 12px; border-radius: 8px; text-decoration: none; box-shadow: 0 4px 12px rgba(37,99,235,0.22); transition: all 0.2s;" onmouseover="this.style.boxShadow=\'0 6px 16px rgba(37,99,235,0.35)\'; this.style.transform=\'translateY(-1px)\';" onmouseout="this.style.boxShadow=\'0 4px 12px rgba(37,99,235,0.22)\'; this.style.transform=\'none\';">
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 15px; height: 15px;">
-            <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-          </svg>
-          Export Student Information (PDF)
-        </a>
       </div>
 
       <style>details > summary::-webkit-details-marker { display: none; } details[open] summary svg { transform: rotate(180deg); }</style>
