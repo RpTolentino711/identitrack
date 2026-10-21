@@ -1660,10 +1660,6 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
         <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M15 9h6m-6 3h6m-6 3h6M3 9h6m-6 3h6m-6 3h6M9 3v18M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg>
       </div>
       <div class="sic-title">Student Information</div>
-      <a href="AJAX/export_student_profile_pdf.php?student_id=' . urlencode($student['student_id']) . '" target="_blank" title="Export Student Information (PDF)" style="margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 700; border-radius: 6px; text-decoration: none; border: 1px solid #bfdbfe; transition: all 0.2s;" onmouseover="this.style.background=\'#dbeafe\';" onmouseout="this.style.background=\'#eff6ff\';">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        PDF
-      </a>
     </div>
     <div class="sic-body">
       <div class="sic-row"><span class="sic-label">Full Name:</span><span class="sic-value">' . $fullName . $starBadge . '</span></div>
