@@ -525,7 +525,9 @@ if ($action === 'exit_hearing' && $_SERVER['REQUEST_METHOD'] === 'POST' && $isUp
 
     // Post leave reason to chat
     if ($leaveReason !== '') {
-        $leaveMessage = "📤 UPCC member left the hearing. Reason: " . $leaveReason;
+        $uInfo = db_one("SELECT full_name FROM upcc_user WHERE upcc_id = :u", [':u' => $actorId]);
+        $memberName = trim((string)($uInfo['full_name'] ?? 'UPCC member'));
+        $leaveMessage = "📤 {$memberName} left the hearing. Reason: " . $leaveReason;
         db_exec("INSERT INTO upcc_case_discussion (case_id, upcc_id, admin_id, reply_to_message_id, message, created_at, updated_at)
                  VALUES (:c, :u, :a, :r, :m, NOW(), NOW())", [
             ':c' => $caseId, ':u' => $actorId, ':a' => null, ':r' => null, ':m' => $leaveMessage

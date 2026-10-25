@@ -3663,8 +3663,9 @@ function renderChat(messages) {
         let rep = '';
         if (m.reply_to_id) rep = `<div style="background:rgba(0,0,0,.08);padding:.3rem .5rem;border-radius:4px;margin-bottom:.4rem;font-size:.7rem;border-left:2px solid rgba(0,0,0,.2)">
             <strong>${escapeHtml(m.reply_sender)}</strong> ${escapeHtml(m.reply_message)}</div>`;
+        const youBadge = isMe ? ' <small style="font-weight:800;color:var(--blue-600);background:rgba(37,99,235,.1);padding:1px 5px;border-radius:3px;font-size:9px">(YOU)</small>' : '';
         return `<div style="margin-bottom:1rem;text-align:${isMe ? 'right' : 'left'}">
-            <div style="font-size:.7rem;color:var(--ink-500);margin-bottom:.2rem"><strong>${escapeHtml(m.sender_name)}</strong> · ${escapeHtml(m.sender_role)} · ${m.created_at}</div>
+            <div style="font-size:.7rem;color:var(--ink-500);margin-bottom:.2rem"><strong>${escapeHtml(m.sender_name)}</strong>${youBadge} · ${escapeHtml(m.sender_role)} · ${m.created_at}</div>
             <div style="display:inline-block;text-align:left;background:${bg};color:${clr};padding:.6rem .8rem;border-radius:12px;max-width:85%;font-size:.82rem;border:1px solid rgba(0,0,0,.05)">
                 ${rep}${escapeHtml(m.message)}
             </div>
@@ -3734,7 +3735,7 @@ if (chatForm) {
         fd.append('actor', 'admin');
         fetch('../api/upcc_case_live.php', { method:'POST', body:fd })
             .then(r => r.json())
-            .then(res => { if (res.ok) { document.getElementById('chat_message').value = ''; cancelReply(); syncLive(); } })
+            .then(res => { if (res.ok) { document.getElementById('chat_message').value = ''; cancelReply(); lastChatCount = -1; syncLive(); } })
             .catch(err => console.error(err));
     });
 }

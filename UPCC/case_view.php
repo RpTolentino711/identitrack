@@ -2957,9 +2957,10 @@ function renderChat(msgs) {
         const isMe   = !!m.is_me;
         const bg     = isMe ? 'rgba(201,169,97,.06)' : 'rgba(0,0,0,.18)';
         const border = isMe ? '1px solid var(--line-hi)' : '1px solid var(--line-2)';
+        const youBadge = isMe ? ' <small style="color:var(--gold-bright);font-weight:800;background:rgba(201,169,97,.14);padding:1px 5px;border-radius:3px;border:1px solid rgba(201,169,97,.3);letter-spacing:.6px;font-family:var(--f-sans);font-size:9px">(YOU)</small>' : '';
         return `<div class="chat-item" style="background:${bg};border:${border}">
             <div class="chat-head">
-                <div><div class="chat-name">${esc(m.sender_name)}</div><div class="chat-role">${esc(m.sender_role)}</div></div>
+                <div><div class="chat-name">${esc(m.sender_name)}${youBadge}</div><div class="chat-role">${esc(m.sender_role)}</div></div>
                 <div class="chat-time">${esc(m.created_at)}</div>
             </div>
             <div class="chat-msg">${esc(m.message)}</div>
@@ -3432,6 +3433,7 @@ document.getElementById('chat-form')?.addEventListener('submit', function(e) {
                 if (inp) inp.value = '';
                 updateSendBtnState();
                 cancelReply();
+                lastChatCount = -1; // force re-render on next sync
                 syncLive();
             }
         })
