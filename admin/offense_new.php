@@ -411,7 +411,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
     $sid = trim($_POST['student_id'] ?? '');
     $selectedTypeId = isset($_POST['selected_type_id']) ? (int)$_POST['selected_type_id'] : null;
     $cycle = getStudentActiveMinorCycle($sid, $selectedTypeId);
-    echo json_encode(['ok' => true, 'cycle' => $cycle]);
+    
+    $gRow = null;
+    try {
+      $gRow = db_one(
+        "SELECT guardian_email, guardian_fn, guardian_ln 
+         FROM guardian 
+         WHERE TRIM(student_id) = :sid 
+         ORDER BY (guardian_email IS NOT NULL AND guardian_email <> '') DESC, guardian_id DESC 
+         LIMIT 1",
+        [':sid' => $sid]
+      );
+    } catch (\Throwable $e) {}
+    $gEmail = trim((string)($gRow['guardian_email'] ?? ''));
+    $gName  = trim(($gRow['guardian_fn'] ?? '') . ' ' . ($gRow['guardian_ln'] ?? ''));
+
+    $csSummary = function_exists('get_student_community_service_summary') ? get_student_community_service_summary($sid) : [];
+
+    echo json_encode([
+      'ok' => true,
+      'cycle' => $cycle,
+      'guardian_email' => $gEmail,
+      'guardian_name' => $gName,
+      'community_service' => $csSummary
+    ]);
     exit;
   }
 
@@ -693,12 +716,14 @@ $letterOrdStr = getOrdinal($letterEscNum);
 $liveMinorCount      = 0;
 $liveMajorCount      = 0;
 $liveGuardianEmail   = '';
+$liveGuardianName    = '';
 $liveActiveUpccCases = [];
 $hasActiveSection4   = false;
 $section4StartDate   = null;
 $postSection4Minors  = 0;
 $studentInfo         = null;
 $liveOffenses        = [];
+$liveCsSummary       = [];
 
 if ($postStudentId !== '') {
   ensure_student_privacy_columns();
@@ -723,11 +748,21 @@ if ($postStudentId !== '') {
     );
     $liveMajorCount = (int)($mjRow['cnt'] ?? 0);
 
-    $gRow = db_one(
-      "SELECT guardian_email FROM guardian WHERE student_id = :sid LIMIT 1",
-      [':sid' => $postStudentId]
-    );
-    $liveGuardianEmail = (string)($gRow['guardian_email'] ?? '');
+    $gRow = null;
+    try {
+      $gRow = db_one(
+        "SELECT guardian_email, guardian_fn, guardian_ln 
+         FROM guardian 
+         WHERE TRIM(student_id) = :sid 
+         ORDER BY (guardian_email IS NOT NULL AND guardian_email <> '') DESC, guardian_id DESC 
+         LIMIT 1",
+        [':sid' => trim($postStudentId)]
+      );
+    } catch (\Throwable $e) {}
+    $liveGuardianEmail = trim((string)($gRow['guardian_email'] ?? ''));
+    $liveGuardianName  = trim(($gRow['guardian_fn'] ?? '') . ' ' . ($gRow['guardian_ln'] ?? ''));
+
+    $liveCsSummary = function_exists('get_student_community_service_summary') ? get_student_community_service_summary($postStudentId) : [];
 
     $liveActiveUpccCases = db_all(
       "SELECT case_id, status, case_kind, case_summary, evidence_file, created_at FROM upcc_case
@@ -1234,8 +1269,11 @@ function renderMajorAlert(int $majorCount, array $upccCases): string {
     </div>
   </div>';
 }
-function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $majorCount = 0, $activeCases = [], $offenses = []) {
+function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $majorCount = 0, $activeCases = [], $offenses = [], $csSummary = null) {
   if (!$student) return '';
+  if ($csSummary === null && !empty($student['student_id']) && function_exists('get_student_community_service_summary')) {
+    $csSummary = get_student_community_service_summary((string)$student['student_id']);
+  }
   $fullName    = htmlspecialchars($student['student_fn'] . ' ' . $student['student_ln']);
   $studentId   = htmlspecialchars($student['student_id']);
   $yearSection = htmlspecialchars($student['year_level'] . ' - ' . ($student['section'] ?? 'N/A'));
@@ -1673,6 +1711,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       <div class="sic-row"><span class="sic-label">School:</span><span class="sic-value">' . $school . '</span></div>
       <div class="sic-row"><span class="sic-label">Student Email:</span><span class="sic-value">' . $email . '</span></div>
       <div class="sic-row"><span class="sic-label">Guardian Email:</span><span class="sic-value">' . $guardian . '</span></div>
+      <div class="sic-row" style="align-items: center;"><span class="sic-label">Community Service:</span><span class="sic-value">' . ($csSummary['summary_badge_html'] ?? '<span style="color:var(--text-4);">None</span>') . '</span></div>
       
       <div style="margin: 14px -22px; border-top: 1px solid var(--border);"></div>
       
@@ -1698,9 +1737,12 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
   </div>';
 }
 
-function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int $majorCount, array $activeCases, bool $hasActiveSection4, int $section4Minors, array $offenses = []) {
+function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int $majorCount, array $activeCases, bool $hasActiveSection4, int $section4Minors, array $offenses = [], $csSummary = null) {
   if (!$student || ($minorCount + $majorCount === 0 && empty($activeCases))) {
     return '';
+  }
+  if ($csSummary === null && !empty($student['student_id']) && function_exists('get_student_community_service_summary')) {
+    $csSummary = get_student_community_service_summary((string)$student['student_id']);
   }
 
   $fullName   = htmlspecialchars($student['student_fn'] . ' ' . $student['student_ln']);
@@ -1830,6 +1872,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             <div class="sic-row"><span class="sic-label">School:</span><span class="sic-value">' . $school . '</span></div>
             <div class="sic-row"><span class="sic-label">Student Email:</span><span class="sic-value">' . $email . '</span></div>
             <div class="sic-row"><span class="sic-label">Guardian Email:</span><span class="sic-value">' . $guardian . '</span></div>
+            <div class="sic-row" style="align-items: center;"><span class="sic-label">Community Service:</span><span class="sic-value">' . ($csSummary['summary_badge_html'] ?? '<span style="color:var(--text-4);">None</span>') . '</span></div>
           </div>
         </div>
         <div class="alert-panel alert-panel--info" style="padding:16px; margin-bottom:16px;">
@@ -3499,7 +3542,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
         <!-- RIGHT: STUDENT INFO + ALERT PANEL -->
         <aside>
           <?php if ($postStudentId !== '' && $studentInfo): ?>
-            <?php echo renderStudentInfoCard($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $liveOffenses); ?>
+            <?php echo renderStudentInfoCard($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $liveOffenses, $liveCsSummary); ?>
           <?php elseif ($postStudentId !== '' && !$studentInfo): ?>
             <div class="panel-placeholder" style="margin-bottom:16px;">
               <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -3629,7 +3672,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
     </main>
   </div>
 
-  <?php echo renderStudentRecordModal($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $hasActiveSection4, $postSection4Minors, $liveOffenses); ?>
+  <?php echo renderStudentRecordModal($studentInfo, $liveGuardianEmail, $liveMinorCount, $liveMajorCount, $liveActiveUpccCases, $hasActiveSection4, $postSection4Minors, $liveOffenses, $liveCsSummary); ?>
 
   <!-- MODAL: Add Offense Type -->
   <div id="offenseTypeModal" class="modal">
@@ -3925,6 +3968,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   let currentCategory = <?php echo $category; ?>;
   window.__projectedMinorCount = <?php echo (int)($liveMinorCount + 1); ?>;
   window.__activeMinorCycle = <?php echo json_encode(getStudentActiveMinorCycle($postStudentId)); ?>;
+  window.__liveGuardianEmail = <?php echo json_encode($liveGuardianEmail ?? ''); ?>;
 
   function escHtml(str) {
     return String(str)
@@ -3933,6 +3977,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
   }
 
   function renderMinorAlert(projectedCount, guardianEmail, currentCount) {
+    guardianEmail = (guardianEmail && guardianEmail.trim()) ? guardianEmail.trim() : (window.__liveGuardianEmail || document.getElementById('letter_guardian_email')?.value || '');
     const cycle = window.__activeMinorCycle || {};
     const existingActiveCount = (typeof cycle.existing_count !== 'undefined') ? Number(cycle.existing_count) : ((typeof cycle.active_count !== 'undefined') ? Number(cycle.active_count) : 0);
     const projectedActiveCount = (typeof cycle.projected_count !== 'undefined') ? Number(cycle.projected_count) : (existingActiveCount + 1);
@@ -4506,8 +4551,25 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
       const data = await res.json();
       if (data.ok && data.cycle) {
         window.__activeMinorCycle = data.cycle;
+        if (data.guardian_email) {
+          window.__liveGuardianEmail = data.guardian_email;
+          const gRow = Array.from(document.querySelectorAll('.sic-row')).find(r => r.innerHTML.includes('Guardian Email:'));
+          if (gRow) {
+            const valSpan = gRow.querySelector('.sic-value');
+            if (valSpan && (!valSpan.textContent.trim() || valSpan.textContent.includes('None') || valSpan.textContent.includes('No guardian email'))) {
+              valSpan.textContent = data.guardian_email;
+            }
+          }
+        }
+        if (data.cs_summary && data.cs_summary.summary_badge_html) {
+          const csRow = Array.from(document.querySelectorAll('.sic-row')).find(r => r.innerHTML.includes('Community Service:'));
+          if (csRow) {
+            const valSpan = csRow.querySelector('.sic-value');
+            if (valSpan) valSpan.innerHTML = data.cs_summary.summary_badge_html;
+          }
+        }
         if (alertPanel && currentLevel === 'MINOR') {
-          const guardianEmail = document.getElementById('letter_guardian_email')?.value || '';
+          const guardianEmail = window.__liveGuardianEmail || document.getElementById('letter_guardian_email')?.value || '';
           alertPanel.innerHTML = renderMinorAlert(data.cycle.active_count, guardianEmail, data.cycle.active_count);
         }
       }

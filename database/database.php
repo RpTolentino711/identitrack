@@ -1949,6 +1949,187 @@ function auto_complete_all_active_sessions(): void {
     }
 }
 
+/**
+ * Retrieves the comprehensive community service summary, hours, remaining time,
+ * and status badges for a given student.
+ */
+function get_student_community_service_summary(string $studentId): array {
+    $sid = trim($studentId);
+    if ($sid === '') {
+        return [
+            'has_service'         => false,
+            'status'              => 'NONE',
+            'hours_assigned'      => 0.0,
+            'hours_completed'     => 0.0,
+            'hours_remaining'     => 0.0,
+            'minutes_remaining'   => 0,
+            'remaining_formatted' => 'None',
+            'summary_badge_html'  => '<span style="color:#64748b; font-size:11.5px;">No Community Service</span>',
+            'active_requirement'  => null,
+            'requirements'        => [],
+            'sessions'            => [],
+        ];
+    }
+
+    $rParams = [':sid' => $sid];
+    db_add_encryption_key($rParams);
+    $reqs = db_all(
+        "SELECT r.requirement_id, r.related_case_id,
+                " . db_decrypt_cols(['task_name', 'location'], 'r') . ",
+                r.hours_required, r.status, r.assigned_at, r.completed_at
+         FROM community_service_requirement r
+         WHERE r.student_id = :sid
+         ORDER BY r.requirement_id DESC",
+        $rParams
+    ) ?: [];
+
+    // Fallback: Check if there's a Category 2 case with assigned hours if no requirement row exists yet
+    $c2Case = db_one(
+        "SELECT case_id, " . db_decrypt_col('punishment_details') . " AS punishment_details
+         FROM upcc_case
+         WHERE student_id = :sid AND decided_category >= 2 AND status IN ('CLOSED', 'RESOLVED')
+         ORDER BY case_id DESC LIMIT 1",
+        [':sid' => $sid]
+    );
+    $c2Hours = 0.0;
+    if ($c2Case && !empty($c2Case['punishment_details'])) {
+        $details = json_decode((string)$c2Case['punishment_details'], true) ?: [];
+        $c2Hours = (float)($details['service_hours'] ?? 0);
+    }
+
+    if (empty($reqs) && $c2Case && $c2Hours > 0) {
+        $reqs[] = [
+            'requirement_id'  => 0,
+            'related_case_id' => (int)$c2Case['case_id'],
+            'task_name'       => 'Community Service Assignment',
+            'location'        => 'SDO Assignment Pending',
+            'hours_required'  => $c2Hours,
+            'status'          => 'ACTIVE',
+            'assigned_at'     => date('Y-m-d H:i:s'),
+            'completed_at'    => null
+        ];
+    }
+
+    if (empty($reqs)) {
+        return [
+            'has_service'         => false,
+            'status'              => 'NONE',
+            'hours_assigned'      => 0.0,
+            'hours_completed'     => 0.0,
+            'hours_remaining'     => 0.0,
+            'minutes_remaining'   => 0,
+            'remaining_formatted' => 'None',
+            'summary_badge_html'  => '<span style="color:#64748b; font-size:11.5px;">No Community Service</span>',
+            'active_requirement'  => null,
+            'requirements'        => [],
+            'sessions'            => [],
+        ];
+    }
+
+    $activeReq = null;
+    $completedReqs = [];
+    $allReqIds = [];
+
+    foreach ($reqs as $r) {
+        if (!empty($r['requirement_id'])) {
+            $allReqIds[] = (int)$r['requirement_id'];
+        }
+        $rSt = strtoupper((string)($r['status'] ?? ''));
+        if ($rSt === 'ACTIVE' && $activeReq === null) {
+            $activeReq = $r;
+        } elseif ($rSt === 'COMPLETED') {
+            $completedReqs[] = $r;
+        }
+    }
+
+    $sessions = [];
+    if (!empty($allReqIds)) {
+        $inClause = implode(',', $allReqIds);
+        try {
+            $sessions = db_all(
+                "SELECT s.session_id, s.requirement_id, s.time_in, s.time_out, s.login_method,
+                        s.status, s.validated_by, s.sdo_notes, s.paused_at, s.accum_paused_seconds,
+                        (
+                          CASE 
+                            WHEN s.status = 'PAUSED' AND s.paused_at IS NOT NULL THEN
+                              GREATEST(0, TIMESTAMPDIFF(SECOND, s.time_in, s.paused_at) - COALESCE(s.accum_paused_seconds, 0))
+                            ELSE
+                              GREATEST(0, TIMESTAMPDIFF(SECOND, s.time_in, COALESCE(s.time_out, NOW())) - COALESCE(s.accum_paused_seconds, 0))
+                          END
+                        ) AS net_completed_seconds,
+                        (
+                          CASE 
+                            WHEN s.status = 'PAUSED' AND s.paused_at IS NOT NULL THEN
+                              GREATEST(0, TIMESTAMPDIFF(SECOND, s.time_in, s.paused_at) - COALESCE(s.accum_paused_seconds, 0))
+                            ELSE
+                              GREATEST(0, TIMESTAMPDIFF(SECOND, s.time_in, COALESCE(s.time_out, NOW())) - COALESCE(s.accum_paused_seconds, 0))
+                          END
+                        ) / 3600.0 AS hours_done
+                 FROM community_service_session s
+                 WHERE s.requirement_id IN ($inClause)
+                   AND (s.status IS NULL OR s.status NOT IN ('CANCELLED', 'REJECTED'))
+                 ORDER BY s.time_in DESC"
+            ) ?: [];
+        } catch (\Throwable $e) {
+            $sessions = [];
+        }
+    }
+
+    $assignedHours = 0.0;
+    $completedHours = 0.0;
+    $status = 'COMPLETED';
+
+    if ($activeReq !== null) {
+        $status = 'ACTIVE';
+        $assignedHours = (float)($activeReq['hours_required'] ?? 0);
+        $actReqId = (int)$activeReq['requirement_id'];
+        foreach ($sessions as $s) {
+            if ((int)$s['requirement_id'] === $actReqId) {
+                $completedHours += (float)($s['hours_done'] ?? 0);
+            }
+        }
+    } elseif (!empty($completedReqs)) {
+        $status = 'COMPLETED';
+        $latest = $completedReqs[0];
+        $assignedHours = (float)($latest['hours_required'] ?? 0);
+        $completedHours = $assignedHours;
+    }
+
+    $remainingHours = max(0.0, $assignedHours - $completedHours);
+    $remainingSeconds = max(0, (int)round($remainingHours * 3600));
+    $remainingMinutes = (int)ceil($remainingSeconds / 60);
+
+    if ($status === 'COMPLETED' || $remainingHours <= 0.0001) {
+        $remainingFormatted = 'Completed & Cleared';
+        $badgeHtml = '<span style="display:inline-flex; align-items:center; gap:5px; background:#f0fdf4; color:#15803d; border:1px solid #86efac; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11.5px;">✅ Completed &amp; Cleared (' . number_format($assignedHours, 1) . 'h)</span>';
+    } else {
+        if ($remainingHours < 1.0) {
+            $remStr = $remainingMinutes . ($remainingMinutes === 1 ? ' min' : ' mins') . ' remaining';
+        } else {
+            $h = floor($remainingHours);
+            $m = round(($remainingHours - $h) * 60);
+            $remStr = "{$h} hr" . ($h > 1 ? 's' : '') . ($m > 0 ? " {$m}m" : '') . ' remaining';
+        }
+        $remainingFormatted = $remStr;
+        $progressPct = ($assignedHours > 0) ? min(100, round(($completedHours / $assignedHours) * 100)) : 0;
+        $badgeHtml = '<span style="display:inline-flex; align-items:center; gap:5px; background:#fffbeb; color:#b45309; border:1px solid #fde68a; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11.5px;">⏳ ' . htmlspecialchars($remStr) . ' <span style="font-weight:600; color:#92400e; font-size:10.5px;">(' . number_format($completedHours, 1) . '/' . number_format($assignedHours, 1) . 'h • ' . $progressPct . '%)</span></span>';
+    }
+
+    return [
+        'has_service'         => true,
+        'status'              => $status,
+        'hours_assigned'      => $assignedHours,
+        'hours_completed'     => $completedHours,
+        'hours_remaining'     => $remainingHours,
+        'minutes_remaining'   => $remainingMinutes,
+        'remaining_formatted' => $remainingFormatted,
+        'summary_badge_html'  => $badgeHtml,
+        'active_requirement'  => $activeReq,
+        'requirements'        => $reqs,
+        'sessions'            => $sessions,
+    ];
+}
+
 if (!function_exists('scanner_hash_value')) {
   function scanner_hash_value(string $rawValue): string
   {

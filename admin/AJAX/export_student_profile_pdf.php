@@ -67,6 +67,7 @@ try {
                     COALESCE(guardian_number, '') AS guardian_phone
              FROM guardian
              WHERE student_id = :sid
+             ORDER BY (guardian_email IS NOT NULL AND guardian_email <> '') DESC, guardian_id DESC
              LIMIT 1",
             [':sid' => $studentId]
         );
@@ -76,6 +77,7 @@ try {
                 "SELECT guardian_id, guardian_fn, guardian_ln, guardian_email
                  FROM guardian
                  WHERE student_id = :sid
+                 ORDER BY (guardian_email IS NOT NULL AND guardian_email <> '') DESC, guardian_id DESC
                  LIMIT 1",
                 [':sid' => $studentId]
             );
@@ -191,12 +193,26 @@ try {
         try {
             $sessions = db_all(
                 "SELECT s.session_id, s.requirement_id, s.time_in, s.time_out, s.login_method,
-                        s.status, s.validated_by, s.sdo_notes,
+                        s.status, s.validated_by, s.sdo_notes, s.paused_at, s.accum_paused_seconds,
                         (
-                          TIMESTAMPDIFF(SECOND, s.time_in, COALESCE(s.time_out, NOW()))
+                          CASE 
+                            WHEN s.status = 'PAUSED' AND s.paused_at IS NOT NULL THEN
+                              GREATEST(0, TIMESTAMPDIFF(SECOND, s.time_in, s.paused_at) - COALESCE(s.accum_paused_seconds, 0))
+                            ELSE
+                              GREATEST(0, TIMESTAMPDIFF(SECOND, s.time_in, COALESCE(s.time_out, NOW())) - COALESCE(s.accum_paused_seconds, 0))
+                          END
+                        ) AS net_completed_seconds,
+                        (
+                          CASE 
+                            WHEN s.status = 'PAUSED' AND s.paused_at IS NOT NULL THEN
+                              GREATEST(0, TIMESTAMPDIFF(SECOND, s.time_in, s.paused_at) - COALESCE(s.accum_paused_seconds, 0))
+                            ELSE
+                              GREATEST(0, TIMESTAMPDIFF(SECOND, s.time_in, COALESCE(s.time_out, NOW())) - COALESCE(s.accum_paused_seconds, 0))
+                          END
                         ) / 3600.0 AS hours_done
                  FROM community_service_session s
                  WHERE s.requirement_id IN ($inClause)
+                   AND (s.status IS NULL OR s.status NOT IN ('CANCELLED', 'REJECTED'))
                  ORDER BY s.time_in DESC"
             ) ?: [];
         } catch (\Throwable $e) {
@@ -226,6 +242,18 @@ try {
         $activeCsRemaining = max(0.0, $activeCsRequired - $activeCsDone);
     }
 
+    // Format Helper
+    function formatHrsMins(float $hours): string {
+        $totalSec = (int)round($hours * 3600);
+        if ($totalSec <= 0) return '0 minutes';
+        $h = floor($totalSec / 3600);
+        $m = round(($totalSec % 3600) / 60);
+        if ($h == 0 && $m == 0 && $totalSec > 0) $m = 1;
+        if ($h > 0 && $m > 0) return "{$h} hr " . ($m < 10 ? '0' : '') . "{$m} mins";
+        if ($h > 0) return "{$h} " . ($h == 1 ? 'hour' : 'hours');
+        return "{$m} " . ($m == 1 ? 'minute' : 'minutes');
+    }
+
     // 6. Overall Profile Status Determination
     $isCleanProfile = (empty($offenses) && empty($cases) && empty($requirements));
     $isUnderSanction = ($hasOngoingCs || !empty($pendingCases) || $majorCount > 0);
@@ -237,7 +265,7 @@ try {
     } elseif ($hasOngoingCs) {
         $standingTitle = 'ACTIVE DISCIPLINARY SANCTION (ONGOING COMMUNITY SERVICE)';
         $standingClass = 'standing-warning';
-        $standingDesc  = 'The student currently has an ongoing community service requirement to fulfill (' . number_format($activeCsRemaining, 2) . ' hours remaining).';
+        $standingDesc  = 'The student currently has an ongoing community service requirement to fulfill (' . formatHrsMins($activeCsRemaining) . ' remaining).';
     } elseif (!empty($pendingCases)) {
         $standingTitle = 'CASE UNDER INVESTIGATION / PENDING PROCEEDINGS';
         $standingClass = 'standing-danger';
@@ -250,15 +278,6 @@ try {
         $standingTitle = 'RESOLVED RECORD / CONDUCT WARNING HISTORY';
         $standingClass = 'standing-info';
         $standingDesc  = 'The student has minor conduct warning records on file, with all previous requirements resolved.';
-    }
-
-    // Format Helper
-    function formatHrsMins(float $hours): string {
-        $h = floor($hours);
-        $m = round(($hours - $h) * 60);
-        if ($h > 0 && $m > 0) return "{$h} hr " . ($m < 10 ? '0' : '') . "{$m} mins";
-        if ($h > 0) return "{$h} " . ($h == 1 ? 'hour' : 'hours');
-        return "{$m} " . ($m == 1 ? 'minute' : 'minutes');
     }
 
     $categoryNames = [
@@ -577,10 +596,31 @@ try {
       </td>
       <td style="width: 20%; padding: 0 0 0 4px;">
         <div class="kpi-card">
-          <div class="kpi-num" style="color: <?= $hasOngoingCs ? '#d97706' : ($hasCompletedCs ? '#15803d' : '#64748b'); ?>;">
-            <?= $hasOngoingCs ? number_format($activeCsRemaining, 1) . 'h' : ($hasCompletedCs ? 'Cleared' : 'None'); ?>
+          <?php
+            if ($hasOngoingCs) {
+              if ($activeCsRemaining <= 0.0001) {
+                $kpiCsVal = 'Cleared';
+                $kpiCsCol = '#15803d';
+              } elseif ($activeCsRemaining < 1.0) {
+                $mLeft = max(1, (int)round($activeCsRemaining * 60));
+                $kpiCsVal = $mLeft . ($mLeft === 1 ? ' min' : ' mins');
+                $kpiCsCol = '#d97706';
+              } else {
+                $kpiCsVal = number_format($activeCsRemaining, 1) . 'h';
+                $kpiCsCol = '#d97706';
+              }
+            } elseif ($hasCompletedCs) {
+              $kpiCsVal = 'Cleared';
+              $kpiCsCol = '#15803d';
+            } else {
+              $kpiCsVal = 'None';
+              $kpiCsCol = '#64748b';
+            }
+          ?>
+          <div class="kpi-num" style="color: <?= $kpiCsCol ?>; font-size: <?= (strlen($kpiCsVal) > 6) ? '14px' : '18px' ?>;">
+            <?= htmlspecialchars($kpiCsVal) ?>
           </div>
-          <div class="kpi-label">Community Service</div>
+          <div class="kpi-label">Community Service<?= $hasOngoingCs ? ' (Left)' : '' ?></div>
         </div>
       </td>
     </tr>
