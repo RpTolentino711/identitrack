@@ -2561,7 +2561,7 @@ function closePauseModal() {
             <textarea id="otherReasonInput" rows="3" oninput="checkConfirmButtonState()" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);background:var(--surface);resize:none" placeholder="Enter details..."></textarea>
         </div>
         <div style="display:flex;gap:12px;justify-content:center">
-            <button type="button" class="btn btn-outline" onclick="cancelReasonForLeaving()">Cancel</button>
+            <button type="button" class="btn btn-outline" onclick="cancelReasonForLeaving()" id="cancelReasonBtn">Cancel</button>
             <button type="button" class="btn btn-primary" onclick="confirmReasonForLeaving()" id="confirmReasonBtn" disabled style="opacity:0.5;cursor:not-allowed;">Confirm</button>
         </div>
     </div>
@@ -3524,7 +3524,10 @@ function showReasonForLeavingModal() {
     confirmBtn.style.cursor = 'not-allowed';
 }
 
+let isLeavingHearing = false;
+
 function cancelReasonForLeaving() {
+    if (isLeavingHearing) return;
     document.getElementById('reasonForLeavingModal').style.display = 'none';
     document.getElementById('confirmExitHearingModal').style.display = 'flex';
     document.getElementById('confirmExitHearingBtn').innerHTML = 'Yes, Leave';
@@ -3539,6 +3542,7 @@ function cancelReasonForLeaving() {
 }
 
 function toggleOtherReasonInput() {
+    if (isLeavingHearing) return;
     const selectedReason = document.querySelector('input[name="leaveReason"]:checked');
     const otherContainer = document.getElementById('otherReasonInputContainer');
     const otherInput = document.getElementById('otherReasonInput');
@@ -3556,6 +3560,7 @@ function toggleOtherReasonInput() {
 }
 
 function checkConfirmButtonState() {
+    if (isLeavingHearing) return;
     const selectedReason = document.querySelector('input[name="leaveReason"]:checked');
     const otherInput = document.getElementById('otherReasonInput');
     const confirmBtn = document.getElementById('confirmReasonBtn');
@@ -3580,6 +3585,7 @@ function checkConfirmButtonState() {
 }
 
 function confirmReasonForLeaving() {
+    if (isLeavingHearing) return;
     const selectedReason = document.querySelector('input[name="leaveReason"]:checked');
     const otherInput = document.getElementById('otherReasonInput');
 
@@ -3601,17 +3607,89 @@ function confirmReasonForLeaving() {
 }
 
 function proceedExitHearing(reason) {
+    if (isLeavingHearing) return;
+    isLeavingHearing = true;
+    isSubmitting = true;
+
     const btn = document.getElementById('confirmReasonBtn');
-    if (btn) { btn.innerHTML = 'Leaving...'; btn.disabled = true; }
+    const cancelBtn = document.getElementById('cancelReasonBtn');
+    const modal = document.getElementById('reasonForLeavingModal');
+
+    if (btn) {
+        btn.innerHTML = 'Leaving...';
+        btn.disabled = true;
+        btn.style.cursor = 'not-allowed';
+        btn.style.pointerEvents = 'none';
+    }
+    if (cancelBtn) {
+        cancelBtn.disabled = true;
+        cancelBtn.style.opacity = '0.4';
+        cancelBtn.style.cursor = 'not-allowed';
+        cancelBtn.style.pointerEvents = 'none';
+    }
+
+    // Disable all inputs & controls inside the modal
+    if (modal) {
+        modal.style.pointerEvents = 'none';
+        modal.querySelectorAll('input, textarea, button').forEach(el => {
+            el.disabled = true;
+            el.style.pointerEvents = 'none';
+            el.style.cursor = 'not-allowed';
+        });
+    }
+
+    // Prevent any other actions on the page
+    document.body.style.pointerEvents = 'none';
+    document.body.style.cursor = 'wait';
 
     const fd = new FormData();
-    fd.append('action', 'exit_hearing'); fd.append('case_id', CASE_ID);
+    fd.append('action', 'exit_hearing');
+    fd.append('case_id', CASE_ID);
     fd.append('actor', 'upcc');
     fd.append('leave_reason', reason);
+
     fetch('../api/upcc_case_live.php', { method: 'POST', body: fd })
         .then(r => r.json())
-        .then(res => { if (res.ok) location.href = 'upccdashboard.php'; })
-        .catch(() => alert('Network error'));
+        .then(res => {
+            if (res.ok) {
+                location.href = 'upccdashboard.php';
+            } else {
+                alert(res.message || 'Failed to exit hearing');
+                resetExitUI();
+            }
+        })
+        .catch(() => {
+            alert('Network error while exiting hearing');
+            resetExitUI();
+        });
+
+    function resetExitUI() {
+        isLeavingHearing = false;
+        isSubmitting = false;
+        document.body.style.pointerEvents = '';
+        document.body.style.cursor = '';
+        if (modal) {
+            modal.style.pointerEvents = '';
+            modal.querySelectorAll('input, textarea, button').forEach(el => {
+                el.disabled = false;
+                el.style.pointerEvents = '';
+                el.style.cursor = '';
+            });
+        }
+        if (btn) {
+            btn.innerHTML = 'Confirm';
+            btn.disabled = false;
+            btn.style.cursor = 'pointer';
+            btn.style.pointerEvents = '';
+        }
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.style.opacity = '1';
+            cancelBtn.style.cursor = 'pointer';
+            cancelBtn.style.pointerEvents = '';
+        }
+        checkConfirmButtonState();
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
