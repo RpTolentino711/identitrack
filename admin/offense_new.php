@@ -1711,7 +1711,7 @@ function renderStudentInfoCard($student, $guardianEmail, $minorCount = 0, $major
       <div class="sic-row"><span class="sic-label">School:</span><span class="sic-value">' . $school . '</span></div>
       <div class="sic-row"><span class="sic-label">Student Email:</span><span class="sic-value">' . $email . '</span></div>
       <div class="sic-row"><span class="sic-label">Guardian Email:</span><span class="sic-value">' . $guardian . '</span></div>
-      <div class="sic-row" style="align-items: center;"><span class="sic-label">Community Service:</span><span class="sic-value">' . ($csSummary['summary_badge_html'] ?? '<span style="color:var(--text-4);">None</span>') . '</span></div>
+
       
       <div style="margin: 14px -22px; border-top: 1px solid var(--border);"></div>
       
@@ -1872,7 +1872,7 @@ function renderStudentRecordModal($student, $guardianEmail, int $minorCount, int
             <div class="sic-row"><span class="sic-label">School:</span><span class="sic-value">' . $school . '</span></div>
             <div class="sic-row"><span class="sic-label">Student Email:</span><span class="sic-value">' . $email . '</span></div>
             <div class="sic-row"><span class="sic-label">Guardian Email:</span><span class="sic-value">' . $guardian . '</span></div>
-            <div class="sic-row" style="align-items: center;"><span class="sic-label">Community Service:</span><span class="sic-value">' . ($csSummary['summary_badge_html'] ?? '<span style="color:var(--text-4);">None</span>') . '</span></div>
+
           </div>
         </div>
         <div class="alert-panel alert-panel--info" style="padding:16px; margin-bottom:16px;">
